@@ -1,7 +1,0 @@
-﻿One-Page/index.html
-
-Per le news e in OUR PORTFOLIO la gestione a tab per le fonti. (Mettere un tetto max di abilitate)
-Ha anche da vedere il "LOAD MORE"...
-
-
-unify/portfolio_old_text_blocks.html

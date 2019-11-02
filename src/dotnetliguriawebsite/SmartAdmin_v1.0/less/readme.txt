@@ -1,1 +1,0 @@
-Dear users, note that the LESS section is still underconstruction. However you are able to use the bootstrap.less along with the variable.less file to configure only the bootstrap base theme at the moment.
