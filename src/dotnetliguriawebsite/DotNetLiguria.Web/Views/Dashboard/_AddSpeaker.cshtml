@@ -1,0 +1,39 @@
+﻿@model DotNetLiguria.Models.WorkshopSpeaker
+
+<script src="//cdn.ckeditor.com/4.4.7/full/ckeditor.js"></script>
+
+<form method="post" action="/Dashboard/AddSpeaker" enctype="multipart/form-data">
+
+    <div class="form-group">
+        <label for="Name">Name</label>
+        <input type="text" id="Name" name="Name" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+        <label for="Image">Image</label>
+        <input type="file" id="Image" name="Image" class="form-control" /><br />
+    </div>
+
+    <div class="form-group">
+        <label for="BlogHtml">BlogHtml</label>
+        <br />
+        @Html.TextAreaFor(x => x.BlogHtml, new { @name = "editor", @class = "ckeditor", @id = "editor1" })
+    </div>
+
+
+    <script type="text/javascript">
+        CKEDITOR.replace('editor1', {
+            filebrowserImageBrowseUrl: '/Dashboard/uploadPartial',
+            filebrowserImageUploadUrl: '/Dashboard/uploadnow'
+        });
+
+        function updateValue(id, value) {
+            // this gets called from the popup window and updates the field with a new value
+            var jqueryObjectByClass = $(".cke_dialog_ui_input_text")[1];
+            jqueryObjectByClass.value = value;
+        }
+    </script>
+    <footer>
+        <button type="submit" class="btn btn-u">Submit</button>
+    </footer>
+</form>

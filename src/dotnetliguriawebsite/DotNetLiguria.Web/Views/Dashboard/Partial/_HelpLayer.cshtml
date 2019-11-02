@@ -1,0 +1,507 @@
+﻿
+<div class="modal-body">
+
+    <div class="tab-v2">
+
+        <ul class="nav nav-tabs">
+            <li class="active"><a href="#generalHelpTab" data-toggle="tab"><i class="fa fa-gamepad"></i> General</a></li>
+            <li><a href="#layoutHelpTab" data-toggle="tab"><i class="fa fa-home"></i> Layout properties</a></li>
+            <li><a href="#slideHelpTab" data-toggle="tab"><i class="fa fa-file-image-o"></i> Slide options</a></li>
+            <li><a href="#transitionsHelpTab" data-toggle="tab"><i class="fa fa-file-image-o"></i> Transitions</a></li>
+        </ul>
+
+        <div class="tab-content">
+            <br />
+
+            <div class="tab-pane" id="generalHelpTab">
+                <h1>Ciao</h1>
+            </div>
+
+            <div class="tab-pane" id="layoutHelpTab">
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Layout properties</th>
+                            <th class="c">Values</th>
+                            <th class="c">Defaults</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>responsive</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Responsive mode provides optimal viewing experience across a wide range of devices (from desktop to mobile) by adapting and scaling your sliders for the viewing environment.</td>
+                        </tr>
+                        <tr>
+                            <td>responsiveUnder</td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">0 (disabled)</td>
+                            <td>Turns on responsiveness under a specified value of width. Useful on full width sliders. If using this, the normal responsive property should be set to false!</td>
+                        </tr>
+                        <tr>
+                            <td>layersContainer</td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">0 (disabled)</td>
+                            <td>Creates an invisible inner container with the given dimension in pixels to hold and center your layers.</td>
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="4">Slideshow properties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>autoStart</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Slideshow will automatically start after pages have loaded.</td>
+                        </tr>
+                        <tr>
+                            <td>pauseOnHover</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Slideshow will temporally pause when someone moves the mouse cursor over the slider.</td>
+                        </tr>
+                        <tr>
+                            <td>firstSlide</td>
+                            <td class="c"> number<br>'random' </td>
+                            <td class="c">1</td>
+                            <td>The slider will start with the specified slide.</td>
+                        </tr>
+                        <tr>
+                            <td>animateFirstSlide</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Disabling this option will result a static starting slide for the fisrt time on page load.</td>
+                        </tr>
+                        <tr>
+                            <td>loops</td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">0</td>
+                            <td>Number of loops if automatically start slideshow is enabled (0 means infinite!)</td>
+                        </tr>
+                        <tr>
+                            <td>forceLoopNum</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>The slider will always stop at the given number of loops, even if someone restarts slideshow.</td>
+                        </tr>
+                        <tr>
+                            <td>towWaySlideshow</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">false</td>
+                            <td>Slideshow can go backwards if someone switch to a previous slide.</td>
+                        </tr>
+                        <tr>
+                            <td>randomSlideshow</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">false</td>
+                            <td>If true, LayerSlider will change to a random slide. Please note that 'loops' feature won't work with randomSlideshow!.</td>
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="4">Appearance properties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>skin</td>
+                            <td class="c"> 'skin_name' </td>
+                            <td class="c">'v5'</td>
+                            <td>You can change the skin of the slider. The 'noskin' skin is a border- and buttonless skin. Your custom skins will appear in the list when you create their folders as well.</td>
+                        </tr>
+                        <tr>
+                            <td>skinsPath</td>
+                            <td class="c"> 'skins_folder_path' </td>
+                            <td class="c">'/layerslider/skins/'</td>
+                            <td>You can change the default path of the skins folder. Note, that you must use the slash at the end of the path.</td>
+                        </tr>
+                        <tr>
+                            <td>globalBGColor</td>
+                            <td class="c"> 'color_name'  </td>
+                            <td class="c">'transparent'</td>
+                            <td>Global background color of the slider. Slides with non-transparent background will cover this one. You can use all CSS methods such as HEX or RGB(A) values.</td>
+                        </tr>
+                        <tr>
+                            <td>globalBGImage</td>
+                            <td class="c"> 'image_url'<br>false </td>
+                            <td class="c">false</td>
+                            <td>Global background image of the slider.</td>
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="4">Navigation properties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>navPrevNext</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>
+                                Disabling this option will hide the Prev and Next buttons.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>navStartStop</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>
+                                Disabling this option will hide the Start and Stop buttons.
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>navButtons</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Disabling this option will hide slide navigation buttons or thumbnails.</td>
+                        </tr>
+                        <tr>
+                            <td>hoverPrevNext</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Show the buttons only when someone moves the mouse cursor over the slider. This option depends on the previous setting.</td>
+                        </tr>
+                        <tr>
+                            <td>hoverBottomNav</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">false</td>
+                            <td>Slide navigation buttons (including thumbnails) will be shown on mouse hover only.</td>
+                        </tr>
+                        <tr>
+                            <td>keybNav</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>You can navigate through slides with the left and right arrow keys.</td>
+                        </tr>
+                        <tr>
+                            <td>touchNav</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Gesture-based navigation with swiping on touch-enabled devices.</td>
+                        </tr>
+                        <tr>
+                            <td>showBarTimer</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">false</td>
+                            <td>Show the bar timer to indicate slideshow progression. (Not working under IE7 and 8.)</td>
+                        </tr>
+                        <tr>
+                            <td>showCircleTimer</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Use circle timer to indicate slideshow progression.</td>
+                        </tr>
+                        <tr>
+                            <td>thumbnailNavigation</td>
+                            <td class="c"> 'disabled'<br>'hover'<br>'always' </td>
+                            <td class="c">'hover'</td>
+                            <td>Type of the thumbnail navigation. Note, that 'hover' setting needs navButtons property set to true!</td>
+                        </tr>
+                        <tr>
+                            <td>tnContainerWidth</td>
+                            <td class="c"> 'percentage_value' </td>
+                            <td class="c">'60%'</td>
+                            <td>The width of the thumbnail container according to the width of the slider.</td>
+                        </tr>
+                        <tr>
+                            <td>tnWidth</td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">100</td>
+                            <td>The width of the thumbnails in pixels.</td>
+                        </tr>
+                        <tr>
+                            <td>tnHeight</td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">60</td>
+                            <td>The height of the thumbnails in pixels.</td>
+                        </tr>
+                        <tr>
+                            <td>tnActiveOpacity</td>
+                            <td class="c"> 0 - 100 </td>
+                            <td class="c">35</td>
+                            <td>Opacity in percents of thumbnail of the active slide.</td>
+                        </tr>
+                        <tr>
+                            <td>tnInactiveOpacity</td>
+                            <td class="c"> 0 - 100 </td>
+                            <td class="c">100</td>
+                            <td>Opacity in percents of thumbnails of the inactive slides.</td>
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="4">Video properties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>autoPlayVideos</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Videos (and HTML5 audios) will be automatically started on the active slide.</td>
+                        </tr>
+                        <tr>
+                            <td>autoPauseSlideshow</td>
+                            <td class="c"> 'auto'<br>true<br>false </td>
+                            <td class="c">'auto'</td>
+                            <td>The slideshow can temporally paused while videos are plaing. You can choose to permanently stop the pause until manual restarting.</td>
+                        </tr>
+                        <tr>
+                            <td>youtubePreview</td>
+                            <td class="c"> 'maxresdefault.jpg'<br>'hqdefault.jpg'<br>'mqdefault.jpg'<br>'default.jpg' </td>
+                            <td class="c">'maxresdefault.jpg'</td>
+                            <td>The preview image quaility for YouTube videos. Note, some videos do not have HD previews, and you may need to choose a lower quaility.</td>
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="4">Image preload properties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>imgPreload</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Preloads images used in the next slides for seamless animations.</td>
+                        </tr>
+                        <tr>
+                            <td>lazyLoad</td>
+                            <td class="c"> true<br>false </td>
+                            <td class="c">true</td>
+                            <td>Loads images only when needed to save bandwidth and server resouces. Relies on the preload feature.</td>
+                        </tr>
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th colspan="4">YourLogo properties</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>yourLogo</td>
+                            <td class="c"> 'image_url'<br>false </td>
+                            <td class="c">false</td>
+                            <td>A fixed image layer can be shown above the slider that remains still during slide progression. Can be used to display logos or watermarks.</td>
+                        </tr>
+                        <tr>
+                            <td>yourLogoStyle</td>
+                            <td class="c"> 'CSS properties' </td>
+                            <td class="c">'left: -10px; top: -10px;'</td>
+                            <td>CSS properties to control the image placement and appearance.</td>
+                        </tr>
+                        <tr>
+                            <td>yourLogoLink</td>
+                            <td class="c"> 'url'<br>false </td>
+                            <td class="c">false</td>
+                            <td>Enter an URL to link the YourLogo image.</td>
+                        </tr>
+                        <tr>
+                            <td>yourLogoTarget</td>
+                            <td class="c">  'self'<br>'_blank'</td>
+                            <td class="c">'_blank'</td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <div class="tab-pane" id="slideHelpTab">
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Options</th>
+                            <th>Defaults</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>slidedelay</td>
+                            <td>4000</td>
+                            <td>The total duration in milliseconds while slides are being displayed.</td>
+                        </tr>
+                        <tr>
+                            <td>transition2d</td>
+                            <td>1</td>
+                            <td>2D transitions to be used.</td>
+                        </tr>
+                        <tr>
+                            <td>transition3d</td>
+                            <td>Not set</td>
+                            <td>3D transitions to be used.</td>
+                        </tr>
+                        <tr>
+                            <td>timeshift</td>
+                            <td>0</td>
+                            <td>Advance or postpone layer timings relative to slide transitions.</td>
+                        </tr>
+                        <tr>
+                            <td>deeplink</td>
+                            <td>Not set</td>
+                            <td>A deeplink alias. See the <a href="#" data-goto="deep-linking-slides">Using deep links</a> chapter for more details.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <div class="tab-pane" id="transitionsHelpTab">
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Option</th>
+                            <th class="c">Values</th>
+                            <th class="c">Defaults</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                offsetxin<br>
+                                offsetxout
+                            </td>
+                            <td class="c">left, right or a &lt;num&gt;</td>
+                            <td class="c">80<br>-80</td>
+                            <td>The horizontal offset to align the starting position of layers. Positive and negative numbers are allowed. Set left or right to position layers out of the slider.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                offsetyin<br>
+                                offsetyout
+                            </td>
+                            <td class="c">top, bottom or a &lt;num&gt;</td>
+                            <td class="c">0</td>
+                            <td>The vertical offset to align the starting position of layers. Positive and negative numbers are allowed. Set top or bottom to position layers out of the slider.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                delayin
+                            </td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">0</td>
+                            <td>Delays the layer transitions with the specified amount of time in milliseconds.</td>
+                        </tr>
+                        <tr>
+                            <td>showuntil</td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">0</td>
+                            <td>After animating in, the layer will be visible for the time you specify here, then it will animate out. You can use this setting for layers to leave the slide before the slide change or for example before other layers will slide in or out. This value in millisecs, so the value 1000 means 1 second.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                durationin<br>
+                                durationout
+                            </td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">1000</td>
+                            <td>The duration of layer transitions.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                easingin<br>
+                                easingout
+                            </td>
+                            <td class="c">easing_name</td>
+                            <td class="c">easeInOutQuint</td>
+                            <td>The timing function used for transitions. See <a href="http://easings.net/">easings.net</a> for more information.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                fadein<br>
+                                fadeout
+                            </td>
+                            <td class="c">true, false</td>
+                            <td class="c">true</td>
+                            <td>Fades in / out the layer during the transition.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                rotatein<br>
+                                rotateout
+                            </td>
+                            <td class="c">&lt;angle&gt;</td>
+                            <td class="c">0</td>
+                            <td>Rotates the layer clockwise from the given angle to zero degree. Negative values are allowed for anticlockwise rotation.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                rotatexin<br>
+                                rotatexout
+                            </td>
+                            <td class="c">&lt;angle&gt;</td>
+                            <td class="c">0</td>
+                            <td>Rotates the layer along the X (horizontal) axis from the given angle to zero degree. Negative values are allowed for reverse direction.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                rotateyin<br>
+                                rotateyout
+                            </td>
+                            <td class="c">&lt;angle&gt;</td>
+                            <td class="c">0</td>
+                            <td>Rotates the layer along the Y (vertical) axis from the given angle to zero degree. Negative values are allowed for reverse direction.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                scalexin<br>
+                                scalexout
+                            </td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">1</td>
+                            <td>Scales the layer's width from the given value to its original size.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                scaleyin<br>
+                                scaleyout
+                            </td>
+                            <td class="c">&lt;num&gt;</td>
+                            <td class="c">1</td>
+                            <td>Scales the layer's height from the given value to its original size.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                skewxin<br>
+                                skewxout
+                            </td>
+                            <td class="c">&lt;angle&gt;</td>
+                            <td class="c">0</td>
+                            <td>Skews the layer along the X (horizontal) axis from the given angle to 0 degree. Negative values are allowed for reverse direction.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                skewyin<br>
+                                skewyout
+                            </td>
+                            <td class="c">&lt;angle&gt;</td>
+                            <td class="c">0</td>
+                            <td>Skews the layer along the Y (vertical) axis from the given angle to 0 degree. Negative values are allowed for reverse direction.</td>
+                        </tr>
+                        <tr>
+                            <td>
+                                transformoriginin
+                                transformoriginout
+                            </td>
+                            <td class="c">x y z</td>
+                            <td class="c">50% 50% 0</td>
+                            <td>This option allows you to modify the origin for transformations of the layer according to its position. The three values represent the X, Y and Z axis in 3D space. OriginX can be left, center, right, a number or a percentage value. OriginY can be top, center, bottom, a number or a percentage value. OriginZ can be a number and corresponds the depth in 3D space.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+</div>

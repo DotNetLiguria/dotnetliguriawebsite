@@ -1,0 +1,59 @@
+﻿@model DotNetLiguria.Models.Workshop
+
+@{
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<div class="container content">
+
+    <!--Striped and Hover Rows-->
+    <div class="row">
+        <!--Striped Rows-->
+        <div class="col-md-12">
+            <div class="panel panel-sea margin-bottom-40">
+                <div class="panel-heading">
+                    <h3 class="panel-title"><i class="fa fa-edit"></i>Check In</h3>
+                </div>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Username</th>
+                            <th>Signed Date</th>
+                            <th>Check-In</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Workshopsubscribed)
+                        {
+                            <tr>
+                                <td></td>
+                                <td>@user.User.Email</td>
+                                <td>@user.SignedDate</td>
+                                <td>
+                                    @if (!@user.CheckIn)
+                                    {
+                                        <button class="btn btn-warning btn-xs" onclick="javascript:window.location=('@Url.Action("CheckIn", "Dashboard", new { user.WorkshopUndersignedId })')">
+                                            <i class="fa fa-trash-o"></i> Check-In
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        @user.CheckIn
+                                    }
+                                </td>
+                            </tr>
+                        }
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <!--End Striped Rows-->
+    </div>
+    <!--End Striped and Hover Rows-->
+
+</div>
+
+
+

@@ -1,0 +1,57 @@
+﻿@model DotNetLiguria.Models.OffertaLavoro
+
+
+<!-- CSS Page Style -->
+<link rel="stylesheet" href="~/Content/Unify/css/pages/shortcode_timeline2.css">
+<link rel="stylesheet" href="~/Content/Unify/css/pages/profile.css">
+<link rel="stylesheet" href="~/Content/Unify/plugins/fancybox/source/jquery.fancybox.css">
+
+<div class="breadcrumbs">
+    <div class="container">
+        <h1 class="pull-left">@Model.Title</h1>
+        <ul class="pull-right breadcrumb">
+            <li><a href="@Url.Action("Index", "Home")">Home</a></li>
+            <li><a href="@Url.Action("Index", "OfferteLavoro")">Offerte lavoro</a></li>
+            <li class="active">@Model.Title</li>
+        </ul>
+    </div><!--/container-->
+</div>
+
+
+
+<div class="container content profile">
+
+    <!--=== Profile ===-->
+    <div class="profile-body">
+        <div class="profile-bio">
+            <div class="row">
+                <div class="col-md-3">
+                    <img class="img-responsive md-margin-bottom-10" src="@Model.Logo" alt="">
+                </div>
+                <div class="col-md-9">
+                    <h2>@Model.Title</h2>
+                    <h4><i class="fa fa-clock-o"></i> @Model.CreationDate.ToString("dd MMMM yyyy")</h4>
+                    <h4><i class="icon-home"></i> @Model.Azienda</h4>
+                    <h4><i class="icon-map"></i> @Model.Luogo</h4>
+                    <hr>
+                    <p>@Model.Description</p>
+                </div>
+            </div>
+        </div><!--/end row-->
+
+        <hr>
+
+        @Html.Raw(Model.BlogHtml)
+
+    </div>
+    <!--=== End Profile ===-->
+    <hr />
+
+    <br />
+    <a href="@Model.Link" target="_blank" class="btn btn-ar btn-sm btn-primary pull-right"><i class="fa fa-external-link"></i> Vedi annuncio</a>
+    <br />
+
+</div>
+
+
+

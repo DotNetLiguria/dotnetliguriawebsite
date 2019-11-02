@@ -1,0 +1,96 @@
+﻿@model DotNetLiguria.Models.Workshop
+
+@{
+    ViewBag.Title = "Test";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<!-- CSS Header and Footer -->
+<link rel="stylesheet" href="~/content/Unify/css/headers/header-default.css">
+<link rel="stylesheet" href="~/content/Unify/css/footers/footer-v1.css">
+
+<!-- CSS Implementing Plugins -->
+<link rel="stylesheet" href="~/content/Unify/plugins/animate.css">
+<link rel="stylesheet" href="~/content/Unify/plugins/line-icons/line-icons.css">
+<link rel="stylesheet" href="~/content/Unify/plugins/font-awesome/css/font-awesome.min.css">
+<link rel="stylesheet" href="~/content/Unify/plugins/sky-forms-pro/skyforms/css/sky-forms.css">
+<link rel="stylesheet" href="~/content/Unify/plugins/sky-forms-pro/skyforms/custom/custom-sky-forms.css">
+<!--[if lt IE 9]><link rel="stylesheet" href="assets/plugins/sky-forms-pro/skyforms/css/sky-forms-ie8.css"><![endif]-->
+<!-- CSS Customization -->
+<link rel="stylesheet" href="~/content/Unify/css/custom.css">
+
+<!--=== Breadcrumbs ===-->
+<div class="breadcrumbs">
+    <div class="container">
+        <h1 class="pull-left">Advanced Forms</h1>
+        <ul class="pull-right breadcrumb">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="">Features</a></li>
+            <li class="active">Advanced Forms</li>
+        </ul>
+    </div>
+</div><!--/breadcrumbs-->
+<!--=== End Breadcrumbs ===-->
+<!--=== Content Part ===-->
+<div class="container content">
+
+    @*<form method="post" action="/Dashboard/Submit" id="sky-form" class="sky-form">
+        <header>Datepicker</header>*@
+
+        <fieldset>
+            <section>
+                <label class="label">Select single date</label>
+                <label class="input">
+                    <i class="icon-append fa fa-calendar"></i>
+                    <input type="text" name="DataEvento" id="date">
+                </label>
+            </section>
+        </fieldset>
+
+        <input type="submit" value="Inserisci" class="btn btn-success" />
+
+    @*</form>*@
+
+    @*<form method="post" action="/Dashboard/Submit" id="sky-form2" class="sky-form">
+        <fieldset>
+            <section>
+                <label class="label">Select single date</label>
+                <label class="input">
+                    <i class="icon-append fa fa-calendar"></i>
+                    <input type="text" name="date" id="date">
+                </label>
+            </section>
+        </fieldset>
+    </form>*@
+
+</div>
+
+<!--=== End Content Part ===-->
+<!-- JS Global Compulsory -->
+<script type="text/javascript" src="~/content/Unify/plugins/jquery/jquery.min.js"></script>
+<script type="text/javascript" src="~/content/Unify/plugins/jquery/jquery-migrate.min.js"></script>
+<script type="text/javascript" src="~/content/Unify/plugins/bootstrap/js/bootstrap.min.js"></script>
+<!-- JS Implementing Plugins -->
+<script type="text/javascript" src="~/content/Unify/plugins/back-to-top.js"></script>
+<script type="text/javascript" src="~/content/Unify/plugins/smoothScroll.js"></script>
+<script src="~/content/Unify/plugins/sky-forms-pro/skyforms/js/jquery.maskedinput.min.js"></script>
+<script src="~/content/Unify/plugins/sky-forms-pro/skyforms/js/jquery-ui.min.js"></script>
+<script src="~/content/Unify/plugins/sky-forms-pro/skyforms/js/jquery.validate.min.js"></script>
+<!-- JS Customization -->
+<script type="text/javascript" src="~/content/Unify/js/custom.js"></script>
+<!-- JS Page Level -->
+<script type="text/javascript" src="~/content/Unify/js/app.js"></script>
+<script type="text/javascript" src="~/content/Unify/js/plugins/masking.js"></script>
+<script type="text/javascript" src="~/content/Unify/js/plugins/datepicker.js"></script>
+<script type="text/javascript" src="~/content/Unify/js/plugins/validation.js"></script>
+<script type="text/javascript">
+    jQuery(document).ready(function () {
+        App.init();
+        Masking.initMasking();
+        Datepicker.initDatepicker();
+        Validation.initValidation();
+    });
+</script>
+
+
+

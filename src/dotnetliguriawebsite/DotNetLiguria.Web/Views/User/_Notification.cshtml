@@ -1,0 +1,54 @@
+﻿@model IEnumerable<DotNetLiguria.Models.Notification>
+
+<div class="panel panel-profile">
+    <div class="panel-heading overflow-h">
+        <h2 class="panel-title heading-sm pull-left"><i class="fa fa-send"></i> Le tue attività</h2>
+        @*<a href="#"><i class="fa fa-cog pull-right"></i></a>*@
+    </div>
+    <div id="scrollbar3" class="panel-body no-padding mCustomScrollbar" data-mcs-theme="minimal-dark">
+        @foreach (var notification in Model)
+        {
+            <div class="alert-blocks alert-blocks-info alert-dismissable">
+                @*<button aria-hidden="true" data-dismiss="alert" class="close" type="button">×</button>*@
+                @switch (notification.NotificationTypeId)
+                {
+                    case DotNetLiguria.Models.NotificationType.WorkshopUndersigned:
+                        <i class="icon-custom rounded-x icon-bg-yellow glyphicon glyphicon-pencil"></i>
+                        <div class="overflow-h">
+                            <strong class="color-yellow">Registrazione <small class="pull-right"><em>@notification.Timestamp.ToString("dd/MM/yyyy HH:mm")</em></small></strong>
+                            <p>@notification.Description</p>
+                        </div>
+                        break;
+                    case DotNetLiguria.Models.NotificationType.RemoveUndersigned:
+                        <i class="icon-custom rounded-x icon-bg-red glyphicon glyphicon-warning-sign"></i>
+                        <div class="overflow-h">
+                            <strong class="color-red">Cancellazione <small class="pull-right bottom-right"><em>@notification.Timestamp.ToString("dd/MM/yyyy HH:mm")</em></small></strong>
+                            <p>@notification.Description</p>
+                        </div>
+                        break;
+                    case DotNetLiguria.Models.NotificationType.CheckIn:
+                        <i class="icon-custom rounded-x icon-bg-green glyphicon glyphicon-barcode"></i>
+                        <div class="overflow-h">
+                            <strong class="color-green">Check In<small class="pull-right"><em>@notification.Timestamp.ToString("dd/MM/yyyy HH:mm")</em></small></strong>
+                            <p>@notification.Description</p>
+                        </div>
+                        break;
+                    case DotNetLiguria.Models.NotificationType.Feedback:
+                        <i class="icon-custom rounded-x icon-bg-dark-blue glyphicon glyphicon-pushpin"></i>
+                        <div class="overflow-h">
+                            <strong class="color-blue">Lasciato Feedback <small class="pull-right"><em>@notification.Timestamp.ToString("dd/MM/yyyy HH:mm")</em></small></strong>                      
+                            <p>@notification.Description</p>
+                        </div>
+                        break;
+                    default:
+                        <i class="icon-custom rounded-x icon-bg-blue icon icon-speech"></i>
+                        <div class="overflow-h">
+                            <strong class="color-blue">Info <small class="pull-right"><em>@notification.Timestamp.ToString("dd/MM/yyyy HH:mm")</em></small></strong>
+                            <p>@notification.Description</p>
+                        </div>
+                        break;
+                }
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,8 @@
+﻿
+
+
+Dopo creazione DB lanciare il controller /Account/InitDuke viene creato l'utente board@dotnetliguria.net con password 1234\zxcv
+
+Bisogna sloggarsi e rilogarsi però per vedere le nuove voci.
+
+Andare in dashboard e lanciare create database. A quel punto hai tutto.

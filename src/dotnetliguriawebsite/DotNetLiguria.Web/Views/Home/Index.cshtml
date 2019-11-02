@@ -1,0 +1,123 @@
+﻿@model DotNetLiguria.ViewModels.HomeViewModels
+
+@{
+    ViewBag.Title = "Home Page";
+}
+
+<!-- CSS Implementing Plugins -->
+<link rel="stylesheet" href="~/Content/Unify/plugins/line-icons/line-icons.css">
+<link rel="stylesheet" href="~/Content/Unify/plugins/font-awesome/css/font-awesome.min.css">
+<link rel="stylesheet" href="~/Content/Unify/plugins/layer-slider/layerslider/css/layerslider.css">
+@*<link rel="stylesheet"  href="~/Content/Unify/plugins/layer-slider/layerslider/skins/fullwidth/skin.css" rel="stylesheet" />*@
+
+<!--=== Slider ===-->
+@*@Html.Partial("_SlidersControl")*@
+
+<!--=== Slider ===-->
+<div class="slider-inner">
+    <div id="da-slider" class="da-slider">
+        @foreach (var item in Model.Sliders.Where(x => x.Enable).ToList())
+        {
+            <div class="da-slide">
+                <div class="da-img"><a href="@item.Title" target="_blank"><img class="fimg-responsive full-width" src="@item.Image" alt=""></a></div>
+            </div>
+        }
+    </div>
+</div><!--/slider-->
+<!--=== End Slider ===-->
+<!--=== End Slider ===-->
+<!--=== Purchase Block ===-->
+<div class="purchase">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6 animated fadeInLeft">
+                @*@MvcHtmlString.Create(ViewBag.LeftShoulder)*@
+                @Html.Action("Snippet", "Home", new { section = DotNetLiguria.Models.SectionName.LeftShoulder })
+            </div>
+            <div class="col-md-6 animated fadeInRight">
+                @*@MvcHtmlString.Create(ViewBag.RightShoulder)*@
+                @Html.Action("Snippet", "Home", new { section = DotNetLiguria.Models.SectionName.RightShoulder })
+            </div>
+        </div>
+    </div>
+</div><!--/row-->
+<!-- End Purchase Block -->
+<!--=== Content Part ===-->
+<div class="container content-sm">
+    @*<!-- Center Top -->
+        <div class="headline"><h2>Center Top</h2></div>
+        @Html.Action("Snippet", "Home", new { section = DotNetLiguria.Models.SectionName.CenterTop })
+        <!-- Center Top -->*@
+
+    <!-- Center Middle -->
+    <div class="row margin-left-5">
+        <div class="col-12">
+            <div class="row">
+                <div class="col-sm-3 two-div pull-right">
+                    <a class="twitter-timeline" data-lang="it" data-width="260" data-height="1000" href="https://twitter.com/dotnetliguria">Tweets</a>
+                    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+                </div>
+                <div class="col-sm-9 pull-left">
+                    <div class="partialContents" data-url="/news/mini" >
+                        <h3>
+                            <img src="~/Content/images/loading-rectangle.gif" width="20" height="16" />
+                            Loading...
+                        </h3>
+                    </div>
+                </div>
+                <div class="col-sm-9">
+                    <div class="partialContents" data-url="/blogs/mini" style="display:block; margin-left:auto; margin-right:auto; min-height:200px">
+                        <h3>
+                            <img src="~/Content/images/loading-rectangle.gif" width="20" height="16" />
+                            Loading...
+                        </h3>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        @*@Html.Action("Snippet", "Home", new { section = DotNetLiguria.Models.SectionName.CenterMiddle })*@
+        <!-- Center Middle -->
+        <!-- Center Bottom -->
+        @*<div class="partialContents" data-url="/workshops/mini" style="display:block; margin-left:auto; margin-right:auto; min-height:200px">
+                <h3>
+                    <img src="~/Content/images/loading-rectangle.gif" width="20" height="16" />
+                    Loading...
+                </h3>
+            </div>*@
+        <!-- Center Bottom -->
+
+    </div><!--/container-->
+    <!-- End Content Part -->
+    <!-- JS Implementing Plugins -->
+    <script type="text/javascript" src="~/Content/Unify/plugins/smoothScroll.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/plugins/parallax-slider/js/modernizr.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/plugins/parallax-slider/js/jquery.cslider.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/plugins/owl-carousel/owl-carousel/owl.carousel.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/plugins/layer-slider/layerslider/js/greensock.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/plugins/layer-slider/layerslider/js/layerslider.transitions.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/plugins/layer-slider/layerslider/js/layerslider.kreaturamedia.jquery.js"></script>
+    <!-- End JS Implementing Plugins -->
+    <!-- JS Page Level -->
+    <script type="text/javascript" src="~/Content/Unify/js/app.js"></script>
+    <script type="text/javascript" src="~/Content/Unify/js/plugins/layer-slider.js"></script>
+
+    <script type="text/javascript">
+
+    jQuery(document).ready(function () {
+        App.init();
+        LayerSlider.initLayerSlider();
+    });
+
+    $(document).ready(function (e) {
+
+        $(".partialContents").each(function (index, item) {
+            var url = "@Url.Content("~/").TrimEnd('/')" + $(item).data("url");
+            if (url && url.length > 0) {
+                $(item).load(url);
+            }
+        });
+    });
+
+    </script>

@@ -1,0 +1,516 @@
+﻿@model DotNetLiguria.Models.Workshop
+
+@{
+    ViewBag.Title = "EditWorkshop";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<link href="~/Content/plugins/bootstrap-datepicker/css/datepicker3.css" rel="stylesheet" />
+<script src="~/Content/plugins/bootstrap-datepicker/js/bootstrap-datepicker.js"></script>
+
+<script src="//cdn.ckeditor.com/4.4.7/full/ckeditor.js"></script>
+
+<hr />
+
+<div class="row">
+    <div class="col-md-1">
+        <img class="img-thumbnail" src="@Model.Image" alt="">
+        <br /><br />
+        <button class="btn btn-warning" data-toggle="modal" data-target="#changeLogo"><i class="fa fa-image"></i> Change</button>
+    </div>
+    <div class="col-md-6">
+        <h2>@Model.Title</h2>
+        <h4><i class="fa fa-clock-o"></i> @Model.EventDate.ToString("dd MMMM yyyy")</h4>
+        <h4><i class="icon-map"></i> @Model.Location.Address</h4>
+        <hr>
+        <p>@Model.Description</p>
+    </div>
+</div>
+
+@*<button class="btn btn-danger btn-large" onclick="javascript:window.location=('@Url.Action("WorkshopTracks", "Dashboard", new { @Model.WorkshopId})')"><i class="fa fa-list-ol"></i> Tracks</button>
+<button class="btn btn-warning btn-large" onclick="javascript:window.location=('@Url.Action("WorkshopFiles", "Dashboard", new { @Model.WorkshopId})')"><i class="fa fa-file-archive-o"></i> Files</button>*@
+@*<button class="btn btn-warning btn-large" data-toggle="modal" data-target="#addFile"><i class="fa fa-file"></i> Add Files</button>*@
+
+<hr />
+
+<div class="tab-v2">
+    <ul class="nav nav-tabs">
+        <li class="active"><a href="#generalTab" data-toggle="tab"><i class="fa fa-dashboard"></i> General</a></li>
+        <li><a href="#locationTab" data-toggle="tab"><i class="fa fa-map-marker"></i> Location</a></li>
+        <li><a href="#registrationTab" data-toggle="tab"><i class="fa fa-mail-reply-all"></i> Registation</a></li>
+        <li><a href="#tracksTab" data-toggle="tab"><i class="fa fa-list"></i> Tracks</a></li>
+        <li><a href="#filesTab" data-toggle="tab"><i class="fa fa-file-archive-o"></i> Files</a></li>
+        <li><a href="#undersignedTab" data-toggle="tab"><i class="fa fa-sign-in"></i> Undersigned</a></li>
+        <li><a href="#feedBackTab" data-toggle="tab"><i class="fa fa-file-excel-o"></i> FeedBack</a></li>
+    </ul>
+
+    <div class="tab-content">
+        <br />
+
+        <div class="tab-pane fade in active" id="generalTab">
+            <form method="post" action="/Dashboard/UpdateWorkshop" enctype="multipart/form-data" class="col-md-6">
+
+                <div class="form-group pull-right">
+                    <input type="submit" value="Save" class="btn btn-success" />
+                </div>
+
+                @Html.HiddenFor(x => x.WorkshopId)
+
+                <div class="form-group">
+                    <label for="Title">Title</label>
+                    <input type="text" id="Title" name="Title" class="form-control" value="@Model.Title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="Description">Description</label>
+                    @Html.TextAreaFor(m => m.Description, new { @class = "form-control", required = "required" })
+                </div>
+
+                @*<div class="form-group">
+                    <label for="EventDate">EventDate</label>
+                    <i class="icon-append fa fa-calendar"></i>
+                    @Html.TextBoxFor(model => model.EventDate, "{0:dd MMM yyyy}", new { @class = "form-control datepicker", required = "required" })
+                </div>*@
+
+                <div class="form-group">
+                    <label for="EventDate">EventDate</label>
+                    <i class="icon-append fa fa-calendar"></i>
+                    <input type="text" id="EventDate" name="EventDate" class="form-control" value="@Model.EventDate">
+                    @Html.ValidationMessageFor(model => model.EventDate)
+                </div>
+
+                <div class="form-group">
+                    <label for="Tags">Tags</label>
+                    <input type="text" id="Tags" name="Tags" class="form-control" value="@Model.Tags">
+                </div>
+
+                <div class="form-group">
+                    <label>Published</label>
+                    @Html.CheckBoxFor(x => x.Published)
+                </div>
+
+
+                @Html.HiddenFor(x => x.WorkshopId)
+                @Html.HiddenFor(x => x.Location.Name)
+                @Html.HiddenFor(x => x.Location.Address)
+                @Html.HiddenFor(x => x.Location.Coordinates)
+                @Html.HiddenFor(x => x.Location.MaximumSpaces)
+                @Html.HiddenFor(x => x.ExternalRegistration)
+                @Html.HiddenFor(x => x.ExternalRegistrationLink)
+                @Html.HiddenFor(x => x.BlogHtml)
+
+            </form>
+        </div>
+
+        <div class="tab-pane fade in" id="locationTab">
+            <form method="post" action="/Dashboard/UpdateWorkshop" enctype="multipart/form-data" class="col-md-6">
+
+                <div class="form-group pull-right">
+                    <input type="submit" value="Save" class="btn btn-success" />
+                </div>
+
+                @Html.HiddenFor(x => x.WorkshopId)
+                @Html.HiddenFor(x => x.Title)
+                @Html.HiddenFor(x => x.Description)
+                @Html.HiddenFor(x => x.EventDate)
+                @Html.HiddenFor(x => x.Tags)
+                @Html.HiddenFor(x => x.ExternalRegistration)
+                @Html.HiddenFor(x => x.ExternalRegistrationLink)
+                @Html.HiddenFor(x => x.BlogHtml)
+                @Html.HiddenFor(x => x.OnlyHtml)
+                @Html.HiddenFor(x => x.Published)
+
+                <div class="form-group">
+                    <label for="Location.Name">Location Name</label>
+                    <input type="text" id="Location.Name" name="Location.Name" class="form-control" value="@Model.Location.Name">
+                </div>
+
+                <div class="form-group">
+                    <label for="Location.Address">Location Address</label>
+                    <input type="text" id="Location.Address" name="Location.Address" class="form-control" value="@Model.Location.Address">
+                </div>
+
+                <div class="form-group">
+                    <label for="Location.Coordinates">Location Coordinates</label>
+                    <input type="text" id="Location.Coordinates" name="Location.Coordinates" class="form-control" value="@Model.Location.Coordinates">
+                </div>
+
+                <div class="form-group">
+                    <label for="Location.MaximumSpaces">Location MaximumSpaces</label>
+                    <input type="text" id="Location.MaximumSpaces" name="Location.MaximumSpaces" class="form-control" value="@Model.Location.MaximumSpaces">
+                </div>
+
+            </form>
+        </div>
+
+        <div class="tab-pane fade in" id="registrationTab">
+            <form method="post" action="/Dashboard/UpdateWorkshop" enctype="multipart/form-data" class="col-md-6">
+
+                <div class="form-group pull-right">
+                    <input type="submit" value="Save" class="btn btn-success" />
+                </div>
+
+                @Html.HiddenFor(x => x.WorkshopId)
+                @Html.HiddenFor(x => x.Title)
+                @Html.HiddenFor(x => x.Description)
+                @Html.HiddenFor(x => x.EventDate)
+                @Html.HiddenFor(x => x.Tags)
+                @Html.HiddenFor(x => x.Published)
+                @Html.HiddenFor(x => x.Location.Name)
+                @Html.HiddenFor(x => x.Location.Address)
+                @Html.HiddenFor(x => x.Location.Coordinates)
+                @Html.HiddenFor(x => x.Location.MaximumSpaces)
+
+
+                <div class="form-group">
+                    <label>ExternalRegistration</label>
+                    @Html.CheckBoxFor(x => x.ExternalRegistration)
+                </div>
+
+                <div class="form-group">
+                    <label for="ExternalRegistrationLink">ExternalRegistrationLink</label>
+                    <input type="text" id="ExternalRegistrationLink" name="ExternalRegistrationLink" class="form-control" value="@Model.ExternalRegistrationLink">
+                </div>
+
+                <div class="form-group">
+                    <label>IsExternalEvent</label>
+                    @Html.CheckBoxFor(x => x.IsExternalEvent)
+                </div>
+
+                <div class="form-group">
+                    <label>Show only Html</label>
+                    @Html.CheckBoxFor(x => x.OnlyHtml)
+                    <hr />
+                    <label for="BlogHtml">BlogHtml</label>
+                    @Html.TextAreaFor(x => x.BlogHtml, new { @name = "editor", @class = "ckeditor", @id = "editor1" })
+                </div>
+
+            </form>
+        </div>
+
+        <div class="tab-pane fade in" id="tracksTab">
+            <button class="btn btn-u" data-toggle="modal" data-target="#addTrackModal">Add Track</button>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Orario</th>
+                        <th>Title</th>
+                        <th>Speakers</th>
+                        <th></th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var track in Model.Tracks)
+                    {
+                        var speaker = "";
+
+                        if (track.Speakers != null && track.Speakers.Count > 0)
+                        {
+                            foreach (var item in track.Speakers)
+                            {
+                                speaker += item.Name + ", ";
+                            }
+                            speaker = speaker.Remove(speaker.Length - 2);
+                        }
+
+                        <tr>
+                            <td>@track.StartTime.TimeOfDay - @track.EndTime.TimeOfDay</td>
+                            <td>@track.Title</td>
+                            <td>@speaker</td>
+                            <td><button class="btn btn-danger btn-xs" onclick="javascript:window.location=('@Url.Action("DeleteTrack", "Dashboard", new { @Model.WorkshopId, track.WorkshopTrackId})')"><i class="fa fa-trash-o"></i> Delete</button></td>
+                            <td><button class="btn btn-warning btn-xs" onclick="javascript:window.location=('@Url.Action("EditTrack", "Dashboard", new { @Model.WorkshopId, track.WorkshopTrackId})')"><i class="fa fa-pencil"></i> Edit</button></td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+
+        <div id="filesTab" class="tab-pane fade in">
+            <button class="btn btn-warning btn-large" data-toggle="modal" data-target="#addFile"><i class="fa fa-file"></i> Add Files</button>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Title</th>
+                        <th>File Name</th>
+                        <th>File Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var file in Model.WorkshopFiles)
+                    {
+                        <tr>
+                            @if (file.FileType == DotNetLiguria.Models.WorkshopFileType.Image)
+                            {
+                                <td><i class="fa fa-file-image-o"></i></td>
+                            }
+                            else if (file.FileType == DotNetLiguria.Models.WorkshopFileType.Material)
+                            {
+                                <td><i class="fa fa-book"></i></td>
+                            }
+                            else if (file.FileType == DotNetLiguria.Models.WorkshopFileType.Photo)
+                            {
+                                <td><i class="fa fa-photo"></i></td>
+                            }
+                            else if (file.FileType == DotNetLiguria.Models.WorkshopFileType.Poster)
+                            {
+                                <td><i class="fa fa-file-pdf-o"></i></td>
+                            }
+                            else if (file.FileType == DotNetLiguria.Models.WorkshopFileType.Video)
+                            {
+                                <td><i class="fa fa-video-camera"></i></td>
+                            }
+                            else
+                            {
+                                <td><i class="fa fa-eraser"></i></td>
+                            }
+                            <td>@file.Title</td>
+                            <td>@file.FileName</td>
+                            <td>@file.FileType.ToString()</td>
+                            <td><a href="@file.FullPath" target="_blank"><i class="fa fa-download"></i> Download</a></td>
+                            <td><button class="btn btn-danger btn-xs" onclick="javascript:window.location=('@Url.Action("DeleteWorkshopFiles", "Dashboard", new { @Model.WorkshopId, file.WorkshopFileId})')"><i class="fa fa-trash-o"></i> Delete</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div id="undersignedTab" class="tab-pane fade in">
+            <hr />
+            <button class="btn btn-warning btn-xs" onclick="javascript:window.location=('@Url.Action("CheckInAll", "Dashboard", new {@Model.WorkshopId})')">
+                <i class="fa fa-certificate"></i> Check-In
+            </button>
+            <hr />
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Username</th>
+                        <th>Signed Date</th>
+                        <th>Check-In</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Workshopsubscribed)
+                    {
+                        <tr>
+                            <td></td>
+                            <td>@user.User.Email</td>
+                            <td>@user.SignedDate</td>
+                            <td>
+                                @if (!@user.CheckIn)
+                                {
+                                    <button class="btn btn-warning btn-xs" onclick="javascript:window.location=('@Url.Action("CheckIn", "Dashboard", new {@Model.WorkshopId, user.WorkshopUndersignedId })')">
+                                        <i class="fa fa-certificate"></i> Check-In
+                                    </button>
+                                }
+                                else
+                                {
+                                    @user.CheckIn
+                                }
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+
+        <div id="feedBackTab" class="tab-pane fade in">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Username</th>
+                        <th>Signed Date</th>
+                        <th>Check-In</th>
+                        <th>Vote</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Workshopsubscribed)
+                    {
+                        <tr>
+                            <td></td>
+                            <td>@user.User.Email</td>
+                            <td>@user.SignedDate</td>
+                            <td>@user.CheckIn</td>
+                            <td>@GetFeedback(user)</td>
+                        </tr>
+                    }
+
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addFile" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" data-dismiss="modal" class="close" type="button">×</button>
+                <h4 id="myModalLabel1" class="modal-title">Add File</h4>
+            </div>
+
+            <div class="modal-body">
+                @Html.Partial("_WorkshopUpload")
+            </div>
+
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn btn-u btn-u-default" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="changeLogo" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" data-dismiss="modal" class="close" type="button">×</button>
+                <h4 id="myModalLabel1" class="modal-title">Change Logo</h4>
+            </div>
+
+            <div class="modal-body">
+
+                <form method="post" action="/Dashboard/UpdateWorkshopLogo" enctype="multipart/form-data">
+
+                    @Html.HiddenFor(x => x.WorkshopId)
+
+                    <div class="form-group">
+
+                        <div class="center-block">
+                            <img id="fotoPrev" src="@Model.Image" class="img-thumbnail" />
+                        </div>
+
+                        <br />
+
+                        <div>
+                            <input type="text" id="Image" name="Image" class="form-control" value="@Model.Image">
+                            <br />
+                            <span class="btn btn-default btn-file margin-10">
+                                <input type="file" id="file" name="file" value="@Model.Image">
+                            </span>
+                            <br />
+                            <label>Immagine dimensione massima (800 KByte)</label>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <div class="form-group">
+                        <input type="submit" value="Save" class="btn btn-success" />
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn btn-u btn-u-default" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addTrackModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" data-dismiss="modal" class="close" type="button">×</button>
+                <h4 id="myModalLabel1" class="modal-title">Add Track</h4>
+            </div>
+
+            <div class="modal-body">
+                @{ 
+                    DotNetLiguria.Models.WorkshopTrack WorkshopTrackToAdd = new DotNetLiguria.Models.WorkshopTrack() { WorkshopId = Model.WorkshopId };
+                }
+
+                @Html.Partial("_AddTrack", WorkshopTrackToAdd)
+            </div>
+
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn btn-u btn-u-default" type="button">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@functions{
+    public string GetFeedback(DotNetLiguria.Models.WorkshopUndersigned user)
+    {
+        var feedback = "No voto";
+
+        if (@user.Feedback != null)
+        {
+            feedback = @user.Feedback.Vote.ToString() + " (";
+
+            foreach (var item in @user.Feedback.TracksFeedback)
+            {
+                feedback += item.Vote.ToString() + "/";
+            }
+
+            if (@user.Feedback.TracksFeedback.Count() > 0)
+                feedback = feedback.Remove(feedback.Length - 1);
+
+            feedback += ")";
+        }
+        return feedback;
+    }
+}
+
+<script type="text/javascript">
+    $(function () {
+        $('.datepicker').datepicker();
+    });
+</script>
+
+<script type="text/javascript">
+    CKEDITOR.replace('editor1', {
+        filebrowserImageBrowseUrl: '/Dashboard/uploadPartial',
+        filebrowserImageUploadUrl: '/Dashboard/uploadnow'
+    });
+
+    function updateValue(id, value) {
+        // this gets called from the popup window and updates the field with a new value
+        var jqueryObjectByClass = $(".cke_dialog_ui_input_text")[1];
+        jqueryObjectByClass.value = value;
+    }
+</script>
+
+<script type="text/javascript">
+    function readURL(input) {
+
+        if (input.files && input.files[0]) {
+
+            var fsize = $('#file')[0].files[0].size;
+
+            if (fsize > 800000) {
+                alert("Immagine troppo grande : " + fsize + " Bytes");
+                $('#file').val("");
+            }
+            else {
+
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    $('#fotoPrev').attr('src', e.target.result);
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    }
+
+    $(document).ready(function () {
+
+        $("#file").change(function () {
+            readURL(this);
+        });
+
+    });
+
+</script>

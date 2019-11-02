@@ -1,0 +1,26 @@
+﻿@model DotNetLiguria.Models.SliderObjBase
+
+<div class="form-group">
+    <label for="Top">Top</label>
+    <input type="text" id="Top" name="Top" class="form-control" value="@Model.Top" required /><br />
+</div>
+
+<div class="form-group">
+    <label for="Left">Left</label>
+    <input type="text" id="Left" name="Left" class="form-control" value="@Model.Left" required /><br />
+</div>
+
+@if (Model.GetType() == typeof(DotNetLiguria.Models.CustomHtmlSliderObj) || Model.GetType().BaseType == typeof(DotNetLiguria.Models.CustomHtmlSliderObj))
+{
+}
+else
+{
+    <div class="form-group">
+        <label for="Height">Height</label>
+        <input type="text" id="Height" name="Height" class="form-control" value="@Model.Height">
+    </div>
+    <div class="form-group">
+        <label for="Width">Width</label>
+        <input type="text" id="Width" name="Width" class="form-control" value="@Model.Width">
+    </div>
+}

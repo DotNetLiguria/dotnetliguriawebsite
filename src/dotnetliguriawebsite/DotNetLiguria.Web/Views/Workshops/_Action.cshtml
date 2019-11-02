@@ -1,0 +1,101 @@
+﻿@model DotNetLiguria.ViewModels.WorkshopViewModels
+
+@helper ShowFreeSpace(bool registred)
+{
+var freeSlot = Model.Workshop.Location.MaximumSpaces - Model.Workshop.Workshopsubscribed.Count();
+
+if (freeSlot > 0)
+{
+    if (registred)
+    {
+            <span class="badge badge-dark-blue rounded-2x">@freeSlot</span>
+    }
+    else
+    {
+            <span class="badge badge-green rounded-2x">@freeSlot</span>
+    }
+}
+else
+{
+        <span class="badge badge-red rounded-2x">@freeSlot</span>
+}
+}
+
+<div class="who margin-bottom-30">
+    <div class="headline"><h2>Our Services</h2></div>
+    <p>@*At vero eos et accusamus et iusto odio dign issimos ducimus qui blanditiis iusto.*@</p>
+    <ul class="list-group sidebar-nav-v1" id="sidebar-nav">
+        @if (Model.Workshop.EventDate > DateTime.Now)
+        {
+            if (Model.Workshop.ExternalRegistration)
+            {
+                <li class="list-group-item">
+                    <h2><a href="@Model.Workshop.ExternalRegistrationLink" target="_blank" class="btn btn-block"><i class="fa fa-group"></i>Subscribe</a></h2>
+                </li>
+            }
+            else
+            {
+                if (Model.ShowSubscribe())
+                {
+                    <li class="list-group-item">
+                        @ShowFreeSpace(false)
+                        <h2><a href="@Url.Action("Subscribe", new { workshopId = Model.Workshop.WorkshopId })" class="btn btn-block"><i class="fa fa-group"></i>Subscribe</a></h2>
+                    </li>
+                }
+                else if (Model.ShowUnsubscribe())
+                {
+                    <li class="list-group-item">
+                        @ShowFreeSpace(true)
+                        <h2><a href="@Url.Action("Unsubscribe", new { workshopId = Model.Workshop.WorkshopId })" class="btn btn-block"><i class="fa fa-group"></i>Unsubscribe</a></h2>
+                    </li>
+                }
+                else
+                {
+                    <li class="list-group-item disabled">
+                        <h2><a href="#" class="btn btn-block"><i class=" fa fa-group"></i>Subscribe</a></h2>
+                    </li>
+                }
+            }
+        }
+        else
+        {
+            <li class="list-group-item disabled">
+                <span class="badge badge-green">Terminated</span>
+                <a href="#"><i class=" fa fa-group"></i>Subscribe</a>
+            </li>
+        }
+        @if (Model.ShowFeedback())
+        {
+            <li class="list-group-item">
+                <h2><a href="#" data-toggle="modal" data-target="#addFeedback" class="btn btn-block"><i class="fa fa-bullhorn"></i>Feedback</a></h2>
+            </li>
+        }
+        @*else
+        {
+            <li class="list-group-item disabled">
+                <h2><a href="#" class="btn btn-block"><i class="fa fa-bullhorn"></i>Feedback non permessi</a></h2>
+            </li>
+        }*@
+        @if (Model.Files.Count() > 0)
+        {
+            <li class="list-group-item list-toggle">
+                <span class="badge rounded-x badge-green">@Model.Files.Count()</span>
+                <a href="#collapse-1" class="collapsed" aria-expanded="false" data-toggle="collapse" data-parent="sidebar-nav">
+                    <i class="fa fa-desktop">
+                    </i>Download
+                </a>
+                <ul id="collapse-1" class="collapse">
+                    @foreach (var file in (Model.Files))
+                    {
+                        <li><a href="@file.FullPath" target="_blank"><i class="fa fa-download"></i> @file.Title</a></li>
+                    }
+                </ul>
+            </li>
+        }
+        else
+        {
+            <li class="list-group-item"><h2><a href="#" class="btn btn-block disabled"><i class="fa fa-desktop"></i>Download</a></h2></li>
+        }
+    </ul>
+</div>
+

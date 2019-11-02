@@ -1,0 +1,63 @@
+﻿@model DotNetLiguria.Models.CustomHtmlSliderObj
+
+@{
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<h2>Edit Custom HTML Slider Obj</h2>
+
+<script src="//cdn.ckeditor.com/4.4.7/full/ckeditor.js"></script>
+
+<form method="post" action="/Dashboard/EditCustomHtmlSliderObj">
+
+    @Html.HiddenFor(model => model.SliderObjBaseId)
+    @Html.HiddenFor(model => model.SliderId)
+
+    <div class="modal-body">
+
+        <div class="tab-v2">
+            <ul class="nav nav-tabs">
+                <li class="active"><a href="#generalTabc" data-toggle="tab"><i class="fa fa-home"></i> General</a></li>
+                <li><a href="#htmlTab" data-toggle="tab"><i class="fa fa-file-image-o"></i> Html</a></li>
+                <li><a href="#transitionsTabc" data-toggle="tab"><i class="fa fa-sliders"></i> Transitions</a></li>
+            </ul>
+
+            <div class="tab-content">
+                <br />
+                <div class="tab-pane fade in active" id="generalTabc">
+                    @Html.Partial("Partial/_GeneralLayer")
+                </div>
+                <div class="tab-pane fade in" id="htmlTab">
+                    <div class="form-group">
+                        <label for="InnerHtml">InnerHtml</label>
+                        @*@Html.TextAreaFor(x => x.InnerHtml, new { @name = "editor", @class = "ckeditor", @id = "editor1" })*@
+                        <textarea cols="60" rows="10" id="InnerHtml" name="InnerHtml" class="form-control" required>@Model.InnerHtml</textarea>
+                    </div>
+                </div>
+                <div class="tab-pane fade in" id="transitionsTabc">
+                    @Html.Partial("Partial/_TransitionsLayer")
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Submit</button>
+        <button data-dismiss="modal" class="btn btn-u btn-u-default" type="button">Close</button>
+    </div>
+</form>
+
+<script type="text/javascript">
+        CKEDITOR.replace('editor1', {
+            filebrowserImageBrowseUrl: '/Dashboard/uploadPartial',
+            filebrowserImageUploadUrl: '/Dashboard/uploadnow'
+        });
+
+        function updateValue(id, value) {
+            // this gets called from the popup window and updates the field with a new value
+            var jqueryObjectByClass = $(".cke_dialog_ui_input_text")[1];
+            jqueryObjectByClass.value = value;
+        }
+</script>

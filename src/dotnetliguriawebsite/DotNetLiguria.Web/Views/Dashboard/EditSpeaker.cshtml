@@ -1,0 +1,98 @@
+﻿@model DotNetLiguria.Models.WorkshopSpeaker
+
+@{
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<script src="//cdn.ckeditor.com/4.4.7/full/ckeditor.js"></script>
+
+<div class="container">
+    <form method="post" action="/Dashboard/UpdateSpeaker" enctype="multipart/form-data">
+
+        <div class="form-horizontal">
+            <h4>Edit Speakes</h4>
+            @Html.ActionLink("Back to List", "Speakers")
+            <hr />
+
+            @Html.HiddenFor(model => model.WorkshopSpeakerId)
+
+            <div class="form-group">
+                <label for="Name">Name</label>
+                <input type="text" id="Name" name="Name" value="@Model.Name" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <div class="col-md-2">
+                    <img id="fotoPrev" src="@Model.ProfileImage" class="img-thumbnail" />
+                </div>
+                <div class="col col-md-8">
+                    <input type="text" id="ProfileImage" name="ProfileImage" class="form-control" value="@Model.ProfileImage">
+                    <br />
+                    <span class="btn btn-default btn-file margin-10">
+                        <input type="file" id="file" name="file">
+                    </span>
+                    <br />
+                    <label>Immagine dimensione massima (800 KByte)</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="BlogHtml">BlogHtml</label>
+                <br />
+                @Html.TextAreaFor(x => x.BlogHtml, new { @name = "editor", @class = "ckeditor", @id = "editor1" })
+            </div>
+
+            </div>
+
+            <footer>
+                <button type="submit" class="btn btn-u">Salva</button>
+            </footer>
+</form>
+</div>
+
+
+<script type="text/javascript">
+
+    CKEDITOR.replace('editor1', {
+        filebrowserImageBrowseUrl: '/Dashboard/uploadPartial',
+        filebrowserImageUploadUrl: '/Dashboard/uploadnow'
+    });
+
+    function updateValue(id, value) {
+        // this gets called from the popup window and updates the field with a new value
+        var jqueryObjectByClass = $(".cke_dialog_ui_input_text")[1];
+        jqueryObjectByClass.value = value;
+    }
+
+    function readURL(input) {
+
+        if (input.files && input.files[0]) {
+
+            var fsize = $('#file')[0].files[0].size;
+
+            if (fsize > 800000) {
+                alert("Immagine troppo grande : " + fsize + " Bytes");
+                $('#file').val("");
+            }
+            else {
+
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    $('#fotoPrev').attr('src', e.target.result);
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    }
+
+    $(document).ready(function () {
+
+        $("#file").change(function () {
+            readURL(this);
+        });
+
+    });
+
+</script>

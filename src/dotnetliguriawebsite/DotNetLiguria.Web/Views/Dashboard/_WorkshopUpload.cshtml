@@ -1,0 +1,44 @@
+﻿@model DotNetLiguria.Models.Workshop
+
+@*<script src="~/Scripts/jquery.unobtrusive-ajax.min.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('#signupform').submit(function () {
+                $.ajax({
+                    type: this.method,
+                    url: this.action,
+                    data: data,
+                    datatype: 'html',
+                    success: function (response) {
+                        alert(response);
+                        //location.reload();
+                    },
+                    error: function (error) {
+                        alert(error);
+                    }
+                });
+                return false;
+            });
+        });
+    </script>*@
+
+
+@using (Html.BeginForm("WorkshopFilesUpload", "Dashboard", FormMethod.Post, new { id = "signupform", enctype = "multipart/form-data", role = "form" }))
+{
+    @Html.HiddenFor(x => x.WorkshopId)
+    <div class="form-group">
+        <label>Title</label>
+        <input type="text" id="Title" name="Title" class="form-control" required>
+    </div>
+    <div class="form-group">
+        <input type="file" name="FileUpload1" class="form-control" /><br />
+    </div>
+    <div class="form-group">
+   
+             @Html.DropDownList("FileType", (SelectList)ViewBag.FileType)
+    </div>
+        <hr />
+        <input type="submit" name="Submit" id="Submit" value="Upload" class="btn btn-success" />
+}
+

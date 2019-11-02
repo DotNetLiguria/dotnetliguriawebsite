@@ -1,0 +1,90 @@
+﻿@model IEnumerable<DotNetLiguria.Models.Slider>
+
+@{
+    ViewBag.Title = "Slider";
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<h2>Slider</h2>
+
+<p>
+    <button class="btn btn-u" data-toggle="modal" data-target="#addSlider">Add Slider</button>
+</p>
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.Image)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Title)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Enable)
+        </th>
+        <th>
+            SliderObj
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.SlideDelay)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.SlideTransitionType)
+        </th>
+        <th></th>
+    </tr>
+
+@foreach (var item in Model) {
+    <tr>
+        <td>
+            <img src="@item.Image" style="height:100px; width:100px" />
+            <br />
+            @Html.DisplayFor(modelItem => item.Image)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Title)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.Enable)
+        </td>
+        <td>
+            @item.SliderOjects.Count()
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.SlideDelay)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.SlideTransitionType)
+        </td>
+        <td>
+            @Html.ActionLink("Edit", "EditSlider", new { sliderId = item.SliderId }) |
+            @Html.ActionLink("Delete", "DeleteSlider", new { sliderId = item.SliderId }) |
+            @Html.ActionLink("Enable/Disable", "EnableDisableSlider", new { sliderId = item.SliderId })
+        </td>
+    </tr>
+}
+
+</table>
+
+
+
+
+<div class="modal fade" id="addSlider" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" data-dismiss="modal" class="close" type="button">×</button>
+                <h4 id="myModalLabel1" class="modal-title">Add Slider</h4>
+            </div>
+
+            <div class="modal-body">
+                @Html.Partial("_AddSlider", new DotNetLiguria.Models.Slider())
+            </div>
+
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn btn-u btn-u-default" type="button">Close</button>
+            </div>
+
+        </div>
+
+    </div>
+</div>

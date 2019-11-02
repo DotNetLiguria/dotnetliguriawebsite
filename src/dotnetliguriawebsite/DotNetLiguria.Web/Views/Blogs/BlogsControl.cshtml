@@ -1,0 +1,108 @@
+﻿@model IEnumerable<DotNetLiguria.Models.BlogFeed>
+
+<!-- CSS Implementing Plugins -->
+<link rel="stylesheet" href="~/Content/Unify/plugins/animate.css">
+<link rel="stylesheet" href="~/Content/Unify/plugins/line-icons/line-icons.css">
+<link rel="stylesheet" href="~/Content/Unify/plugins/font-awesome/css/font-awesome.min.css">
+<link rel="stylesheet" href="~/Content/Unify/plugins/owl-carousel/owl-carousel/owl.carousel.css">
+
+<!-- CSS Page Style -->
+<link rel="stylesheet" href="~/Content/Unify/css/pages/portfolio-v2.css">
+
+<div class="row blog-page">
+
+    <div class="col-md-12 md-margin-bottom-40">
+
+        @foreach (var feed in Model)
+            {
+                string image = string.IsNullOrEmpty(feed.ImageUrl) ? Url.Content("~/Content/Unify/img/demo.jpg") : feed.ImageUrl;
+
+                if (feed.Content.Contains("<img"))
+                {
+                    feed.Content = feed.Content.Insert(feed.Content.IndexOf("<img") + 4, " class=\"img-responsive\"");
+                }
+                    <!--Blog Post-->
+                <div class="row blog blog-medium margin-bottom-40 @feed.Name" data-cat="@feed.Name">
+                    <div class="col-md-5">
+                        <img class="img-responsive" src="@image" alt="">
+                    </div>
+                    <div class="col-md-7">
+                        <h2><a href="#" data-toggle="modal" data-target="#myModal" data-id="@feed.Id" onclick="FeedDetail('@Html.Encode(@feed.Title)', @Json.Encode(@feed.Content))">@feed.Title</a></h2>
+                        <ul class="list-unstyled list-inline blog-info">
+                            <li><i class="fa fa-calendar"></i> @feed.PublishDate</li>
+                            <li><i class="fa fa-comments"></i> <a href="#"> @feed.Name</a></li>
+                            <li><i class="fa fa-tags"></i> @feed.Author</li>
+                        </ul>
+                        <p>@feed.DefaultSummary</p>
+                        <p><a class="btn-u btn-u-sm" href="#" data-toggle="modal" data-target="#myModal" data-id="@feed.Id" onclick="FeedDetail('@Html.Encode(@feed.Title)', @Json.Encode(@feed.Content))">Read More <i class="fa fa-angle-double-right margin-left-5"></i></a></p>
+                    </div>
+                </div>
+                    <!--End Blog Post-->
+
+                <hr class="margin-bottom-40">
+        }
+        <div class="clearfix"></div>
+    </div>
+
+    <!-- Right Sidebar -->
+    @*<div class="col-md-3">
+        <div class="sorting-block">
+            <div class="content-xs">
+                <ul class="sorting-nav sorting-nav-v1 text-center">
+                    <li class="filter" data-filter="all">All</li>
+                    @foreach (var item in @ViewBag.Category)
+                    {
+                        <li class="filter" data-filter="@item">@item</li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>*@
+
+</div>
+
+<!-- Modal -->
+<div class="modal fade bs-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button aria-hidden="true" data-dismiss="modal" class="close" type="button">×</button>
+                <h4 id="myModalTitle" class="modal-title"></h4>
+            </div>
+            <div class="modal-body">
+                <div id="myModalContent">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button data-dismiss="modal" class="btn btn-u btn-u-default" type="button">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End Modal -->
+<!-- JS Implementing Plugins -->
+<script type="text/javascript" src="~/Content/Unify/plugins/back-to-top.js"></script>
+<script type="text/javascript" src="~/Content/Unify/plugins/smoothScroll.js"></script>
+<script type="text/javascript" src="~/Content/Unify/plugins/jquery.mixitup.min.js"></script>
+<!-- JS Customization -->
+<script type="text/javascript" src="~/Content/Unify/js/custom.js"></script>
+<!-- JS Page Level -->
+<script type="text/javascript" src="~/Content/Unify/js/app.js"></script>
+<script type="text/javascript" src="~/Content/Unify/js/pages/page_portfolio.js"></script>
+<script type="text/javascript">
+    jQuery(document).ready(function () {
+        App.init();
+        PortfolioPage.init();
+    });
+
+    function FeedDetail(title, content) {
+        $("#myModalTitle").html(title);
+        $("#myModalContent").html(content);
+    };
+</script>
+
+<!--[if lt IE 9]>
+    <script src="assets/plugins/respond.js"></script>
+    <script src="assets/plugins/html5shiv.js"></script>
+    <script src="assets/plugins/placeholder-IE-fixes.js"></script>
+<![endif]-->

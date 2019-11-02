@@ -1,0 +1,192 @@
+﻿Content-Type: text/html; charset=utf-8
+
+@{
+    var imageEmbedder = (ImageEmbedder)ViewData["Postal.ImageEmbedder"];
+    var resource = imageEmbedder.ReferenceImage(ViewContext.HttpContext.Server.MapPath("~/Content/images/Logo_H200.png"));
+    var resource2 = imageEmbedder.ReferenceImage(ViewContext.HttpContext.Server.MapPath("~/Content/images/Crew/baroni.jpeg"));
+    var resource3 = imageEmbedder.ReferenceImage(ViewContext.HttpContext.Server.MapPath("~/Content/Unify/img/map-img-v1.png"));
+
+        }
+<html lang="en">
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <title>
+        Modern
+    </title>
+    <style type="text/css">
+        a:hover {
+            text-decoration: none !important;
+        }
+
+        .header h1 {
+            color: #47c8db !important;
+            font: bold 32px Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 40px;
+        }
+
+        .header p {
+            color: #c6c6c6;
+            font: normal 12px Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 18px;
+        }
+
+        .content h2 {
+            color: #646464 !important;
+            font-weight: bold;
+            margin: 0;
+            padding: 0;
+            line-height: 26px;
+            font-size: 18px;
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        .content p {
+            color: #767676;
+            font-weight: normal;
+            margin: 0;
+            padding: 0;
+            line-height: 20px;
+            font-size: 12px;
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        .content a {
+            color: #0eb6ce;
+            text-decoration: none;
+        }
+
+        .footer p {
+            font-size: 11px;
+            color: #7d7a7a;
+            margin: 0;
+            padding: 0;
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        .footer a {
+            color: #0eb6ce;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-image: url('http://wallpaperswide.com/download/black_background_wood-wallpaper-800x600.jpg');">
+    <img height="100" src="cid:@resource.ContentId" />
+    <hr />
+    <img height="100" src="cid:@resource2.ContentId" />
+    <hr />
+    <img height="100" src="cid:@resource3.ContentId" />
+    <hr />
+    <div style="height: 100px; width: 100px; background: url('cid:@resource3.ContentId')">
+        <span>Ciao</span>
+    </div>
+
+    <table cellpadding="0" cellspacing="0" border="0" align="center" width="100%" style="padding: 35px 0; background: url(cid:@resource3.ContentId);">
+        <tr>
+            <td align="center" style="margin: 0; padding: 0; background: url('images/bg_email.png') ;">
+                <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="font-family: Helvetica, Arial, sans-serif; background:#2a2a2a;" class="header">
+                    <tr>
+                        <td width="600" align="left" style="padding: 0; font-size: 0; line-height: 0; height: 7px;" height="7" colspan="2"><img src="@Url.Content("/content/unify/img/logo1-default.png")" alt="header bg"></td>
+                    </tr>
+                    <tr>
+                        <td width="20" style="font-size: 0px;">&nbsp;</td>
+                        <td width="580" align="left" style="padding: 18px 0 10px;">
+                            <h1 style="color: #47c8db; font: bold 32px Helvetica, Arial, sans-serif; margin: 0; padding: 0; line-height: 40px;">modern age technology</h1>
+                            <p style="color: #c6c6c6; font: normal 12px Helvetica, Arial, sans-serif; margin: 0; padding: 0; line-height: 18px;">The World’s Most Awesome Newsletter</p>
+                        </td>
+                    </tr>
+                </table><!-- header-->
+                <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="font-family: Helvetica, Arial, sans-serif; background: #fff;" bgcolor="#fff">
+
+                    <tr>
+                        <td width="600" valign="top" align="left" style="font-family: Helvetica, Arial, sans-serif; padding: 20px 0 0;" class="content">
+                            <table cellpadding="0" cellspacing="0" border="0" style="color: #717171; font: normal 11px Helvetica, Arial, sans-serif; margin: 0; padding: 0;" width="600">
+                                <tr>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                    <td style="padding: 0;  font-family: Helvetica, Arial, sans-serif; background: url('images/bg_date_wide.png') no-repeat left top; height:20px; line-height: 20px;" align="center" width="558" height="20">
+                                        <h3 style="color:#666; font-weight: bold; text-transform: uppercase; margin: 0; padding: 0; line-height: 10px; font-size: 10px;"><currentdayname> <currentday> <currentmonthname></h3>
+                                    </td>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                </tr>
+                                <tr>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                    <td style="padding: 20px 0 0;" align="left">
+                                        <h2 style="color:#646464; font-weight: bold; margin: 0; padding: 0; line-height: 26px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; ">Rather original title, number uno</h2>
+                                    </td>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                </tr>
+                                <tr>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                    <td style="padding: 15px 0 15px;" valign="top">
+                                        <p style="color:#767676; font-weight: normal; margin: 0; padding: 0; line-height: 20px; font-size: 12px;font-family: Helvetica, Arial, sans-serif; "><a href="#" style="color: #0eb6ce; text-decoration: none;">Mauris pharetra</a> convallis dui, quis ultricies nunc rutrum eget. Aliquam in nunc ac nisi ultricies placerat. Aenean faucibus velit sed diam blandit egestas.</p><br>
+
+                                        <table cellpadding="0" cellspacing="0" border="0" width="558">
+                                            <tr>
+                                                <td valign="top">
+                                                    <p style="color:#767676; font-weight: normal; margin: 0; padding: 0; line-height: 20px; font-size: 12px;font-family: Helvetica, Arial, sans-serif; ">
+                                                        Maecenas ut fermentum risus. Sed pellentesque commodo risus, eu sagittis est iaculis ac. Cras a lacus elit, quis condimentum risus. Duis elit nunc, sollicitudin eget <a href="#" style="color: #0eb6ce; text-decoration: none;">aliquam fermentum</a>, fermentum eu risus. Nam ornare lectus sed arcu facilisis ac ultricies enim mattis. Nullam ac orci elit. Ut hendrerit aliquet libero, ut convallis dui lacinia eget.
+                                                    </p>
+                                                </td>
+                                                <td valign="top" style="padding: 0 0 20px 20px">
+                                                    <img src="images/img.jpg" style="border: 1px solid #e9e9e9" alt=""><br>
+                                                    <p style="font-family: Helvetica, Arial, sans-serif; background: #e9e9e9; color:#8f8f8f; margin: 0; padding:0; font-size: 11px; text-align: center; height: 25px; line-height: 25px">In commodo tristique neque suscipit accumsan. Integer orci nisi 2009</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                        <img src="images/divider_wide.png" alt="" style="border-top: 10px solid #fff;width: 558px">
+                                    </td>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                </tr>
+                                <tr>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                    <td style="padding: 15px 0 0;" align="left">
+                                        <h2 style="color:#646464; font-weight: bold; margin: 0; padding: 0; line-height: 26px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; ">Apple is now #1 on 'Scale of Awesome'</h2>
+                                    </td>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                </tr>
+                                <tr>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                    <td style="padding: 10px 0 45px;" valign="top">
+                                        <table cellpadding="0" cellspacing="0" border="0" width="558">
+                                            <tr>
+                                                <td valign="top">
+                                                    <img src="images/img2.jpg" style="border: 1px solid #e9e9e9;" alt="">
+                                                </td>
+                                                <td valign="top" style="padding: 0 0 20px 20px">
+                                                    <p style="color:#767676; font-weight: normal; margin: 0; padding: 0; line-height: 20px; font-size: 12px;font-family: Helvetica, Arial, sans-serif; ">
+                                                        Quisque tempor sagittis felis ut aliquam. Quisque pretium purus vel libero tempus nec interdum ligula fringilla. Morbi congue nibh sed justo tincidunt tristique. <a href="#" style="color: #0eb6ce; text-decoration: none;">Suspendisse potenti</a>. Nam ornare porta dui a feugiat. Ut aliquet dapibus mi eu sagittis.
+                                                    </p><br>
+                                                    <p style="color:#767676; font-weight: normal; margin: 0; padding: 0; line-height: 20px; font-size: 12px;font-family: Helvetica, Arial, sans-serif; ">In commodo tristique neque suscipit accumsan. Integer orci nisi, gravida in rutrum at, convallis vitae ante. Nunc molestie est bibendum ipsum  <a href="#" style="color: #0eb6ce; text-decoration: none;">ultricies consectetur</a>.</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <img src="images/divider_wide.png" alt="" style="border-top: 10px solid #fff; width: 558px">
+                                    </td>
+                                    <td width="21" style="font-size: 1px; line-height: 1px;"><img src="images/spacer.gif" alt="space" width="20"></td>
+                                </tr>
+                            </table>
+                        </td>
+
+                    </tr>
+                    <tr>
+                        <td width="600" align="left" style="padding: font-size: 0; line-height: 0; height: 3px;" height="3" colspan="2"><img src="images/bg_bottom.png" alt="header bg"></td>
+                    </tr>
+                </table><!-- body -->
+                <table cellpadding="0" cellspacing="0" border="0" align="center" width="600" style="font-family: Helvetica, Arial, sans-serif; line-height: 10px;" class="footer">
+                    <tr>
+                        <td align="center" style="padding: 5px 0 10px; font-size: 11px; color:#7d7a7a; margin: 0; line-height: 1.2;font-family: Helvetica, Arial, sans-serif;" valign="top">
+                            <br><p style="font-size: 11px; color:#7d7a7a; margin: 0; padding: 0; font-family: Helvetica, Arial, sans-serif;">You're receiving this newsletter because you bought widgets from us.</p>
+                            <p style="font-size: 11px; color:#7d7a7a; margin: 0; padding: 0; font-family: Helvetica, Arial, sans-serif;">Having trouble reading this? <webversion style="color: #0eb6ce; text-decoration: none;">View it in your browser</webversion>. Not interested? <unsubscribe style="color: #0eb6ce; text-decoration: none;">Unsubscribe</unsubscribe> instantly.</p>
+                        </td>
+                    </tr>
+                </table><!-- footer-->
+            </td>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

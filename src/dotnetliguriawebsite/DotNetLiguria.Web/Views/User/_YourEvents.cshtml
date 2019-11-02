@@ -1,0 +1,35 @@
+﻿@model IEnumerable<DotNetLiguria.Models.Workshop>
+
+<div class="panel panel-profile no-bg">
+    <div class="panel-heading overflow-h">
+        <h2 class="panel-title heading-sm pull-left"><i class="fa fa-briefcase"></i>I tuoi eventi</h2>
+        @*<a href="#"><i class="fa fa-cog pull-right"></i></a>*@
+    </div>
+    <div id="scrollbar2" class="panel-body no-padding mCustomScrollbar" data-mcs-theme="minimal-dark">
+        @foreach (var track in Model)
+        {
+            <div class="profile-event">
+                <div class="date-formats">
+                    <span>@track.EventDate.Day</span>
+                    <small>@track.EventDate.Month, @track.EventDate.Year</small>
+                </div>
+                <div class="overflow-h">
+                    <h3 class="heading-xs"><a href="@Url.Action("Detail", "Workshops", new { @track.WorkshopId })">@track.Title</a></h3>
+                    <h4><i class="icon-map"></i> @track.Location.Address</h4>
+                    @if (track.Description.Length > 50)
+                    {
+                        <p>
+                            @track.Description.Substring(0, 50)...
+                        </p>
+                    }
+                    else
+                    {
+                        <p>@track.Description.PadRight(50, ' ')</p>
+                    }
+
+                </div>
+            </div>
+        }
+    </div>
+</div>
+

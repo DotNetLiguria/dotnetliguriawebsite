@@ -1,0 +1,76 @@
+﻿@model DotNetLiguria.Models.OffertaLavoro
+
+@{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<script src="//cdn.ckeditor.com/4.4.7/full/ckeditor.js"></script>
+
+<!--=== Content Part ===-->
+<div class="container">
+
+    <!-- Input Groups -->
+    <div class="panel-body">
+        <form method="post" action="/OfferteLavoro/Create">
+
+            <div class="form-group">
+                <label for="Title">Titolo</label>
+                <input type="text" id="Title" name="Title" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Description">Descrizione breve del lavoro</label>
+                <textarea cols="50" rows="5" type="t" id="Description" name="Description" class="form-control" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="Description">Azienda</label>
+                <input type="text" id="Azienda" name="Azienda" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Description">Luogo di lavoro</label>
+                <input type="text" id="Luogo" name="Luogo" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Link">Link di riferimento</label>
+                <input type="text" id="Link" name="Link" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="Logo">Url di un logo o immagine relativa all'annuncio.</label>
+                <input type="text" id="Logo" name="Logo" class="form-control" required>
+            </div>
+
+            <br />
+
+            <div class="form-group">
+                @Html.TextAreaFor(x => x.BlogHtml, new { @name = "editor", @class = "ckeditor", @id = "editor1" })
+            </div>
+
+            <br />
+            <hr />
+
+            <div class="form-group">
+                <input type="submit" value="Pubblica" class="btn btn-success" />
+            </div>
+
+        </form>
+    </div>
+
+</div>
+
+
+<script type="text/javascript">
+    CKEDITOR.replace('editor1', {
+        filebrowserImageBrowseUrl: '/OfferteLavoro/uploadPartial',
+        filebrowserImageUploadUrl: '/OfferteLavoro/uploadnow'
+    });
+
+    function updateValue(id, value) {
+        // this gets called from the popup window and updates the field with a new value
+        var jqueryObjectByClass = $(".cke_dialog_ui_input_text")[1];
+        jqueryObjectByClass.value = value;
+    }
+</script>

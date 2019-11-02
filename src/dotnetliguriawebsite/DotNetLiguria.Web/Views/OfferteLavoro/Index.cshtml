@@ -1,0 +1,61 @@
+﻿@model System.Collections.Generic.IList<DotNetLiguria.Models.OffertaLavoro>
+
+@{
+    ViewBag.Title = "Index";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- CSS Page Style -->
+<link rel="stylesheet" href="~/Content/Unify/css/pages/shortcode_timeline2.css">
+
+<div class="float-left margin-left-10 margin-top-20">
+    <img src="~/Content/images/OfferteLavoro.jpg" height="150" />
+</div><br>
+
+<!--=== Content Part ===-->
+<div class="container content">
+
+    @*<a href="@Url.Action("Create", "OfferteLavoro")" class="btn btn-ar btn-sm btn-primary pull-right"><i class="fa fa-plus"></i> Aggiungi nuovo Annuncio</a>*@
+    @*<br />
+        <hr />*@
+    <!-- Begin Content -->
+
+    <div class="row margin-bottom-30 float">
+        <div class="col-md-4"></div>
+        <div class="col-md-4">
+            
+        </div>
+        <div class="col-md-4"></div>
+    </div>
+    <div class="col-md-12">
+        <ul class="timeline-v2">
+            @foreach (var offertaLavoro in Model.OrderByDescending(x => x.CreationDate))
+            {
+                <li>
+                    <time class="cbp_tmtime" datetime=""><span>@offertaLavoro.CreationDate.ToShortDateString()</span> <span>@offertaLavoro.CreationDate.ToString("MMMM")</span></time>
+                    <i class="cbp_tmicon rounded-x hidden-xs"></i>
+                    <div class="cbp_tmlabel">
+                        <h2><a href="@Url.Action("OffertaLavoro", "OfferteLavoro", new { offertaLavoro.OffertaLavoroId })">@offertaLavoro.Title (@offertaLavoro.Azienda) <i class="icon-map pull-right"> @offertaLavoro.Luogo</i></a></h2>
+                        <div class="row">
+                            <div class="col-md-2">
+                                <img class="img-responsive" src="@offertaLavoro.Logo" alt="">
+                                <div class="md-margin-bottom-20">
+
+                                </div>
+                            </div>
+                            <div class="col-md-10">
+                                <p>@Html.Raw(@offertaLavoro.Description)</p>
+                            </div>
+                            <br />
+                            <a href="@Url.Action("OffertaLavoro", "OfferteLavoro", new { offertaLavoro.OffertaLavoroId })" class="btn btn-ar btn-sm btn-primary pull-right"><i class="fa fa-external-link"></i> Vedi annuncio</a>
+                            <br />
+                        </div>
+
+                    </div>
+                </li>
+            }
+        </ul>
+    </div>
+    <!-- End Content -->
+
+</div>

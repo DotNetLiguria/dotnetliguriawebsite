@@ -1,0 +1,96 @@
+﻿@{
+    Layout = "~/Views/Shared/_LayoutAdmin.cshtml";
+}
+
+<!-- JQuery DataTable -->
+<link href="~/Content/plugins/jquery.dataTables/css/jquery.dataTables.min.css" rel="stylesheet" />
+<script src="~/Content/plugins/jquery.dataTables/js/jquery.dataTables.min.js"></script>
+
+<br />
+
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <i class="fa fa-university fa-fw"></i> Workshops
+        <div class="pull-right">
+            <div class="btn-group">
+                <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown">
+                    Actions
+                    <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu pull-right" role="menu">
+                    <li>
+                        <a href="@Url.Action("CreateWorkshop", "Dashboard")">Add Workshop</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-body">
+        <table id="workshopsTable" class="table table-striped table-responsive">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Title</th>
+                    <th>EventDate</th>
+                    <th>Tracks</th>
+                    <th></th>
+                </tr>
+            </thead>
+        </table>
+    </div>
+</div>
+
+
+
+<script type="text/javascript">
+
+    function setTableInfo() {
+        return {
+            "sLengthMenu": "Mostra _MENU_ elementi per pagina",
+            "sZeroRecords": "Nessun Elemento",
+            "sInfo": " ",
+            "sInfoEmpty": " ",
+            "sInfoFiltered": "(Filtrati da _MAX_ elementi totali)",
+            "sSearch": "Cerca:",
+            "oPaginate":
+                {
+                    "sFirst": "Inizio",
+                    "sLast": "Fine",
+                    "sNext": "Prossimo",
+                    "sPrevious": "Precedente"
+                }
+        };
+    }
+
+    $(document).ready(function () {
+        $('#workshopsTable').dataTable(
+            {
+                "bProcessing": true,
+                "bServerSide": true,
+                "bLenghtChange": false,
+                "sAjaxSource": "/api/dashboard/workshops",
+                "sAjaxDataProp": "aaData",
+                "sPaginationType": "full_numbers",
+                "oLanguage": setTableInfo(),
+                "aoColumns": [
+                    {
+                        "mData": "Image", "bSearchable": false, "bSortable": false,
+                        "mRender": function (data) {
+                            return '<img class="img-bordered margin-bottom-10" src="' + data + '" alt="" height="70" />';
+                        }
+                    },
+                    { "mData": "Title" },
+                    { "mData": "EventDate" },
+                    { "mData": "Tracks", "bSortable": false, "bSearchable": false },
+                    {
+                        "mData": "Id", "bSearchable": false, "bSortable": false, "sWidth": "40px", "bVisible": true,
+                        "mRender": function (data) {
+                            return '<a href="@Url.Action("EditWorkshop", "Dashboard")?workshopid=' + data + '" class="btn btn-ar btn-sm btn-primary"><i class="fa fa-edit"></i> Edit</a>';
+                        }
+                    }
+                ]
+            });
+    });
+
+</script>
