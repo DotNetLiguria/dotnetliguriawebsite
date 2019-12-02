@@ -1,0 +1,60 @@
+﻿@page "/questionario"
+
+@inject IJSRuntime jsr
+@inject StateContainer statecontainer
+@using BlazorAppTest.Client.Components
+
+<h1>.Net Liguria</h1>
+
+
+@if (VisQuestionario)
+{
+    <QuestionarioFormComponent />
+}
+else
+{
+    <video id="video" width="640"  autoplay></video><br/>
+    <button id="snap">Acquisisci foto QR Code</button><br />
+    <canvas id="canvas" width="640" height="480"></canvas>
+
+    <div class="select">
+        <label for="videoSource">Video source: </label><select id="videoSource"></select>
+    </div>
+
+    <button @onclick=TestQuestionario>Simula inserimento corretto QR Code</button>
+}
+
+@code {
+    private bool VisQuestionario = false;
+    private int currentCount = 0;
+
+
+
+    async Task TestQuestionario()
+    {
+        VisQuestionario = true;
+        await jsr.InvokeAsync<object>("StopStream"); 
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+
+        var dotNetReference = DotNetObjectReference.Create(this);
+        if (firstRender)
+            await jsr.InvokeAsync<object>("InitPage", dotNetReference);
+    }
+
+
+    [JSInvokable]
+    public void OKQRCode()
+    {
+        System.Diagnostics.Debug.Print("OKQRCode");
+        VisQuestionario = true;
+        this.StateHasChanged();
+        jsr.InvokeAsync<object>("StopStream"); 
+        
+    }
+}

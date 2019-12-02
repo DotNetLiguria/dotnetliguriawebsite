@@ -1,0 +1,158 @@
+﻿@using  BlazorAppTest.Shared
+@inject HttpClient httpclient
+@inject NavigationManager UriHelper
+
+<h3>Questionario</h3>
+<small>Vi preghiamo di inserire la valutazione con un voto da zero a dieci</small>
+<br />
+@if (IsLoading)
+{ 
+    <h2>.....Loading.......Attendere Prego.......</h2>
+}
+
+
+<EditForm Model="@mQuestionarioDTO" OnValidSubmit="@CreaQuestionario">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <table>
+        <tr>
+            <td><label for="txtNome">Nome</label></td>
+            <td><InputText id="txtNome" @bind-Value=@mQuestionarioDTO.Nome /></td>
+        </tr>
+        <tr>
+            <td for="txtCognome">Cognome</td>
+            <td><InputText id="txtCognome" @bind-Value=@mQuestionarioDTO.Cognome /></td>
+        </tr>
+        <tr>
+            <td for="txtEMail">Email</td>
+            <td><InputText id="txtEMail" @bind-Value=@mQuestionarioDTO.EMail /></td>
+        </tr>
+        <tr>
+            <td for="intValutazioneQualitaGeneraleEvento">Come valuti la qualità generale dell'evento?</td>
+            <td><InputNumber id="intValutazioneQualitaGeneraleEvento" @bind-Value=@mQuestionarioDTO.ValutazioneQualitaGeneraleEvento ParsingErrorMessage="Must be an integer value" /></td>
+        </tr>
+        <tr>
+            <td for="intUtilitaInformazioniRicevute">Come giudichi il valore e l'utilità delle informazioni ricevute?</td>
+            <td><InputNumber id="intUtilitaInformazioniRicevute" @bind-Value=@mQuestionarioDTO.UtilitaInformazioniRicevute ParsingErrorMessage="Must be an integer value" /></td>
+        </tr>
+        <tr>
+            <td for="txtArgomentiProxEvento">Quali argomenti ti piacerebbero per il prossimo evento?</td>
+            <td><InputTextArea id="txtArgomentiProxEvento" @bind-Value=@mQuestionarioDTO.ArgomentiProxEvento /></td>
+        </tr>
+
+
+    </table>
+    <br />
+    <br />
+    <br />
+    <table>
+        <tr><td colspan="2">Come giudichi l’intervento e la preparazione degli speaker?<br /><br /></td></tr>
+        @if (mQuestionarioDTO.Track01WorkshopTrackId != Guid.Empty)
+        {
+            <tr><td colspan="2"><b>@mQuestionarioDTO.Track01Titolo</b> </td></tr>
+            <tr>
+                <td colspan="2">
+                    <br />
+                    <div class="form-field">
+
+                        <label for="Track01Valutazione">@mQuestionarioDTO.Track01Speaker</label>
+                        <InputNumber @bind-Value=@mQuestionarioDTO.Track01Valutazione ParsingErrorMessage="Must be an integer value" />
+
+                    </div>
+                    <br />
+                </td>
+            </tr>
+
+        }
+        @if (mQuestionarioDTO.Track02WorkshopTrackId != Guid.Empty)
+        {
+            <tr><td colspan="2"><b>@mQuestionarioDTO.Track02Titolo</b> </td></tr>
+            <tr>
+                <td colspan="2">
+                    <br />
+                    <div class="form-field">
+
+                        <label for="Track02Valutazione">@mQuestionarioDTO.Track02Speaker</label>
+                        <InputNumber @bind-Value=@mQuestionarioDTO.Track02Valutazione ParsingErrorMessage="Must be an integer value" />
+                    </div>
+                    <br />
+                </td>
+            </tr>
+
+        }
+        @if (mQuestionarioDTO.Track03WorkshopTrackId != Guid.Empty)
+        {
+            <tr><td colspan="2"><b>@mQuestionarioDTO.Track03Titolo</b> </td></tr>
+            <tr>
+                <td colspan="2">
+                    <br />
+                    <div class="form-field">
+
+                        <label for="Track03Valutazione">@mQuestionarioDTO.Track03Speaker</label>
+                        <InputNumber @bind-Value=@mQuestionarioDTO.Track03Valutazione ParsingErrorMessage="Must be an integer value" />
+                    </div>
+                    <br />
+                </td>
+            </tr>
+
+        }
+        @if (mQuestionarioDTO.Track04WorkshopTrackId != Guid.Empty)
+        {
+            <tr><td colspan="2"><b>@mQuestionarioDTO.Track04Titolo</b> </td></tr>
+            <tr>
+                <td colspan="2">
+                    <br />
+                    <div class="form-field">
+
+                        <label for="Track04Valutazione">@mQuestionarioDTO.Track04Speaker</label>
+                        <InputNumber @bind-Value=@mQuestionarioDTO.Track04Valutazione ParsingErrorMessage="Must be an integer value" />
+                    </div>
+                    <br />
+                </td>
+            </tr>
+
+        }
+        @if (mQuestionarioDTO.Track05WorkshopTrackId != Guid.Empty)
+        {
+            <tr><td colspan="2"><b>@mQuestionarioDTO.Track05Titolo</b> </td></tr>
+            <tr>
+                <td colspan="2">
+                    <br />
+                    <div class="form-field">
+
+                        <label for="Track05Valutazione">@mQuestionarioDTO.Track05Speaker</label>
+                        <InputNumber @bind-Value=@mQuestionarioDTO.Track05Valutazione ParsingErrorMessage="Must be an integer value" />
+                    </div>
+                    <br />
+                </td>
+            </tr>
+
+        }
+    </table>
+
+    <button type="submit">Salva</button>
+</EditForm>
+
+@code {
+
+
+    public QuestionarioTest mQuestionarioDTO { get; set; } = new QuestionarioTest();
+    bool IsLoading = false;
+    protected override async Task OnInitializedAsync()
+    {
+        IsLoading = true;
+        mQuestionarioDTO = await httpclient.GetJsonAsync<QuestionarioTest>("Questionario");
+        IsLoading =false;
+    }
+
+    async Task CreaQuestionario()
+    {
+        
+        IsLoading = true;
+        await httpclient.PostJsonAsync("Questionario", mQuestionarioDTO);
+        IsLoading = false;
+        UriHelper.NavigateTo("/info");
+    }
+
+
+}
