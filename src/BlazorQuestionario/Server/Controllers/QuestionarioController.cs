@@ -29,7 +29,7 @@ namespace BlazorAppTest.Server.Controllers
        
 
         [HttpGet("{id}", Name = "GetQuestionario")]
-        public async Task<ActionResult<QuestionarioTest>> Get(Guid id)
+        public async Task<ActionResult<QuestionarioTest>> Get(string id)
         {
             return await context.QuestionarioTest.Where(x => x.QuestionarioTestId == id).FirstOrDefaultAsync();
 
@@ -56,13 +56,13 @@ namespace BlazorAppTest.Server.Controllers
             if (workshop==null)
                 return mQuestionarioDTO;
 
-            mQuestionarioDTO.QuestionarioTestId = Guid.NewGuid();
+            mQuestionarioDTO.QuestionarioTestId = Guid.NewGuid().ToString();
             mQuestionarioDTO.WorkshopId = workshop.WorkshopId;
 
             //Prendo la lista delle track
             //Level=0 -> Domande e risposte
-            //var ListaTrack=    context.WorkshopTrack.Where(x=>x.WorkshopId== workshop.WorkshopId && x.Level>0).OrderBy(x => x.StartTime).ToList();
-            var ListaTrack = workshop.WorkshopTracks.Where(x => x.Level > 0).OrderBy(x => x.StartTime).ToList();
+            var ListaTrack=    context.WorkshopTrack.Where(x=>x.WorkshopId== workshop.WorkshopId && x.Level>0).OrderBy(x => x.StartTime).ToList();
+            //var ListaTrack = workshop.WorkshopTracks.Where(x => x.Level > 0).OrderBy(x => x.StartTime).ToList();
 
             if (ListaTrack.Count() >= 1)
             {

@@ -47,7 +47,7 @@
     <br />
     <table>
         <tr><td colspan="2">Come giudichi l’intervento e la preparazione degli speaker?<br /><br /></td></tr>
-        @if (mQuestionarioDTO.Track01WorkshopTrackId != Guid.Empty)
+        @if (!string.IsNullOrEmpty(  mQuestionarioDTO.Track01WorkshopTrackId))
         {
             <tr><td colspan="2"><b>@mQuestionarioDTO.Track01Titolo</b> </td></tr>
             <tr>
@@ -64,7 +64,7 @@
             </tr>
 
         }
-        @if (mQuestionarioDTO.Track02WorkshopTrackId != Guid.Empty)
+        @if (!string.IsNullOrEmpty(mQuestionarioDTO.Track02WorkshopTrackId))
         {
             <tr><td colspan="2"><b>@mQuestionarioDTO.Track02Titolo</b> </td></tr>
             <tr>
@@ -80,7 +80,7 @@
             </tr>
 
         }
-        @if (mQuestionarioDTO.Track03WorkshopTrackId != Guid.Empty)
+        @if (!string.IsNullOrEmpty(mQuestionarioDTO.Track03WorkshopTrackId))
         {
             <tr><td colspan="2"><b>@mQuestionarioDTO.Track03Titolo</b> </td></tr>
             <tr>
@@ -96,7 +96,7 @@
             </tr>
 
         }
-        @if (mQuestionarioDTO.Track04WorkshopTrackId != Guid.Empty)
+        @if (!string.IsNullOrEmpty(mQuestionarioDTO.Track04WorkshopTrackId))
         {
             <tr><td colspan="2"><b>@mQuestionarioDTO.Track04Titolo</b> </td></tr>
             <tr>
@@ -112,7 +112,7 @@
             </tr>
 
         }
-        @if (mQuestionarioDTO.Track05WorkshopTrackId != Guid.Empty)
+        @if (!string.IsNullOrEmpty(mQuestionarioDTO.Track05WorkshopTrackId ))
         {
             <tr><td colspan="2"><b>@mQuestionarioDTO.Track05Titolo</b> </td></tr>
             <tr>

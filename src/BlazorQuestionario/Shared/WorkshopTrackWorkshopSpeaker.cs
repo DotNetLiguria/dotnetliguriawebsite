@@ -9,10 +9,10 @@ namespace BlazorAppTest.Shared
     public partial class WorkshopTrackWorkshopSpeaker
     {
         //[Key,  Column("WorkshopTrack_WorkshopTrackId")]
-        public Guid WorkshopTrackWorkshopTrackId { get; set; }
+        public string WorkshopTrackWorkshopTrackId { get; set; }
 
         //[Column("WorkshopTrack_WorkshopTrackId")]
-        public Guid WorkshopSpeakerWorkshopSpeakerId { get; set; }
+        public string WorkshopSpeakerWorkshopSpeakerId { get; set; }
 
         public virtual WorkshopSpeaker WorkshopSpeakerWorkshopSpeaker { get; set; }
         public virtual WorkshopTrack WorkshopTrackWorkshopTrack { get; set; }
