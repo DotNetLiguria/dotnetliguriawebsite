@@ -25,7 +25,9 @@ namespace BlazorAppTest.Server
         {
             services.AddDbContext<ApplicationDbContexts>(
                 option => option.UseLazyLoadingProxies()
-                          .UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+                          //.UseSqlServer(configuration.GetConnectionString("DefaultConnection-SQL"))
+                          .UseSqlite(configuration.GetConnectionString("DefaultConnection-Sqlite"))
+                          );
             services.AddMvc();
             services.AddResponseCompression(opts =>
             {
