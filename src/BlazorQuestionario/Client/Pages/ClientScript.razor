@@ -1,0 +1,50 @@
+﻿@using System.Text;
+@using Microsoft.AspNetCore.Components.Rendering;
+@using Microsoft.AspNetCore.Components.RenderTree;
+@inject IJSRuntime JSRuntime;
+
+@if (type != "text/javascript")
+{
+    <script type="@type" suppress-error="BL9992">
+        @script
+    </script>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment script { get; set; }
+
+    [Parameter]
+    public string type { get; set; } = "text/javascript";
+
+    protected override bool ShouldRender() => false; // important!!
+
+#pragma warning disable BL0006 // Do not use RenderTree types
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (script != null && firstRender && type == "text/javascript")
+        {
+            var sb = new StringBuilder();
+            var rtb = new RenderTreeBuilder();
+            script.Invoke(rtb);
+
+            foreach (var frame in rtb.GetFrames().Array)
+            {
+                if (frame.FrameType == RenderTreeFrameType.Markup)
+                {
+                    sb.AppendLine(frame.MarkupContent);
+                }
+            }
+
+            var output = sb.ToString().Trim();
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                await JSRuntime.InvokeVoidAsync("eval", output);
+            }
+        }
+    }
+#pragma warning restore BL0006 // Do not use RenderTree types
+}
