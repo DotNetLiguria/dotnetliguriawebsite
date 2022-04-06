@@ -1,10 +1,8 @@
 ﻿@page "/questionario"
-@page "/questionarioiden/{Iden}"
 
 @inject IJSRuntime jsr
 @inject StateContainer statecontainer
 @using BlazorAppTest.Client.Components
-@inject HttpClient httpclient
 
 <h1>.Net Liguria</h1>
 
@@ -15,59 +13,34 @@
 }
 else
 {
-    <video id="video" width="640" autoplay></video>
-    <br />
-    <button id="snap">Acquisisci foto QR Code</button>
-    <br />
+    <video id="video" width="640"  autoplay></video><br/>
+    <button id="snap">Acquisisci foto QR Code</button><br />
     <canvas id="canvas" width="640" height="480"></canvas>
 
     <div class="select">
         <label for="videoSource">Video source: </label><select id="videoSource"></select>
     </div>
 
+    <button @onclick=TestQuestionario>Simula inserimento corretto QR Code</button>
 }
 
 @code {
-
-    [Parameter]
-    public string Iden { get; set; }
-
     private bool VisQuestionario = false;
     private int currentCount = 0;
 
-    public async override Task SetParametersAsync(ParameterView parameters)
+
+
+    async Task TestQuestionario()
     {
-        await base.SetParametersAsync(parameters);
-        
-
-        if (!string.IsNullOrEmpty(Iden))
-        {
-            
-
-            bool res=await httpclient.GetJsonAsync<bool>( "QR/GetCheckGuid/"+Iden);
-
-            if (!res)
-                return;
-
-
-            VisQuestionario = true;
-            this.StateHasChanged();
-
-        }
-
+        VisQuestionario = true;
+        await jsr.InvokeAsync<object>("StopStream"); 
     }
 
-    
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         await base.OnAfterRenderAsync(firstRender);
 
-
-
-
-        if (VisQuestionario)
-            return;
 
         var dotNetReference = DotNetObjectReference.Create(this);
         if (firstRender)
@@ -81,7 +54,7 @@ else
         System.Diagnostics.Debug.Print("OKQRCode");
         VisQuestionario = true;
         this.StateHasChanged();
-        jsr.InvokeAsync<object>("StopStream");
-
+        jsr.InvokeAsync<object>("StopStream"); 
+        
     }
 }

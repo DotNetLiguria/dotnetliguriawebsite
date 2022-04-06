@@ -25,44 +25,6 @@ namespace BlazorAppTest.Server.Controllers
             this.context = context;
         }
 
-
-        //[HttpGet("{iden}", Name = "CheckGuid")]
-        //public async Task<ActionResult<bool>> GetCheckGuid(string _id)
-        //{
-        //    if (string.IsNullOrEmpty(_id))
-        //        return false;
-
-
-        //    return true;
-
-        //}
-
-        //[HttpGet("{iden}", Name = "CheckGuid")]
-        [HttpGet]
-        [Route("QR/GetCheckGuid/{Guid}")]
-        public ActionResult<bool> GetCheckGuid(string Guid)
-        {
-
-            if (string.IsNullOrEmpty(Guid))
-                return false;
-
-
-            if (Guid.Length <= 5)
-                return false;
-
-
-            Workshop workshop = context.Workshop.OrderByDescending(x => x.EventDate).Take(1).FirstOrDefault();
-
-            if (workshop.WorkshopId.ToString().Contains(Guid))
-            {
-                return true;
-            }
-
-            
-            return false;
-
-        }
-
         [HttpPost]
         public IActionResult Capture(string name)
         {
