@@ -12,7 +12,7 @@ namespace BlazorAppTest.Shared {
             
         }
         [Key]
-        public string WorkshopId { get; set; }
+        public Guid WorkshopId { get; set; }
         
 
 

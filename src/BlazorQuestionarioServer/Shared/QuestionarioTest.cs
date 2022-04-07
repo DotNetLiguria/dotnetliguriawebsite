@@ -33,8 +33,8 @@ namespace BlazorAppTest.Shared
         [Range(0, 10)]
         public int UtilitaInformazioniRicevute { get; set; }
 
-        public string WorkshopId { get; set; }
-        public string Track01WorkshopTrackId { get; set; }
+        public Guid WorkshopId { get; set; }
+        public Guid Track01WorkshopTrackId { get; set; }
         [NotMapped]
         public string Track01Titolo { get; set; }
         [NotMapped]
@@ -42,7 +42,7 @@ namespace BlazorAppTest.Shared
         [Range(0, 10)]
         public int Track01Valutazione { get; set; }
 
-        public string Track02WorkshopTrackId { get; set; }
+        public Guid Track02WorkshopTrackId { get; set; }
         [NotMapped]
         public string Track02Titolo { get; set; }
         [NotMapped]
@@ -50,7 +50,7 @@ namespace BlazorAppTest.Shared
         [Range(0, 10)]
         public int Track02Valutazione { get; set; }
 
-        public string Track03WorkshopTrackId { get; set; }
+        public Guid Track03WorkshopTrackId { get; set; }
         [NotMapped]
         public string Track03Titolo { get; set; }
         [NotMapped]
@@ -58,14 +58,14 @@ namespace BlazorAppTest.Shared
         [Range(0, 10)]
         public int Track03Valutazione { get; set; }
 
-        public string Track04WorkshopTrackId { get; set; }
+        public Guid Track04WorkshopTrackId { get; set; }
         [NotMapped]
         public string Track04Titolo { get; set; }
         [NotMapped]
         public string Track04Speaker { get; set; }
         [Range(0, 10)]
         public int Track04Valutazione { get; set; }
-        public string Track05WorkshopTrackId { get; set; }
+        public Guid Track05WorkshopTrackId { get; set; }
         [NotMapped]
         public string Track05Titolo { get; set; }
         [NotMapped]

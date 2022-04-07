@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlazorQuestionarioServer.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20220406211948_InitialCreate2")]
-    partial class InitialCreate2
+    [Migration("20220407123905_Initial")]
+    partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -53,32 +53,32 @@ namespace BlazorQuestionarioServer.Migrations
                     b.Property<int>("Track01Valutazione")
                         .HasColumnType("int");
 
-                    b.Property<string>("Track01WorkshopTrackId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("Track01WorkshopTrackId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Track02Valutazione")
                         .HasColumnType("int");
 
-                    b.Property<string>("Track02WorkshopTrackId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("Track02WorkshopTrackId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Track03Valutazione")
                         .HasColumnType("int");
 
-                    b.Property<string>("Track03WorkshopTrackId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("Track03WorkshopTrackId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Track04Valutazione")
                         .HasColumnType("int");
 
-                    b.Property<string>("Track04WorkshopTrackId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("Track04WorkshopTrackId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Track05Valutazione")
                         .HasColumnType("int");
 
-                    b.Property<string>("Track05WorkshopTrackId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("Track05WorkshopTrackId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("UtilitaInformazioniRicevute")
                         .HasColumnType("int");
@@ -86,8 +86,8 @@ namespace BlazorQuestionarioServer.Migrations
                     b.Property<int>("ValutazioneQualitaGeneraleEvento")
                         .HasColumnType("int");
 
-                    b.Property<string>("WorkshopId")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("WorkshopId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("QuestionarioTestId");
 
@@ -96,8 +96,9 @@ namespace BlazorQuestionarioServer.Migrations
 
             modelBuilder.Entity("BlazorAppTest.Shared.Workshop", b =>
                 {
-                    b.Property<string>("WorkshopId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("WorkshopId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BlogHtml")
                         .HasColumnType("nvarchar(max)");
@@ -140,10 +141,22 @@ namespace BlazorQuestionarioServer.Migrations
                     b.ToTable("Workshop");
                 });
 
+            modelBuilder.Entity("BlazorAppTest.Shared.WorkshopCorrente", b =>
+                {
+                    b.Property<Guid>("WorkshopId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("WorkshopId");
+
+                    b.ToTable("WorkshopCorrente");
+                });
+
             modelBuilder.Entity("BlazorAppTest.Shared.WorkshopSpeaker", b =>
                 {
-                    b.Property<string>("WorkshopSpeakerId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("WorkshopSpeakerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BlogHtml")
                         .HasColumnType("nvarchar(max)");
@@ -164,8 +177,9 @@ namespace BlazorQuestionarioServer.Migrations
 
             modelBuilder.Entity("BlazorAppTest.Shared.WorkshopTrack", b =>
                 {
-                    b.Property<string>("WorkshopTrackId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("WorkshopTrackId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Abstract")
                         .HasColumnType("nvarchar(max)");
@@ -185,8 +199,8 @@ namespace BlazorQuestionarioServer.Migrations
                     b.Property<string>("Title")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("WorkshopId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("WorkshopId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("WorkshopTrackId");
 
@@ -197,12 +211,12 @@ namespace BlazorQuestionarioServer.Migrations
 
             modelBuilder.Entity("BlazorAppTest.Shared.WorkshopTrackWorkshopSpeaker", b =>
                 {
-                    b.Property<string>("WorkshopTrackWorkshopTrackId")
-                        .HasColumnType("nvarchar(450)")
+                    b.Property<Guid>("WorkshopTrackWorkshopTrackId")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("WorkshopTrack_WorkshopTrackId");
 
-                    b.Property<string>("WorkshopSpeakerWorkshopSpeakerId")
-                        .HasColumnType("nvarchar(450)")
+                    b.Property<Guid>("WorkshopSpeakerWorkshopSpeakerId")
+                        .HasColumnType("uniqueidentifier")
                         .HasColumnName("WorkshopSpeaker_WorkshopSpeakerId");
 
                     b.HasKey("WorkshopTrackWorkshopTrackId", "WorkshopSpeakerWorkshopSpeakerId");
@@ -216,7 +230,9 @@ namespace BlazorQuestionarioServer.Migrations
                 {
                     b.HasOne("BlazorAppTest.Shared.Workshop", "Workshop")
                         .WithMany("WorkshopTracks")
-                        .HasForeignKey("WorkshopId");
+                        .HasForeignKey("WorkshopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Workshop");
                 });
@@ -230,7 +246,7 @@ namespace BlazorQuestionarioServer.Migrations
                         .IsRequired();
 
                     b.HasOne("BlazorAppTest.Shared.WorkshopTrack", "WorkshopTrackWorkshopTrack")
-                        .WithMany("WorkshopTrackWorkshopSpeaker")
+                        .WithMany("ListaWorkshopTrackWorkshopSpeaker")
                         .HasForeignKey("WorkshopTrackWorkshopTrackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -247,7 +263,7 @@ namespace BlazorQuestionarioServer.Migrations
 
             modelBuilder.Entity("BlazorAppTest.Shared.WorkshopTrack", b =>
                 {
-                    b.Navigation("WorkshopTrackWorkshopSpeaker");
+                    b.Navigation("ListaWorkshopTrackWorkshopSpeaker");
                 });
 #pragma warning restore 612, 618
         }

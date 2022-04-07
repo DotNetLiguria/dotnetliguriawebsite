@@ -5,15 +5,44 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace BlazorQuestionarioServer.Migrations
 {
-    public partial class InitialCreate2 : Migration
+    public partial class Initial : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
+                name: "QuestionarioTest",
+                columns: table => new
+                {
+                    QuestionarioTestId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Data = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Nome = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Cognome = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    EMail = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
+                    ArgomentiProxEvento = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ValutazioneQualitaGeneraleEvento = table.Column<int>(type: "int", nullable: false),
+                    UtilitaInformazioniRicevute = table.Column<int>(type: "int", nullable: false),
+                    WorkshopId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Track01WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Track01Valutazione = table.Column<int>(type: "int", nullable: false),
+                    Track02WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Track02Valutazione = table.Column<int>(type: "int", nullable: false),
+                    Track03WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Track03Valutazione = table.Column<int>(type: "int", nullable: false),
+                    Track04WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Track04Valutazione = table.Column<int>(type: "int", nullable: false),
+                    Track05WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Track05Valutazione = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QuestionarioTest", x => x.QuestionarioTestId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Workshop",
                 columns: table => new
                 {
-                    WorkshopId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    WorkshopId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -33,10 +62,21 @@ namespace BlazorQuestionarioServer.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "WorkshopCorrente",
+                columns: table => new
+                {
+                    WorkshopId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WorkshopCorrente", x => x.WorkshopId);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "WorkshopSpeaker",
                 columns: table => new
                 {
-                    WorkshopSpeakerId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    WorkshopSpeakerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     ProfileImage = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     BlogHtml = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -51,14 +91,14 @@ namespace BlazorQuestionarioServer.Migrations
                 name: "WorkshopTrack",
                 columns: table => new
                 {
-                    WorkshopTrackId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Title = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Image = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Abstract = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Level = table.Column<int>(type: "int", nullable: false),
-                    WorkshopId = table.Column<string>(type: "nvarchar(450)", nullable: true)
+                    WorkshopId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -67,15 +107,16 @@ namespace BlazorQuestionarioServer.Migrations
                         name: "FK_WorkshopTrack_Workshop_WorkshopId",
                         column: x => x.WorkshopId,
                         principalTable: "Workshop",
-                        principalColumn: "WorkshopId");
+                        principalColumn: "WorkshopId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
                 name: "WorkshopTrackWorkshopSpeaker",
                 columns: table => new
                 {
-                    WorkshopTrack_WorkshopTrackId = table.Column<string>(type: "nvarchar(450)", nullable: false),
-                    WorkshopSpeaker_WorkshopSpeakerId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    WorkshopTrack_WorkshopTrackId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    WorkshopSpeaker_WorkshopSpeakerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -107,6 +148,12 @@ namespace BlazorQuestionarioServer.Migrations
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "QuestionarioTest");
+
+            migrationBuilder.DropTable(
+                name: "WorkshopCorrente");
+
             migrationBuilder.DropTable(
                 name: "WorkshopTrackWorkshopSpeaker");
 
