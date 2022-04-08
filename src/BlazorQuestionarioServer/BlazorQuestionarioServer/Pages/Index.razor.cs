@@ -8,8 +8,14 @@ public partial class Index
 {
     [Inject]
     IDbContextFactory<ApplicationDbContext> DbFactory { get; set; }
-    bool IsLoading = false;
+    bool IsBusy = false;
     QuestionarioTest mQuestionarioDTO { get; set; } = new QuestionarioTest();
+    bool QuestionarioCompilato = false;
+
+
+    [CascadingParameter(Name = "ErrorComponent")]
+    protected IErrorComponent ErrorComponent { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         var AppDbContext = DbFactory.CreateDbContext();
@@ -149,8 +155,36 @@ public partial class Index
 
 
     //}
-    void SalvaQuestionario()
+    async Task SalvaQuestionario()
     {
+        IsBusy = true;
+        var AppDbContext = DbFactory.CreateDbContext();
 
+        var wcorrente = await AppDbContext.WorkshopCorrente.FirstOrDefaultAsync();
+
+        //Esiste già la mail ??
+        if (await (AppDbContext.QuestionarioTest.Where(x=>x.EMail== mQuestionarioDTO.EMail && x.WorkshopId== wcorrente.WorkshopId).AnyAsync()))
+        {
+            ErrorComponent.ShowError("Salvataggio Questionario", "La presenta mail ha già compilato il questionario");
+            IsBusy = false;
+            return;
+        }
+        mQuestionarioDTO.QuestionarioTestId=Guid.NewGuid();
+        AppDbContext.QuestionarioTest.Add(mQuestionarioDTO);
+
+        try
+        {
+            await AppDbContext.SaveChangesAsync();
+
+        }
+        catch (Exception e)
+        {
+            ErrorComponent.ShowError(e.Message, e.StackTrace);
+            IsBusy = false;
+        }
+
+        IsBusy = false;
+        QuestionarioCompilato = true;
+        
     }
 }

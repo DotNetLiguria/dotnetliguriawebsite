@@ -17,7 +17,7 @@ namespace BlazorAppTest.Shared
         }
 
         [Key]
-        public string QuestionarioTestId { get; set; }
+        public Guid QuestionarioTestId { get; set; }
         public DateTime Data { get; set; }
         [Required,MaxLength(50)]
         public string Nome { get; set; }
