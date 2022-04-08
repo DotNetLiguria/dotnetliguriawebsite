@@ -330,3 +330,4 @@ ASALocalRun/
 .mfractor/
 
 appsettings.Development.json
+src/BlazorQuestionarioServer/BlazorQuestionarioServer/appsettings.Development.json
