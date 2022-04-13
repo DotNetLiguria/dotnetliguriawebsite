@@ -1,5 +1,7 @@
 using BlazorQuestionarioServer.Data;
+using BlazorQuestionarioServer.Service;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +17,10 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
                    builder.Configuration.GetConnectionString("DefaultConnection")
                   ).EnableSensitiveDataLogging()
                   .UseLoggerFactory(LoggerFactory.Create(builder => builder.AddConsole())));
+
+
+builder.Services.AddApplicationInsightsTelemetry();
+builder.Services.AddSingleton<CircuitHandler, CountCircuitHandler>();
 
 
 var app = builder.Build();
