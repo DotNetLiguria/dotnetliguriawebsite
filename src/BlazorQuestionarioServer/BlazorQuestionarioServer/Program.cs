@@ -1,13 +1,25 @@
 using BlazorQuestionarioServer.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+
+//Standard
 builder.Services.AddServerSideBlazor();
+
+//builder.Services.AddServerSideBlazor(
+//    options => {
+//        options.DisconnectedCircuitMaxRetained = 100;
+//        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
+//    }
+
+//    );
+
 
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
@@ -33,7 +45,20 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.MapBlazorHub();
+//app.MapBlazorHub();
+
+//Questo è il default
+//app.MapBlazorHub(configureOptions: options =>
+//{
+//    options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling;
+//});
+
+//Versione che nn permette fallback in logpolling
+app.MapBlazorHub(configureOptions: options =>
+{
+    options.Transports = HttpTransportType.WebSockets;
+});
+
 app.MapFallbackToPage("/_Host");
 
 app.Run();
