@@ -54,23 +54,6 @@ public partial class Index
         }
 
 
-
-
-        ////var Speaker = await AppDbContext.WorkshopTrackWorkshopSpeaker.Where(x => x.WorkshopTrackWorkshopTrackId == mQuestionarioDTO.Track01WorkshopTrackId)
-        ////    .Join(ListaWorkshopTrack.Where(c => c.WorkshopId == wcorrente.WorkshopId), x => x.WorkshopTrackWorkshopTrackId, y => y.WorkshopTrackId, (post, meta) => new { WorkshopTrackWorkshopSpeaker = post })
-        ////    .Join(ListaSpeaker, x => x.WorkshopTrackWorkshopSpeaker.WorkshopSpeakerWorkshopSpeakerId, o => o.WorkshopSpeakerId, (a, b) => b.Name).FirstOrDefaultAsync();
-        //var WorkshopTrack = ListaWorkshopTrack.Where(x => x.WorkshopTrackId == mQuestionarioDTO.Track01WorkshopTrackId).FirstOrDefault();
-        //if (WorkshopTrack != null && WorkshopTrack.WorkshopTrackWorkshopSpeaker!=null && WorkshopTrack.WorkshopTrackWorkshopSpeaker.Count>0)
-        //{
-        //    var speaker = ListaSpeaker.Where(x => x.WorkshopSpeakerId == WorkshopTrack.WorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeakerId).FirstOrDefault();
-        //    if (speaker!=null)
-        //        mQuestionarioDTO.Track01Speaker = speaker.Name;
-
-        //}
-
-
-
-
         if (ListaWorkshopTrack.Count >= 2)
         {
 
