@@ -1,13 +1,23 @@
 ﻿using BlazorAppTest.Shared;
 using BlazorQuestionarioServer.Data;
+using Microsoft.ApplicationInsights;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.JSInterop;
 
 namespace BlazorQuestionarioServer.Pages;
 public partial class Index
 {
     [Inject]
     IDbContextFactory<ApplicationDbContext> DbFactory { get; set; }
+
+    [Inject]
+    TelemetryClient telemetryClient { get; set; }
+
+    [Inject]
+    IJSRuntime JS { get; set; }
+
+
     bool IsBusy = false;
     QuestionarioTest mQuestionarioDTO { get; set; } = new QuestionarioTest();
     bool QuestionarioCompilato = false;
@@ -15,6 +25,24 @@ public partial class Index
 
     [CascadingParameter(Name = "ErrorComponent")]
     protected IErrorComponent ErrorComponent { get; set; }
+
+
+
+    
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            
+            DateTime startTime= DateTime.UtcNow;
+            var _ = await JS.InvokeAsync<string>("toString");
+            TimeSpan latency;  latency = DateTime.UtcNow - startTime;
+            telemetryClient.TrackEvent($"Misura latenza rete: {latency.Milliseconds}");
+            StateHasChanged();
+        }
+    }
+
 
     protected override async Task OnInitializedAsync()
     {

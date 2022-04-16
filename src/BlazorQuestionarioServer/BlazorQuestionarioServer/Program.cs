@@ -12,15 +12,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 
 //Standard
-builder.Services.AddServerSideBlazor();
+//builder.Services.AddServerSideBlazor();
 
-//builder.Services.AddServerSideBlazor(
-//    options => {
-//        options.DisconnectedCircuitMaxRetained = 100;
-//        options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(3);
-//    }
+builder.Services.AddServerSideBlazor(
+                opt =>
+                {
+                    opt.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(1); //Tempo in cui un circuito disconesso viene lasciato in memoria prima che siano liberate le risorse
+                    opt.DisconnectedCircuitMaxRetained = 50; //Numero massimo di circuiti disconnessi tenuti in memoria
+                    opt.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(30); //Tempo massimo che il srever attende per una operazione asincrona di una funziona javascript
 
-//    );
+                }
+            );
 
 
 
@@ -51,15 +53,17 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-//app.MapBlazorHub();
 
-//Questo è il default
+
+//Versione Originale
+//app.MapBlazorHub();
+//Equivalente al seguente
 //app.MapBlazorHub(configureOptions: options =>
 //{
 //    options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling;
 //});
 
-//Versione che nn permette fallback in logpolling
+//Versione che nn evita fallback in logpolling
 app.MapBlazorHub(configureOptions: options =>
 {
     options.Transports = HttpTransportType.WebSockets;
