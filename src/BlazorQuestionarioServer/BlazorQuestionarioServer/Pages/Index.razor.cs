@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 
 namespace BlazorQuestionarioServer.Pages;
-public partial class Index
+public partial class Index:IDisposable
 {
     [Inject]
     IDbContextFactory<ApplicationDbContext> DbFactory { get; set; }
@@ -18,7 +18,7 @@ public partial class Index
     IJSRuntime JS { get; set; }
 
 
-    bool IsBusy = false;
+    bool IsBusy { get; set; }
     QuestionarioTest mQuestionarioDTO { get; set; } = new QuestionarioTest();
     bool QuestionarioCompilato = false;
 
@@ -26,10 +26,11 @@ public partial class Index
     [CascadingParameter(Name = "ErrorComponent")]
     protected IErrorComponent ErrorComponent { get; set; }
 
+    public void Dispose()
+    {
 
 
-    
-
+    }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -46,6 +47,9 @@ public partial class Index
 
     protected override async Task OnInitializedAsync()
     {
+
+
+        IsBusy=true;
         var AppDbContext = DbFactory.CreateDbContext();
 
         var wcorrente= await AppDbContext.WorkshopCorrente.FirstOrDefaultAsync();
@@ -151,7 +155,7 @@ public partial class Index
         }
 
 
-
+        IsBusy = false;
         await base.OnInitializedAsync();
 
     }
