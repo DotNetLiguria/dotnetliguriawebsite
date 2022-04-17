@@ -51,7 +51,7 @@ public partial class Index:IDisposable
 
         IsBusy=true;
         var AppDbContext = DbFactory.CreateDbContext();
-
+        
         var wcorrente= await AppDbContext.WorkshopCorrente.FirstOrDefaultAsync();
         if (wcorrente == null)
             throw new Exception("Manca Workshop Corrente");
