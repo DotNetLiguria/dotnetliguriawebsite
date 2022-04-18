@@ -17,9 +17,17 @@ builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor(
                 opt =>
                 {
-                    opt.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(1); //Tempo in cui un circuito disconesso viene lasciato in memoria prima che siano liberate le risorse
-                    opt.DisconnectedCircuitMaxRetained = 50; //Numero massimo di circuiti disconnessi tenuti in memoria
-                    opt.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(30); //Tempo massimo che il srever attende per una operazione asincrona di una funziona javascript
+                    //Tempo in cui un circuito disconesso viene lasciato in memoria prima che siano liberate le risorse
+                    //Default: 3 minuti
+                    opt.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(1);
+
+                    //Numero massimo di circuiti disconnessi tenuti in memoria
+                    //Default: 100
+                    opt.DisconnectedCircuitMaxRetained = 50; 
+
+                    //Tempo massimo che il srever attende per una operazione asincrona di una funziona javascript
+                    //Default: 1 minuto
+                    opt.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(30); 
 
                 }
             );
