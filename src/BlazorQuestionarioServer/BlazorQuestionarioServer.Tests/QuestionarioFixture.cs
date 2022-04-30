@@ -16,7 +16,7 @@ namespace BlazorQuestionarioServerTests
         VerifySettings verifierSettings;
         IBrowser firefoxBrowser;
         IBrowser chromeBrowser;
-        string baseUrl = "http://localhost:5237";
+        string baseUrl = "https://localhost:64897";
         public VerifySettings VerifySettings { get => verifierSettings!; }
         public async Task DisposeAsync()
         {

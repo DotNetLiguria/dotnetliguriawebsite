@@ -44,46 +44,46 @@ namespace BlazorQuestionarioServer.Tests
 
             await Verifier.Verify(page, this.fixture.VerifySettings);
         }
-        [Fact]
-        public async Task TestInvioSenzaMettereMailChrome()
-        {
-            var page = await this.fixture.Setup(true);
+        //[Fact]
+        //public async Task TestInvioSenzaMettereMailChrome()
+        //{
+        //    var page = await this.fixture.Setup(true);
 
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await page.Locator("#txtNome").FillAsync("gpt");
+        //    await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        //    await page.Locator("#txtNome").FillAsync("gpt");
             
-            await page.Locator("text=Salva").ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        //    await page.Locator("text=Salva").ClickAsync();
+        //    await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-            await Verifier.Verify(page, this.fixture.VerifySettings);
-        }
-        [Fact]
-        public async Task TestInvioSenzaMettereMailFirefox()
-        {
-            var page = await this.fixture.Setup(false);
+        //    await Verifier.Verify(page, this.fixture.VerifySettings);
+        //}
+        //[Fact]
+        //public async Task TestInvioSenzaMettereMailFirefox()
+        //{
+        //    var page = await this.fixture.Setup(false);
 
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await page.Locator("#txtNome").FillAsync("gpt");
+        //    await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        //    await page.Locator("#txtNome").FillAsync("gpt");
 
-            await page.Locator("text=Salva").ClickAsync();
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        //    await page.Locator("text=Salva").ClickAsync();
+        //    await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-            await Verifier.Verify(page, this.fixture.VerifySettings);
-        }
-        [Fact]
-        public async Task TestCifraNegatuvaValutazioneChrome()
-        {
-            var page = await this.fixture.Setup(false);
+        //    await Verifier.Verify(page, this.fixture.VerifySettings);
+        //}
+        //[Fact]
+        //public async Task TestCifraNegatuvaValutazioneChrome()
+        //{
+        //    var page = await this.fixture.Setup(false);
 
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        //    await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             
             
             
-            await page.Locator("#txtNome").FillAsync("gpt");
-            await page.Locator("#intUtilitaInformazioniRicevute").FillAsync("-1");
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+        //    await page.Locator("#txtNome").FillAsync("gpt");
+        //    await page.Locator("#intUtilitaInformazioniRicevute").FillAsync("-1");
+        //    await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             
-            await Verifier.Verify(page, this.fixture.VerifySettings);
-        }
+        //    await Verifier.Verify(page, this.fixture.VerifySettings);
+        //}
     }
 }
