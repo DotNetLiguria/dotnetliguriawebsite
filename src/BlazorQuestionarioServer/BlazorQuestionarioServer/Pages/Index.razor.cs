@@ -159,19 +159,13 @@ public partial class Index:IDisposable
         await base.OnInitializedAsync();
 
     }
-    //string WorkshopSpeakerWorkshopSpeakerId2Name(List<WorkshopSpeaker> ListaSpeaker,Guid SpeakerId)
-    //{
 
-    //    var speaker = ListaSpeaker.Where(x => x.WorkshopSpeakerId == WorkshopTrack.ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeakerId).FirstOrDefault();
-    //    if (speaker != null)
-    //        return speaker.Name;
-
-    //    return string.Empty;
-
-
-    //}
     async Task SalvaQuestionario()
     {
+        if (IsBusy)
+            return;
+
+
         IsBusy = true;
         var AppDbContext = DbFactory.CreateDbContext();
 

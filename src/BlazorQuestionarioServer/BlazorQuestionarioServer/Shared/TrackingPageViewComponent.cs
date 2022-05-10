@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
 
 namespace BlazorQuestionarioServer.Shared;
-public class ApplicationInsightsComponent : ComponentBase, IDisposable
+public class TrackingPageViewComponent : ComponentBase, IDisposable
 {
     [Inject]
     private TelemetryClient _telemetryClient { get; init; }
