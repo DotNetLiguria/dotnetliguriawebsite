@@ -71,7 +71,7 @@ app.UseRouting();
 //    options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling;
 //});
 
-//Versione che nn evita fallback in logpolling
+//Versione che nn evita fallback in longpolling
 app.MapBlazorHub(configureOptions: options =>
 {
     options.Transports = HttpTransportType.WebSockets;
