@@ -21,7 +21,7 @@ public class TrackingPageViewComponent : ComponentBase, IDisposable
 
     private void NavigationManagerOnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        _telemetryClient.TrackPageView(e.Location); //Set the argument to whatever you'd like to name the page
+        _telemetryClient.TrackPageView(e.Location); 
 
     }
 
