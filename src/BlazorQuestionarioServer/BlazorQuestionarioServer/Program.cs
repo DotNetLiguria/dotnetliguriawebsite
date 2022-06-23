@@ -25,7 +25,7 @@ builder.Services.AddServerSideBlazor(
                     //Default: 100
                     opt.DisconnectedCircuitMaxRetained = 50; 
 
-                    //Tempo massimo che il srever attende per una operazione asincrona di una funziona javascript
+                    //Tempo massimo che il server attende per una operazione asincrona di una funziona javascript
                     //Default: 1 minuto
                     opt.JSInteropDefaultCallTimeout = TimeSpan.FromSeconds(30); 
 
