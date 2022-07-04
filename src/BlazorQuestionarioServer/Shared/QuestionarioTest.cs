@@ -27,10 +27,11 @@ namespace BlazorAppTest.Shared
         [Required, MaxLength(250), EmailAddress(ErrorMessage = "Bad email")]
         public string EMail { get; set; }
         public string ArgomentiProxEvento { get; set; }
+        public string ConsigliSuggerimenti { get; set; }
 
-        [Range(0, 10)]
+        [Range(0, 5)]
         public int ValutazioneQualitaGeneraleEvento { get; set; }
-        [Range(0, 10)]
+        [Range(0, 5)]
         public int UtilitaInformazioniRicevute { get; set; }
 
         public Guid WorkshopId { get; set; }
@@ -39,7 +40,7 @@ namespace BlazorAppTest.Shared
         public string Track01Titolo { get; set; }
         [NotMapped]
         public string Track01Speaker { get; set; }
-        [Range(0, 10)]
+        [Range(0, 5)]
         public int Track01Valutazione { get; set; }
 
         public Guid Track02WorkshopTrackId { get; set; }
@@ -47,7 +48,7 @@ namespace BlazorAppTest.Shared
         public string Track02Titolo { get; set; }
         [NotMapped]
         public string Track02Speaker { get; set; }
-        [Range(0, 10)]
+        [Range(0, 5)]
         public int Track02Valutazione { get; set; }
 
         public Guid Track03WorkshopTrackId { get; set; }
@@ -55,7 +56,7 @@ namespace BlazorAppTest.Shared
         public string Track03Titolo { get; set; }
         [NotMapped]
         public string Track03Speaker { get; set; }
-        [Range(0, 10)]
+        [Range(0,5)]
         public int Track03Valutazione { get; set; }
 
         public Guid Track04WorkshopTrackId { get; set; }

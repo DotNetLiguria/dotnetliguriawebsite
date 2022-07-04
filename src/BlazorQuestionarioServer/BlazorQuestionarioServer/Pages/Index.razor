@@ -33,7 +33,11 @@
 }
 else
 {
-    <small>Vi preghiamo di inserire la valutazione con un voto da <b>zero a dieci</b></small>
+    <small>Vi preghiamo di inserire la valutazione con un voto da <b>zero a cinque</b></small>
+
+
+    <small>Il questionario NON deve essere utilizzato dagli ingegneri che portanno usare il link dedicato</small>
+
 
     <EditForm Model="@mQuestionarioDTO" OnValidSubmit="@SalvaQuestionario">
         <DataAnnotationsValidator />
@@ -63,7 +67,10 @@ else
                 <td for="txtArgomentiProxEvento">Quali argomenti ti piacerebbero per il prossimo evento?</td>
                 <td><InputTextArea id="txtArgomentiProxEvento" @bind-Value=@mQuestionarioDTO.ArgomentiProxEvento /></td>
             </tr>
-
+            <tr>
+                <td for="txtArgomentiProxEvento">Hai consigli e/o osservazioni che possano aiutarci a fare meglio ?</td>
+                <td><InputTextArea id="txtArgomentiProxEvento" @bind-Value=@mQuestionarioDTO.ConsigliSuggerimenti /></td>
+            </tr>
 
         </table>
         <br />

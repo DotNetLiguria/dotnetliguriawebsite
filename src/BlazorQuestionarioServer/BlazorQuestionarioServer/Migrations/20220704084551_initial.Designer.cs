@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlazorQuestionarioServer.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20220407123905_Initial")]
-    partial class Initial
+    [Migration("20220704084551_initial")]
+    partial class initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -26,8 +26,9 @@ namespace BlazorQuestionarioServer.Migrations
 
             modelBuilder.Entity("BlazorAppTest.Shared.QuestionarioTest", b =>
                 {
-                    b.Property<string>("QuestionarioTestId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("QuestionarioTestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ArgomentiProxEvento")
                         .HasColumnType("nvarchar(max)");

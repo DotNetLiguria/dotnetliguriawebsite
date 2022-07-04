@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace BlazorQuestionarioServer.Migrations
 {
-    public partial class Initial : Migration
+    public partial class initial : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -13,7 +13,7 @@ namespace BlazorQuestionarioServer.Migrations
                 name: "QuestionarioTest",
                 columns: table => new
                 {
-                    QuestionarioTestId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    QuestionarioTestId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Data = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Nome = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     Cognome = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),

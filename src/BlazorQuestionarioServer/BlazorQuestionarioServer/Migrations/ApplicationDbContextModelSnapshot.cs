@@ -24,8 +24,9 @@ namespace BlazorQuestionarioServer.Migrations
 
             modelBuilder.Entity("BlazorAppTest.Shared.QuestionarioTest", b =>
                 {
-                    b.Property<string>("QuestionarioTestId")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<Guid>("QuestionarioTestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ArgomentiProxEvento")
                         .HasColumnType("nvarchar(max)");
