@@ -63,7 +63,7 @@ public partial class Index:IDisposable
         mQuestionarioDTO=new QuestionarioTest();
         mQuestionarioDTO.WorkshopId = wcorrente.WorkshopId;
 
-        var ListaWorkshopTrack = await AppDbContext.WorkshopTrack.Where(x => x.WorkshopId == wcorrente.WorkshopId).Include(x=>x.ListaWorkshopTrackWorkshopSpeaker).ToListAsync();
+        var ListaWorkshopTrack = await AppDbContext.WorkshopTrack.Where(x => x.WorkshopId == wcorrente.WorkshopId).Include(x=>x.ListaWorkshopTrackWorkshopSpeaker).OrderBy(x=>x.StartTime).ToListAsync();
 
         List<WorkshopSpeaker> ListaSpeaker= await AppDbContext.WorkshopSpeaker.ToListAsync();
         
@@ -133,6 +133,12 @@ public partial class Index:IDisposable
                 if (ListaWorkshopTrack[3].ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeaker != null)
                 {
                     mQuestionarioDTO.Track04Speaker = ListaWorkshopTrack[3].ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeaker.Name;
+
+
+                    if (ListaWorkshopTrack[3].ListaWorkshopTrackWorkshopSpeaker != null && ListaWorkshopTrack[3].ListaWorkshopTrackWorkshopSpeaker.Count > 1)
+                    {
+                        mQuestionarioDTO.Track04Speaker += "/" + ListaWorkshopTrack[3].ListaWorkshopTrackWorkshopSpeaker[1].WorkshopSpeakerWorkshopSpeaker.Name;
+                    }
                 }
 
             }
@@ -149,6 +155,12 @@ public partial class Index:IDisposable
                 if (ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeaker != null)
                 {
                     mQuestionarioDTO.Track05Speaker = ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeaker.Name;
+
+                    if (ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker != null && ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker.Count > 1)
+                    {
+                        mQuestionarioDTO.Track05Speaker += "/"+ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker[1].WorkshopSpeakerWorkshopSpeaker.Name;
+                    }
+
                 }
 
             }
