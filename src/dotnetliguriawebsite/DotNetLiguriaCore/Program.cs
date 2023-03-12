@@ -3,6 +3,8 @@ using System.Diagnostics;
 
 using CommonAuth;
 
+using CommonWeb;
+
 using DotNetLiguriaCore.Authorization;
 
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -28,6 +30,8 @@ public class Program
 
     public static void Main(string[] args)
     {
+        DotEnv.SetCurrentProfile();
+
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddCors(options =>
         {
@@ -55,7 +59,7 @@ public class Program
         {
             app.UseSwagger();
             app.UseSwaggerUI();
-            app.UseHsts();
+            //app.UseHsts();
         }
 
         app.UseHttpsRedirection();
@@ -64,7 +68,12 @@ public class Program
         app.UseRouting();
 
         app.UseAuthorization();
-        app.MapControllers();
+        //app.MapControllers();
+        _ = app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapFallbackToFile("/index.html");
+        });
 
         app.Run();
     }

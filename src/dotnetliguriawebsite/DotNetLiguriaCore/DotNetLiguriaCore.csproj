@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CommonAuth\CommonAuth.csproj" />
+    <ProjectReference Include="..\CommonWeb\CommonWeb.csproj" />
   </ItemGroup>
 
 </Project>
