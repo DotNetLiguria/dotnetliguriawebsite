@@ -6,9 +6,12 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const trustedDomains = {
     default: [
-        "https://keycloak.ge.vevy.com/",
+        // "https://keycloak.ge.vevy.com/",
         "https://hello.vevy.com/realms/DotNetLiguria/protocol/openid-connect/token",
-        "https://hello.vevy.com/",
+        "https://hello.vevy.com/realms/DotNetLiguria/protocol/openid-connect/revoke",
+        "https://hello.vevy.com/realms/DotNetLiguria/protocol/openid-connect/userinfo",
+        "https://hello.vevy.com/realms/DotNetLiguria",
+        // "https://hello.vevy.com/",
         "https://beta.dotnetliguria.net/",
         "https://localhost:5443/",
         new RegExp('^(https://[a-zA-Z0-9-]+.dotnetliguria.net/api/)')

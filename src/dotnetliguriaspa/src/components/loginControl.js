@@ -58,9 +58,8 @@ function LoginControl(props) {
     // if (auth.error) {
     //     return <div>Authentication error: {auth.error.message}</div>;
     // }
-
     if (isAuthenticated) {
-        console.log(oidcUser);
+        //console.log(oidcUser);
         let name = oidcUser == null ? "(none)" : oidcUser.name; 
         return (
             <div className="auth">

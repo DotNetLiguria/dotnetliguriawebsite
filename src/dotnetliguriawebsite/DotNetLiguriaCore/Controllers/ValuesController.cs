@@ -4,24 +4,39 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetLiguriaCore.Controllers;
 
-[Route("api/[controller]")]
+[Route("api/[controller]/[action]")]
 [ApiController]
 public class ValuesController : ControllerBase
 {
     // GET: api/<ApiController>
     [HttpGet]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-    public IEnumerable<string> Get()
+    //[Authorize(Policy = "pwd")] // this is not needed (default is pwd)
+    public IEnumerable<string> ValuesPlain()
     {
-        return new string[] { "value1", "value2" };
+        return new string[] { "plain1", "plain2" };
     }
 
-    // GET api/<ApiController>/5
-    [HttpGet("{id}")]
-    public string Get(int id)
+    [HttpGet]
+    [Authorize(Policy = "mfa", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public IEnumerable<string> ValuesMfa()
     {
-        return "value";
+        return new string[] { "totp1", "totp2" };
     }
+
+    [HttpGet]
+    [Authorize(Policy = "hwk", AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+    public IEnumerable<string> ValuesHwk()
+    {
+        return new string[] { "key1", "key2" };
+    }
+
+    //// GET api/<ApiController>/5
+    //[HttpGet("{id}")]
+    //public string Get(int id)
+    //{
+    //    return "value";
+    //}
 
     // POST api/<ApiController>
     [HttpPost]

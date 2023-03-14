@@ -1,5 +1,6 @@
 
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 
 using CommonAuth;
 
@@ -159,6 +160,15 @@ public class Program
         })
         .AddJwtBearer(options =>
         {
+            var jwtHandler = (options.SecurityTokenValidators.FirstOrDefault() as JwtSecurityTokenHandler);
+            if(jwtHandler != null)
+            {
+                // false: use the short names. For example: "acr"
+                // true: use the long uri type names
+                // names are used into the requirements to search the claims
+                jwtHandler.MapInboundClaims = false;
+            }
+
             options.MetadataAddress = authServerConfig.MetadataAddress;
             options.RequireHttpsMetadata = false;
             options.Audience = authServerConfig.Audience;

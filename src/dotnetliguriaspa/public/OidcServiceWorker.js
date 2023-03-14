@@ -107,6 +107,10 @@ function hideTokens(currentDatabaseElement) {
                 access_token: ACCESS_TOKEN + '_' + configurationName,
                 accessTokenPayload,
             };
+
+            // This is used ONLY for debugging the claims in debug mode
+            //console.log("access_token", accessTokenPayload);
+            //
             tokens.accessTokenPayload = accessTokenPayload;
             let _idTokenPayload = null;
             if (tokens.id_token) {

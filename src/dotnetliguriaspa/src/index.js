@@ -19,9 +19,7 @@ const replaceState = (_user: User | void): void => {
 const configuration = {
   //metadataUrl: "https://hello.vevy.com/realms/DotNetLiguria/.well-known/openid-configuration",
   authority: "https://hello.vevy.com/realms/DotNetLiguria",
-  
   client_id: "DotNetLiguriaSpa",
-
   redirect_uri: window.location.origin + '/authentication/callback',
   silent_redirect_uri: window.location.origin + '/authentication/silent-callback', 
   //scope: 'openid profile email api offline_access',
