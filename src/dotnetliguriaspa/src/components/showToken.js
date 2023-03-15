@@ -47,9 +47,9 @@ function ShowToken() {
     const shouldExpandAccess = (keyPath, data, level) =>  false;
     const shouldExpandRefresh = (keyPath, data, level) =>  false;
 
-    let pidToken = parseJwt(idToken);
+    let pidToken = idTokenPayload;//parseJwt(idToken);
     let paccessToken = accessTokenPayload;//parseJwt(accessToken);
-    let prefreshToken = parseJwt(idToken);
+    let prefreshToken = {};//parseJwt(idToken);
 
     return (
     <>

@@ -69,12 +69,17 @@ public class Program
         app.UseRouting();
 
         app.UseAuthorization();
-        //app.MapControllers();
-        _ = app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapControllers();
-            endpoints.MapFallbackToFile("/index.html");
-        });
+        app.MapControllers();
+        app.MapFallbackToFile("/index.html");
+        //    .WithMetadata(new HttpMethodMetadata(new[] { "GET" }));   // specify more verbs on static pages
+
+
+        // old style mapping for the fallback file
+        //app.UseEndpoints(endpoints =>
+        //{
+        //    endpoints.MapControllers();
+        //    endpoints.MapFallbackToFile("/index.html");
+        //});
 
         app.Run();
     }

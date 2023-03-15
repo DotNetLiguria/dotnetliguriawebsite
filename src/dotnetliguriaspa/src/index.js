@@ -30,12 +30,15 @@ const configuration = {
   //onSigninCallback: replaceState,
   //loadUserInfo: true,
 
-  // mfa => Google Authenticator
-  // hwk => Hardware key
+  // mfa => Google Authenticator (TOTP)
+  // hwk => Hardware key (FIDO2)
   //
   //acr_values: "mfa",  // force the request of the OTP (requires the custom flow)
   //acr_values: "hwk",  // force the request of the OTP (requires the custom flow)
-  acr_values: "pwd",    // just ask username/password
+  //acr_values: "pwd",  // just ask username/password
+  extras :{
+    acr_values: "pwd"
+  }
 };
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
