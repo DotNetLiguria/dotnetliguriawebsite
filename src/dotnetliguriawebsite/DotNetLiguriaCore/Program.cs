@@ -31,7 +31,10 @@ public class Program
 
     public static void Main(string[] args)
     {
+#if DEBUG
+        Console.WriteLine("This is a debug build");
         DotEnv.SetCurrentProfile();
+#endif
 
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddCors(options =>
