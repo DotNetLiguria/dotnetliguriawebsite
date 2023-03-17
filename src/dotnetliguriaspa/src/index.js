@@ -33,9 +33,9 @@ const configuration = {
   // mfa => Google Authenticator (TOTP)
   // hwk => Hardware key (FIDO2)
   //
+  //acr_values: "pwd",  // just ask username/password
   //acr_values: "mfa",  // force the request of the OTP (requires the custom flow)
   //acr_values: "hwk",  // force the request of the OTP (requires the custom flow)
-  //acr_values: "pwd",  // just ask username/password
   extras :{
     acr_values: "pwd"
   }
