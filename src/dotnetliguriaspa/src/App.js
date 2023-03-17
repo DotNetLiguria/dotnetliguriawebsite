@@ -76,7 +76,7 @@ function App() {
         return;
       }
 
-      const response = await fetch("https://localhost:5443/api/values/" + resource, {
+      const response = await fetch(window.location.origin + "/api/values/" + resource, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

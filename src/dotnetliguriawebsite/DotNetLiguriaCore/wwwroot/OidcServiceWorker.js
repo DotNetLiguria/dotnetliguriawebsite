@@ -257,6 +257,7 @@ const handleFetch = async (event) => {
         while (currentDatabaseForRequestAccessToken.tokens && !isTokensValid(currentDatabaseForRequestAccessToken.tokens)) {
             await sleep(200);
         }
+        console.log('originalRequest is:', originalRequest);
         const newRequest = new Request(originalRequest, {
             headers: {
                 ...serializeHeaders(originalRequest.headers),

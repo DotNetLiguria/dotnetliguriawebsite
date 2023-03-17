@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
 
 namespace DotNetLiguriaCore;
@@ -27,12 +28,14 @@ public class Program
             "http://localhost:3000",
             "https://www.dotnetliguria.net:3443",
             "https://beta.dotnetliguria.net:3443",
+            "https://beta.dotnetliguria.net",
         };
 
     public static void Main(string[] args)
     {
 #if DEBUG
         Console.WriteLine("This is a debug build");
+        //IdentityModelEventSource.ShowPII = true;
         DotEnv.SetCurrentProfile();
 #endif
 
@@ -73,6 +76,7 @@ public class Program
 
         app.UseAuthorization();
         app.MapControllers();
+        app.MapDefaultControllerRoute();
         app.MapFallbackToFile("/index.html");
         //    .WithMetadata(new HttpMethodMetadata(new[] { "GET" }));   // specify more verbs on static pages
 
