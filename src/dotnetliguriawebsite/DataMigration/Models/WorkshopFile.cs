@@ -18,7 +18,7 @@ namespace DotNetLiguria.Models
         //public Guid? Workshop_WorkshopId { get; set; }
         //public virtual Guid WorkshopId { get; set; }
 
-        [ForeignKey("WorkshopId")]
+        [ForeignKey("Workshop_WorkshopId")]
         public Workshop? Workshop { get; set; }
 
     }
