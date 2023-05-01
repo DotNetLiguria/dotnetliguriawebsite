@@ -54,11 +54,22 @@ public class DotNetLiguriaContext : DbContext
         modelBuilder.Entity<VideoSliderObj>().ToTable(typeof(VideoSliderObj).Name);
         modelBuilder.Entity<CustomHtmlSliderObj>().ToTable(typeof(CustomHtmlSliderObj).Name);
         modelBuilder.Entity<Workshop>().ToTable(typeof(Workshop).Name).OwnsOne(p => p.Location);
+
+        //modelBuilder.Entity<WorkshopFile>()
+        //    .HasOne<Workshop>(w => w.Workshop);
+        modelBuilder.Entity<WorkshopFile>()
+            //.Ignore("WorkshopId")
+            .ToTable(typeof(WorkshopFile).Name);
+        modelBuilder.Entity<WorkshopSpeaker>().ToTable(typeof(WorkshopSpeaker).Name);
+        modelBuilder.Entity<WorkshopTrack>().ToTable(typeof(WorkshopTrack).Name);
+
+        modelBuilder.Entity<Workshop>().HasMany<WorkshopFile>(w => w.WorkshopFiles);
     }
 
     public DbSet<Blog> Blogs { get; set; }
     public DbSet<News> News { get; set; }
     public DbSet<Workshop> Workshops { get; set; }
+    public DbSet<WorkshopFile> WorkshopFiles { get; set; }
     public DbSet<WorkshopTrack> Tracks { get; set; }
     public DbSet<WorkshopSpeaker> Speakers { get; set; }
     public DbSet<HtmlSnippet> HtmlSnippets { get; set; }

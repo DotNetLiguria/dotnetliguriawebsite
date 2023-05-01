@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 
@@ -13,6 +14,13 @@ namespace DotNetLiguria.Models
         public string FileName { get; set; }
         public string FullPath { get; set; }
         public WorkshopFileType FileType { get; set; }
+
+        //public Guid? Workshop_WorkshopId { get; set; }
+        //public virtual Guid WorkshopId { get; set; }
+
+        [ForeignKey("WorkshopId")]
+        public Workshop? Workshop { get; set; }
+
     }
 
     public enum WorkshopFileType
