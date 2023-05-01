@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace DotNetLiguria.Models
 {
@@ -18,6 +19,7 @@ namespace DotNetLiguria.Models
         //public Guid? Workshop_WorkshopId { get; set; }
         //public virtual Guid WorkshopId { get; set; }
 
+        [JsonIgnore]
         [ForeignKey("Workshop_WorkshopId")]
         public Workshop? Workshop { get; set; }
 
