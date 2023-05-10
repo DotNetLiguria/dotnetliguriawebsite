@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataMigration
+namespace DotNetLiguriaCore
 {
     public class DotNetLiguriaDatabaseSettings
     { 
@@ -13,6 +13,7 @@ namespace DataMigration
         public string DatabaseName { get; set; } = null!;
 
         public string WorkshopCollectionName { get; set; } = null!;
+
         public string SpeakerCollectionName { get; set; } = null!;
     }
 }

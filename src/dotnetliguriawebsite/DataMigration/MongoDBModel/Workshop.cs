@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DotNetLiguriaCore.Model
+namespace DotNetLiguria.MongoDBModel
 {
     public class Workshop
     {
@@ -33,6 +33,11 @@ namespace DotNetLiguriaCore.Model
 
         public string OldUrl { get; set; }
         public string Slug { get; set; }
+
+        public Workshop()
+        {
+            Tracks = new List<WorkshopTrack>();
+        }
 
     }
 }

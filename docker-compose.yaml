@@ -8,7 +8,7 @@ services:
     ports:
       - 27017:27017
     volumes:
-      - H:/VMs/ContainerData/MongoDB:/data/db
+      - F:/DockerHD/MongoDB:/data/db
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=local

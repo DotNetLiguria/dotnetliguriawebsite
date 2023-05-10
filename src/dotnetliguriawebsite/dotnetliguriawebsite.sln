@@ -10,8 +10,11 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CommonWeb", "CommonWeb\CommonWeb.csproj", "{0451D05E-9FE4-4605-A68C-5A549B8BCDFE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataMigration", "DataMigration\DataMigration.csproj", "{C0F973A4-11E8-4DDA-9DF4-E8F7D9D193A8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{11289F38-8F9A-4908-B045-A7B762DF515D} = {11289F38-8F9A-4908-B045-A7B762DF515D}
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetLiguriaCore.Model", "DotNetLiguriaCore.Model\DotNetLiguriaCore.Model.csproj", "{11289F38-8F9A-4908-B045-A7B762DF515D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetLiguriaCore.Model", "DotNetLiguriaCore.Model\DotNetLiguriaCore.Model.csproj", "{11289F38-8F9A-4908-B045-A7B762DF515D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

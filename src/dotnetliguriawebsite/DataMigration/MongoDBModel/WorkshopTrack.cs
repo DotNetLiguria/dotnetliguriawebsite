@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DotNetLiguriaCore.Model
+namespace DotNetLiguria.MongoDBModel
 {
     public class WorkshopTrack
     {
@@ -21,6 +21,5 @@ namespace DotNetLiguriaCore.Model
         public int Level { get; set; }
 
         public List<Guid> Speakers { get; set; }
-        public string SpeakersName { get; set; }
     }
 }
