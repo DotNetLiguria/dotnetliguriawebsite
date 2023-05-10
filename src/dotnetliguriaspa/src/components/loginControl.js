@@ -1,3 +1,5 @@
+/* eslint-disable react/prop-types */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
 import './loginControl.css';
 import { useOidc } from "@axa-fr/react-oidc";
@@ -40,6 +42,7 @@ function LoginControl(props) {
     const logoutPlain = async () => {
         await logout();
         //await auth.removeUser();
+        // eslint-disable-next-line react/prop-types
         props.onLogout();
     }
 
@@ -60,7 +63,7 @@ function LoginControl(props) {
     // }
     if (isAuthenticated) {
         //console.log(oidcUser);
-        let name = oidcUser == null ? "(none)" : oidcUser.name; 
+        let name = oidcUser == null ? "(none)" : oidcUser.name;
         return (
             <div className="auth">
                 <span className="helloUser">Hello {name}</span>
@@ -76,7 +79,7 @@ function LoginControl(props) {
             <div className="auth">
                 <span className="helloUser"><a href="#" onClick={loginPlain}>Log in</a></span>
                 <span className="helloUser"><a href="#" onClick={loginMfa}>Log in [MFA]</a></span>
-                
+
                 {/*
                     The following link is used for the "Super Secret" page
                     The scenario is when using three levels of Step-Up auth which are:
@@ -92,4 +95,4 @@ function LoginControl(props) {
 }
 
 
-export default LoginControl;
+export default LoginControl; 

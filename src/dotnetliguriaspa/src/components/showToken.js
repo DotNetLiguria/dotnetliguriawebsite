@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React from 'react';
 import { useOidcIdToken, useOidcAccessToken } from '@axa-fr/react-oidc';
 import { JSONTree } from 'react-json-tree';
@@ -20,7 +21,7 @@ function ShowToken() {
         }).join(''));
     
         return JSON.parse(jsonPayload);
-    };
+    }
 
     const theme = {
         scheme: 'monokai',
