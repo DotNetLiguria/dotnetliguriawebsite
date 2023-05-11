@@ -1,0 +1,43 @@
+.SideBar {
+    flex:1;
+    height: calc(100vh - 50px);
+    position: sticky;
+    top: 50px;
+}
+
+.SideBarWrapper{
+    padding: 20px;
+    color: #555;
+}
+
+.SideBarMenu{
+    margin-bottom: 10px;
+}
+
+.SideBarTitle{
+    font-size: 13px;
+    color: lightgray;
+}
+
+.SideBarList{
+    list-style: none;
+    padding: 5px;
+}
+
+.SideBarListItem{
+    padding:5px;
+    cursor: pointer;
+    display:flex;
+    align-items: center;
+    border-radius: 10px;
+}
+
+.SideBarListItem:active,
+.SideBarListItem:hover {
+    background-color: rgb(228,228,250);
+}
+
+.SideBarIcon{
+    margin-right: 5px;
+    font-size: 20px !important;
+}

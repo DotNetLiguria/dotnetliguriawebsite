@@ -20,6 +20,8 @@ import HomeAdmin from './pages/HomeAdmin/HomeAdmin';
 import AdminWorkshops from './pages/AdminWorkshops/AdminWorkshops';
 import AdminUsers from './pages/AdminUsers/AdminUsers';
 import AdminHome from './pages/AdminHome/AdminHome';
+import TopBar from "./components/TopBar/TopBar";
+import SideBar from "./components/SideBar/SideBar";
 
 const acr_to_loa = Object.freeze({
   pwd: 1,
@@ -198,12 +200,14 @@ function App() {
             <div className="tokens">
               <ShowToken></ShowToken>
             </div>
-        ) : (<></>)}
-
-        {/* <Router>
-        <Routes />
-      </Router>
-      */}
+        ) : (
+            <>
+            <TopBar/>
+              <div className="container">
+                <SideBar/>
+              </div> 
+            </>
+        )}
 
         <Routes>
           <Route path='/' element={<Home/>} />
