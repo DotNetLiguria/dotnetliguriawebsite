@@ -1,0 +1,17 @@
+version: '3.1'
+
+services:
+  mongodb:
+    image: mongo:latest
+    restart: always
+    container_name: mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - F:/DockerHD/MongoDB:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=local
+
+# this is not a sensitive password because it is only used
+# during development time on localhost

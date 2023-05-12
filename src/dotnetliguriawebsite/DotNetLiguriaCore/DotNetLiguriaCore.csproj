@@ -15,12 +15,14 @@
         <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="7.0.3" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.3" />
         <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.0" />
+        <PackageReference Include="MongoDB.Driver" Version="2.19.1" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CommonAuth\CommonAuth.csproj" />
         <ProjectReference Include="..\CommonWeb\CommonWeb.csproj" />
+        <ProjectReference Include="..\DotNetLiguriaCore.Model\DotNetLiguriaCore.Model.csproj" />
     </ItemGroup>
 
 </Project>

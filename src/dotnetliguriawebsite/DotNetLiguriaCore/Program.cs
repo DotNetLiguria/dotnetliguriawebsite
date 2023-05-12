@@ -7,7 +7,7 @@ using CommonAuth;
 using CommonWeb;
 
 using DotNetLiguriaCore.Authorization;
-
+using DotNetLiguriaCore.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -58,6 +58,12 @@ public class Program
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+
+        builder.Services.Configure<DotNetLiguriaDatabaseSettings>(
+        builder.Configuration.GetSection("DotNetLiguriaDatabase"));
+
+        builder.Services.AddSingleton<WorkshopService>();
+        builder.Services.AddSingleton<SpeakerService>();
 
         var app = builder.Build();
         app.UseCors(CorsPolicy);
