@@ -157,7 +157,6 @@ function App() {
                     <HomeHeader/>
                 </>
             )}
-
         </div>
     );
 
