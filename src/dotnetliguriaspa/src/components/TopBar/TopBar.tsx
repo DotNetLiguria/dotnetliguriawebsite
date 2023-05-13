@@ -25,21 +25,21 @@ const TopBar: FC<TopBarProps> = () => {
                     <div className={styles.logo}>DotNet Liguria</div>
                 </div>
                 <div className={styles.TopRight}>
-                    <div className={styles.TopIconContainer}>
-                        <Notifications/>
-                        <div className={styles.TopIconBadge}>
-                            5
-                        </div>
-                    </div>
-                    <div className={styles.TopIconContainer}>
-                        <Language/>
-                        <div className={styles.TopIconBadge}>
-                            5
-                        </div>
-                    </div>
-                    <div className={styles.TopIconContainer}>
-                        <SettingsIcon/>
-                    </div>
+                    {/*<div className={styles.TopIconContainer}>*/}
+                    {/*    <Notifications/>*/}
+                    {/*    <div className={styles.TopIconBadge}>*/}
+                    {/*        5*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
+                    {/*<div className={styles.TopIconContainer}>*/}
+                    {/*    <Language/>*/}
+                    {/*    <div className={styles.TopIconBadge}>*/}
+                    {/*        5*/}
+                    {/*    </div>*/}
+                    {/*</div>*/}
+                    {/*<div className={styles.TopIconContainer}>*/}
+                    {/*    <SettingsIcon/>*/}
+                    {/*</div>*/}
                     <div>
                         <LoginControl onLogout={loggedOut}/>
                     </div>

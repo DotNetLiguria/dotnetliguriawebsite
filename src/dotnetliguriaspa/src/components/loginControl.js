@@ -69,8 +69,6 @@ function LoginControl(props) {
                 <span className="helloUser">Hello {name}</span>
                 <span className="helloUser"><a href="#" onClick={logoutPlain}>Log out</a></span>
                 <span className="helloUser"><a href="#" onClick={logoutAndRevoke}>Log out and Revoke</a></span>
-
-                {/* <div>Claim sub: {auth.user.profile['sub']}</div> */}
             </div>
         );
     }

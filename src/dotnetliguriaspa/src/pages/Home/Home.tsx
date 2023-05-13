@@ -6,7 +6,7 @@ interface HomeProps {}
 
 const Home: FC<HomeProps> = () => (
   <div className={styles.Home} data-testid="Home">
-    Home Pages
+    Admin - Home Pages
   </div>
 );
 
