@@ -17,11 +17,12 @@ function LoginControl(props) {
     // }
 
     const loginPlain = async () => {
-        await login();
+        await login("/admin");
     }
 
     const loginMfa = async () => {
-        await login(null, {
+        console.log("loginMfa");
+        await login("/admin", {
             acr_values: "mfa"
         });
         // await auth.signinRedirect({
@@ -30,7 +31,8 @@ function LoginControl(props) {
     }
 
     const loginHwk = async () => {
-        await login(null, {
+        console.log("loginHwk");
+        await login("/admin", {
             acr_values: "hwk"
         });
 

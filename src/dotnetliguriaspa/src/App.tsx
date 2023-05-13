@@ -137,7 +137,6 @@ function App() {
                     <div className="container">
                         <SideBar/>
                         <Routes>
-                            <Route path='/' element={<Home/>}/>
                             <Route path='/admin' element={<AdminHome/>}/>
                             <Route path='/admin/analytics/' element={<PageNotFound pagename={"Analytics"}/>}/>
                             <Route path='/admin/users/' element={<PageNotFound pagename={"Users"}/>}/>
