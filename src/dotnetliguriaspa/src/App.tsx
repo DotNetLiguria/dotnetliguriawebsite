@@ -4,14 +4,11 @@
 import logo from './assets/Logo_H200.png';
 //import logo from './assets/Logo_H100.png';
 import './App.css';
-import React, { useState } from 'react';
-import { useOidcFetch } from '@axa-fr/react-oidc';
-// import { BrowserRouter as Router } from 'react-router-dom';
-// import { Routes } from 'react-router-dom';
-//import { useAuth } from "@axa-fr/react-oidc";
-import { useOidc } from "@axa-fr/react-oidc";
-import { useOidcIdToken, useOidcAccessToken } from '@axa-fr/react-oidc';
-import { Route, Routes } from 'react-router-dom';
+import React, {useState} from 'react';
+import {useOidcFetch} from '@axa-fr/react-oidc';
+import {useOidc} from "@axa-fr/react-oidc";
+import {useOidcIdToken, useOidcAccessToken} from '@axa-fr/react-oidc';
+import {Route, Routes} from 'react-router-dom';
 import ShowToken from './components/showToken';
 import ShowJson from './components/showJson';
 import LoginControl from './components/loginControl';
@@ -20,204 +17,150 @@ import HomeAdmin from './pages/HomeAdmin/HomeAdmin';
 import AdminWorkshops from './pages/AdminWorkshops/AdminWorkshops';
 import AdminUsers from './pages/AdminUsers/AdminUsers';
 import AdminHome from './pages/AdminHome/AdminHome';
+import AdminNotFound from './pages/AdminNotFound/AdminNotFound'
 import TopBar from "./components/TopBar/TopBar";
 import SideBar from "./components/SideBar/SideBar";
+import HomeHeader from "./components/HomeHeader/HomeHeader";
+import PageNotFound from "./pages/PageNotFound/PageNotFound";
+import AdminTokens from "./pages/AdminTokens/AdminTokens";
 
 const acr_to_loa = Object.freeze({
-  pwd: 1,
-  mfa: 2,
-  hwk: 3,
+    pwd: 1,
+    mfa: 2,
+    hwk: 3,
 });
 
 function App() {
-  const { login, logout, renewTokens, isAuthenticated } = useOidc();
-  const { idToken, idTokenPayload } = useOidcIdToken();
-  const { accessToken, accessTokenPayload } = useOidcAccessToken();
+    const {login, logout, renewTokens, isAuthenticated} = useOidc();
+    const {idToken, idTokenPayload} = useOidcIdToken();
+    const {accessToken, accessTokenPayload} = useOidcAccessToken();
 
-  const [result, setResult] = useState("");
-  const [isError, setIsError] = useState(true);
+    const [result, setResult] = useState("");
+    const [isError, setIsError] = useState(true);
 
-  const { fetch } = useOidcFetch();
+    const {fetch} = useOidcFetch();
 
-  // switch (auth.activeNavigator) {
-  //   case "signinSilent":
-  //     return <div>Signing you in...</div>;
-  //   case "signoutRedirect":
-  //     return <div>Signing you out...</div>;
-  //   default:
-  // }
+    // switch (auth.activeNavigator) {
+    //   case "signinSilent":
+    //     return <div>Signing you in...</div>;
+    //   case "signoutRedirect":
+    //     return <div>Signing you out...</div>;
+    //   default:
+    // }
 
-  // if (auth.isLoading) {
-  //   return <div>Loading...</div>;
-  // }
+    // if (auth.isLoading) {
+    //   return <div>Loading...</div>;
+    // }
 
-  // if (auth.error) {
-  //   return <div>Oops... {auth.error.message}</div>;
-  // }
+    // if (auth.error) {
+    //   return <div>Oops... {auth.error.message}</div>;
+    // }
 
-  // if (auth.isAuthenticated) {
-  //   //console.log(auth.user.profile);
-  //   return (
-  //     <div>
-  //       Hello {auth.user?.profile.name}{" "}
-  //       <button onClick={() => void auth.removeUser()}>Log out</button>
-  //       <div>Claim sub: {auth.user.profile['sub']}</div>
+    // if (auth.isAuthenticated) {
+    //   //console.log(auth.user.profile);
+    //   return (
+    //     <div>
+    //       Hello {auth.user?.profile.name}{" "}
+    //       <button onClick={() => void auth.removeUser()}>Log out</button>
+    //       <div>Claim sub: {auth.user.profile['sub']}</div>
 
-  //     </div>
-  //   );
-  // }
+    //     </div>
+    //   );
+    // }
 
-  const invokeAPI = async (resource: string, requested_loa: number, previousInvocationOk = true) => {
-    try {
-      console.log(`requesting ${resource} with loa:${requested_loa}`);
-      console.log("sono qui dentro");
-      const token = idToken;
-      //console.log(token);
-      if (!isAuthenticated) {
-        setResult("User is not authenticated");
-        setIsError(true);
-        return;
-      }
-
-      const token_loa = acr_to_loa[accessTokenPayload.acr];
-      if (token_loa < requested_loa) {
-        setResult("User need higher privileges: " + Object.keys(acr_to_loa)[requested_loa - 1]);
-        setIsError(true);
-        return;
-      }
-
-//post solution
-// const requestOptions = {
-//   method: 'POST',
-//   headers: { 'Content-Type': 'application/json' },
-//   body: JSON.stringify({ title: 'React POST Request Example' })
-// };
-
-// fetch('https://reqres.in/invalid-url', requestOptions)
-//   .then(async response => {
-//     const isJson = response.headers.get('content-type')?.includes('application/json');
-//     const data = isJson && await response.json();
-
-//     // check for error response
-//     if (!response.ok) {
-//       // get error message from body or default to response status
-//       const error = (data && data.message) || response.status;
-//       return Promise.reject(error);
-//     }
-
-//     this.setState({ postId: data.id })
-//   })
-//   .catch(error => {
-//     this.setState({ errorMessage: error.toString() });
-//     console.error('There was an error!', error);
-//   });
-
-      const loadedUsers = await fetch("https://hello.vevy.com/realms/DotNetLiguria/users", {
-        // headers: {
-        //   Authorization: `Bearer ${token}`,
-        // },
-      });
-      console.log(loadedUsers);
-
-      const response = await fetch(window.location.origin + "/api/values/" + resource, {
-        // headers: {
-        //   Authorization: `Bearer ${token}`,
-        // },
-      });
-
-      if (!response.ok) {
-        let message;
+    const invokeAPI = async (resource: string, requested_loa: number, previousInvocationOk = true) => {
         try {
-          console.log(response);
-          const authError = response.headers.get("WWW-Authenticate");
-          message = `Fetch failed with HTTP status ${response.status} ${authError}  ${await response.text()}`;
+            console.log(`requesting ${resource} with loa:${requested_loa}`);
+            console.log("I'm here");
+            const token = idToken;
+            //console.log(token);
+            if (!isAuthenticated) {
+                setResult("User is not authenticated");
+                setIsError(true);
+                return;
+            }
+
+            const token_loa = acr_to_loa[accessTokenPayload.acr];
+            if (token_loa < requested_loa) {
+                setResult("User need higher privileges: " + Object.keys(acr_to_loa)[requested_loa - 1]);
+                setIsError(true);
+                return;
+            }
+
+            const loadedUsers = await fetch("https://hello.vevy.com/realms/DotNetLiguria/users", {
+                // headers: {
+                //   Authorization: `Bearer ${token}`,
+                // },
+            });
+            console.log(loadedUsers);
+
+            const response = await fetch(window.location.origin + "/api/values/" + resource, {
+                // headers: {
+                //   Authorization: `Bearer ${token}`,
+                // },
+            });
+
+            if (!response.ok) {
+                let message;
+                try {
+                    console.log(response);
+                    const authError = response.headers.get("WWW-Authenticate");
+                    message = `Fetch failed with HTTP status ${response.status} ${authError}  ${await response.text()}`;
+                } catch (e) {
+                    message = `Fetch failed with HTTP status ${response.status} ${response.statusText}`;
+                }
+
+                setResult(message);
+                setIsError(true);
+                return;
+            }
+
+            setResult(await response.json());
+            setIsError(false);
+        } catch (e) {
+            console.log(e);
+            setResult(e.message);
+            setIsError(true);
         }
-        catch (e) {
-          message = `Fetch failed with HTTP status ${response.status} ${response.statusText}`;
-        }
+    }
 
-        // //if(previousInvocationOk && response.status == 403) {
-        // if(response.status == 403) {
-        //   console.log("fetch access denied: logout+login in progress: " + loa);
-        //   await logout();
-        //   await login(null, {
-        //     acr_values: loa
-        //   });
-
-        //   invokeAPI(resource, loa, false);
-        //   return;
-        // }
-
-        setResult(message);
+    const loggedOut = () => {
+        setResult("");
         setIsError(true);
-        return;
-      }
-
-      setResult(await response.json());
-      setIsError(false);
     }
-    catch (e) {
-      console.log(e);
-      setResult(e.message);
-      setIsError(true);
-    }
-  }
 
-  const loggedOut = () => {
-    setResult("");
-    setIsError(true);
-  }
-
-  return (
-      <div>
-        <header className="header">
-          <div className="one">
-            <a href="#" className="apilink" onClick={() => invokeAPI("ValuesPlain", acr_to_loa.pwd)}>Plain API</a>
-            <a href="#" className="apilink" onClick={() => invokeAPI("ValuesMfa", acr_to_loa.mfa)}>TOTP API</a>
-            <a href="#" className="apilink" onClick={() => invokeAPI("ValuesHwk", acr_to_loa.hwk)}>Key API</a>
-          </div>
-
-          <div className="two"></div>
-
-          <div className="three">
-            <LoginControl onLogout={loggedOut} />
-          </div>
-
-        </header>
-
-        <div className="content">
-          <img src={logo} className="App-logo" alt="logo" />
+    return (
+        <div className="App">
+            {isAuthenticated ? (
+                <>
+                    <TopBar/>
+                    <div className="container">
+                        <SideBar/>
+                        <Routes>
+                            <Route path='/' element={<Home/>}/>
+                            <Route path='/admin' element={<AdminHome/>}/>
+                            <Route path='/admin/analytics/' element={<PageNotFound pagename={"Analytics"}/>}/>
+                            <Route path='/admin/users/' element={<PageNotFound pagename={"Users"}/>}/>
+                            <Route path='/admin/workshops/' element={<PageNotFound pagename={"Workshops"}/>}/>
+                            <Route path='/admin/events/' element={<PageNotFound pagename={"Events"}/>}/>
+                            <Route path='/admin/reports/' element={<PageNotFound pagename={"Reports"}/>}/>
+                            <Route path='/admin/mails/' element={<PageNotFound pagename={"Mails"}/>}/>
+                            <Route path='/admin/feedbacks/' element={<PageNotFound pagename={"Feedbacks"}/>}/>
+                            <Route path='/admin/messages/' element={<PageNotFound pagename={"Messages"}/>}/>
+                            <Route path='/admin/manage/' element={<PageNotFound pagename={"Manage"}/>}/>
+                            <Route path='/admin/tokens/' element={<AdminTokens pagename={"tokens"}/>}/>
+                        </Routes>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <HomeHeader/>
+                </>
+            )}
 
         </div>
+    );
 
-        <div className="apiResult">
-          {isError ? result : (<ShowJson label="API result" data={result} />)}
-        </div>
-
-
-
-        {isAuthenticated ? (
-            <div className="tokens">
-              <ShowToken></ShowToken>
-            </div>
-        ) : (
-            <>
-            <TopBar/>
-              <div className="container">
-                <SideBar/>
-              </div> 
-            </>
-        )}
-
-        <Routes>
-          <Route path='/' element={<Home/>} />
-          <Route path='/admin' element={<AdminHome />} />
-          <Route path='/admin/workshops' element={<AdminWorkshops />} />
-          <Route path='/admin/users' element={<AdminUsers />} />
-        </Routes>
-
-      </div>
-  );
 }
 
 export default App;

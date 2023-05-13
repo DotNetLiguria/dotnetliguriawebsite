@@ -29,16 +29,10 @@ const SideBar: FC<SideBarProps> = () => (
                             Home
                         </li>
                     </Link>
-                    <Link to="/analytics/" className="link">
+                    <Link to="/admin/analytics/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Timeline className={styles.SideBarIcon}/>
                             Analytics
-                        </li>
-                    </Link>
-                    <Link to="/sales/" className="link">
-                        <li className={styles.SideBarListItem}>
-                            <TrendingUp className={styles.SideBarIcon}/>
-                            Sales
                         </li>
                     </Link>
                 </ul>
@@ -47,25 +41,25 @@ const SideBar: FC<SideBarProps> = () => (
             <div className={styles.SideBarMenu}>
                 <h3 className={styles.SideBarTitle}>Quick Menu</h3>
                 <ul className={styles.SideBarList}>
-                    <Link to="/users/" className="link">
+                    <Link to="/admin/users/" className="link">
                         <li className={styles.SideBarListItem}>
                             <VerifiedUser className={styles.SideBarIcon}/>
                             Users
                         </li>
                     </Link>
-                    <Link to="/products" className="link">
+                    <Link to="/admin/workshops" className="link">
                         <li className={styles.SideBarListItem}>
                             <ProductionQuantityLimits className={styles.SideBarIcon}/>
-                            Products
+                            Workshops
                         </li>
                     </Link>
-                    <Link to="/transactions/" className="link">
+                    <Link to="/admin/events/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Money className={styles.SideBarIcon}/>
-                            Transactions
+                            Events
                         </li>
                     </Link>
-                    <Link to="/reports/" className="link">
+                    <Link to="/admin/reports/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Report className={styles.SideBarIcon}/>
                             Reports
@@ -77,19 +71,19 @@ const SideBar: FC<SideBarProps> = () => (
             <div className={styles.SideBarMenu}>
                 <h3 className={styles.SideBarTitle}>Notifications</h3>
                 <ul className={styles.SideBarList}>
-                    <Link to="/mails/" className="link">
+                    <Link to="/admin/mails/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Mail className={styles.SideBarIcon}/>
                             Mail
                         </li>
                     </Link>
-                    <Link to="/feedbacks/" className="link">
+                    <Link to="/admin/feedbacks/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Feedback className={styles.SideBarIcon}/>
-                            Feedback
+                            Feedbacks
                         </li>
                     </Link>
-                    <Link to="/messages/" className="link">
+                    <Link to="/admin/messages/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Message className={styles.SideBarIcon}/>
                             Messages
@@ -101,22 +95,28 @@ const SideBar: FC<SideBarProps> = () => (
             <div className={styles.SideBarMenu}>
                 <h3 className={styles.SideBarTitle}>Staff</h3>
                 <ul className={styles.SideBarList}>
-                    <Link to="/manage" className="link">
+                    <Link to="/admin/manage/" className="link">
                         <li className={styles.SideBarListItem}>
                             <ManageAccounts className={styles.SideBarIcon}/>
                             Manage
                         </li>
                     </Link>
-                    <Link to="/adminanalytcs" className="link">
+                    <Link to="/admin/analytics/" className="link">
                         <li className={styles.SideBarListItem}>
                             <Timeline className={styles.SideBarIcon}/>
                             Analytics
                         </li>
                     </Link>
-                    <Link to="/adminreports" className="link">
+                    <Link to="/admin/reports" className="link">
                         <li className={styles.SideBarListItem}>
                             <Report className={styles.SideBarIcon}/>
                             Reports
+                        </li>
+                    </Link>
+                    <Link to="/admin/tokens" className="link">
+                        <li className={styles.SideBarListItem}>
+                            <Report className={styles.SideBarIcon}/>
+                            Tokens Check
                         </li>
                     </Link>
                 </ul>
