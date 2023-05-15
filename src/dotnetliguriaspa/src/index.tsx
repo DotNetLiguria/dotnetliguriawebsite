@@ -1,27 +1,20 @@
+/* eslint-disable no-undef */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-
+import { BrowserRouter } from 'react-router-dom';
 import { OidcProvider } from "@axa-fr/react-oidc";
 
-const replaceState = (_user: User | void): void => {
-  window.history.replaceState(
-    {},
-    document.title,
-    window.location.pathname
-  )
-
-  //console.log(_user);
-}
 
 const configuration = {
   //metadataUrl: "https://hello.vevy.com/realms/DotNetLiguria/.well-known/openid-configuration",
   authority: "https://hello.vevy.com/realms/DotNetLiguria",
   client_id: "DotNetLiguriaSpa",
   redirect_uri: window.location.origin + '/authentication/callback',
-  silent_redirect_uri: window.location.origin + '/authentication/silent-callback', 
+  silent_redirect_uri: window.location.origin + '/authentication/silent-callback',
   //scope: 'openid profile email api offline_access',
   scope: 'openid email',
   service_worker_relative_url:'/OidcServiceWorker.js',
@@ -41,13 +34,17 @@ const configuration = {
   }
 };
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const root = ReactDOM.createRoot(
+    document.getElementById('root') as HTMLElement
+);
 root.render(
-  <React.StrictMode>
-    <OidcProvider configuration={configuration} >
-      <App />
-    </OidcProvider>
-  </React.StrictMode>
+    <React.StrictMode>
+      <BrowserRouter>
+        <OidcProvider configuration={configuration} >
+          <App />
+        </OidcProvider>
+      </BrowserRouter>
+    </React.StrictMode>
 );
 
 // If you want to start measuring performance in your app, pass a function
