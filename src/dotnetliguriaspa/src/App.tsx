@@ -9,20 +9,11 @@ import {useOidcFetch} from '@axa-fr/react-oidc';
 import {useOidc} from "@axa-fr/react-oidc";
 import {useOidcIdToken, useOidcAccessToken} from '@axa-fr/react-oidc';
 import {Route, Routes} from 'react-router-dom';
-import ShowToken from './components/showToken';
-import ShowJson from './components/showJson';
-import LoginControl from './components/loginControl';
-import Home from './pages/Home/Home';
-import HomeAdmin from './pages/HomeAdmin/HomeAdmin';
-import AdminWorkshops from './pages/AdminWorkshops/AdminWorkshops';
-import AdminUsers from './pages/AdminUsers/AdminUsers';
 import AdminHome from './pages/AdminHome/AdminHome';
-import AdminNotFound from './pages/AdminNotFound/AdminNotFound'
-import TopBar from "./components/TopBar/TopBar";
-import SideBar from "./components/SideBar/SideBar";
 import HomeHeader from "./components/HomeHeader/HomeHeader";
 import PageNotFound from "./pages/PageNotFound/PageNotFound";
 import AdminTokens from "./pages/AdminTokens/AdminTokens";
+import Layout from "./components/Layout/Layout";
 
 const acr_to_loa = Object.freeze({
     pwd: 1,
@@ -133,10 +124,9 @@ function App() {
         <div className="App">
             {isAuthenticated ? (
                 <>
-                    <TopBar/>
-                    <div className="container">
-                        <SideBar/>
-                        <Routes>
+                    <Routes>
+                        <Route path='/' exact element={<HomeHeader/>}/>
+                        <Route element={<Layout/>}>
                             <Route path='/admin' element={<AdminHome/>}/>
                             <Route path='/admin/analytics/' element={<PageNotFound pagename={"Analytics"}/>}/>
                             <Route path='/admin/users/' element={<PageNotFound pagename={"Users"}/>}/>
@@ -148,8 +138,8 @@ function App() {
                             <Route path='/admin/messages/' element={<PageNotFound pagename={"Messages"}/>}/>
                             <Route path='/admin/manage/' element={<PageNotFound pagename={"Manage"}/>}/>
                             <Route path='/admin/tokens/' element={<AdminTokens pagename={"tokens"}/>}/>
-                        </Routes>
-                    </div>
+                        </Route>
+                    </Routes>
                 </>
             ) : (
                 <>

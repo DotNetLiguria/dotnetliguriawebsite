@@ -12,12 +12,12 @@ const TopBar: FC<TopBarProps> = () => {
 
     const [result, setResult] = useState("");
     const [isError, setIsError] = useState(true);
-    
+
     const loggedOut = () => {
         setResult("");
         setIsError(true);
     }
-    
+
     return (
         <div className={styles.TopBar}>
             <div className={styles.TopBarWrapper}>

@@ -1,0 +1,63 @@
+.AdminWidgetLg {
+    flex: 2;
+    padding: 20px;
+    -webkit-box-shadow: 0px 0px 11px -1px #000000;
+    box-shadow: 0px 0px 11px -1px #000000;
+}
+
+.AdminWidgetLgTitle {
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.AdminWidgetLgImg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 10px;
+}
+
+.AdminWidgetLgButton {
+    padding: 5px 7px;
+    border: none;
+    border-radius: 10px;
+}
+
+.AdminWidgetLgTable {
+    width: 100%;
+    border-spacing: 20px;
+}
+
+.AdminWidgetLgTh {
+    text-align: left;
+}
+
+.AdminWidgetLgUser {
+    display: flex;
+    align-items: center;
+}
+
+.AdminWidgetLgDate {
+    font-weight: 300;
+}
+
+.AdminWidgetLgAmount {
+    font-weight: 300;
+}
+
+.AdminWidgetLgTr {
+    font-weight: 300;
+}
+
+.AdminWidgetLgName {
+    font-weight: 300;
+}
+
+.AdminWidgetLgStatus {
+    font-weight: 300;
+}
+
+.WidgegLgButton{
+
+}
