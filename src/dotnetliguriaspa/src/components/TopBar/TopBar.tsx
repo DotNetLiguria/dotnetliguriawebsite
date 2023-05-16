@@ -3,6 +3,7 @@ import styles from './TopBar.module.css';
 import {Notifications, Language} from "@mui/icons-material/";
 import SettingsIcon from '@mui/icons-material/Settings';
 import LoginControl from "../loginControl";
+import {Link} from "react-router-dom";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface TopBarProps {
@@ -22,7 +23,11 @@ const TopBar: FC<TopBarProps> = () => {
         <div className={styles.TopBar}>
             <div className={styles.TopBarWrapper}>
                 <div className="topLeft">
-                    <div className={styles.logo}>DotNet Liguria</div>
+                    <div className={styles.logo}>
+                        <Link to = {"/"}>
+                        DotNet Liguria
+                        </Link>
+                    </div>
                 </div>
                 <div className={styles.TopRight}>
                     {/*<div className={styles.TopIconContainer}>*/}

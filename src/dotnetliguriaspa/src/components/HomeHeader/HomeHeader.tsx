@@ -32,7 +32,6 @@ const HomeHeader: FC<HomeHeaderProps> = () => {
     const invokeAPI = async (resource: string, requested_loa: number, previousInvocationOk = true) => {
         try {
             console.log(`requesting ${resource} with loa:${requested_loa}`);
-            console.log("I'm here");
             const token = idToken;
             //console.log(token);
             if (!isAuthenticated) {
@@ -41,6 +40,8 @@ const HomeHeader: FC<HomeHeaderProps> = () => {
                 return;
             }
 
+            // console.log("token: ", token);
+            
             const token_loa = acr_to_loa[accessTokenPayload.acr];
             if (token_loa < requested_loa) {
                 setResult("User need higher privileges: " + Object.keys(acr_to_loa)[requested_loa - 1]);
@@ -48,12 +49,12 @@ const HomeHeader: FC<HomeHeaderProps> = () => {
                 return;
             }
 
-            const loadedUsers = await fetch("https://hello.vevy.com/realms/DotNetLiguria/users", {
+            //const loadedUsers = await fetch("https://hello.vevy.com/realms/DotNetLiguria/users", {
                 // headers: {
                 //   Authorization: `Bearer ${token}`,
                 // },
-            });
-            console.log(loadedUsers);
+            //});
+            //console.log(loadedUsers);
 
             const response = await fetch(window.location.origin + "/api/values/" + resource, {
                 // headers: {
