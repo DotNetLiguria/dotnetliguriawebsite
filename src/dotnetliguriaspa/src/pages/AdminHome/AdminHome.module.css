@@ -1,3 +1,8 @@
 .AdminHome {
-    .text {color:red;}
+    flex: 4;
+}
+
+.AdminHomeWidgets {
+    display: flex;
+    margin: 20px;
 }

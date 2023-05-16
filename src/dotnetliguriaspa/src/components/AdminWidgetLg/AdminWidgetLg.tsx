@@ -28,7 +28,7 @@ const AdminWidgetLg: FC<AdminWidgetLgProps> = () => (
             </tr>
             <tr className={styles.AdminWidgetLgTr}>
                 <td className={styles.AdminWidgetLgUser}>
-                    <img src="https://amerlin.keantex.com/wp-content/uploads/2019/01/profilo.jpg?57d607&57d607" alt="profile" className={styles.WidgetLgImg}></img>
+                    <img src="https://amerlin.keantex.com/wp-content/uploads/2019/01/profilo.jpg?57d607&57d607" alt="profile" className={styles.AdminWidgetLgImg}></img>
                     <span className={styles.AdminWidgetLgName}>Andrea Merlin</span>
                 </td>
                 <td className={styles.AdminWidgetLgDate}>2 Jub 2023</td>
@@ -37,7 +37,7 @@ const AdminWidgetLg: FC<AdminWidgetLgProps> = () => (
             </tr>
             <tr className={styles.AdminWidgetLgTr}>
                 <td className={styles.AdminWidgetLgUser}>
-                    <img src="https://amerlin.keantex.com/wp-content/uploads/2019/01/profilo.jpg?57d607&57d607" alt="profile" className={styles.WidgetLgImg}></img>
+                    <img src="https://amerlin.keantex.com/wp-content/uploads/2019/01/profilo.jpg?57d607&57d607" alt="profile" className={styles.AdminWidgetLgImg}></img>
                     <span className={styles.AdminWidgetLgName}>Andrea Merlin</span>
                 </td>
                 <td className={styles.AdminWidgetLgDate}>2 Jub 2023</td>
