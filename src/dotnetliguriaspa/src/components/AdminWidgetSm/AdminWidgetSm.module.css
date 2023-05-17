@@ -1,0 +1,59 @@
+.AdminWidgetSm {
+    flex: 1;
+    padding: 20px;
+    -webkit-box-shadow: 0px 0px 11px -1px #000000;
+    box-shadow: 0px 0px 11px -1px #000000;
+    margin-right: 20px;
+}
+
+.AdminWidgetSmTitle {
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.AdminWidgetSmImg {
+    font-size: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.AdminWidgetSmList {
+    list-style: none;
+}
+
+.AdminWidgetSmListItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0px;
+}
+
+.AdminWidgetSmUser {
+    display: flex;
+    flex-direction: column;
+}
+
+.AdminWidgetSmUsername {
+    font-weight: 600;
+}
+
+.AdminWidgetSmUserTitle {
+    font-weight: 300;
+}
+
+.AdminWidgetSmButton {
+    display: flex;
+    align-items: center;
+    border: none;
+    border-radius: 10px;
+    padding: 7px 10px;
+    background-color: #eeeef7;
+    color: #555;
+    cursor: pointer;
+}
+
+.AdminWidgetSmIcon {
+    font-size: 12px;
+    margin-right: 5px;
+}

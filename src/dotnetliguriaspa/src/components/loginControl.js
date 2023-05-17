@@ -2,12 +2,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
 import './loginControl.css';
-import { useOidc } from "@axa-fr/react-oidc";
-import { useOidcUser } from '@axa-fr/react-oidc';
+import {useOidc} from "@axa-fr/react-oidc";
+import {useOidcUser} from '@axa-fr/react-oidc';
+import {Link} from "react-router-dom";
 
 function LoginControl(props) {
-    const { login, logout, isAuthenticated} = useOidc();
-    const { oidcUser, oidcUserLoadingState } = useOidcUser();
+    const {login, logout, isAuthenticated} = useOidc();
+    const {oidcUser, oidcUserLoadingState} = useOidcUser();
 
     // const removeSessionStorageOidc = () => {
     //     var oidcKeys = Object.keys(sessionStorage)
@@ -68,13 +69,13 @@ function LoginControl(props) {
         let name = oidcUser == null ? "(none)" : oidcUser.name;
         return (
             <div className="auth">
+                <span className="helloUser"><Link to={"/admin"}>Admin</Link></span>
                 <span className="helloUser">Hello {name}</span>
                 <span className="helloUser"><a href="#" onClick={logoutPlain}>Log out</a></span>
                 <span className="helloUser"><a href="#" onClick={logoutAndRevoke}>Log out and Revoke</a></span>
             </div>
         );
-    }
-    else {
+    } else {
         return (
             <div className="auth">
                 <span className="helloUser"><a href="#" onClick={loginPlain}>Log in</a></span>
