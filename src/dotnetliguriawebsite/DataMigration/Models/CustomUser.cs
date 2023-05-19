@@ -14,20 +14,20 @@ namespace DotNetLiguria.Models
             this.OfferteLavoro = new List<OffertaLavoro>();
         }
 
-        public string CustomUserId { get; set; }
-        public string Username { get; set; }
-        public string Email { get; set; }
-        public string Name { get; set; }
-        public string Surname { get; set; }
-        public string Url { get; set; }
-        public string Image { get; set; }
+        public string? CustomUserId { get; set; }
+        public string? Username { get; set; }
+        public string? Email { get; set; }
+        public string? Name { get; set; }
+        public string? Surname { get; set; }
+        public string? Url { get; set; }
+        public string? Image { get; set; }
 
         public DateTime? LastLoginDate { get; set; }
 
-        public DateTime RegistrationDate { get; set; }
+        public DateTime? RegistrationDate { get; set; }
 
-        public virtual WorkshopSpeaker Speaker { get; set; }
+        public virtual WorkshopSpeaker? Speaker { get; set; }
 
-        public virtual ICollection<OffertaLavoro> OfferteLavoro { get; set; }
+        public virtual ICollection<OffertaLavoro>? OfferteLavoro { get; set; }
     }
 }

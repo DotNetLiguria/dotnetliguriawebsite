@@ -9,7 +9,7 @@ namespace DotNetLiguria.Models
     {
         public Guid WorkshopId { get; set; }
 
-        public string Title { get; set; }
+        public string? Title { get; set; }
         public string? Description { get; set; }
         public DateTime? CreationDate { get; set; }
         public DateTime? EventDate { get; set; }
@@ -44,9 +44,9 @@ namespace DotNetLiguria.Models
             this.Coordinates = "0,0";
         }
 
-        public string Name { get; set; }
-        public string Coordinates { get; set; }
-        public string Address { get; set; }
+        public string? Name { get; set; }
+        public string? Coordinates { get; set; }
+        public string? Address { get; set; }
         public int MaximumSpaces { get; set; }
     }
 

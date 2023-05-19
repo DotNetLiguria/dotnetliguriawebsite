@@ -1,6 +1,9 @@
 ﻿using System.Text.Json;
+
 using DotNetLiguria.Models;
+
 using Microsoft.EntityFrameworkCore;
+
 using MongoDB.Driver;
 
 namespace DataMigration;
@@ -42,13 +45,15 @@ internal class Program
 
         string jsonPath = Path.GetFullPath(Path.Combine(envPath, @"..\..\..\json\"));
 
-        string fileName = jsonPath +"workshopSpeakers.json";
+        string fileName = jsonPath + "workshopSpeakers.json";
         string jsonString = File.ReadAllText(fileName);
         var speakers = JsonSerializer.Deserialize<List<DotNetLiguria.Models.WorkshopSpeaker>>(jsonString, options);
+        if (speakers == null) throw new Exception("Cannot deserialize (result is null)");
 
         fileName = jsonPath + "workshops.json";
         jsonString = File.ReadAllText(fileName);
         var workshops = JsonSerializer.Deserialize<List<DotNetLiguria.Models.Workshop>>(jsonString, options);
+        if (workshops == null) throw new Exception("Cannot deserialize (result is null)");
 
         var mongoDBDatabaseSettings = ConfigurationReader.Read<DotNetLiguriaDatabaseSettings>("DotNetLiguriaDatabase");
 
@@ -69,16 +74,16 @@ internal class Program
                 {
                     DotNetLiguria.MongoDBModel.WorkshopSpeaker speaker = new DotNetLiguria.MongoDBModel.WorkshopSpeaker();
                     speaker.WorkshopSpeakerId = item.WorkshopSpeakerId;
-                    speaker.Name = item.Name;
-                    speaker.UserName = item.UserName;
-                    speaker.ProfileImage = item.ProfileImage;
-                    speaker.BlogHtml = item.BlogHtml;
+                    speaker.Name = item?.Name;
+                    speaker.UserName = item?.UserName;
+                    speaker.ProfileImage = item?.ProfileImage;
+                    speaker.BlogHtml = item?.BlogHtml;
 
                     _speakerCollection.InsertOne(speaker);
                 }
             }
 
-            IMongoCollection<DotNetLiguria.MongoDBModel.Workshop> _workshopCollection 
+            IMongoCollection<DotNetLiguria.MongoDBModel.Workshop> _workshopCollection
                 = mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.Workshop>(mongoDBDatabaseSettings.WorkshopCollectionName);
 
             foreach (var item in workshops)
@@ -92,19 +97,19 @@ internal class Program
                     workshop.Title = item.Title;
                     workshop.Description = item.Description;
                     workshop.Image = item.Image;
-                    workshop.OnlyHtml = item.OnlyHtml;  
+                    workshop.OnlyHtml = item.OnlyHtml;
                     workshop.BlogHtml = item.BlogHtml;
                     workshop.Published = item.Published;
                     workshop.CreationDate = item.CreationDate;
-                    workshop.EventDate = item.EventDate;    
+                    workshop.EventDate = item.EventDate;
                     workshop.IsExternalEvent = item.IsExternalEvent;
-                    workshop.ExternalRegistration  = item.ExternalRegistration;
+                    workshop.ExternalRegistration = item.ExternalRegistration;
                     workshop.ExternalRegistrationLink = item.ExternalRegistrationLink;
                     workshop.Tags = item.Tags;
                     workshop.Slug = "";
                     workshop.OldUrl = $"https://dotnetliguria.net/Workshops/Detail?WorkshopId={item.WorkshopId}";
 
-                    if(item.Location != null) 
+                    if (item.Location != null)
                     {
                         workshop.Location = new DotNetLiguria.MongoDBModel.Location()
                         {
@@ -115,11 +120,11 @@ internal class Program
                         };
                     }
 
-                    if(item.Tracks != null && item.Tracks.Count() > 0) 
+                    if (item.Tracks != null && item.Tracks.Count() > 0)
                     {
                         foreach (var track in item.Tracks)
                         {
-                            workshop.Tracks.Add(new DotNetLiguria.MongoDBModel.WorkshopTrack()
+                            workshop.Tracks?.Add(new DotNetLiguria.MongoDBModel.WorkshopTrack()
                             {
                                 Title = track.Title,
                                 Abstract = track.Abstract,

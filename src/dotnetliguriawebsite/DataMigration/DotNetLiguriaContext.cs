@@ -15,10 +15,10 @@ namespace DataMigration;
 
 public class DotNetLiguriaContext : DbContext
 {
-    private readonly ILogger<DotNetLiguriaContext> _logger;
+    private readonly ILogger<DotNetLiguriaContext>? _logger;
     private static readonly ILoggerFactory _loggerFactory =
         LoggerFactory.Create(builder => { builder.AddConsole(); });
-    private readonly string _connectionString;
+    private readonly string _connectionString   = string.Empty;
 
     public DotNetLiguriaContext(string connectionString)
     {
@@ -66,17 +66,17 @@ public class DotNetLiguriaContext : DbContext
         modelBuilder.Entity<Workshop>().HasMany<WorkshopFile>(w => w.WorkshopFiles);
     }
 
-    public DbSet<Blog> Blogs { get; set; }
-    public DbSet<News> News { get; set; }
-    public DbSet<Workshop> Workshops { get; set; }
-    public DbSet<WorkshopFile> WorkshopFiles { get; set; }
-    public DbSet<WorkshopTrack> Tracks { get; set; }
-    public DbSet<WorkshopSpeaker> Speakers { get; set; }
-    public DbSet<HtmlSnippet> HtmlSnippets { get; set; }
-    public DbSet<Notification> Notifications { get; set; }
-    public DbSet<NewsFeed> NewsFeed { get; set; }
-    public DbSet<BlogFeed> BlogFeed { get; set; }
-    public DbSet<CustomUser> CustomUsers { get; set; }
-    public DbSet<Slider> Sliders { get; set; }
-    public DbSet<OffertaLavoro> OfferteLavoro { get; set; }
+    public DbSet<Blog>? Blogs { get; set; }
+    public DbSet<News>? News { get; set; }
+    public DbSet<Workshop>? Workshops { get; set; }
+    public DbSet<WorkshopFile>? WorkshopFiles { get; set; }
+    public DbSet<WorkshopTrack>? Tracks { get; set; }
+    public DbSet<WorkshopSpeaker>? Speakers { get; set; }
+    public DbSet<HtmlSnippet>? HtmlSnippets { get; set; }
+    public DbSet<Notification>? Notifications { get; set; }
+    public DbSet<NewsFeed>? NewsFeed { get; set; }
+    public DbSet<BlogFeed>? BlogFeed { get; set; }
+    public DbSet<CustomUser>? CustomUsers { get; set; }
+    public DbSet<Slider>? Sliders { get; set; }
+    public DbSet<OffertaLavoro>? OfferteLavoro { get; set; }
 }
