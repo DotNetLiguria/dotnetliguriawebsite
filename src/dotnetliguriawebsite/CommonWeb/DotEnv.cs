@@ -1,7 +1,5 @@
 ﻿using System;
 
-using Microsoft.Extensions.Hosting;
-
 namespace CommonWeb;
 
 public static class DotEnv
