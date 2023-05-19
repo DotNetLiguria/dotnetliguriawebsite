@@ -16,10 +16,10 @@ namespace DotNetLiguria.Models
         public DateTime SignedDate { get; set; }
         public bool CheckIn { get; set; }
 
-        public virtual Workshop Workshop {get; set;}
+        public virtual Workshop? Workshop {get; set;}
 
-        public virtual WorkshopFeedback Feedback { get; set; }
+        public virtual WorkshopFeedback? Feedback { get; set; }
 
-        public virtual CustomUser User { get; set; }
+        public virtual CustomUser? User { get; set; }
     }
 }

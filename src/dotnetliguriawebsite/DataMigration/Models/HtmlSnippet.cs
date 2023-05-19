@@ -8,10 +8,10 @@ namespace DotNetLiguria.Models
 {
     public class HtmlSnippet
     {
-        public string HtmlSnippetId { get; set; }
-        public string Description { get; set; }
-        public string Value { get; set; }
-        public string Icon { get; set; }
+        public string? HtmlSnippetId { get; set; }
+        public string? Description { get; set; }
+        public string? Value { get; set; }
+        public string? Icon { get; set; }
     }
 
     public enum SectionName

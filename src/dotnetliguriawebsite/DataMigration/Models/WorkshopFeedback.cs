@@ -11,14 +11,14 @@ namespace DotNetLiguria.Models
 
         public int Vote { get; set; }
 
-        public virtual List<TrackFeedBack> TracksFeedback { get; set; }
+        public virtual List<TrackFeedBack>? TracksFeedback { get; set; }
     }
 
     public class TrackFeedBack
     {
         public Guid TrackFeedBackId { get; set; }
 
-        public virtual WorkshopFeedback Workshopsubscribed { get; set; }
+        public virtual WorkshopFeedback? Workshopsubscribed { get; set; }
 
         public virtual Guid WorkshopTrackId { get; set; }
 
