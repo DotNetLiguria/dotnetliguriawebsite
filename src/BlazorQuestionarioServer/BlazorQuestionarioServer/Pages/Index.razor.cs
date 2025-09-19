@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.JSInterop;
 
 namespace BlazorQuestionarioServer.Pages;
-public partial class Index:IDisposable
+public partial class Index : IDisposable
 {
     [Inject]
     IDbContextFactory<ApplicationDbContext> DbFactory { get; set; }
@@ -35,10 +35,10 @@ public partial class Index:IDisposable
     {
         if (firstRender)
         {
-            
-            DateTime startTime= DateTime.UtcNow;
+
+            DateTime startTime = DateTime.UtcNow;
             var _ = await JS.InvokeAsync<string>("toString");
-            TimeSpan latency;  latency = DateTime.UtcNow - startTime;
+            TimeSpan latency; latency = DateTime.UtcNow - startTime;
             telemetryClient.TrackEvent($"Misura latenza rete: {latency.Milliseconds}");
             StateHasChanged();
         }
@@ -49,35 +49,35 @@ public partial class Index:IDisposable
     {
 
 
-        IsBusy=true;
+        IsBusy = true;
         var AppDbContext = DbFactory.CreateDbContext();
-        
-        var wcorrente= await AppDbContext.WorkshopCorrente.FirstOrDefaultAsync();
+
+        var wcorrente = await AppDbContext.WorkshopCorrente.FirstOrDefaultAsync();
         if (wcorrente == null)
             throw new Exception("Manca Workshop Corrente");
 
-        var workshop = await AppDbContext.Workshop.Where(x=>x.WorkshopId== wcorrente.WorkshopId).AsNoTracking().FirstOrDefaultAsync();
+        var workshop = await AppDbContext.Workshop.Where(x => x.WorkshopId == wcorrente.WorkshopId).AsNoTracking().FirstOrDefaultAsync();
         if (workshop == null)
             throw new Exception();
 
-        mQuestionarioDTO=new QuestionarioTest();
+        mQuestionarioDTO = new QuestionarioTest();
         mQuestionarioDTO.WorkshopId = wcorrente.WorkshopId;
 
-        var ListaWorkshopTrack = await AppDbContext.WorkshopTrack.Where(x => x.WorkshopId == wcorrente.WorkshopId).Include(x=>x.ListaWorkshopTrackWorkshopSpeaker).OrderBy(x=>x.StartTime).ToListAsync();
+        var ListaWorkshopTrack = await AppDbContext.WorkshopTrack.Where(x => x.WorkshopId == wcorrente.WorkshopId).Include(x => x.ListaWorkshopTrackWorkshopSpeaker).OrderBy(x => x.StartTime).ToListAsync();
 
-        List<WorkshopSpeaker> ListaSpeaker= await AppDbContext.WorkshopSpeaker.ToListAsync();
-        
-        
+        List<WorkshopSpeaker> ListaSpeaker = await AppDbContext.WorkshopSpeaker.ToListAsync();
 
-        
+
+
+
         mQuestionarioDTO.Track01WorkshopTrackId = ListaWorkshopTrack[0].WorkshopTrackId;
         mQuestionarioDTO.Track01Titolo = ListaWorkshopTrack[0].Title;
 
-        AppDbContext.Entry(ListaWorkshopTrack[0]).Collection(testc=>testc.ListaWorkshopTrackWorkshopSpeaker).Load();
+        AppDbContext.Entry(ListaWorkshopTrack[0]).Collection(testc => testc.ListaWorkshopTrackWorkshopSpeaker).Load();
 
-        if (ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker!=null && ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker.Count > 0)
+        if (ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker != null && ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker.Count > 0)
         {
-            AppDbContext.Entry(ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker[0]).Reference(x=>x.WorkshopSpeakerWorkshopSpeaker);
+            AppDbContext.Entry(ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker[0]).Reference(x => x.WorkshopSpeakerWorkshopSpeaker);
             if (ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeaker != null)
             {
                 mQuestionarioDTO.Track01Speaker = ListaWorkshopTrack[0].ListaWorkshopTrackWorkshopSpeaker[0].WorkshopSpeakerWorkshopSpeaker.Name;
@@ -158,7 +158,7 @@ public partial class Index:IDisposable
 
                     if (ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker != null && ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker.Count > 1)
                     {
-                        mQuestionarioDTO.Track05Speaker += "/"+ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker[1].WorkshopSpeakerWorkshopSpeaker.Name;
+                        mQuestionarioDTO.Track05Speaker += "/" + ListaWorkshopTrack[4].ListaWorkshopTrackWorkshopSpeaker[1].WorkshopSpeakerWorkshopSpeaker.Name;
                     }
 
                 }
@@ -184,13 +184,13 @@ public partial class Index:IDisposable
         var wcorrente = await AppDbContext.WorkshopCorrente.FirstOrDefaultAsync();
 
         //Esiste già la mail ??
-        if (await (AppDbContext.QuestionarioTest.Where(x=>x.EMail== mQuestionarioDTO.EMail && x.WorkshopId== wcorrente.WorkshopId).AnyAsync()))
+        if (await (AppDbContext.QuestionarioTest.Where(x => x.EMail == mQuestionarioDTO.EMail && x.WorkshopId == wcorrente.WorkshopId).AnyAsync()))
         {
             ErrorComponent.ShowError("Salvataggio Questionario", "La presenta mail ha già compilato il questionario");
             IsBusy = false;
             return;
         }
-        mQuestionarioDTO.QuestionarioTestId=Guid.NewGuid();
+        mQuestionarioDTO.QuestionarioTestId = Guid.NewGuid();
         AppDbContext.QuestionarioTest.Add(mQuestionarioDTO);
 
         try
@@ -206,6 +206,6 @@ public partial class Index:IDisposable
 
         IsBusy = false;
         QuestionarioCompilato = true;
-        
+
     }
 }
