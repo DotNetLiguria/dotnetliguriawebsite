@@ -15,6 +15,8 @@
 
         public string BoardCollectionName { get; set; } = null!;
 
+        public string TopMenuCollectionName { get; set; } = "TopMenuElements";
+
         public string FeedbackCollectionName { get; set; } = "Feedback";
 
         public string QuestionnaireCollectionName { get; set; } = "Questionnaire";

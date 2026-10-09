@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using DotNetLiguria.Models;
 
@@ -19,6 +19,23 @@ internal class Program
             return;
         }
 
+        JsonSerializerOptions options = new()
+        {
+            WriteIndented = true,
+
+        };
+
+        // --from-json imports the checked-in json/ export without reading the historical SQL database.
+        if (!args.Contains("--from-json", StringComparer.OrdinalIgnoreCase))
+        {
+            ReadFromSql(options);
+        }
+
+        ImportJsonIntoMongo(options);
+    }
+
+    private static void ReadFromSql(JsonSerializerOptions options)
+    {
         var db = ConfigurationReader.Read<DbConfig>("DbConfig");
         Console.WriteLine();
 
@@ -33,12 +50,6 @@ internal class Program
 
         var workshopTracks = ctx.Tracks!.OrderBy(w => w.WorkshopId).ToList();
         var workshopSpeakers = ctx.Speakers!.OrderBy(w => w.Name).ToList();
-
-        JsonSerializerOptions options = new()
-        {
-            WriteIndented = true,
-
-        };
 
         //I need to create a dto for workshop and extract only speackers ids
         foreach (var workshop in workshops)
@@ -80,7 +91,10 @@ internal class Program
 
         // //TOOD: END AT THIS POINT
         // return;
+    }
 
+    private static void ImportJsonIntoMongo(JsonSerializerOptions options)
+    {
         var envPath = Environment.CurrentDirectory;
 
         string jsonPath = Path.GetFullPath(Path.Combine(envPath, "json\\"));
@@ -121,7 +135,9 @@ internal class Program
                         Name = item?.Name,
                         UserName = item?.UserName,
                         ProfileImage = item?.ProfileImage,
-                        BlogHtml = item?.BlogHtml
+                        ProfileImageUrl = item?.ProfileImage,
+                        BlogHtml = item?.BlogHtml,
+                        IsActive = true
                     };
 
                     _speakerCollection.InsertOne(speaker);
@@ -140,59 +156,62 @@ internal class Program
                     Name = "Raffaele Rialdi",
                     ProfileImageUrl ="profile/raffaele-rialdi.jpg",
                     Description = "Presidente",
-                    ProfileBio="Mi occupo professionalmente di sviluppo software dal 1987. Mi sono specializzato nelle tecnologie di sviluppo basaste su piattaforma Microsoft che nel 2003 mi ha riconosciuto il premio \"Most Valuable Professional\" grazie al quale posso rimanere in contatto con i team di sviluppo del campus a Redmond dove mi reco ogni anno. Quest'anno ho festeggiato il 9^ award MVP. Il mio lavoro consiste nel progettare, coordinare e realizzare software utilizzando le tecnologie che più amo come il Framework.NET, C#, C++ e più recentemente WinRT. Oltre a questo sono consulente, teacher in corsi e speaker in conferenze del settore."
+                    FullBio ="Mi occupo professionalmente di sviluppo software dal 1987. Mi sono specializzato nelle tecnologie di sviluppo basaste su piattaforma Microsoft che nel 2003 mi ha riconosciuto il premio \"Most Valuable Professional\" grazie al quale posso rimanere in contatto con i team di sviluppo del campus a Redmond dove mi reco ogni anno. Quest'anno ho festeggiato il 9^ award MVP. Il mio lavoro consiste nel progettare, coordinare e realizzare software utilizzando le tecnologie che più amo come il Framework.NET, C#, C++ e più recentemente WinRT. Oltre a questo sono consulente, teacher in corsi e speaker in conferenze del settore."
                 },
                 new() {
                     BoardId = Guid.NewGuid(),
                     Name = "Alessandro Gambaro",
                     ProfileImageUrl ="profile/alessandro-gambaro.jpg",
                     Description = "Vice Presidente",
-                    ProfileBio ="Con la passione per l'informatica sin dal 1985 quando ero un bambino con il mio ZX Spectrum, sono tuttora entusiasta e appassionato di IT, laureato in ingegneria informatica nel 2000 a Genova ho avuto la possibilità di costruire i miei skills lavorando e studiando (nessuno nasce imparato dico io :) ) durante tutta la mia carriera lavorativa.Partito con il C++ ho poi lavorato diversi anni in ambiente Java (linguaggio che tuttora utilizzo anche se raramente), da qualche anno utilizzo C# .Net che reputo una ottima piattaforma, che mi appassione e mi stimola a creare architetture sempre più complete (a parer mio). Nel mio lavoro oltre che progettare, coordinare lo sviluppo del software mi occupo anche di Agile Development e Scrum."
+                    FullBio ="Con la passione per l'informatica sin dal 1985 quando ero un bambino con il mio ZX Spectrum, sono tuttora entusiasta e appassionato di IT, laureato in ingegneria informatica nel 2000 a Genova ho avuto la possibilità di costruire i miei skills lavorando e studiando (nessuno nasce imparato dico io :) ) durante tutta la mia carriera lavorativa.Partito con il C++ ho poi lavorato diversi anni in ambiente Java (linguaggio che tuttora utilizzo anche se raramente), da qualche anno utilizzo C# .Net che reputo una ottima piattaforma, che mi appassione e mi stimola a creare architetture sempre più complete (a parer mio). Nel mio lavoro oltre che progettare, coordinare lo sviluppo del software mi occupo anche di Agile Development e Scrum."
                 },
                    new() {
                     BoardId = Guid.NewGuid(),
                     Name = "Marco D'Alessandro",
                     ProfileImageUrl ="profile/marco-dalessandro.jpg",
                     Description = "Consigliere, Tesoriere, Web Designer",
-                    ProfileBio="Sono nato e vivo a Genova. Sono un programmatore orientato principalmente su piattaforma Framework .Net della microsoft, C#, WinForm e Service, Web Service e Asp.net. Lavoro come Software Engineer/Architect presso Softeco Sismat."
+                    FullBio ="Sono nato e vivo a Genova. Sono un programmatore orientato principalmente su piattaforma Framework .Net della microsoft, C#, WinForm e Service, Web Service e Asp.net. Lavoro come Software Engineer/Architect presso Softeco Sismat."
                 },
                 new() {
                     BoardId = Guid.NewGuid(),
                     Name = "Andrea Belloni",
                     ProfileImageUrl ="profile/andrea-belloni.jpg",
                     Description = "Consigliere",
-                    ProfileBio="Vivo e lavoro a Imperia come libero professionista, mi occupo di consulenza in ambito Microsoft.NET, C#, VB.Net, ASP.Net, WPF, WCF. Appassionato di architettura del software, di database (SQLServer) e accesso ai dati (EntityFramework, Linq2SQL, ADO.NET) … curo lo sviluppo del software per alcune società della zona. Il mio tempo libero... Famiglia e free climibing."
+                    FullBio ="Vivo e lavoro a Imperia come libero professionista, mi occupo di consulenza in ambito Microsoft.NET, C#, VB.Net, ASP.Net, WPF, WCF. Appassionato di architettura del software, di database (SQLServer) e accesso ai dati (EntityFramework, Linq2SQL, ADO.NET) … curo lo sviluppo del software per alcune società della zona. Il mio tempo libero... Famiglia e free climibing."
                 },
                  new() {
                     BoardId = Guid.NewGuid(),
                     Name = "Alessio Gogna",
                     ProfileImageUrl ="profile/alessio-gogna.jpg",
                     Description = "Consigliere",
-                    ProfileBio="Microsoft Professional Developer, consulente IT, appassionato di .NET Framework, nostalgico programmatore C++, novello agilista, sostenitore del Free Software e inguaribile nerd. La mia passione è programmare: ho iniziato a 8 anni con un C=64 e non mi sono ancora fermato. Oggi mi dedico soprattutto a tecnologie Web-Oriented basate su .Net Framework."
+                    FullBio ="Microsoft Professional Developer, consulente IT, appassionato di .NET Framework, nostalgico programmatore C++, novello agilista, sostenitore del Free Software e inguaribile nerd. La mia passione è programmare: ho iniziato a 8 anni con un C=64 e non mi sono ancora fermato. Oggi mi dedico soprattutto a tecnologie Web-Oriented basate su .Net Framework."
                 },
                 new() {
                     BoardId = Guid.NewGuid(),
                     Name = "Claudio Masieri",
                     ProfileImageUrl ="profile/claudio-masieri.jpg",
                     Description = "Consigliere",
-                    ProfileBio="Libero professionista, ho lavorato come consulente presso molte realtà Genovesi (Elsag, Costa, Selex, TSF...). Saltuariamente tengo qualche corso in ambito Microsoft.Net, c#, vb, asp.net, WCF e Workflow Foundation e talvolta scrivo qualche articolo per la Wrox, o su Codeproject."
+                    FullBio ="Libero professionista, ho lavorato come consulente presso molte realtà Genovesi (Elsag, Costa, Selex, TSF...). Saltuariamente tengo qualche corso in ambito Microsoft.Net, c#, vb, asp.net, WCF e Workflow Foundation e talvolta scrivo qualche articolo per la Wrox, o su Codeproject."
                 },
                 new() { BoardId = Guid.NewGuid(),
                     Name = "Alberto Baroni",
                     ProfileImageUrl ="profile/alberto-baroni.jpg",
                     Description = "Consigliere",
-                    ProfileBio="Sono nato e vivo a Genova. Per 10 anni mi sono occupato di soluzioni IT in ambito energetico. Ho collaborato alla progettazione e realizzazione di alcune delle più importanti soluzioni informatiche utilizzate dagli Operatori Energetici. Dal 2013 sono co-fondatore di Sinergetica Srl società leader nelle soluzioni software per il mercato enegetico"
+                    FullBio ="Sono nato e vivo a Genova. Per 10 anni mi sono occupato di soluzioni IT in ambito energetico. Ho collaborato alla progettazione e realizzazione di alcune delle più importanti soluzioni informatiche utilizzate dagli Operatori Energetici. Dal 2013 sono co-fondatore di Sinergetica Srl società leader nelle soluzioni software per il mercato enegetico"
                 },
                 new() { BoardId = Guid.NewGuid(),
                     Name = "Andrea Sassetti",
                     ProfileImageUrl ="profile/andrea-sassetti.jpg",
                     Description = "Consigliere",
-                    ProfileBio="Laureato in Ingegneria Informatica presso l'Università degli studi di Genova nel 2008. Sin dal 2004 mi occupo della tecnologia Microsoft.NET. Sono Microsoft Professional Developer e lavoro come software engineer nel campo dell'automazione industriale. Utilizzo principalmente C# e quando c'è bisogno di scolpire il metallo C++ :). Appassionato di tutto quello che gravita intorno alle NUI."
+                    FullBio ="Laureato in Ingegneria Informatica presso l'Università degli studi di Genova nel 2008. Sin dal 2004 mi occupo della tecnologia Microsoft.NET. Sono Microsoft Professional Developer e lavoro come software engineer nel campo dell'automazione industriale. Utilizzo principalmente C# e quando c'è bisogno di scolpire il metallo C++ :). Appassionato di tutto quello che gravita intorno alle NUI."
                 }
             };
 
+                var order = 0;
                 foreach (var item in board)
                 {
+                    item.IsActive = true;
+                    item.Order = ++order;
                     var alreadyPresent = _boardCollection.Find(x => x.BoardId == item.BoardId).FirstOrDefault();
 
                     if (alreadyPresent == null)
@@ -200,6 +219,30 @@ internal class Program
                         _boardCollection.InsertOne(item);
                     }
                 }
+            }
+
+            IMongoCollection<DotNetLiguria.MongoDBModel.TopMenu> _topMenuCollection
+                = mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.TopMenu>(mongoDBDatabaseSettings.TopMenuCollectionName);
+
+            // Same entries the SPA top bar falls back to when the menu cannot be loaded.
+            if (_topMenuCollection.CountDocuments(_ => true) == 0)
+            {
+                var topMenu = new (string Name, string Url)[]
+                {
+                    ("Home", "/"),
+                    (".NET Conf 2025", "/#evidence"),
+                    ("Il Team", "/#team"),
+                    ("Eventi passati", "/workshops"),
+                };
+
+                _topMenuCollection.InsertMany(topMenu.Select((item, index) => new DotNetLiguria.MongoDBModel.TopMenu
+                {
+                    TopMenuElementId = Guid.NewGuid(),
+                    Name = item.Name,
+                    Url = item.Url,
+                    Order = index + 1,
+                    IsActive = true
+                }));
             }
 
             IMongoCollection<DotNetLiguria.MongoDBModel.FileType> _workshopTrackCollection

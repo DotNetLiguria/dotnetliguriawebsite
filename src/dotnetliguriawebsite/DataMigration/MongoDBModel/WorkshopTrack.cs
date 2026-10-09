@@ -3,6 +3,7 @@ using MongoDB.Bson;
 
 namespace DotNetLiguria.MongoDBModel
 {
+    [BsonIgnoreExtraElements]
     public class WorkshopTrack
     {
         [BsonId]

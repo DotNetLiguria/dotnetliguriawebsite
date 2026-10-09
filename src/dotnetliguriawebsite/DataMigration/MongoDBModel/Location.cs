@@ -1,5 +1,8 @@
-﻿namespace DotNetLiguria.MongoDBModel
+﻿using MongoDB.Bson.Serialization.Attributes;
+
+namespace DotNetLiguria.MongoDBModel
 {
+    [BsonIgnoreExtraElements]
     public class Location
     {
         public Location()

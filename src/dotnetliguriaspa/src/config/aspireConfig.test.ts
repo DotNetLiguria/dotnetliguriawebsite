@@ -13,6 +13,14 @@ test('Aspire browser endpoint keeps API and case-sensitive content bases distinc
   expect(CONTENT_BASE_URL).toBe('https://localhost:5443/Contents/');
 });
 
+test('hosted builds default to the API and content on the current origin', async () => {
+  vi.stubEnv('VITE_API_BASE_URL', '');
+  vi.resetModules();
+  const { API_BASE_URL, CONTENT_BASE_URL } = await import('./apiConfig');
+  expect(API_BASE_URL).toBe('/api');
+  expect(CONTENT_BASE_URL).toBe('/Contents/');
+});
+
 test('standalone OIDC defaults are preserved', () => {
   expect(getOidcPublicSettings('', '')).toEqual({
     authority: 'https://hello.vevy.com/realms/DotNetLiguria',

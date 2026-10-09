@@ -247,8 +247,28 @@ dotnet run -- questionnaires --apply ...            # writes to MongoDB
 Connection strings can also be provided as `QuestionnaireMigration:SqlServerConnectionString` and
 `QuestionnaireMigration:SqliteConnectionString` (preferably user secrets), `--no-feedback` skips
 the Mongo source. Without the `questionnaires` argument the executable keeps its original
-workshop migration behavior. **Run `--apply` against real data only after explicit approval and a
-reviewed dry run.**
+workshop migration behavior (it reads the historical SQL database, then imports `json/` into
+MongoDB); `--from-json` skips the SQL read and imports only the checked-in `json/` export.
+**Run `--apply` against real data only after explicit approval and a reviewed dry run.**
+
+Populating the local Aspire MongoDB container (database `DotNetLiguriaAspire`, TLS with the Aspire
+development certificate). Run from `src/dotnetliguriawebsite/DataMigration` while the AppHost
+containers are running; the password is read from the container and never printed:
+
+```powershell
+$pw   = docker exec <mongo-container> printenv MONGO_INITDB_ROOT_PASSWORD
+$port = ((docker port <mongo-container> 27017) -split ':')[-1]
+$env:DotNetLiguriaDatabase__DatabaseName = 'DotNetLiguriaAspire'
+$env:DotNetLiguriaDatabase__ConnectionString =
+    "mongodb://admin:$([uri]::EscapeDataString($pw))@127.0.0.1:$port/?authSource=admin&tls=true&tlsInsecure=true"
+dotnet run -c Release -- --from-json             # workshops, speakers, files, board, file types, top menu
+dotnet run -c Release -- questionnaires          # dry run report
+dotnet run -c Release -- questionnaires --apply  # historical questionnaires + SourceKey index
+```
+
+`tlsInsecure=true` is acceptable only for the local development container. Re-running `--from-json`
+is safe: existing documents are skipped, and the board and top menu are seeded only when their
+collections are empty.
 
 ### B.9 Removal plan (after the migration is verified)
 

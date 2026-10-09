@@ -4,6 +4,7 @@ using MongoDB.Bson;
 
 namespace DotNetLiguria.MongoDBModel
 {
+    [BsonIgnoreExtraElements]
     public class Workshop
     {
         [BsonId]

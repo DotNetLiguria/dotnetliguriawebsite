@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   return {
   plugins: [react()],
   define: {
-    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || env.REACT_APP_API_BASE_URL || 'https://localhost:64561/api'),
+    'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || env.REACT_APP_API_BASE_URL || ''),
     'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || env.REACT_APP_API_URL || ''),
   },
   server: {

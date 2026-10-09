@@ -29,6 +29,11 @@ project-specific requirements; it does not relax the standards below.
 - Keep browser and database checks separate from the timed unit-test gate.
 - Build all affected projects, not only the website solution. Validate Linux and Windows
   compatibility for native QR/image dependencies.
+- After any frontend change, rebuild the React app and publish the website using its
+  project path. For local Aspire, also overlay the generated `dist` files into the
+  backend's served `wwwroot` without deleting historical assets. Verify that
+  `https://localhost:5443` serves the updated frontend and its API calls work before
+  reporting completion; checking only the Vite app on port 3443 is not sufficient.
 - Report checks actually executed and any remaining verification gaps. Never claim that
   documentation or instructions alone enforce a rule.
 

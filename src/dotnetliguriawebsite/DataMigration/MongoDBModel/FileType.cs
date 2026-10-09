@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace DotNetLiguria.MongoDBModel
 {
 
+    [BsonIgnoreExtraElements]
     public class FileType
     {
         [BsonId]

@@ -2,6 +2,7 @@
 
 namespace DotNetLiguria.MongoDBModel
 {
+    [BsonIgnoreExtraElements]
     public class WorkshopSpeaker
     {
         [BsonId]
@@ -9,7 +10,9 @@ namespace DotNetLiguria.MongoDBModel
 
         public string? Name { get; set; }
         public string? ProfileImage { get; set; }
+        public string? ProfileImageUrl { get; set; }
         public string? BlogHtml { get; set; }
         public string? UserName { get; set; }
+        public bool IsActive { get; set; }
     }
 }

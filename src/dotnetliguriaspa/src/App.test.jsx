@@ -62,6 +62,17 @@ test('unauthenticated sessions clear persisted profile and cannot render admin r
   expect(screen.queryByRole('heading', { name: 'Admin Dashboard' })).not.toBeInTheDocument();
 });
 
+test('the questionnaire sidebar link opens the new questionnaire screen', async () => {
+  userProfileLocalStorageStore.getState().setProfileSaved(true);
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn() });
+  render(<App />, { route: '/admin' });
+  const link = screen.getByRole('link', { name: 'QUESTIONARI' });
+  expect(link).toHaveAttribute('href', '/admin/questionnaires');
+  expect(screen.queryByRole('link', { name: /feedback/i })).not.toBeInTheDocument();
+  await userEvent.click(link);
+  expect(await screen.findByRole('heading', { name: 'Questionari' })).toBeInTheDocument();
+});
+
 test('profile store persists confirmation and can be reset', () => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   expect(JSON.parse(localStorage.getItem('profileStore')).state.profileSaved).toBe(true);
