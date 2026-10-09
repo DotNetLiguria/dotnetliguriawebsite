@@ -6,6 +6,9 @@ using CommonWeb;
 
 using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Services.Questionnaires;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using DotNetLiguria.ServiceDefaults;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -56,7 +59,8 @@ public class Program
         });
 
         ConfigureAuthentication(builder.Services, builder.Configuration);
-        ConfigureAuthorization(builder.Services);
+        ConfigureAuthorization(builder.Services, builder.Configuration);
+        ConfigureRateLimiting(builder.Services);
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
@@ -72,6 +76,9 @@ public class Program
         builder.Services.AddSingleton<WorkshopFileService>();
         builder.Services.AddSingleton<TopMenuService>();
         builder.Services.AddSingleton<FeedbackService>();
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
+        builder.Services.AddSingleton<QuestionnaireService>();
 
         var app = builder.Build();
         app.UseCors(_corsPolicy);
@@ -106,6 +113,7 @@ public class Program
         });
         
         app.UseRouting();
+        app.UseRateLimiter();
 
         app.UseAuthorization();
 
@@ -267,9 +275,11 @@ public class Program
 
     }
 
-    private static void ConfigureAuthorization(IServiceCollection services)
+    private static void ConfigureAuthorization(IServiceCollection services, IConfiguration configuration)
     {
         services.AddHttpContextAccessor();
+        services.Configure<QuestionnaireAuthorizationOptions>(
+            configuration.GetSection(QuestionnaireAuthorizationOptions.SectionName));
         services.AddAuthorization(options =>
         {
             options.AddPolicy("mfa",
@@ -277,8 +287,32 @@ public class Program
 
             options.AddPolicy("hwk",
                 policy => policy.Requirements.Add(new OtpRequirement("hwk")));
+
+            // The SPA calls the API with a Keycloak bearer token.
+            options.AddPolicy(QuestionnaireAuthorizationOptions.PolicyName, policy => policy
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                .RequireAuthenticatedUser()
+                .AddRequirements(new FeedbackAdminRequirement()));
         });
 
         services.AddScoped<IAuthorizationHandler, OtpRequirementHandler>();
+        services.AddSingleton<IAuthorizationHandler, FeedbackAdminHandler>();
+    }
+
+    private static void ConfigureRateLimiting(IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.AddPolicy(PublicQuestionnaireRateLimit.PolicyName, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = PublicQuestionnaireRateLimit.PermitLimit,
+                        Window = PublicQuestionnaireRateLimit.Window,
+                        QueueLimit = 0,
+                    }));
+        });
     }
 }

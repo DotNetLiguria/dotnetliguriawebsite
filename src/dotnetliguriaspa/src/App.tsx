@@ -1,13 +1,13 @@
 import './App.css';
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOidc } from "@axa-fr/react-oidc";
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from "./components/Layout/Layout";
 import AdminWorkshops from "./components/AdminWorkshops/AdminWorkshops";
 import AdminSpeakers from "./components/AdminSpeakers/AdminSpeakers";
 import AdminHome from './components/AdminHome/AdminHome';
 import AdminProfile from './components/AdminProfile/AdminProfile';
-import AdminFeedbacks from './components/AdminFeedbacks/AdminFeedbacks';
+
 import AdminEvents from './components/AdminEvents/AdminEvents';
 import AdminLayout from "./components/AdminLayout/AdminLayout";
 import HomePage from "./components/HomePage/HomePage";
@@ -21,7 +21,13 @@ import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopD
 import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopCreate";
 import AdminTopMenu from "./components/AdminTopMenu/AdminTopMenu";
 import AdminTopMenuDetail from "./components/AdminTopMenuDetail/AdminTopMenuDetail";
-import Feedback from "./components/Feedback/Feedback";
+import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
+
+// Admin questionnaire tools pull in dnd-kit, Recharts and the DataGrid: load them on demand.
+const AdminQuestionnaires = lazy(() => import('./components/AdminQuestionnaires/AdminQuestionnaires'));
+const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
+const QuestionnaireResults = lazy(() => import('./components/QuestionnaireResults/QuestionnaireResults'));
+const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</Suspense>;
 
 function App() {
     const { isAuthenticated } = useOidc();
@@ -56,7 +62,10 @@ function App() {
                             <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
                             <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
                             <Route path='/admin/events/' element={<AdminEvents pageName={"Events"} />} />
-                            <Route path='/admin/feedbacks' element={<AdminFeedbacks pageName={"Feedbacks"} />} />
+                            <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
+                            <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
+                            <Route path='/admin/questionnaires/:id/edit' element={page(<QuestionnaireDesigner />)} />
+                            <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
                             <Route path='/admin/topmenu/' element={<AdminTopMenu pageName={"Top Menu"} />} />
                             <Route path='/admin/topmenu/:id' element={<AdminTopMenuDetail />} />
                             <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
@@ -69,7 +78,8 @@ function App() {
                         <Route>
                             <Route path="/workshops" element={<Workshops pageName={"Workshops"} />}></Route>
                             <Route path="/workshop/:id" element={<WorkshopDetail pageName={"Workshop Detail"} />}></Route>
-                            <Route path="/feedback/:workshopId" element={<Feedback workshopId="" />}></Route>
+                            <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />}></Route>
+                            <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />}></Route>
                         </Route>
                     </Route>
                 </Routes>

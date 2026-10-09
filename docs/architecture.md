@@ -22,7 +22,7 @@ Keycloak and independent deployment boundaries; DataMigration never auto-starts.
 | [DotNetLiguriaCore.Model](../src/dotnetliguriawebsite/DotNetLiguriaCore.Model) | Website domain types, API contracts and BSON compatibility |
 | [CommonAuth](../src/dotnetliguriawebsite/CommonAuth) | Keycloak cookie/OIDC setup and token helpers |
 | [CommonWeb](../src/dotnetliguriawebsite/CommonWeb) | Development environment-file loading |
-| [DataMigration](../src/dotnetliguriawebsite/DataMigration) | Historical SQL/EF data export and MongoDB migration |
+| [DataMigration](../src/dotnetliguriawebsite/DataMigration) | Historical SQL/EF data export, MongoDB migration and legacy questionnaire import (`questionnaires` mode) |
 | [dotnetliguriaspa](../src/dotnetliguriaspa) | React public/admin UI, Vite, TypeScript and Vitest |
 | [BlazorQuestionario/Client](../src/BlazorQuestionario/Client) | Hosted WebAssembly questionnaire UI |
 | [BlazorQuestionario/Server](../src/BlazorQuestionario/Server) | Hosted questionnaire HTTP endpoints, SQLite and QR uploads |
@@ -43,6 +43,11 @@ Both questionnaire Shared projects retain assembly name and namespace
 `BlazorAppTest.Shared`, but contain different models. They must not be referenced
 together or casually renamed. Their unit suites run in separate test processes.
 
+Both Blazor questionnaires are legacy: the website's questionnaire module (React
+designer, runner and results backed by MongoDB) replaces them. They are removed only
+after their historical data has been migrated and verified; see
+[questionnaire.md](questionnaire.md) for the feature inventory, design and removal plan.
+
 ## Website Request Flow
 
 ```mermaid
@@ -53,7 +58,7 @@ flowchart LR
     API --> Auth[Cookie or JWT authorization]
     API --> Services[Website services]
     Services --> Mongo[(MongoDB)]
-    API --> Stats[Pure feedback statistics calculator]
+    API --> Stats[Pure feedback and questionnaire statistics]
 ```
 
 Controllers are mapped before the `index.html` fallback. `wwwroot` serves the SPA;
@@ -66,6 +71,14 @@ Website services use MongoDB collections configured through
 contracts. `FeedbackStatisticsCalculator` contains the pure rating aggregation
 used by both statistics endpoints; eleven bins, rounding, event grouping and
 historical note semantics are covered without MongoDB.
+
+Questionnaires live in the `Questionnaire` and `QuestionnaireResponse` collections.
+Admin endpoints (`api/Questionnaire`) require the `FeedbackAdmin` policy (Keycloak
+role or claim `feedbackadmin`); public endpoints (`api/PublicQuestionnaire`) are
+anonymous and rate limited. Definition/response validation, visibility rules,
+statistics and CSV export are pure services tested without MongoDB. The SPA serves
+the runner at `/q/:questionnaireId` and `/feedback/:workshopId` and lazy-loads the
+admin designer and results. Details are in [questionnaire.md](questionnaire.md).
 
 ## Authentication And Configuration
 
@@ -99,7 +112,10 @@ production documents; migration approval is still required for real data.
 
 DataMigration reads historical SQL entities and writes export/MongoDB data. Build
 and publish checks never execute it. Do not run it, rotate credentials or apply
-schema changes against real data without explicit approval.
+schema changes against real data without explicit approval. Its `questionnaires`
+argument imports legacy Feedback and QuestionarioTest data as closed historical
+questionnaires; it is a dry run unless `--apply` is passed and is idempotent
+through deterministic ids and `SourceKey`.
 
 The hosted questionnaire uses the supplied `DefaultConnection-Sqlite` connection
 configuration. The server questionnaire uses SQL Server `DefaultConnection` and

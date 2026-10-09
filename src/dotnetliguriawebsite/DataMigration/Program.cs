@@ -13,6 +13,12 @@ internal class Program
     static void Main(string[] args)
     {
         DotNetLiguriaCore.Model.BsonCompatibility.Configure();
+        if (Questionnaires.QuestionnaireMigrationOptions.IsQuestionnaireCommand(args))
+        {
+            RunQuestionnaireMigration(args);
+            return;
+        }
+
         var db = ConfigurationReader.Read<DbConfig>("DbConfig");
         Console.WriteLine();
 
@@ -323,6 +329,18 @@ internal class Program
         }
 
 
+    }
+
+    private static void RunQuestionnaireMigration(string[] args)
+    {
+        var settings = ConfigurationReader.Read<DotNetLiguriaDatabaseSettings>("DotNetLiguriaDatabase")
+            ?? throw new InvalidOperationException("Sezione DotNetLiguriaDatabase mancante.");
+        var options = Questionnaires.QuestionnaireMigrationOptions.Parse(args,
+            ConfigurationReader.Configuration?["QuestionnaireMigration:SqlServerConnectionString"],
+            ConfigurationReader.Configuration?["QuestionnaireMigration:SqliteConnectionString"]);
+        var database = new MongoClient(settings.ConnectionString).GetDatabase(settings.DatabaseName);
+        var runner = new Questionnaires.QuestionnaireMigrationRunner(database, settings, Console.Out);
+        runner.RunAsync(options, DateTime.UtcNow).GetAwaiter().GetResult();
     }
 
 }

@@ -14,5 +14,11 @@
         public string FileTypeCollectionName { get; set; } = null!;
 
         public string BoardCollectionName { get; set; } = null!;
+
+        public string FeedbackCollectionName { get; set; } = "Feedback";
+
+        public string QuestionnaireCollectionName { get; set; } = "Questionnaire";
+
+        public string QuestionnaireResponseCollectionName { get; set; } = "QuestionnaireResponse";
     }
 }

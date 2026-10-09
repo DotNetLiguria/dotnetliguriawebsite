@@ -44,7 +44,7 @@ test('public home reports server failures instead of presenting an empty databas
 test.each([
   ['/admin', 'Admin Dashboard'], ['/admin/profile/', 'Profile'],
   ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Speakers'],
-  ['/admin/board/', 'Board'], ['/admin/feedbacks', 'Feedbacks'],
+  ['/admin/board/', 'Board'], ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
   ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'],
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);

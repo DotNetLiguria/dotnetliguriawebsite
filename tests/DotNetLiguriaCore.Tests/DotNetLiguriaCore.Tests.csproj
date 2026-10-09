@@ -13,5 +13,6 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../../src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj" />
     <ProjectReference Include="../../src/dotnetliguriawebsite/CommonWeb/CommonWeb.csproj" />
+    <ProjectReference Include="../../src/dotnetliguriawebsite/DataMigration/DataMigration.csproj" />
   </ItemGroup>
 </Project>

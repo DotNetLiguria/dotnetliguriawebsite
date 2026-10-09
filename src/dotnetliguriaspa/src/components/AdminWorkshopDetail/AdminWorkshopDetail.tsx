@@ -16,6 +16,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DescriptionIcon from '@mui/icons-material/Description';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import WorkshopQuestionnaires from '../AdminQuestionnaires/WorkshopQuestionnaires';
 
 interface AdminWorkshopDetailProps {
 	pageName?: string;
@@ -707,6 +708,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							<Typography variant="caption" color="text.secondary" sx={{ mt: 2, textAlign: 'center', wordBreak: 'break-all' }}>
 								{`${window.location.origin}/feedback/${workshop.workshopId}`}
 							</Typography>
+							<WorkshopQuestionnaires workshopId={workshop.workshopId} />
 						</Box>
 					</Grid>
 				</Grid>
