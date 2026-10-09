@@ -5,7 +5,7 @@ hosting, questionnaire routes, validation and SQL composite-key/column mappings.
 Timers must be injectable and disposable; tests advance fake time without sleeps.
 Telemetry must not contact external services in unit tests.
 
-Build: `dotnet build src/BlazorQuestionarioServer/BlazorQuestionarioServer.sln -c Release`.
+Build all projects: `dotnet build DotNetLiguria.slnx -c Release` from the repository root.
 Unit tests live under tests/ServerQuestionnaire.Tests; do not co-reference the
 hosted questionnaire's same-named Shared assembly. Existing Playwright tests are
 separate browser checks and need an explicitly supplied disposable application URL.

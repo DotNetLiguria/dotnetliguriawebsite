@@ -1,9 +1,0 @@
-<Solution>
-  <Project Path="CommonAuth/CommonAuth.csproj" />
-  <Project Path="CommonWeb/CommonWeb.csproj" />
-  <Project Path="DataMigration/DataMigration.csproj">
-    <BuildDependency Project="DotNetLiguriaCore.Model/DotNetLiguriaCore.Model.csproj" />
-  </Project>
-  <Project Path="DotNetLiguriaCore.Model/DotNetLiguriaCore.Model.csproj" />
-  <Project Path="DotNetLiguriaCore/DotNetLiguriaCore.csproj" />
-</Solution>

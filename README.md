@@ -15,6 +15,9 @@ The shared gate builds every .NET project, checks the Vite frontend and enforces
 counted, time-bounded units. Native QR checks are separate; browser and database
 checks are not part of the unit gate. Publishing never executes an application.
 
+Open [DotNetLiguria.slnx](DotNetLiguria.slnx) for all .NET projects, or run
+`dotnet build DotNetLiguria.slnx -c Release`. Browser tests remain opt-in.
+
 See [architecture](docs/architecture.md), [frontend setup](src/dotnetliguriaspa/README.md),
 [website setup](src/dotnetliguriawebsite/website.md), and [test procedures](tests/Tests.md).
 Read [AGENTS.md](AGENTS.md) and scoped guidance before editing. Canonical portable

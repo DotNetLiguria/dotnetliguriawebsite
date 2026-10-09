@@ -33,6 +33,8 @@ project-specific requirements; it does not relax the standards below.
   documentation or instructions alone enforce a rule.
 
 ## Toolchains and Workflows
+Use the root `DotNetLiguria.slnx` for all .NET projects; keep test execution scoped
+so browser checks remain opt-in. Publish applications using their project paths.
 Use the checked-in SDK and Node pins, lockfiles and verification scripts when present.
 Resolve upgrades from official release metadata; do not use forced peer resolution or previews.
 Repository skills under `.agents/skills` describe modernization and fast verification.

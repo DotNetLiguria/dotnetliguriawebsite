@@ -62,16 +62,8 @@ $projects = [ordered]@{
 }
 
 if (!$NoBuild) {
-    $builds = @(
-        'src/dotnetliguriawebsite/dotnetliguriawebsite.slnx',
-        'src/BlazorQuestionario/BlazorAppQuestionario.sln',
-        'src/BlazorQuestionarioServer/BlazorQuestionarioServer.sln',
-        'src/BlazorQuestionarioServer/BlazorQuestionarioServer.Tests/BlazorQuestionarioServer.Tests.csproj'
-    ) + @($projects.Values)
-    foreach ($build in $builds) {
-        Write-Host "Build: $build"
-        Invoke-CheckedProcess $dotnet @('build', $build, '-c', 'Release', '--nologo', '-v', 'minimal') | Out-Null
-    }
+    Write-Host 'Build: DotNetLiguria.slnx'
+    Invoke-CheckedProcess $dotnet @('build', 'DotNetLiguria.slnx', '-c', 'Release', '--nologo', '-v', 'minimal') | Out-Null
 }
 
 if (!$NoFrontendChecks) {

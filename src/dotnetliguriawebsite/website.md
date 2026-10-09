@@ -4,7 +4,7 @@ Read [AGENTS.md](AGENTS.md) and [architecture](../../docs/architecture.md).
 Use the root-pinned .NET 10 SDK and Node toolchain. From the repository root:
 
 ```powershell
-dotnet build src/dotnetliguriawebsite/dotnetliguriawebsite.slnx -c Release
+dotnet build DotNetLiguria.slnx -c Release
 dotnet test tests/DotNetLiguriaCore.Tests -c Release
 ```
 

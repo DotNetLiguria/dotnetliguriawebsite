@@ -7,6 +7,6 @@ Never delete historical content when copying a frontend build.
 DataMigration writes real data: build it and test pure mappings, but do not run it
 or apply database migrations without explicit approval.
 
-Build: `dotnet build src/dotnetliguriawebsite/dotnetliguriawebsite.slnx -c Release`.
+Build all projects: `dotnet build DotNetLiguria.slnx -c Release` from the repository root.
 Tests: `dotnet test tests/DotNetLiguriaCore.Tests -c Release` from the repository root.
 Use injected collaborators for tests; do not require MongoDB or Keycloak.

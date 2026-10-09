@@ -5,7 +5,9 @@
 The repository contains three independently hosted .NET applications, a React SPA,
 a data-migration executable and isolated verification projects. All fifteen .NET
 projects target `net10.0`: eleven application/library/browser projects and four
-unit-test projects. The website solution does not contain the questionnaire apps.
+unit-test projects. The root [DotNetLiguria.slnx](../DotNetLiguria.slnx) contains all
+15 projects, grouped into website, hosted questionnaire, server questionnaire,
+unit-test and browser-test solution folders.
 
 | Location | Responsibility |
 | --- | --- |
@@ -24,10 +26,11 @@ unit-test projects. The website solution does not contain the questionnaire apps
 | [tests](../tests) | Four isolated unit suites, including executable repository standards |
 | [DotNetLiguriaCore/wwwroot/workshops](../DotNetLiguriaCore/wwwroot/workshops) | Historical workshop assets, retained in place |
 
-Build the website with `src/dotnetliguriawebsite/dotnetliguriawebsite.slnx`, the
-hosted questionnaire with `src/BlazorQuestionario/BlazorAppQuestionario.sln`, and
-the server questionnaire with `src/BlazorQuestionarioServer/BlazorQuestionarioServer.sln`.
-The browser project and isolated tests are built separately by the shared gate.
+Build everything with `dotnet build DotNetLiguria.slnx -c Release` from the repository
+root. Individual project paths still support independent builds and publishes;
+solution folders do not change deployment boundaries. The shared gate builds the
+root solution, then runs unit suites separately. Do not use an unfiltered
+solution-wide test run: browser tests require explicitly provisioned infrastructure.
 
 Both questionnaire Shared projects retain assembly name and namespace
 `BlazorAppTest.Shared`, but contain different models. They must not be referenced

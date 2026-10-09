@@ -1,0 +1,29 @@
+<Solution>
+  <Folder Name="/Website/">
+    <Project Path="src/dotnetliguriawebsite/CommonAuth/CommonAuth.csproj" />
+    <Project Path="src/dotnetliguriawebsite/CommonWeb/CommonWeb.csproj" />
+    <Project Path="src/dotnetliguriawebsite/DataMigration/DataMigration.csproj">
+      <BuildDependency Project="src/dotnetliguriawebsite/DotNetLiguriaCore.Model/DotNetLiguriaCore.Model.csproj" />
+    </Project>
+    <Project Path="src/dotnetliguriawebsite/DotNetLiguriaCore.Model/DotNetLiguriaCore.Model.csproj" />
+    <Project Path="src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj" />
+  </Folder>
+  <Folder Name="/HostedQuestionnaire/">
+    <Project Path="src/BlazorQuestionario/Client/BlazorAppTest.Client.csproj" />
+    <Project Path="src/BlazorQuestionario/Server/BlazorAppTest.Server.csproj" />
+    <Project Path="src/BlazorQuestionario/Shared/BlazorAppTest.Shared.csproj" />
+  </Folder>
+  <Folder Name="/ServerQuestionnaire/">
+    <Project Path="src/BlazorQuestionarioServer/BlazorQuestionarioServer/BlazorQuestionarioServer.csproj" />
+    <Project Path="src/BlazorQuestionarioServer/Shared/BlazorAppTest.Shared.csproj" />
+  </Folder>
+  <Folder Name="/Tests/Unit/">
+    <Project Path="tests/DotNetLiguriaCore.Tests/DotNetLiguriaCore.Tests.csproj" />
+    <Project Path="tests/Questionnaire.Tests/Questionnaire.Tests.csproj" />
+    <Project Path="tests/RepositoryRules.Tests/RepositoryRules.Tests.csproj" />
+    <Project Path="tests/ServerQuestionnaire.Tests/ServerQuestionnaire.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Tests/Browser/">
+    <Project Path="src/BlazorQuestionarioServer/BlazorQuestionarioServer.Tests/BlazorQuestionarioServer.Tests.csproj" />
+  </Folder>
+</Solution>
