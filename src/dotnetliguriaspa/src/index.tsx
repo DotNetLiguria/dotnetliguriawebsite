@@ -8,11 +8,11 @@ import {BrowserRouter} from 'react-router-dom';
 import {OidcProvider} from "@axa-fr/react-oidc";
 import {ThemeProvider} from '@mui/material';
 import theme from './theme';
+import { getOidcPublicSettings } from './config/oidcConfig';
 
 const configuration={
     //metadataUrl: "https://hello.vevy.com/realms/DotNetLiguria/.well-known/openid-configuration",
-    authority:"https://hello.vevy.com/realms/DotNetLiguria",
-    client_id:"DotNetLiguriaSpa",
+    ...getOidcPublicSettings(),
     redirect_uri:window.location.origin + '/authentication/callback',
     silent_redirect_uri:window.location.origin + '/authentication/silent-callback',
     //scope: 'openid profile email api offline_access',

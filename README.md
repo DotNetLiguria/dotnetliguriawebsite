@@ -27,17 +27,38 @@ Do not execute DataMigration, apply schemas against real data, deploy, rotate
 credentials or commit changes without explicit approval. Store secrets outside
 source control and never expose them through frontend environment variables.
 
-## Notes
+## Run All Applications With Aspire
 
-The `docker-compose.yaml` file pulls and generates the image needed to run MongoDB in container
+Use the pinned .NET SDK/Node, a running Docker engine with Linux containers,
+and a trusted ASP.NET development certificate (`dotnet dev-certs https --trust`).
+From the repository root:
 
-From this folder run (it will run and stay
-
+```powershell
+dotnet run --project src\DotNetLiguria.AppHost
 ```
-docker-compose up -d
-```
 
-After this, you can start the container from Docker desktop directly.
+Alternatively select **Launch DotNetLiguria (Aspire)** in VS Code. One launcher
+starts the website/API (https://localhost:5443), React SPA
+(https://localhost:3443), hosted questionnaire (https://localhost:62045), and
+server questionnaire (https://localhost:62048), plus MongoDB and SQL Server
+containers. Open the dashboard URL printed by the launcher; its login token is
+private. No global Aspire CLI installation/update is required: orchestration
+dependencies are restored from pinned Aspire 13.6.1 NuGet packages.
+
+Keycloak remains external. Supply its server client secret using website user
+secrets or AppHost user secrets, never frontend variables. The existing provider
+must allow `https://localhost:5443/*` and `https://localhost:3443/*`. See
+[Aspire development](docs/aspire.md) for configuration, storage safety, and checks.
+All four applications retain independent publishing.
+
+Aspire creates **new isolated databases** and persists them across launcher
+restarts. Questionnaire schemas and synthetic workshop data are initialized only
+in the guarded local Development stack. It never starts DataMigration or touches
+existing databases. Stop the launcher before resetting its data.
+
+The existing `docker-compose.yaml` is a legacy/manual MongoDB alternative, not
+part of the Aspire startup. Do not start it to prepare the Aspire stack or reuse
+its volume for development initialization.
 
 ## backup/restore
 

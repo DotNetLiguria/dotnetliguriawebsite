@@ -1,4 +1,8 @@
 <Solution>
+  <Folder Name="/Aspire/">
+    <Project Path="src/DotNetLiguria.AppHost/DotNetLiguria.AppHost.csproj" />
+    <Project Path="src/DotNetLiguria.ServiceDefaults/DotNetLiguria.ServiceDefaults.csproj" />
+  </Folder>
   <Folder Name="/Website/">
     <Project Path="src/dotnetliguriawebsite/CommonAuth/CommonAuth.csproj" />
     <Project Path="src/dotnetliguriawebsite/CommonWeb/CommonWeb.csproj" />

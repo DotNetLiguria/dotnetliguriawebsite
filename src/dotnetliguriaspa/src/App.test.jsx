@@ -20,6 +20,27 @@ test('public home renders the community and offers login', async () => {
   expect(login).toHaveBeenCalledWith('/admin');
 });
 
+test('public home renders an empty state when a fresh database has no featured workshop', async () => {
+  vi.mocked(fetch).mockImplementation(async url => new Response(JSON.stringify(
+    String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? { status: 404 } : []
+  ), { status: String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? 404 : 200 }));
+  render(<App />);
+  expect(await screen.findByText('Nessun evento disponibile.')).toBeInTheDocument();
+  expect(screen.queryByText('Caricamento evento...')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test('public home reports server failures instead of presenting an empty database', async () => {
+  const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.mocked(fetch).mockImplementation(async url => new Response(JSON.stringify([]), {
+    status: String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? 500 : 200,
+  }));
+  render(<App />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Errore HTTP: 500');
+  expect(screen.queryByText('Nessun evento disponibile.')).not.toBeInTheDocument();
+  expect(report).toHaveBeenCalled();
+});
+
 test.each([
   ['/admin', 'Admin Dashboard'], ['/admin/profile/', 'Profile'],
   ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Speakers'],

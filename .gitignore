@@ -55,6 +55,7 @@ artifacts/
 .artifacts/
 src/dotnetliguriaspa/dist/
 **/Properties/launchSettings.json
+!src/DotNetLiguria.AppHost/Properties/launchSettings.json
 
 # StyleCop
 StyleCopReport.xml

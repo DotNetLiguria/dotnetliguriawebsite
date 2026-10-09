@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './HomePage.css';
-import { Container, Typography, Box, IconButton } from '@mui/material';
+import { Container, Typography, Box, IconButton, Alert } from '@mui/material';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import FacebookIcon from '@mui/icons-material/Facebook';
@@ -182,15 +182,24 @@ export default function Home() {
     const [loading, setLoading] = useState(true);
     const [workshop, setWorkshop] = useState<HomePageWorkshop | null>(null);
     const [workshopLoading, setWorkshopLoading] = useState(true);
+    const [workshopError, setWorkshopError] = useState<string | null>(null);
 
     useEffect(() => {
         const loadWorkshop = async () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/Workshop/GetInHomePage/HomePage`);
+                if (response.status === 404) {
+                    setWorkshop(null);
+                    return;
+                }
+                if (!response.ok) {
+                    throw new Error(`Errore HTTP: ${response.status}`);
+                }
                 const data = await response.json();
                 setWorkshop(data);
             } catch (error) {
                 console.error('Error loading workshop:', error);
+                setWorkshopError(error instanceof Error ? error.message : "Errore nel caricamento dell'evento");
             } finally {
                 setWorkshopLoading(false);
             }
@@ -256,6 +265,8 @@ export default function Home() {
                                 Caricamento evento...
                             </Typography>
                         </Container>
+                    ) : workshopError ? (
+                        <Alert severity="error">{workshopError}</Alert>
                     ) : workshop ? (
                         <Container maxWidth={false} className="section-content" style={{ padding: '0 4rem', paddingTop: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <Typography variant="h2" align="center" gutterBottom sx={{ fontFamily: "'Titillium Web', sans-serif", fontWeight: 600, marginTop: 0, marginBottom: 3, width: '100%' }}>
@@ -324,7 +335,11 @@ export default function Home() {
                                 </Box>
                             </Box>
                         </Container>
-                    ) : null}
+                    ) : (
+                        <Typography variant="body1" align="center">
+                            Nessun evento disponibile.
+                        </Typography>
+                    )}
                 </section>
                 <section className="board fullscreen-section" id="team">
                     <div className="section-content" style={{ flexDirection: 'column', paddingTop: '30px', paddingBottom: '50px' }}>

@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Shared\BlazorAppTest.Shared.csproj" />
+    <ProjectReference Include="..\..\DotNetLiguria.ServiceDefaults\DotNetLiguria.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
+using DotNetLiguria.ServiceDefaults;
 
 namespace BlazorAppTest.Server
 {
@@ -23,6 +24,9 @@ namespace BlazorAppTest.Server
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddServiceDefaults(_configuration);
+            if (_configuration["DOTNET_LIGURIA_ASPIRE"] == "true")
+                services.AddHealthChecks().AddCheck<LocalDatabaseHealthCheck>("sqlite");
             services.AddDbContext<ApplicationDbContexts>(
                 option => option.UseLazyLoadingProxies()
                           //.UseSqlServer(configuration.GetConnectionString("DefaultConnection-SQL"))
@@ -54,6 +58,7 @@ namespace BlazorAppTest.Server
 
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapServiceDefaults();
                 endpoints.MapDefaultControllerRoute();
                 endpoints.MapFallbackToFile("index.html");
             });

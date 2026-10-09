@@ -6,6 +6,7 @@ using CommonWeb;
 
 using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Services;
+using DotNetLiguria.ServiceDefaults;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -34,10 +35,14 @@ public class Program
 #if DEBUG
         Console.WriteLine("This is a debug build");
         //IdentityModelEventSource.ShowPII = true;
-        DotEnv.SetCurrentProfile();
+        if (Environment.GetEnvironmentVariable("DOTNET_LIGURIA_ASPIRE") != "true")
+            DotEnv.SetCurrentProfile();
 #endif
 
         var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AddServiceDefaults(builder.Configuration);
+        if (builder.Configuration["DOTNET_LIGURIA_ASPIRE"] == "true")
+            builder.Services.AddHealthChecks().AddCheck<MongoDatabaseHealthCheck>("mongodb");
         builder.Services.AddCors(options =>
         {
             options.AddPolicy(_corsPolicy, policy =>
@@ -106,6 +111,7 @@ public class Program
 
         // Map API controllers first
         app.MapControllers();
+        app.MapServiceDefaults();
 
         // Handle development-time browser scripts
         if (app.Environment.IsDevelopment())

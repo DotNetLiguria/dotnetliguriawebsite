@@ -5,6 +5,15 @@ Vite and Vitest instead of Create React App. Read [AGENTS.md](AGENTS.md) before 
 
 ## Local Development
 
+The primary development entrypoint is now the root
+[Aspire launcher](../../docs/aspire.md), which starts this SPA at
+https://localhost:3443, injects https://localhost:5443/api, and supplies the trusted
+ASP.NET developer certificate through Aspire's Vite integration. No standalone
+PEM files are needed for that flow. OIDC callback and silent-callback paths stay
+unchanged; Keycloak remains external.
+
+For standalone frontend development:
+
 Use Node 24.21.0 from the root [.node-version](../../.node-version), then run here:
 
 ```powershell
@@ -23,6 +32,9 @@ defaults to `https://localhost:64561/api`; explicitly match the backend URL you 
 `REACT_APP_API_BASE_URL` and `REACT_APP_API_URL` names remain supported as fallbacks.
 These values are embedded in browser code: never use them for secrets. `/Contents`
 case is significant on Linux. The dev server does not start a backend or database.
+Public `VITE_OIDC_AUTHORITY` and `VITE_OIDC_CLIENT_ID` optionally override the existing
+provider/client defaults; also keep the OIDC worker's explicit trusted provider
+domains in sync. The Aspire endpoint takes precedence over environment files.
 
 ## Checks And Publishing
 
@@ -33,7 +45,7 @@ npm run test:unit
 npm run build
 ```
 
-Vitest runs 28 isolated behavior tests with mocked authentication/network and
+Vitest runs 33 isolated behavior/configuration tests with mocked authentication/network and
 reset state; `npm test` is a single run, not CRA watch mode.
 Use `npm run test:unit -- --watch` for watch mode. The shared root verification script enforces discovery
 counts and a measured process-time ceiling. See [test procedures](../../tests/Tests.md).

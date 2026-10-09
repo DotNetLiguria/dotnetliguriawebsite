@@ -7,7 +7,7 @@ pwsh -File scripts/verify.ps1 -Native
 pwsh -File scripts/verify-publish.ps1
 ```
 
-The unit gate builds all fifteen .NET projects and runs frontend clean install,
+The unit gate builds all seventeen .NET projects and runs frontend clean install,
 typecheck, lint and production build before timing test execution. It rejects zero
 discovery, reduced counts, skips, failures and process overruns. TRX, Vitest JSON
 and elapsed timings are written under `.artifacts/test-results`.
@@ -46,6 +46,17 @@ and Axios and reset storage/state; circuit tests use FakeTimeProvider. EF tests
 inspect metadata without database connections. BSON/JWT inputs are synthetic.
 
 ## Separate Checks
+
+Aspire adds offline resource-model, initializer-guard/sample-graph, and frontend
+configuration tests. Current minimum discovery counts are 24 repository, 23
+backend, 25 hosted-questionnaire, 17 server-questionnaire, and 33 frontend tests
+(122 total). Original timing ceilings remain unchanged.
+
+The [local Aspire HTTP check](../scripts/verify-aspire.ps1) is explicitly opt-in
+and requires the [isolated development stack](../docs/aspire.md) already running.
+It is not part of the timed unit gate and never starts DataMigration. Container,
+database persistence, browser circuits and external Keycloak login/MFA must be
+verified separately.
 
 `-Native` runs two SkiaSharp/ZXing image checks after units with its own 120-second
 deadline. Both passed on Windows and Ubuntu WSL (the Linux probe links the actual

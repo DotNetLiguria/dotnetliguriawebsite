@@ -2,12 +2,22 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "build-aspire",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/DotNetLiguria.AppHost/DotNetLiguria.AppHost.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
             "label": "build",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj",
+                "${workspaceFolder}/DotNetLiguria.slnx",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

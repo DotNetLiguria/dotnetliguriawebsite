@@ -429,6 +429,7 @@
     <ItemGroup>
         <ProjectReference Include="..\CommonAuth\CommonAuth.csproj" />
         <ProjectReference Include="..\CommonWeb\CommonWeb.csproj" />
+        <ProjectReference Include="..\..\DotNetLiguria.ServiceDefaults\DotNetLiguria.ServiceDefaults.csproj" />
         <ProjectReference Include="..\DotNetLiguriaCore.Model\DotNetLiguriaCore.Model.csproj" />
     </ItemGroup>
 

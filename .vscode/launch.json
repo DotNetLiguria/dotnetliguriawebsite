@@ -1,58 +1,31 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch DotNetLiguria Web API",
+            "name": "Launch DotNetLiguria (Aspire)",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/dotnetliguriawebsite/DotNetLiguriaCore/bin/Debug/net9.0/DotNetLiguriaCore.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/dotnetliguriawebsite/DotNetLiguriaCore",
-            "stopAtEntry": false,
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
-            },
+            "preLaunchTask": "build-aspire",
+            "program": "${workspaceFolder}/src/DotNetLiguria.AppHost/bin/Debug/net10.0/DotNetLiguria.AppHost.dll",
+            "cwd": "${workspaceFolder}/src/DotNetLiguria.AppHost",
             "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "DOTNET_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:17230;http://localhost:15230",
+                "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21230",
+                "ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22230"
             },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
+            "console": "integratedTerminal"
         },
         {
-            "name": "Launch DotNetLiguria Web API (No Browser)",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/dotnetliguriawebsite/DotNetLiguriaCore/bin/Debug/net9.0/DotNetLiguriaCore.dll",
-            "args": [],
-            "cwd": "${workspaceFolder}/src/dotnetliguriawebsite/DotNetLiguriaCore",
-            "stopAtEntry": false,
-            "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
-            },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
-        },
-        {
-            "name": "Launch DataMigration",
+            "name": "Launch DataMigration (Manual - writes data)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build-datamigration",
-            "program": "${workspaceFolder}/src/dotnetliguriawebsite/DataMigration/bin/Debug/net9.0/DataMigration.dll",
-            "args": [],
+            "program": "${workspaceFolder}/src/dotnetliguriawebsite/DataMigration/bin/Debug/net10.0/DataMigration.dll",
             "cwd": "${workspaceFolder}/src/dotnetliguriawebsite/DataMigration",
             "console": "integratedTerminal",
-            "stopAtEntry": false,
-            "env": {
-                "DOTNET_ENVIRONMENT": "Development"
-            }
+            "env": { "DOTNET_ENVIRONMENT": "Development" }
         }
     ]
 }

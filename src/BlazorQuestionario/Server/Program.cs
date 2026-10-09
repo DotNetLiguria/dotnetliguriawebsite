@@ -16,7 +16,18 @@ namespace BlazorAppTest.Server
     {
         public static void Main(string[] args)
         {
-            BuildWebHost(args).Run();
+            using var host = BuildWebHost(args);
+            var configuration = host.Services.GetRequiredService<IConfiguration>();
+            if (configuration.GetValue<bool>("LocalDevelopment:Initialize"))
+            {
+                using var scope = host.Services.CreateScope();
+                LocalDatabaseInitializer.InitializeAsync(
+                    scope.ServiceProvider.GetRequiredService<ApplicationDbContexts>(), configuration,
+                    host.Services.GetRequiredService<IWebHostEnvironment>(),
+                    host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Program>>())
+                    .GetAwaiter().GetResult();
+            }
+            host.Run();
         }
 
         public static IWebHost BuildWebHost(string[] args)
@@ -25,7 +36,8 @@ namespace BlazorAppTest.Server
             mainAssembly = mainAssembly.Replace(".", "").Replace("-", "");
             var configEnv = $"{mainAssembly}Config";
             Console.WriteLine($"Looking for {configEnv}");
-            var deployfile = Environment.GetEnvironmentVariable(configEnv);
+            var deployfile = Environment.GetEnvironmentVariable("DOTNET_LIGURIA_ASPIRE") == "true"
+                ? null : Environment.GetEnvironmentVariable(configEnv);
             Console.WriteLine($"Found extra config: {deployfile}");
             // deployfile string is a full path to an additional configuration like:
             // "/home/username/edp/BlazorAppTest.Server.json"

@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
     'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || env.REACT_APP_API_URL || ''),
   },
   server: {
-    port: mode === 'https' ? 3443 : 3000,
+    port: process.env.PORT ? Number(process.env.PORT) : mode === 'https' ? 3443 : 3000,
+    strictPort: true,
     https: mode === 'https' ? {
       cert: readFileSync(fileURLToPath(new URL('./localhost.pem', import.meta.url))),
       key: readFileSync(fileURLToPath(new URL('./localhost-key.pem', import.meta.url))),

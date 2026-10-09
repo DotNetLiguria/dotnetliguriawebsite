@@ -10,6 +10,12 @@ dotnet test tests/DotNetLiguriaCore.Tests -c Release
 
 ## Configuration And Safety
 
+The primary local entrypoint is the root [Aspire launcher](../../docs/aspire.md).
+It provisions isolated MongoDB, injects the full generated URI, and exposes the
+website at https://localhost:5443. External Keycloak and production publishing
+remain unchanged. Legacy DEBUG environment-file loading is skipped for Aspire
+so local orchestration configuration cannot be overwritten.
+
 Provision an isolated MongoDB instance and matching Keycloak registration before
 running the website. Supply `DotNetLiguriaDatabase` and `AuthServer` configuration
 through ASP.NET configuration, keeping secrets in user secrets or deployment secret
@@ -50,6 +56,5 @@ Build Docker from the repository root using the website Dockerfile. The .NET 10
 non-root runtime listens on HTTP 8080; supply TLS, secrets and identity-provider
 registration at the deployment boundary. Images exclude local certificates and
 environment files. Do not deploy or change real data as part of verification.
-
 
 

@@ -4,10 +4,17 @@
 
 The repository contains three independently hosted .NET applications, a React SPA,
 a data-migration executable and isolated verification projects. All fifteen .NET
-projects target `net10.0`: eleven application/library/browser projects and four
-unit-test projects. The root [DotNetLiguria.slnx](../DotNetLiguria.slnx) contains all
-15 projects, grouped into website, hosted questionnaire, server questionnaire,
-unit-test and browser-test solution folders.
+projects originally targeted `net10.0`: eleven application/library/browser projects
+and four unit-test projects. With the two Aspire projects, the root
+[DotNetLiguria.slnx](../DotNetLiguria.slnx) now contains 17 .NET 10 projects, grouped
+into Aspire, website, hosted questionnaire, server questionnaire, unit-test and
+browser-test solution folders.
+
+Aspire adds two more .NET 10 projects: a single `DotNetLiguria.AppHost` and shared
+`DotNetLiguria.ServiceDefaults`, bringing the root solution to 17 projects.
+The [development launcher](aspire.md) starts all four applications, isolated
+MongoDB/SQL Server containers, and local SQLite storage. It retains external
+Keycloak and independent deployment boundaries; DataMigration never auto-starts.
 
 | Location | Responsibility |
 | --- | --- |
