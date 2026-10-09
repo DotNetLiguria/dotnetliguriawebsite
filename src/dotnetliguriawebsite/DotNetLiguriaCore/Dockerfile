@@ -22,8 +22,10 @@ COPY src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj src/dot
 COPY src/dotnetliguriawebsite/CommonAuth/CommonAuth.csproj src/dotnetliguriawebsite/CommonAuth/
 COPY src/dotnetliguriawebsite/CommonWeb/CommonWeb.csproj src/dotnetliguriawebsite/CommonWeb/
 COPY src/dotnetliguriawebsite/DotNetLiguriaCore.Model/DotNetLiguriaCore.Model.csproj src/dotnetliguriawebsite/DotNetLiguriaCore.Model/
+COPY src/DotNetLiguria.ServiceDefaults/DotNetLiguria.ServiceDefaults.csproj src/DotNetLiguria.ServiceDefaults/
 RUN dotnet restore src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj
 COPY src/dotnetliguriawebsite/ src/dotnetliguriawebsite/
+COPY src/DotNetLiguria.ServiceDefaults/ src/DotNetLiguria.ServiceDefaults/
 COPY --from=frontend /spa/dist/ src/dotnetliguriaspa/dist/
 
 FROM build AS publish
