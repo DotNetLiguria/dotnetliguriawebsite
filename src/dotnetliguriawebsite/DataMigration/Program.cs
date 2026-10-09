@@ -12,6 +12,7 @@ internal class Program
 {
     static void Main(string[] args)
     {
+        DotNetLiguriaCore.Model.BsonCompatibility.Configure();
         var db = ConfigurationReader.Read<DbConfig>("DbConfig");
         Console.WriteLine();
 

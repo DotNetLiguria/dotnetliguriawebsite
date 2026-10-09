@@ -1,4 +1,4 @@
-﻿using AngleSharp.Diffing;
+using AngleSharp.Diffing;
 using AngleSharp.Diffing.Core;
 using BlazorQuestionarioServer.Tests;
 using Microsoft.Playwright;
@@ -12,43 +12,58 @@ namespace BlazorQuestionarioServerTests
     public class QuestionarioFixture : IAsyncLifetime
     {
 
-        IPlaywright playwright;
-        VerifySettings verifierSettings;
-        IBrowser firefoxBrowser;
-        IBrowser chromeBrowser;
-        string baseUrl = "https://localhost:64897";
-        public VerifySettings VerifySettings { get => verifierSettings!; }
+        IPlaywright? _playwright;
+        VerifySettings _verifierSettings = null!;
+        IBrowser? _firefoxBrowser;
+        IBrowser? _chromeBrowser;
+        string _baseUrl = string.Empty;
+        public VerifySettings VerifySettings { get => _verifierSettings!; }
         public async Task DisposeAsync()
         {
-            await firefoxBrowser.DisposeAsync();
-            await chromeBrowser.DisposeAsync();
-            playwright.Dispose();
+            try
+            {
+                if (_firefoxBrowser != null) await _firefoxBrowser.DisposeAsync();
+            }
+            finally
+            {
+                try
+                {
+                    if (_chromeBrowser != null) await _chromeBrowser.DisposeAsync();
+                }
+                finally
+                {
+                    _playwright?.Dispose();
+                    _playwright = null;
+                    _firefoxBrowser = null;
+                    _chromeBrowser = null;
+                }
+            }
         }
 
         public async Task InitializeAsync()
         {
-            Console.WriteLine("Creating Playwright");
-            playwright = await Playwright.CreateAsync();
-            firefoxBrowser = await playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions
+            var configuredUrl = Environment.GetEnvironmentVariable("QUESTIONNAIRE_TEST_BASE_URL");
+            if (!Uri.TryCreate(configuredUrl, UriKind.Absolute, out var baseUri) ||
+                (baseUri.Scheme != Uri.UriSchemeHttp && baseUri.Scheme != Uri.UriSchemeHttps))
             {
-                Headless = false,
-                SlowMo = 50
-            });
+                throw new InvalidOperationException("Set QUESTIONNAIRE_TEST_BASE_URL to an explicitly provisioned disposable application URL.");
+            }
+            _baseUrl = baseUri.AbsoluteUri;
 
-            chromeBrowser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            try
             {
-                Headless = false,
-                SlowMo = 50
-            });
+                _playwright = await Playwright.CreateAsync();
+                _firefoxBrowser = await _playwright.Firefox.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
+                _chromeBrowser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions { Headless = true });
 
 
             VerifyPlaywright.Enable();
             VerifyAngleSharpDiffing.Initialize();
 
-            verifierSettings = new VerifySettings();
-            verifierSettings.UseDirectory("DirTest");
-            verifierSettings.ScrubInlineGuids();
-            verifierSettings.AngleSharpDiffingSettings(
+            _verifierSettings = new VerifySettings();
+            _verifierSettings.UseDirectory("DirTest");
+            _verifierSettings.ScrubInlineGuids();
+            _verifierSettings.AngleSharpDiffingSettings(
                 action =>
                 {
                     static FilterDecision ScriptFilter(
@@ -66,38 +81,35 @@ namespace BlazorQuestionarioServerTests
                     var options = action.AddDefaultOptions();
                     options.AddFilter(ScriptFilter);
                 });
+            }
+            catch
+            {
+                await DisposeAsync();
+                throw;
+            }
         }
 
         public async Task<IPage> Setup(bool ChromeBrowser,string language = "it-IT"  )
         {
-            
-            IPage page = null;
-            IBrowser browser;
-
-            if (ChromeBrowser)
-            {
-                browser = chromeBrowser;
-            }
-            else
-            {
-                browser = firefoxBrowser;
-            }
+            var browser = (ChromeBrowser ? _chromeBrowser : _firefoxBrowser)
+                ?? throw new InvalidOperationException("The browser fixture is not initialized.");
             var context = await browser.NewContextAsync(new BrowserNewContextOptions
             {
                 Locale = language,
                 IgnoreHTTPSErrors=true
             });
-
-            page = await context.NewPageAsync();
-            
-            
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-
-            await page.GotoAsync(baseUrl);
-
-            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-
-            return page;
+            try
+            {
+                var page = await context.NewPageAsync();
+                await page.GotoAsync(_baseUrl);
+                await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                return page;
+            }
+            catch
+            {
+                await context.DisposeAsync();
+                throw;
+            }
         }
 
     }

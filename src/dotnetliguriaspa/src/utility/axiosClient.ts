@@ -1,9 +1,10 @@
 import axios, { AxiosInstance, AxiosError, AxiosResponse } from "axios";
+import { API_BASE_URL } from "../config/apiConfig";
 
 const axiosClient = (token: string | null = null): AxiosInstance => {
   // Create client with basic configuration, but don't set Authorization header yet
   const client = axios.create({
-    baseURL: process.env.REACT_APP_API_URL,
+    baseURL: import.meta.env.VITE_API_URL || API_BASE_URL,
     headers: {
       "Content-Type": "application/json",
     },

@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace DotNetLiguria.Models
@@ -23,10 +23,5 @@ namespace DotNetLiguria.Models
         [ForeignKey("Workshop_WorkshopId")]
         public Workshop? Workshop { get; set; }
 
-    }
-
-    public enum WorkshopFileType
-    {
-        Image = 1, Photo = 2, Video = 3, Material = 4, Poster = 5, Link = 6, Other = 7
     }
 }

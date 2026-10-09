@@ -179,7 +179,7 @@ const Workshops: FC<WorkshopsProps> = ({ pageName }) => {
             margin: '0 auto'
           }}>
             {loading && (
-              <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+              <Box     sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
                 <CircularProgress />
                 <Typography variant="h6" sx={{ ml: 2 }}>
                   Loading workshops ...
@@ -189,7 +189,7 @@ const Workshops: FC<WorkshopsProps> = ({ pageName }) => {
 
             {/* Error state */}
             {error && !loading && (
-              <Box display="flex" justifyContent="center" sx={{ mt: 4 }}>
+              <Box   sx={{ display: "flex", justifyContent: "center", ...({ mt: 4 }) }}>
                 <Alert severity="error" sx={{ maxWidth: 600 }}>
                   {error}
                 </Alert>
@@ -206,7 +206,7 @@ const Workshops: FC<WorkshopsProps> = ({ pageName }) => {
 
             {/* No workshops found */}
             {!loading && !error && workshops.length === 0 && (
-              <Box display="flex" justifyContent="center" sx={{ mt: 4 }}>
+              <Box   sx={{ display: "flex", justifyContent: "center", ...({ mt: 4 }) }}>
                 <Typography variant="h6" color="text.secondary">
                   Nessun workshop trovato.
                 </Typography>

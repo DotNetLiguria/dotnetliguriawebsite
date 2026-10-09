@@ -1,10 +1,10 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import '@testing-library/jest-dom/extend-expect';
+import { render, screen } from '../../test-utils';
+import '@testing-library/jest-dom/vitest';
 import WorkshopItem from './WorkshopItem';
 
 describe('<WorkshopItem />', () => {
-    test('it should mount', () => {
+    test('shows the title, location and detail link for a workshop without tracks', () => {
         render(<WorkshopItem workshop={{
             workshopId: '1',
             title: 'Test Workshop',
@@ -33,8 +33,8 @@ describe('<WorkshopItem />', () => {
             photos: []
         }} />);
 
-        const workshopItem = screen.getByTestId('WorkshopItem');
-
-        expect(workshopItem).toBeInTheDocument();
+        expect(screen.getByText(/Centro Congressi.*Via del Porto 1/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Test Workshop' })).toHaveAttribute('href', '/workshop/1');
+        expect(screen.getByText('Tracks')).toBeInTheDocument();
     });
 });

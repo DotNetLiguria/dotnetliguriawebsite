@@ -3,53 +3,37 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@axa-fr/react-oidc": "^6.15.8",
-    "@emotion/react": "^11.11.0",
-    "@emotion/styled": "^11.10.5",
-    "@fontsource/roboto": "^5.0.8",
-    "@mui/icons-material": "^5.15.11",
-    "@mui/material": "^5.11.5",
-    "@mui/styled-engine-sc": "^5.11.0",
-    "@mui/x-data-grid": "^5.17.19",
-    "@react-buddy/ide-toolbox": "^2.4.0",
-    "@react-buddy/palette-mui": "^5.0.2",
-    "@testing-library/jest-dom": "^5.16.5",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "@types/jest": "^29.5.0",
-    "@types/node": "^18.15.11",
-    "@types/react": "^18.0.34",
-    "@types/react-dom": "^18.0.11",
-    "axios": "^1.18.0",
-    "eslint-plugin-css-modules": "^2.11.0",
-    "jwt-decode": "^4.0.0",
-    "oidc-client-ts": "^2.2.2",
-    "qrcode.react": "^4.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-hook-form": "^7.49.3",
-    "react-json-tree": "^0.18.0",
-    "react-markdown": "^9.0.1",
-    "react-router-dom": "^7.18.2",
-    "react-scripts": "^5.0.1",
-    "recharts": "^2.3.2",
-    "styled-components": "^5.3.6",
-    "typescript": "^4.9.4",
-    "web-vitals": "^2.1.4",
-    "zustand": "^4.5.0"
+    "@axa-fr/react-oidc": "7.29.6",
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.1",
+    "@fontsource/roboto": "5.3.0",
+    "@mui/icons-material": "9.4.0",
+    "@mui/material": "9.4.0",
+    "@mui/x-data-grid": "9.15.0",
+    "axios": "1.20.0",
+    "jwt-decode": "4.0.0",
+    "qrcode.react": "4.2.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.89.0",
+    "react-is": "19.3.0",
+    "react-json-tree": "0.20.0",
+    "react-markdown": "10.1.0",
+    "react-router-dom": "7.18.4",
+    "recharts": "3.10.1",
+    "styled-components": "6.5.3",
+    "zustand": "5.0.15"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "lint": "eslint src/**/*.js src/**/*.jsx"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "start": "vite --host localhost",
+    "start:https": "vite --host localhost --mode https",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit",
+    "test:unit": "vitest run",
+    "lint": "eslint .",
+    "sync:oidc": "node scripts/sync-oidc.mjs",
+    "postinstall": "npm run sync:oidc"
   },
   "browserslist": {
     "production": [
@@ -64,16 +48,24 @@
     ]
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.58.0",
-    "@typescript-eslint/parser": "^5.58.0",
-    "css-loader": "^6.7.3",
-    "eslint": "^8.38.0",
-    "typescript-plugin-css-modules": "^5.0.1"
+    "@eslint/js": "10.0.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "^24.0.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "jsdom": "29.1.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.4",
+    "vitest": "5.0.3"
   },
-  "overrides": {
-    "nth-check": "^2.1.1",
-    "postcss": "^8.4.49",
-    "jsonpath": "npm:jsonpath-plus@^10.4.0",
-    "webpack-dev-server": "^4.15.2"
-  }
+  "type": "module",
+  "engines": { "node": ">=24.21.0 <25" }
 }

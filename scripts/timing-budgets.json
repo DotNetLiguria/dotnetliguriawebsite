@@ -1,0 +1,17 @@
+{
+  "baseline": {
+    "platform": "Windows",
+    "sdk": "10.0.401",
+    "node": "24.14.0",
+    "warmupRuns": 1,
+    "measuredRuns": 5,
+    "method": "Process elapsed time, including runner startup; excludes restore, build and native/browser checks. Ceiling is three times the observed maximum, rounded up to five seconds."
+  },
+  "suites": {
+    "repository": { "minimumTests": 23, "medianSeconds": 4.719, "maximumSeconds": 5.209, "ceilingSeconds": 20 },
+    "backend": { "minimumTests": 23, "medianSeconds": 4.063, "maximumSeconds": 4.448, "ceilingSeconds": 15 },
+    "hostedQuestionnaire": { "minimumTests": 18, "medianSeconds": 5.283, "maximumSeconds": 5.442, "ceilingSeconds": 20 },
+    "serverQuestionnaire": { "minimumTests": 8, "medianSeconds": 5.207, "maximumSeconds": 5.77, "ceilingSeconds": 20 },
+    "frontend": { "minimumTests": 28, "medianSeconds": 17.107, "maximumSeconds": 18.575, "ceilingSeconds": 60 }
+  }
+}

@@ -186,16 +186,16 @@ const AdminSpeakerDetail: FC = () => {
 	// Render form for new speaker
 	if (isNewSpeaker) {
 		return (
-			<Box sx={{ width: '100%', p: 3 }}>
-				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ width: '100%', p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 					<Typography variant="h4">Create New Speaker</Typography>
 					<IconButton onClick={() => navigate('/admin/speakers')} sx={{ color: 'black' }}>
 						<ArrowBackIcon />
 					</IconButton>
 				</Box>
-				<Paper elevation={3} sx={{ p: 3 }}>
+                <Paper elevation={3} sx={{ p: 3 }}>
 					<Grid container spacing={3}>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="Name"
 								value={newSpeakerForm.name}
@@ -204,7 +204,7 @@ const AdminSpeakerDetail: FC = () => {
 								required
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="Email"
 								type="email"
@@ -214,7 +214,7 @@ const AdminSpeakerDetail: FC = () => {
 								required
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="Profile Image URL"
 								value={newSpeakerForm.profileImageUrl}
@@ -223,7 +223,7 @@ const AdminSpeakerDetail: FC = () => {
 								helperText="Enter the URL or path to the speaker's profile image"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="Description"
 								value={newSpeakerForm.description}
@@ -233,7 +233,7 @@ const AdminSpeakerDetail: FC = () => {
 								rows={4}
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<FormControlLabel
 								control={
 									<Switch
@@ -245,7 +245,7 @@ const AdminSpeakerDetail: FC = () => {
 								label="Active"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Button
 								variant="contained"
 								onClick={handleCreateSpeaker}
@@ -263,7 +263,7 @@ const AdminSpeakerDetail: FC = () => {
 					</Grid>
 				</Paper>
 
-				<Snackbar
+                <Snackbar
 					open={snackbarOpen}
 					autoHideDuration={6000}
 					onClose={() => setSnackbarOpen(false)}
@@ -272,8 +272,8 @@ const AdminSpeakerDetail: FC = () => {
 						{snackbarMessage}
 					</Alert>
 				</Snackbar>
-			</Box>
-		);
+            </Box>
+        );
 	}
 
 	// Render edit form for existing speaker
@@ -282,16 +282,21 @@ const AdminSpeakerDetail: FC = () => {
 	}
 
 	return (
-		<Box sx={{ width: '100%', p: 3 }}>
-			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ width: '100%', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 				<Typography variant="h4">Speaker Detail</Typography>
 				<IconButton onClick={() => navigate('/admin/speakers')} sx={{ color: 'black' }}>
 					<ArrowBackIcon />
 				</IconButton>
 			</Box>
-			<Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={3} sx={{ p: 3 }}>
 				<Grid container spacing={3}>
-					<Grid item xs={12} md={3} sx={{ display: 'flex', justifyContent: 'center' }}>
+					<Grid
+                        sx={{ display: 'flex', justifyContent: 'center' }}
+                        size={{
+                            xs: 12,
+                            md: 3
+                        }}>
 						<img
 							src={'profileImageUrl' in speaker ? `/${(speaker as Record<string, unknown>).profileImageUrl}` : (speaker.profileImage ? `/${speaker.profileImage}` : '/speakers/unknown.jpg')}
 							alt={speaker.name}
@@ -311,7 +316,11 @@ const AdminSpeakerDetail: FC = () => {
 							}}
 						/>
 					</Grid>
-					<Grid item xs={12} md={9}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 9
+                        }}>
 						<Paper elevation={1} sx={{ p: 2, backgroundColor: '#f8f9fa' }}>
 							<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 								Quick Info
@@ -356,7 +365,11 @@ const AdminSpeakerDetail: FC = () => {
 
 							<Grid container spacing={2}>
 								{/* IsActive */}
-								<Grid item xs={12} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 4
+                                    }}>
 									<FormControlLabel
 										control={
 											<Switch
@@ -370,7 +383,11 @@ const AdminSpeakerDetail: FC = () => {
 								</Grid>
 
 								{/* Email */}
-								<Grid item xs={12} md={6}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 6
+                                    }}>
 									<Typography variant="caption" sx={{ display: 'block', fontWeight: 600, mb: 0.5 }}>Email</Typography>
 									{isEditingEmail ? (
 										<Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -408,7 +425,7 @@ const AdminSpeakerDetail: FC = () => {
 								</Grid>
 
 								{/* Description */}
-								<Grid item xs={12}>
+								<Grid size={12}>
 									<Typography variant="caption" sx={{ display: 'block', fontWeight: 600, mb: 0.5 }}>Description</Typography>
 									{isEditingDescription ? (
 										<Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -454,7 +471,7 @@ const AdminSpeakerDetail: FC = () => {
 				</Grid>
 			</Paper>
 
-			<Snackbar
+            <Snackbar
 				open={snackbarOpen}
 				autoHideDuration={6000}
 				onClose={() => setSnackbarOpen(false)}
@@ -463,8 +480,8 @@ const AdminSpeakerDetail: FC = () => {
 					{snackbarMessage}
 				</Alert>
 			</Snackbar>
-		</Box>
-	);
+        </Box>
+    );
 };
 
 export default AdminSpeakerDetail;

@@ -82,8 +82,8 @@ const AdminTopMenu: FC<AdminTopMenuProps> = () => {
 	);
 
 	return (
-		<Box sx={{ width: '100%', p: 3 }}>
-			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ width: '100%', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 				<Typography variant="h4">
 					Top Menu
 				</Typography>
@@ -102,31 +102,33 @@ const AdminTopMenu: FC<AdminTopMenuProps> = () => {
 					Add
 				</Button>
 			</Box>
-			<Box sx={{ mb: 2 }}>
+            <Box sx={{ mb: 2 }}>
 				<TextField
 					fullWidth
 					variant="outlined"
 					placeholder="Search by name..."
 					value={searchText}
 					onChange={(e) => setSearchText(e.target.value)}
-					InputProps={{
-						startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
-					}}
+					slotProps={{
+                        input: {
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                        }
+                    }}
 				/>
 			</Box>
-			<Box sx={{ height: 600, width: '100%' }}>
+            <Box sx={{ height: 600, width: '100%' }}>
 				<DataGrid
 					getRowId={(row) => row.topMenuElementId}
 					rows={filteredRows}
 					columns={columns}
 					loading={loading}
-					pageSize={10}
-					rowsPerPageOptions={[5, 10, 25]}
-					disableSelectionOnClick
+					initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
+					pageSizeOptions={[5, 10, 25]}
+					disableRowSelectionOnClick
 				/>
 			</Box>
-		</Box>
-	)
+        </Box>
+    );
 };
 
 export default AdminTopMenu;

@@ -1,0 +1,14 @@
+root = true
+
+[*.cs]
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_rule.private_fields.symbols = private_fields
+dotnet_naming_rule.private_fields.style = underscore_camel_case
+dotnet_naming_rule.private_fields.severity = error
+dotnet_diagnostic.IDE1006.severity = error
+
+[*.{g,generated}.cs]
+generated_code = true

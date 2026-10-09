@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Components.Builder;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlazorAppTest.Client
@@ -6,17 +6,14 @@ namespace BlazorAppTest.Client
     public class Startup
     {
 
-        IServiceCollection _services;
         public void ConfigureServices(IServiceCollection services)
         {
-            _services = services;
             services.AddScoped<StateContainer>();
         }
 
-        public void Configure(IComponentsApplicationBuilder app)
+        public void Configure(WebAssemblyHostBuilder app)
         {
-            
-            app.AddComponent<App>("app");
+            app.RootComponents.Add<App>("app");
         }
     }
 }

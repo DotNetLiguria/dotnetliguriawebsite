@@ -108,8 +108,10 @@ const AdminSpeakers: FC<AdminSpeakersProps> = () => {
                     placeholder="Cerca per nome speaker..."
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    InputProps={{
-                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                    slotProps={{
+                        input: {
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                        }
                     }}
                 />
             </Box>
@@ -119,13 +121,13 @@ const AdminSpeakers: FC<AdminSpeakersProps> = () => {
                     rows={filteredRows}
                     columns={columns}
                     loading={loading}
-                    pageSize={10}
-                    rowsPerPageOptions={[5, 10, 25]}
-                    disableSelectionOnClick
+                    initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
+                    pageSizeOptions={[5, 10, 25]}
+                    disableRowSelectionOnClick
                 />
             </Box>
         </Box>
-    )
+    );
 
 };
 

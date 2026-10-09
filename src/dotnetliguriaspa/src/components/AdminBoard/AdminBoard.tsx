@@ -89,9 +89,9 @@ const AdminBoard: FC<AdminBoardProps> = () => {
 					rows={dataRows}
 					columns={columns}
 					loading={loading}
-					pageSize={10}
-					rowsPerPageOptions={[5, 10, 25]}
-					disableSelectionOnClick
+					initialState={{ pagination: { paginationModel: { page: 0, pageSize: 10 } } }}
+					pageSizeOptions={[5, 10, 25]}
+					disableRowSelectionOnClick
 				/>
 			</Box>
 		</Box>

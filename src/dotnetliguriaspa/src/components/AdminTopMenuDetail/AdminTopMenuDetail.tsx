@@ -184,16 +184,16 @@ const AdminTopMenuDetail: FC = () => {
 	// Render form for new element
 	if (isNewElement) {
 		return (
-			<Box sx={{ width: '100%', p: 3 }}>
-				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ width: '100%', p: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 					<Typography variant="h4">Create New Top Menu Element</Typography>
 					<IconButton onClick={() => navigate('/admin/topmenu')} sx={{ color: 'black' }}>
 						<ArrowBackIcon />
 					</IconButton>
 				</Box>
-				<Paper elevation={3} sx={{ p: 3 }}>
+                <Paper elevation={3} sx={{ p: 3 }}>
 					<Grid container spacing={3}>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="Name"
 								value={newElementForm.name}
@@ -202,7 +202,7 @@ const AdminTopMenuDetail: FC = () => {
 								required
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="URL"
 								value={newElementForm.url}
@@ -212,7 +212,7 @@ const AdminTopMenuDetail: FC = () => {
 								placeholder="e.g., /#evidence or /workshops"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<TextField
 								label="Order"
 								type="number"
@@ -222,7 +222,7 @@ const AdminTopMenuDetail: FC = () => {
 								required
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<FormControlLabel
 								control={
 									<Switch
@@ -233,7 +233,7 @@ const AdminTopMenuDetail: FC = () => {
 								label="Active"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Button
 								variant="contained"
 								onClick={handleCreateElement}
@@ -250,28 +250,28 @@ const AdminTopMenuDetail: FC = () => {
 						</Grid>
 					</Grid>
 				</Paper>
-				<Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
+                <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
 					<Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
 						{snackbarMessage}
 					</Alert>
 				</Snackbar>
-			</Box>
-		);
+            </Box>
+        );
 	}
 
 	// Render details for existing element
 	return (
-		<Box sx={{ width: '100%', p: 3 }}>
-			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ width: '100%', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 				<Typography variant="h4">Top Menu Element Details</Typography>
 				<IconButton onClick={() => navigate('/admin/topmenu')} sx={{ color: 'black' }}>
 					<ArrowBackIcon />
 				</IconButton>
 			</Box>
 
-			<Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+            <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
 				<Grid container spacing={3}>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 							<Typography variant="h6">Name</Typography>
 							{!isEditingName && (
@@ -299,7 +299,7 @@ const AdminTopMenuDetail: FC = () => {
 						)}
 					</Grid>
 
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 							<Typography variant="h6">URL</Typography>
 							{!isEditingUrl && (
@@ -327,7 +327,7 @@ const AdminTopMenuDetail: FC = () => {
 						)}
 					</Grid>
 
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
 							<Typography variant="h6">Order</Typography>
 							{!isEditingOrder && (
@@ -356,7 +356,7 @@ const AdminTopMenuDetail: FC = () => {
 						)}
 					</Grid>
 
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<FormControlLabel
 							control={
 								<Switch
@@ -370,13 +370,13 @@ const AdminTopMenuDetail: FC = () => {
 				</Grid>
 			</Paper>
 
-			<Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
+            <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
 				<Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
 					{snackbarMessage}
 				</Alert>
 			</Snackbar>
-		</Box>
-	);
+        </Box>
+    );
 };
 
 export default AdminTopMenuDetail;

@@ -1,40 +1,57 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+name: Verify
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [master]
   pull_request:
-    branches: [ "master" ]
+    branches: [master]
+  workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: ./src/dotnetliguriawebsite
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
-
+  verify:
+    name: Verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Set version from Tag
-#      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
-      run: echo "VERSION=0.1" >> $GITHUB_ENV
-      
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: 7.0.x
-        
-    - name: Restore dependencies
-      run: dotnet restore
-      
-    - name: Build
-      run: dotnet build --no-restore /p:Version=${VERSION}
-      
-    - name: Test
-      run: dotnet test /p:Version=${VERSION} --no-build --verbosity normal
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: src/dotnetliguriaspa/package-lock.json
+      - name: Build, frontend checks, counted units and separate native checks
+        run: ./scripts/verify.ps1 -Native
+      - name: Publish and verify application assets without executing applications
+        run: ./scripts/verify-publish.ps1
+      - name: Build Linux container
+        if: matrix.os == 'ubuntu-latest'
+        run: docker build -f src/dotnetliguriawebsite/DotNetLiguriaCore/Dockerfile -t dotnetliguria-verify .
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: test-results-${{ matrix.os }}
+          path: .artifacts/test-results
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14

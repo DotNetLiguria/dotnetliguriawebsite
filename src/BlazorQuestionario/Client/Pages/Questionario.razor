@@ -1,4 +1,4 @@
-﻿@page "/questionario"
+@page "/questionario"
 
 @inject IJSRuntime jsr
 @inject StateContainer statecontainer
@@ -7,7 +7,7 @@
 <h1>.Net Liguria</h1>
 
 
-@if (VisQuestionario)
+@if (_visQuestionario)
 {
     <QuestionarioFormComponent />
 }
@@ -25,14 +25,14 @@ else
 }
 
 @code {
-    private bool VisQuestionario = false;
-    private int currentCount = 0;
+    private bool _visQuestionario = false;
+    private int _currentCount = 0;
 
 
 
     async Task TestQuestionario()
     {
-        VisQuestionario = true;
+        _visQuestionario = true;
         await jsr.InvokeAsync<object>("StopStream"); 
     }
 
@@ -52,7 +52,7 @@ else
     public void OKQRCode()
     {
         System.Diagnostics.Debug.Print("OKQRCode");
-        VisQuestionario = true;
+        _visQuestionario = true;
         this.StateHasChanged();
         jsr.InvokeAsync<object>("StopStream"); 
         

@@ -20,7 +20,7 @@ public partial class Index : IDisposable
 
     bool IsBusy { get; set; }
     QuestionarioTest mQuestionarioDTO { get; set; } = new QuestionarioTest();
-    bool QuestionarioCompilato = false;
+    bool _questionarioCompilato = false;
 
 
     [CascadingParameter(Name = "ErrorComponent")]
@@ -205,7 +205,7 @@ public partial class Index : IDisposable
         }
 
         IsBusy = false;
-        QuestionarioCompilato = true;
+        _questionarioCompilato = true;
 
     }
 }

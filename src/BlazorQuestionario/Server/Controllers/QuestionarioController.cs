@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -20,10 +20,10 @@ namespace BlazorAppTest.Server.Controllers
     public class QuestionarioController : Controller
     {
 
-        private readonly ApplicationDbContexts context;
+        private readonly ApplicationDbContexts _context;
         public QuestionarioController(ApplicationDbContexts context)
         {
-            this.context = context;
+            this._context = context;
         }
 
        
@@ -31,15 +31,15 @@ namespace BlazorAppTest.Server.Controllers
         [HttpGet("{id}", Name = "GetQuestionario")]
         public async Task<ActionResult<QuestionarioTest>> Get(string id)
         {
-            return await context.QuestionarioTest.Where(x => x.QuestionarioTestId == id).FirstOrDefaultAsync();
+            return await _context.QuestionarioTest.Where(x => x.QuestionarioTestId == id).FirstOrDefaultAsync();
 
         }
 
         [HttpPost]
         public async Task<ActionResult> Post(QuestionarioTest mQuestionarioDTO)
         {
-            context.QuestionarioTest.Add(mQuestionarioDTO);
-            await context.SaveChangesAsync();
+            _context.QuestionarioTest.Add(mQuestionarioDTO);
+            await _context.SaveChangesAsync();
             return new CreatedAtRouteResult("GetQuestionario", new { id = mQuestionarioDTO.QuestionarioTestId }, mQuestionarioDTO);
 
         }
@@ -49,7 +49,7 @@ namespace BlazorAppTest.Server.Controllers
         {
 
             QuestionarioTest mQuestionarioDTO = new QuestionarioTest();
-            Workshop workshop = context.Workshop.OrderByDescending(x => x.EventDate).Take(1).FirstOrDefault();
+            Workshop workshop = _context.Workshop.OrderByDescending(x => x.EventDate).Take(1).FirstOrDefault();
             if (workshop==null)
                 return mQuestionarioDTO;
 
@@ -58,7 +58,7 @@ namespace BlazorAppTest.Server.Controllers
 
             //Prendo la lista delle track
             //Level=0 -> Domande e risposte
-            var ListaTrack=    context.WorkshopTrack.Where(x=>x.WorkshopId== workshop.WorkshopId && x.Level>0).OrderBy(x => x.StartTime).ToList();
+            var ListaTrack=    _context.WorkshopTrack.Where(x=>x.WorkshopId== workshop.WorkshopId && x.Level>0).OrderBy(x => x.StartTime).ToList();
             //var ListaTrack = workshop.WorkshopTracks.Where(x => x.Level > 0).OrderBy(x => x.StartTime).ToList();
 
             if (ListaTrack.Count() >= 1)

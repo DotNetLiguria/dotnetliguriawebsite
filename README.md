@@ -1,6 +1,29 @@
 # dotnetliguriawebsite
 The DotNetLiguria website source code (ASP.NET Core)
 
+## Development And Verification
+
+Install the stable SDK selected by [global.json](global.json), Node selected by
+[.node-version](.node-version), and PowerShell 7.4 or newer. From the repository root:
+
+```powershell
+pwsh -File scripts/verify.ps1 -Native
+pwsh -File scripts/verify-publish.ps1
+```
+
+The shared gate builds every .NET project, checks the Vite frontend and enforces
+counted, time-bounded units. Native QR checks are separate; browser and database
+checks are not part of the unit gate. Publishing never executes an application.
+
+See [architecture](docs/architecture.md), [frontend setup](src/dotnetliguriaspa/README.md),
+[website setup](src/dotnetliguriawebsite/website.md), and [test procedures](tests/Tests.md).
+Read [AGENTS.md](AGENTS.md) and scoped guidance before editing. Canonical portable
+skills live under [.agents/skills](.agents/skills), with Claude and Copilot adapters.
+
+Do not execute DataMigration, apply schemas against real data, deploy, rotate
+credentials or commit changes without explicit approval. Store secrets outside
+source control and never expose them through frontend environment variables.
+
 ## Notes
 
 The `docker-compose.yaml` file pulls and generates the image needed to run MongoDB in container

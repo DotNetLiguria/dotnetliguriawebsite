@@ -521,8 +521,8 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 	}
 
 	return (
-		<Box sx={{ width: '100%', p: 3 }}>
-			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ width: '100%', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 				<Typography variant="h4">
 					Board Member Details
 				</Typography>
@@ -530,9 +530,14 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 					<ArrowBackIcon />
 				</IconButton>
 			</Box>
-			<Paper elevation={3} sx={{ p: 3 }}>
+            <Paper elevation={3} sx={{ p: 3 }}>
 				<Grid container spacing={3}>
-					<Grid item xs={12} md={3} sx={{ display: 'flex', justifyContent: 'center' }}>
+					<Grid
+                        sx={{ display: 'flex', justifyContent: 'center' }}
+                        size={{
+                            xs: 12,
+                            md: 3
+                        }}>
 						<img
 							src={boardMember.profileImageUrl ? `/${boardMember.profileImageUrl}` : undefined}
 							alt={boardMember.name}
@@ -545,7 +550,11 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 							}}
 						/>
 					</Grid>
-					<Grid item xs={12} md={9}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 9
+                        }}>
 						{/* INFORMAZIONI BASE */}
 						<Paper elevation={1} sx={{ p: 2, mb: 3, backgroundColor: '#f8f9fa' }}>
 							<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
@@ -589,7 +598,11 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 								</Box>
 							</Box>
 							<Grid container spacing={2} sx={{ mt: 1 }}>
-								<Grid item xs={12} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center' }}>
 										<Typography variant="body2" sx={{ mr: 1, fontWeight: 600 }}>Order:</Typography>
 										{isEditingOrder ? (
@@ -603,7 +616,6 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 													variant="outlined"
 													size="small"
 													type="number"
-													inputProps={{ min: 0 }}
 													sx={{
 														mr: 1,
 														width: '80px',
@@ -612,6 +624,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
+													slotProps={{
+                                                        htmlInput: { min: 0 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveOrder} color="primary" size="small">
 													<SaveIcon />
@@ -632,7 +647,11 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 										)}
 									</Box>
 								</Grid>
-								<Grid item xs={12} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 4
+                                    }}>
 									<FormControlLabel
 										control={
 											<Switch
@@ -668,7 +687,11 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 								</Grid>
 							</Grid>
 							<Grid container spacing={2} sx={{ mt: 1 }}>
-								<Grid item xs={12} md={6}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 6
+                                    }}>
 									<Typography variant="body2" sx={{ mb: 0.5, fontWeight: 600 }}>Description (Role)</Typography>
 									<Box sx={{ display: 'flex', alignItems: 'center' }}>
 										{isEditingDescription ? (
@@ -707,7 +730,11 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 										)}
 									</Box>
 								</Grid>
-								<Grid item xs={12} md={6}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 6
+                                    }}>
 									<Typography variant="body2" sx={{ mb: 0.5, fontWeight: 600 }}>Email</Typography>
 									<Box sx={{ display: 'flex', alignItems: 'center' }}>
 										{isEditingEmail ? (
@@ -869,7 +896,12 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 								Blog & Social Links
 							</Typography>
 							<Grid container spacing={2}>
-								<Grid item xs={12} sm={6} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<ArticleIcon sx={{ fontSize: 24, color: '#FF6B6B' }} />
 										{isEditingBlogHtml ? (
@@ -888,7 +920,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
-													inputProps={{ maxLength: 150 }}
+													slotProps={{
+                                                        htmlInput: { maxLength: 150 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveBlogHtml} color="primary" size="small">
 													<SaveIcon fontSize="small" />
@@ -910,7 +944,12 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 									</Box>
 								</Grid>
 
-								<Grid item xs={12} sm={6} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<LinkedInIcon sx={{ fontSize: 24, color: '#0077b5' }} />
 										{isEditingLinkedIn ? (
@@ -929,7 +968,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
-													inputProps={{ maxLength: 150 }}
+													slotProps={{
+                                                        htmlInput: { maxLength: 150 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveLinkedIn} color="primary" size="small">
 													<SaveIcon fontSize="small" />
@@ -951,7 +992,12 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 									</Box>
 								</Grid>
 
-								<Grid item xs={12} sm={6} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<GitHubIcon sx={{ fontSize: 24, color: '#333' }} />
 										{isEditingGitHub ? (
@@ -970,7 +1016,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
-													inputProps={{ maxLength: 150 }}
+													slotProps={{
+                                                        htmlInput: { maxLength: 150 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveGitHub} color="primary" size="small">
 													<SaveIcon fontSize="small" />
@@ -992,7 +1040,12 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 									</Box>
 								</Grid>
 
-								<Grid item xs={12} sm={6} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<TwitterIcon sx={{ fontSize: 24, color: '#1DA1F2' }} />
 										{isEditingTwitter ? (
@@ -1011,7 +1064,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
-													inputProps={{ maxLength: 150 }}
+													slotProps={{
+                                                        htmlInput: { maxLength: 150 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveTwitter} color="primary" size="small">
 													<SaveIcon fontSize="small" />
@@ -1033,7 +1088,12 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 									</Box>
 								</Grid>
 
-								<Grid item xs={12} sm={6} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<FacebookIcon sx={{ fontSize: 24, color: '#1877f2' }} />
 										{isEditingFacebook ? (
@@ -1052,7 +1112,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
-													inputProps={{ maxLength: 150 }}
+													slotProps={{
+                                                        htmlInput: { maxLength: 150 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveFacebook} color="primary" size="small">
 													<SaveIcon fontSize="small" />
@@ -1073,7 +1135,12 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 										)}
 									</Box>
 								</Grid>
-								<Grid item xs={12} sm={6} md={4}>
+								<Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4
+                                    }}>
 									<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 										<InstagramIcon sx={{ fontSize: 24, color: '#E4405F' }} />
 										{isEditingInstagram ? (
@@ -1092,7 +1159,9 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 															'& fieldset': { borderColor: 'primary.main', borderWidth: 2 }
 														}
 													}}
-													inputProps={{ maxLength: 150 }}
+													slotProps={{
+                                                        htmlInput: { maxLength: 150 }
+                                                    }}
 												/>
 												<IconButton onClick={handleSaveInstagram} color="primary" size="small">
 													<SaveIcon fontSize="small" />
@@ -1118,7 +1187,7 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 					</Grid>
 				</Grid>
 			</Paper>
-			<Snackbar
+            <Snackbar
 				open={snackbarOpen}
 				autoHideDuration={3000}
 				onClose={() => setSnackbarOpen(false)}
@@ -1128,8 +1197,8 @@ const AdminBoardDetail: FC<AdminBoardDetailProps> = () => {
 					{snackbarMessage}
 				</Alert>
 			</Snackbar>
-		</Box >
-	);
+        </Box >
+    );
 };
 
 export default AdminBoardDetail;

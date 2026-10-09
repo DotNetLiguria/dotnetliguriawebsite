@@ -1,6 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http;
@@ -47,10 +45,8 @@ public static class KeycloakServiceExtensions
           })
           .AddOpenIdConnect(OpenIdConnectDefaults.AuthenticationScheme, (options) =>
           {
-              var jwtHandler = new JwtSecurityTokenHandler();
-              jwtHandler.InboundClaimFilter.Clear();
-              jwtHandler.InboundClaimTypeMap.Clear();
-              options.SecurityTokenValidator = jwtHandler;
+              options.MapInboundClaims = false;
+              options.PushedAuthorizationBehavior = PushedAuthorizationBehavior.Disable;
 
               options.ClientId = authServerConfiguration.ClientId;
               options.ClientSecret = authServerConfiguration.ClientSecret;

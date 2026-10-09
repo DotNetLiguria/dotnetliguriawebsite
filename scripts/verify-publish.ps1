@@ -1,0 +1,49 @@
+#requires -Version 7.4
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+$root = Split-Path $PSScriptRoot -Parent
+$output = Join-Path $root '.artifacts/publish'
+$projects = [ordered]@{
+    website = 'src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj'
+    hostedQuestionnaire = 'src/BlazorQuestionario/Server/BlazorAppTest.Server.csproj'
+    serverQuestionnaire = 'src/BlazorQuestionarioServer/BlazorQuestionarioServer/BlazorQuestionarioServer.csproj'
+    dataMigration = 'src/dotnetliguriawebsite/DataMigration/DataMigration.csproj'
+}
+
+Push-Location $root
+try {
+    foreach ($name in $projects.Keys) {
+        $destination = Join-Path $output $name
+        if (Test-Path $destination) { Remove-Item $destination -Recurse -Force }
+        & dotnet publish $projects[$name] -c Release --no-restore -o $destination --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw "Publish failed: $name" }
+        if (!(Get-ChildItem $destination -Filter '*.runtimeconfig.json' -File)) { throw "Missing executable artifact: $name" }
+    }
+
+    $dist = Join-Path $root 'src/dotnetliguriaspa/dist'
+    $website = Join-Path $output 'website'
+    $assets = @(Get-ChildItem $dist -File -Recurse)
+    if (!$assets.Count -or !(Test-Path "$dist/index.html")) { throw 'Missing Vite output' }
+    foreach ($asset in $assets) {
+        $relative = [IO.Path]::GetRelativePath($dist, $asset.FullName)
+        $published = Join-Path $website "wwwroot/$relative"
+        if (!(Test-Path $published) -or (Get-FileHash $asset.FullName).Hash -ne (Get-FileHash $published).Hash) {
+            throw "Published SPA asset mismatch: $relative"
+        }
+    }
+    foreach ($workshop in @('workshop001', 'workshop032')) {
+        $relative = "Contents/workshops/$workshop/workshop.png"
+        $source = Join-Path $root "src/dotnetliguriawebsite/DotNetLiguriaCore/$relative"
+        if ((Get-FileHash $source).Hash -ne (Get-FileHash (Join-Path $website $relative)).Hash) {
+            throw "Historical asset changed: $workshop"
+        }
+    }
+    if (!(Test-Path (Join-Path $output 'hostedQuestionnaire/wwwroot/_framework/blazor.webassembly.js'))) {
+        throw 'Hosted questionnaire client assets were not published'
+    }
+    Write-Host "Four executables published; $($assets.Count) SPA files match; historical assets and hosted client verified. No applications were executed."
+}
+finally { Pop-Location }

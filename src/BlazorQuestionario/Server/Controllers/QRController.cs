@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
+using SkiaSharp;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,10 +19,10 @@ namespace BlazorAppTest.Server.Controllers
     public class QRController : ControllerBase
     {
 
-        private readonly ApplicationDbContexts context;
+        private readonly ApplicationDbContexts _context;
         public QRController(ApplicationDbContexts context)
         {
-            this.context = context;
+            _context = context;
         }
 
         [HttpPost]
@@ -47,23 +47,18 @@ namespace BlazorAppTest.Server.Controllers
                 // Getting Extension
                 var fileExtension = Path.GetExtension(fileName);
 
-                var reader = new BarcodeReader { AutoRotate = true };
-
-
-                System.DrawingCore.Bitmap bitmap = new System.DrawingCore.Bitmap(fileq.OpenReadStream());
-
-                LuminanceSource so = new ZXing.ZKWeb.BitmapLuminanceSource(bitmap);
-                var result = reader.Decode(so);
-                if (result == null)
+                using var stream = fileq.OpenReadStream();
+                var payload = QrPayload.Decode(stream);
+                if (payload == null)
                 {
                     return NotFound();
                 }
 
 
                 QuestionarioTest mQuestionarioDTO = new QuestionarioTest();
-                Workshop workshop = context.Workshop.OrderByDescending(x => x.EventDate).Take(1).FirstOrDefault();
+                Workshop workshop = _context.Workshop.OrderByDescending(x => x.EventDate).Take(1).FirstOrDefault();
 
-                if (workshop.WorkshopId.ToString().StartsWith(result.ToString()))
+                if (workshop != null && QrPayload.MatchesWorkshop(workshop.WorkshopId, payload))
                 {
                     return Ok();
                 }

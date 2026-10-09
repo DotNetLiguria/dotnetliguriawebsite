@@ -12,11 +12,11 @@ namespace BlazorAppTest.Server
     public class Startup
     {
 
-        private readonly IConfiguration configuration;
+        private readonly IConfiguration _configuration;
 
         public Startup(IConfiguration _configuration)
         {
-            configuration = _configuration;
+            this._configuration = _configuration;
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -26,7 +26,7 @@ namespace BlazorAppTest.Server
             services.AddDbContext<ApplicationDbContexts>(
                 option => option.UseLazyLoadingProxies()
                           //.UseSqlServer(configuration.GetConnectionString("DefaultConnection-SQL"))
-                          .UseSqlite(configuration.GetConnectionString("DefaultConnection-Sqlite"))
+                          .UseSqlite(_configuration.GetConnectionString("DefaultConnection-Sqlite"))
                           );
             services.AddMvc();
             services.AddResponseCompression(opts =>
@@ -44,18 +44,18 @@ namespace BlazorAppTest.Server
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
-                app.UseBlazorDebugging();
+                app.UseWebAssemblyDebugging();
             }
 
+            app.UseBlazorFrameworkFiles();
             app.UseStaticFiles();
-            app.UseClientSideBlazorFiles<Client.Startup>();
 
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapDefaultControllerRoute();
-                endpoints.MapFallbackToClientSideBlazor<Client.Startup>("index.html");
+                endpoints.MapFallbackToFile("index.html");
             });
         }
     }

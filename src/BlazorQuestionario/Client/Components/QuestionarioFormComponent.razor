@@ -1,11 +1,11 @@
-﻿@using  BlazorAppTest.Shared
+@using  BlazorAppTest.Shared
 @inject HttpClient httpclient
 @inject NavigationManager UriHelper
 
 <h3>Questionario</h3>
 <small>Vi preghiamo di inserire la valutazione con un voto da zero a dieci</small>
 <br />
-@if (IsLoading)
+@if (_isLoading)
 { 
     <h2>.....Loading.......Attendere Prego.......</h2>
 }
@@ -137,20 +137,21 @@
 
 
     public QuestionarioTest mQuestionarioDTO { get; set; } = new QuestionarioTest();
-    bool IsLoading = false;
+    bool _isLoading = false;
     protected override async Task OnInitializedAsync()
     {
-        IsLoading = true;
-        mQuestionarioDTO = await httpclient.GetJsonAsync<QuestionarioTest>("Questionario");
-        IsLoading =false;
+        _isLoading = true;
+        mQuestionarioDTO = await httpclient.GetFromJsonAsync<QuestionarioTest>("Questionario");
+        _isLoading =false;
     }
 
     async Task CreaQuestionario()
     {
         
-        IsLoading = true;
-        await httpclient.PostJsonAsync("Questionario", mQuestionarioDTO);
-        IsLoading = false;
+        _isLoading = true;
+        using var response = await httpclient.PostAsJsonAsync("Questionario", mQuestionarioDTO);
+        response.EnsureSuccessStatusCode();
+        _isLoading = false;
         UriHelper.NavigateTo("/info");
     }
 

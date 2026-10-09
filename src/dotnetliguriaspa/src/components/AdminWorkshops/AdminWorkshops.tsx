@@ -29,9 +29,9 @@ const AdminWorkshops: FC<AdminWorkshopsProps> = () => {
             headerName: 'Event Date',
             width: 200,
             resizable: true,
-            valueFormatter: (params) => {
-                if (params.value) {
-                    const date = new Date(params.value);
+            valueFormatter: (value: string | null) => {
+                if (value) {
+                    const date = new Date(value);
                     return date.toLocaleDateString();
                 }
                 return '';
@@ -128,8 +128,10 @@ const AdminWorkshops: FC<AdminWorkshopsProps> = () => {
                     placeholder="Cerca per titolo workshop..."
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    InputProps={{
-                        startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                    slotProps={{
+                        input: {
+                            startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />
+                        }
                     }}
                 />
             </Box>
@@ -139,15 +141,16 @@ const AdminWorkshops: FC<AdminWorkshopsProps> = () => {
                     getRowId={(data) => data.workshopId}
                     rows={filteredRows}
                     columns={columns}
+                    pageSizeOptions={[5, 10, 25]}
                     initialState={{
                         pagination: {
-                            page: 0, pageSize: 5
+                            paginationModel: { page: 0, pageSize: 5 }
                         },
                     }}
                 />
             </Box>
         </Box>
-    )
+    );
 };
 
 export default AdminWorkshops;

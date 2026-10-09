@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @implements IErrorComponent
 <PageTitle>BlazorQuestionarioServer</PageTitle>
 
@@ -13,14 +13,14 @@
         </div>
 
         <div class="content px-4">
-        @if (isErrorActive)
+        @if (_isErrorActive)
         {        
         <div class="alert alert-danger" role="alert">
             <button type="button" class="close" data-dismiss="alert" aria-label="Close" @onclick="HideError">
                 <span aria-hidden="true">&times;</span>
             </button>
-            <h3>@title</h3>
-            <p>@message</p>
+            <h3>@_title</h3>
+            <p>@_message</p>
         </div>
         }
 
@@ -35,20 +35,20 @@
 </div>
 @code {
     //Credits: https://nightbaker.github.io/gitflow/azure/piplines/2020/01/22/blazor-error-component/
-    bool isErrorActive;
-    string title;
-    string message;
+    bool _isErrorActive;
+    string _title;
+    string _message;
 
     public void ShowError(string title, string message)
     {
-        this.isErrorActive = true;
-        this.title = title;
-        this.message = message;
+        this._isErrorActive = true;
+        this._title = title;
+        this._message = message;
         StateHasChanged();
     }
 
     private void HideError()
     {
-        isErrorActive = false;
+        _isErrorActive = false;
     }
 }

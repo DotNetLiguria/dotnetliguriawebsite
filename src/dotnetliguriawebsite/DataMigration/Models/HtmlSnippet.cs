@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,10 +12,5 @@ namespace DotNetLiguria.Models
         public string? Description { get; set; }
         public string? Value { get; set; }
         public string? Icon { get; set; }
-    }
-
-    public enum SectionName
-    {
-        LeftShoulder, RightShoulder, CenterTop, CenterMiddle, CenterBottom
     }
 }

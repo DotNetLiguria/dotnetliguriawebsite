@@ -4,13 +4,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import reportWebVitals from './reportWebVitals';
 import {BrowserRouter} from 'react-router-dom';
 import {OidcProvider} from "@axa-fr/react-oidc";
 import {ThemeProvider} from '@mui/material';
 import theme from './theme';
-import {DevSupport} from "@react-buddy/ide-toolbox";
-import {ComponentPreviews,useInitial} from "./dev";
 
 const configuration={
     //metadataUrl: "https://hello.vevy.com/realms/DotNetLiguria/.well-known/openid-configuration",
@@ -44,11 +41,7 @@ root.render(
     <React.StrictMode>
         <BrowserRouter>
             <OidcProvider configuration={ configuration }>
-                <DevSupport ComponentPreviews={ ComponentPreviews }
-                            useInitialHook={ useInitial }
-                >
-                    <App/>
-                </DevSupport>
+                <App/>
             </OidcProvider>
         </BrowserRouter>
     </React.StrictMode>
@@ -57,7 +50,6 @@ root.render(
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
 // or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
 
 /*
 // https://authts.github.io/oidc-client-ts/classes/OidcClientSettingsStore.html

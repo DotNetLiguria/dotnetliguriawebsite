@@ -114,16 +114,21 @@ const AdminProfile: FC = () => {
             <Typography variant="h4" sx={{ mb: 3 }}>Profile</Typography>
             {!profileSaved &&
                 <Box sx={{ mb: 2 }}>
-                    <Typography variant={"inherit"} fontSize={16} sx={{ "color": "red" }}>I tuoi dati non sono ancora stati confermati.</Typography>
+                    <Typography variant={"inherit"}  sx={{ fontSize: 16, ...({ "color": "red" }) }}>I tuoi dati non sono ancora stati confermati.</Typography>
                 </Box>
             }
             <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
-                <Box component={"div"} pb={3}><Typography fontSize={18} fontStyle={'italic'} fontWeight={600}>INFORMAZIONI
+                <Box component={"div"}  sx={{ pb: 3 }}><Typography    sx={{ fontSize: 18, fontStyle: 'italic', fontWeight: 600 }}>INFORMAZIONI
                     PERSONALI</Typography></Box>
-                <Grid container spacing={2} pb={3}>
-                    <Grid item xs={3} md={3}><Box component={"div"} display={'flex'}
-                        flexDirection={'column'}>
-                        <TextField value={loggedUser?.given_name}
+                <Grid container spacing={2}  sx={{ pb: 3 }}>
+                    <Grid
+                        size={{
+                            xs: 3,
+                            md: 3
+                        }}><Box component={"div"}
+                         sx={{ display: 'flex', flexDirection: 'column' }}>
+                        <TextField
+                            value={loggedUser?.given_name}
                             {...register("firstname", {
                                 required: "Il nome è obbligatorio",
                                 minLength: {
@@ -134,18 +139,28 @@ const AdminProfile: FC = () => {
                                     value: 50,
                                     message: "Name should be at most 10 characters",
                                 },
-                            })} id="firstname" label="Nome" variant="standard"
-                            InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                            inputProps={{ style: { fontSize: 18 } }} />
+                            })}
+                            id="firstname"
+                            label="Nome"
+                            variant="standard"
+                            slotProps={{
+                                htmlInput: { style: { fontSize: 18 } },
+                                inputLabel: { shrink: true, style: { fontSize: 18 } }
+                            }} />
                         {errors.firstname && <Typography variant={"inherit"} color={"red"}
-                            fontSize={14}>{errors.firstname &&
+                             sx={{ fontSize: 14 }}>{errors.firstname &&
                                 <span>This field is required</span>}</Typography>}
 
                     </Box></Grid>
-                    <Grid item xs={3} md={3}><Box component={"div"} display={'flex'}
-                        flexDirection={'column'}>
+                    <Grid
+                        size={{
+                            xs: 3,
+                            md: 3
+                        }}><Box component={"div"}
+                         sx={{ display: 'flex', flexDirection: 'column' }}>
 
-                        <TextField value={loggedUser?.family_name}
+                        <TextField
+                            value={loggedUser?.family_name}
                             {...register("lastname", {
                                 required: "Il cognome è obbligatorio.",
                                 minLength: {
@@ -156,11 +171,16 @@ const AdminProfile: FC = () => {
                                     value: 50,
                                     message: "Name should be at most 10 characters",
                                 },
-                            })} id="lastname" label="Cognome" variant="standard"
-                            InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                            inputProps={{ style: { fontSize: 18 } }} />
+                            })}
+                            id="lastname"
+                            label="Cognome"
+                            variant="standard"
+                            slotProps={{
+                                htmlInput: { style: { fontSize: 18 } },
+                                inputLabel: { shrink: true, style: { fontSize: 18 } }
+                            }} />
                         {errors.lastname && <Typography variant={"inherit"} color={"red"}
-                            fontSize={14}>{errors.lastname &&
+                             sx={{ fontSize: 14 }}>{errors.lastname &&
                                 <span>This field is required</span>}</Typography>}
 
 
@@ -173,10 +193,15 @@ const AdminProfile: FC = () => {
                         {/*<span>This field is required</span> }*/}
 
                     </Box></Grid>
-                    <Grid item xs={3} md={3}> <Box component={"div"} display={'flex'}
-                        flexDirection={'column'}>
+                    <Grid
+                        size={{
+                            xs: 3,
+                            md: 3
+                        }}> <Box component={"div"}
+                         sx={{ display: 'flex', flexDirection: 'column' }}>
 
-                        <TextField value={loggedUser?.email}
+                        <TextField
+                            value={loggedUser?.email}
                             {...register("email", {
                                 required: "Il cognome è obbligatorio.",
                                 minLength: {
@@ -191,14 +216,23 @@ const AdminProfile: FC = () => {
                                     value: /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
                                     message: 'Indirizzo email non valid',
                                 }
-                            })} id="email" label="Email" variant="standard"
-                            InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                            inputProps={{ style: { fontSize: 18 } }} />
+                            })}
+                            id="email"
+                            label="Email"
+                            variant="standard"
+                            slotProps={{
+                                htmlInput: { style: { fontSize: 18 } },
+                                inputLabel: { shrink: true, style: { fontSize: 18 } }
+                            }} />
                         {errors.email && <Typography variant={"inherit"} color={"red"}
-                            fontSize={14}>{errors.email &&
+                             sx={{ fontSize: 14 }}>{errors.email &&
                                 <span>Campo email obbligatorio</span>}</Typography>}
                     </Box></Grid>
-                    <Grid item xs={3} md={3}><Box component={"div"} display={'flex'} flexDirection={'column'}>
+                    <Grid
+                        size={{
+                            xs: 3,
+                            md: 3
+                        }}><Box component={"div"}   sx={{ display: 'flex', flexDirection: 'column' }}>
                         <TextField
                             {...register("city", {
                                 required: "Il campo città è obbligatorio",
@@ -210,16 +244,25 @@ const AdminProfile: FC = () => {
                                     value: 50,
                                     message: "Name should be at most 10 characters",
                                 },
-                            })} id="citta" label="Città" variant="standard"
-                            InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                            inputProps={{ style: { fontSize: 18 } }} />
+                            })}
+                            id="citta"
+                            label="Città"
+                            variant="standard"
+                            slotProps={{
+                                htmlInput: { style: { fontSize: 18 } },
+                                inputLabel: { shrink: true, style: { fontSize: 18 } }
+                            }} />
                         {errors.city && <Typography variant={"inherit"} color={"red"}
-                            fontSize={14}>{errors.city &&
+                             sx={{ fontSize: 14 }}>{errors.city &&
                                 <span>Campo città obbligatorio</span>}</Typography>}
 
                     </Box></Grid>
 
-                    <Grid item xs={3} md={3}><Box component={"div"} display={'flex'} flexDirection={'column'}>
+                    <Grid
+                        size={{
+                            xs: 3,
+                            md: 3
+                        }}><Box component={"div"}   sx={{ display: 'flex', flexDirection: 'column' }}>
                         <TextField
                             {...register("prov", {
                                 required: "Il campo provincia è obbligatorio",
@@ -231,91 +274,158 @@ const AdminProfile: FC = () => {
                                     value: 50,
                                     message: "Name should be at most 10 characters",
                                 },
-                            })} id="provincia" label="Provincia" variant="standard"
-                            InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                            inputProps={{ style: { fontSize: 18 } }} />
+                            })}
+                            id="provincia"
+                            label="Provincia"
+                            variant="standard"
+                            slotProps={{
+                                htmlInput: { style: { fontSize: 18 } },
+                                inputLabel: { shrink: true, style: { fontSize: 18 } }
+                            }} />
                         {errors.prov && <Typography variant={"inherit"} color={"red"}
-                            fontSize={14}>{errors.prov &&
+                             sx={{ fontSize: 14 }}>{errors.prov &&
                                 <span>Campo provincia obbligatorio</span>}</Typography>}
 
                     </Box></Grid>
                 </Grid>
-                <Box component={"div"} pb={1}>
-                    <Typography fontSize={18} fontStyle={'italic'} fontWeight={600}>INFORMAZIONI AZIENDALI</Typography>
-                    <Grid container spacing={2} pb={3} pt={2}>
-                        <Grid item xs={3} md={3}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'} fontSize={12}>
+                <Box component={"div"}  sx={{ pb: 1 }}>
+                    <Typography    sx={{ fontSize: 18, fontStyle: 'italic', fontWeight: 600 }}>INFORMAZIONI AZIENDALI</Typography>
+                    <Grid container spacing={2}   sx={{ pb: 3, pt: 2 }}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 3
+                            }}>
+                            <Box component={"div"}    sx={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
                                 <TextField
-                                    {...register("factory")} id="factory" label="Azienda" variant="standard"
-                                    InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                                    inputProps={{ style: { fontSize: 18 } }} />
+                                    {...register("factory")}
+                                    id="factory"
+                                    label="Azienda"
+                                    variant="standard"
+                                    slotProps={{
+                                        htmlInput: { style: { fontSize: 18 } },
+                                        inputLabel: { shrink: true, style: { fontSize: 18 } }
+                                    }} />
                             </Box>
                         </Grid>
-                        <Grid item xs={3} md={3}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 3
+                            }}>
+                            <Box component={"div"}   sx={{ display: 'flex', flexDirection: 'column' }}>
                                 <TextField
-                                    {...register("factoryCity")} id="factoryCity" label="Città" variant="standard"
-                                    InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                                    inputProps={{ style: { fontSize: 18 } }} />
+                                    {...register("factoryCity")}
+                                    id="factoryCity"
+                                    label="Città"
+                                    variant="standard"
+                                    slotProps={{
+                                        htmlInput: { style: { fontSize: 18 } },
+                                        inputLabel: { shrink: true, style: { fontSize: 18 } }
+                                    }} />
                             </Box>
                         </Grid>
-                        <Grid item xs={3} md={3}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 3
+                            }}>
+                            <Box component={"div"}   sx={{ display: 'flex', flexDirection: 'column' }}>
 
                                 <TextField
-                                    {...register("factoryProv")} id="factoryProv" label="Provincia" variant="standard"
-                                    InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                                    inputProps={{ style: { fontSize: 18 } }} />
+                                    {...register("factoryProv")}
+                                    id="factoryProv"
+                                    label="Provincia"
+                                    variant="standard"
+                                    slotProps={{
+                                        htmlInput: { style: { fontSize: 18 } },
+                                        inputLabel: { shrink: true, style: { fontSize: 18 } }
+                                    }} />
                             </Box>
                         </Grid>
                     </Grid>
                 </Box>
-                <Box component={"div"} pb={3}><Typography fontSize={18} fontStyle={'italic'} fontWeight={600}>SE VUOI FARTI
+                <Box component={"div"}  sx={{ pb: 3 }}><Typography    sx={{ fontSize: 18, fontStyle: 'italic', fontWeight: 600 }}>SE VUOI FARTI
                     CONOSCERE...</Typography>
-                    <Grid container spacing={2} pb={3} pt={2}>
-                        <Grid item xs={3} md={3}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'} fontSize={12}>
+                    <Grid container spacing={2}   sx={{ pb: 3, pt: 2 }}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 3
+                            }}>
+                            <Box component={"div"}    sx={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
 
                                 <TextField
-                                    {...register("socialTwitter")} id="socialTwitter" label="X/Twitter" variant="standard"
-                                    InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                                    inputProps={{ style: { fontSize: 18 } }} />
+                                    {...register("socialTwitter")}
+                                    id="socialTwitter"
+                                    label="X/Twitter"
+                                    variant="standard"
+                                    slotProps={{
+                                        htmlInput: { style: { fontSize: 18 } },
+                                        inputLabel: { shrink: true, style: { fontSize: 18 } }
+                                    }} />
                             </Box>
                         </Grid>
-                        <Grid item xs={3} md={3}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'} fontSize={12}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 3
+                            }}>
+                            <Box component={"div"}    sx={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
 
                                 <TextField
-                                    {...register("socialLinkedin")} id="socialLinkedin" label="Linkedin" variant="standard"
-                                    InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                                    inputProps={{ style: { fontSize: 18 } }} />
+                                    {...register("socialLinkedin")}
+                                    id="socialLinkedin"
+                                    label="Linkedin"
+                                    variant="standard"
+                                    slotProps={{
+                                        htmlInput: { style: { fontSize: 18 } },
+                                        inputLabel: { shrink: true, style: { fontSize: 18 } }
+                                    }} />
                             </Box>
                         </Grid>
-                        <Grid item xs={3} md={3}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'} fontSize={12}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 3
+                            }}>
+                            <Box component={"div"}    sx={{ display: 'flex', flexDirection: 'column', fontSize: 12 }}>
                                 <TextField
-                                    {...register("socialGitHub")} id="socialGitHub" label="Github" variant="standard"
-                                    InputLabelProps={{ shrink: true, style: { fontSize: 18 } }}
-                                    inputProps={{ style: { fontSize: 18 } }} />
+                                    {...register("socialGitHub")}
+                                    id="socialGitHub"
+                                    label="Github"
+                                    variant="standard"
+                                    slotProps={{
+                                        htmlInput: { style: { fontSize: 18 } },
+                                        inputLabel: { shrink: true, style: { fontSize: 18 } }
+                                    }} />
                             </Box>
                         </Grid>
                     </Grid>
                 </Box>
-                <Box component={"div"} pb={3}><Typography fontSize={18} fontStyle={'italic'} fontWeight={600}>CONSENSO
+                <Box component={"div"}  sx={{ pb: 3 }}><Typography    sx={{ fontSize: 18, fontStyle: 'italic', fontWeight: 600 }}>CONSENSO
                     TRATTAMENTO DEI DATI</Typography>
-                    <Grid container spacing={2} pb={3} pt={2}>
-                        <Grid item xs={3} md={6}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'} fontSize={12} alignItems={'flex-start'}>
-                                <label htmlFor="consentData"><Typography fontSize={16}>Consenso trattamento dei
+                    <Grid container spacing={2}   sx={{ pb: 3, pt: 2 }}>
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 6
+                            }}>
+                            <Box component={"div"}     sx={{ display: 'flex', flexDirection: 'column', fontSize: 12, alignItems: 'flex-start' }}>
+                                <label htmlFor="consentData"><Typography  sx={{ fontSize: 16 }}>Consenso trattamento dei
                                     dati</Typography></label>
                                 <input id="consentData"
                                     type="checkbox" {...register("consentData", { required: true })} />
                                 {errors.consentData && <span>This field is required</span>}
                             </Box>
                         </Grid>
-                        <Grid item xs={3} md={6}>
-                            <Box component={"div"} display={'flex'} flexDirection={'column'} fontSize={12} alignItems={'flex-start'}>
-                                <label htmlFor="consentPrivacy"><Typography fontSize={16}>Consenso
+                        <Grid
+                            size={{
+                                xs: 3,
+                                md: 6
+                            }}>
+                            <Box component={"div"}     sx={{ display: 'flex', flexDirection: 'column', fontSize: 12, alignItems: 'flex-start' }}>
+                                <label htmlFor="consentPrivacy"><Typography  sx={{ fontSize: 16 }}>Consenso
                                     privacy</Typography></label>
                                 <input id="consentPrivacy"
                                     type="checkbox" {...register("consentPrivacy", { required: true })} />
@@ -324,13 +434,13 @@ const AdminProfile: FC = () => {
                         </Grid>
                     </Grid>
                 </Box>
-                <Box component={"div"} display={'flex'} flexDirection={'row'} justifyContent={'center'}>
+                <Box component={"div"}    sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center' }}>
                     {/*<input type="submit" className="btn btn-primary"/>*/}
                     <Button type="submit" variant="contained">Invia</Button>
                 </Box>
             </form>
         </Box>
-    )
+    );
 };
 
 export default AdminProfile;

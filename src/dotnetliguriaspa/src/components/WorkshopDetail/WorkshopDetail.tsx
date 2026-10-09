@@ -119,7 +119,7 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
    if (loading) {
       return (
          <Container maxWidth="lg" className={styles.container}>
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+            <Box     sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
                <CircularProgress size={60} />
             </Box>
          </Container>
@@ -166,7 +166,11 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
          <Container maxWidth="lg" className={styles.container}>
             <Grid container spacing={3}>
                {/* Main Content */}
-               <Grid item xs={12} md={8}>
+               <Grid
+                  size={{
+                     xs: 12,
+                     md: 8
+                  }}>
                   <Card className={styles.workshopCard}>
                      {workshop.image && (
                         <CardMedia
@@ -190,7 +194,7 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
                            </Typography>
 
                            <Box sx={{ mb: 3 }}>
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                              <Stack direction="row" spacing={1}  sx={{ alignItems: "center", ...({ mb: 1 }) }}>
                                  <CalendarTodayIcon sx={{ color: '#72C02C', fontSize: '1.2rem' }} />
                                  <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '16px !important' }}>
                                     {formatDate(workshop.eventDate)}
@@ -198,7 +202,7 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
                               </Stack>
 
                               {workshop.location && (
-                                 <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                                 <Stack direction="row" spacing={1}  sx={{ alignItems: "center", ...({ mb: 2 }) }}>
                                     <LocationOnIcon sx={{ color: '#72C02C', fontSize: '1.2rem' }} />
                                     <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '16px !important' }}>
                                        {workshop.location.name} - {workshop.location.address}
@@ -307,7 +311,7 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
                               <Typography variant="h6" component="h3" sx={{ mb: 2 }}>
                                  Tags
                               </Typography>
-                              <Stack direction="row" spacing={1} flexWrap="wrap">
+                              <Stack direction="row" spacing={1}  sx={{ flexWrap: "wrap" }}>
                                  {workshop.tags.split(',').map((tag, index) => (
                                     <Chip
                                        key={index}
@@ -340,7 +344,11 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
                </Grid>
 
                {/* Right Sidebar */}
-               <Grid item xs={12} md={4}>
+               <Grid
+                  size={{
+                     xs: 12,
+                     md: 4
+                  }}>
                   {/* Back Button */}
                   <Box sx={{ mb: 3 }}>
                      <Button

@@ -60,8 +60,8 @@ const AdminWorkshopCreate: FC = () => {
 	};
 
 	return (
-		<Box sx={{ width: '100%', p: 3 }}>
-			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ width: '100%', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 				<Typography variant="h4">
 					Create Workshop
 				</Typography>
@@ -69,9 +69,9 @@ const AdminWorkshopCreate: FC = () => {
 					<ArrowBackIcon />
 				</IconButton>
 			</Box>
-			<Paper elevation={3} sx={{ p: 3, maxWidth: 800 }}>
+            <Paper elevation={3} sx={{ p: 3, maxWidth: 800 }}>
 				<Grid container spacing={3}>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Title
 						</Typography>
@@ -91,7 +91,7 @@ const AdminWorkshopCreate: FC = () => {
 							}}
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Event Date
 						</Typography>
@@ -100,9 +100,6 @@ const AdminWorkshopCreate: FC = () => {
 							type="date"
 							value={eventDate}
 							onChange={(e) => setEventDate(e.target.value)}
-							InputLabelProps={{
-								shrink: true,
-							}}
 							sx={{
 								'& .MuiOutlinedInput-root': {
 									backgroundColor: '#fff',
@@ -112,9 +109,14 @@ const AdminWorkshopCreate: FC = () => {
 									},
 								},
 							}}
+							slotProps={{
+                                inputLabel: {
+                                    shrink: true,
+                                }
+                            }}
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Description
 						</Typography>
@@ -136,7 +138,7 @@ const AdminWorkshopCreate: FC = () => {
 							}}
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
 							<Button
 								variant="outlined"
@@ -164,7 +166,7 @@ const AdminWorkshopCreate: FC = () => {
 					</Grid>
 				</Grid>
 			</Paper>
-			<Snackbar
+            <Snackbar
 				open={snackbarOpen}
 				autoHideDuration={6000}
 				onClose={() => setSnackbarOpen(false)}
@@ -174,8 +176,8 @@ const AdminWorkshopCreate: FC = () => {
 					{snackbarMessage}
 				</Alert>
 			</Snackbar>
-		</Box>
-	);
+        </Box>
+    );
 };
 
 export default AdminWorkshopCreate;

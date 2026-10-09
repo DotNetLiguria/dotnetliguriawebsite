@@ -1,12 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>f7de20b3-7c2d-4e15-8c51-4d51dfc9648a</UserSecretsId>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-        <DockerfileRunArguments>-p "5443:443" -p "5050:80"</DockerfileRunArguments>
+        <DockerfileContext>..\..\..</DockerfileContext>
+        <DockerfileRunArguments>-p "5050:8080"</DockerfileRunArguments>
+        <PublishSpa Condition="'$(PublishSpa)' == ''">true</PublishSpa>
+        <SpaDistPath Condition="'$(SpaDistPath)' == ''">$(MSBuildProjectDirectory)/../../dotnetliguriaspa/dist</SpaDistPath>
         <!-- Disable browser link and refresh for SPA applications -->
         <DisableBrowserLink>true</DisableBrowserLink>
         <DisableBrowserRefresh>true</DisableBrowserRefresh>
@@ -415,12 +418,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.5" />
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="7.0.5" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.5" />
-        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.18.1" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-        <PackageReference Include="MongoDB.Driver" Version="2.19.1" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.12" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="10.3.0" />
+        <PackageReference Include="MongoDB.Driver" Version="3.12.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -428,5 +431,19 @@
         <ProjectReference Include="..\CommonWeb\CommonWeb.csproj" />
         <ProjectReference Include="..\DotNetLiguriaCore.Model\DotNetLiguriaCore.Model.csproj" />
     </ItemGroup>
+
+      <Target Name="IncludePublishedSpa" AfterTargets="ComputeFilesToPublish" Condition="'$(PublishSpa)' == 'true'">
+        <Error Condition="!Exists('$(SpaDistPath)/index.html')" Text="Build the frontend with npm ci and npm run build in src/dotnetliguriaspa before publishing, or explicitly set PublishSpa=false for an API-only artifact." />
+        <ItemGroup>
+          <_SpaPublishFiles Include="$(SpaDistPath)/**/*" />
+          <_SpaPublishFiles Update="@(_SpaPublishFiles)">
+            <RelativePath>wwwroot/%(_SpaPublishFiles.RecursiveDir)%(_SpaPublishFiles.Filename)%(_SpaPublishFiles.Extension)</RelativePath>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+          </_SpaPublishFiles>
+          <ResolvedFileToPublish Remove="@(_SpaPublishFiles)" MatchOnMetadata="RelativePath" MatchOnMetadataOptions="PathLike" />
+          <ResolvedFileToPublish Include="@(_SpaPublishFiles)" />
+        </ItemGroup>
+      </Target>
 
 </Project>

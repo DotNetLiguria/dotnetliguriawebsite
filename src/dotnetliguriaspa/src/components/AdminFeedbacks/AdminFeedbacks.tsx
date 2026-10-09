@@ -109,6 +109,7 @@ const AdminFeedbacks: FC<AdminFeedbacksProps> = () => {
       sortable: false,
       renderCell: (params) => (
         <IconButton
+          aria-label="View feedback"
           onClick={() => handleViewDetail(params.row.workshopId, params.row.date)}
           size="small"
           sx={{
@@ -150,11 +151,10 @@ const AdminFeedbacks: FC<AdminFeedbacksProps> = () => {
             rows={feedbacks}
             columns={columns}
             getRowId={(row) => row.workshopId}
-            rowsPerPageOptions={[10, 25, 50]}
+            pageSizeOptions={[10, 25, 50]}
             initialState={{
               pagination: {
-                page: 0,
-                pageSize: 10
+                paginationModel: { page: 0, pageSize: 10 }
               }
             }}
           />
@@ -172,6 +172,7 @@ const AdminFeedbacks: FC<AdminFeedbacksProps> = () => {
             </Typography>
           </Box>
           <IconButton
+            aria-label="Close feedback"
             onClick={handleCloseDetail}
             size="small"
             sx={{ color: 'grey.500' }}

@@ -1,4 +1,4 @@
-﻿
+
 using BlazorQuestionarioServerTests;
 using Microsoft.Playwright;
 using System;
@@ -12,37 +12,37 @@ using Xunit;
 namespace BlazorQuestionarioServer.Tests
 {
 
-    [UsesVerify]
+    [Trait("Category", "Browser")]
     public class QuestionarioTest:IClassFixture<QuestionarioFixture>
     {
 
-        QuestionarioFixture fixture;
+        QuestionarioFixture _fixture;
 
         public QuestionarioTest(QuestionarioFixture fixture)
         {
-            this.fixture = fixture;
+            this._fixture = fixture;
         }
 
         [Fact]
         public async Task IndexPageFirefox()
         {
-            var page = await this.fixture.Setup(false);
+            var page = await this._fixture.Setup(false);
 
             await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
 
-            await Verifier.Verify(page, this.fixture.VerifySettings);
+            await Verifier.Verify(page, this._fixture.VerifySettings);
         }
 
         [Fact]
         public async Task IndexPageChrome()
         {
-            var page = await this.fixture.Setup(true);
+            var page = await this._fixture.Setup(true);
 
             await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
 
-            await Verifier.Verify(page, this.fixture.VerifySettings);
+            await Verifier.Verify(page, this._fixture.VerifySettings);
         }
         //[Fact]
         //public async Task TestInvioSenzaMettereMailChrome()

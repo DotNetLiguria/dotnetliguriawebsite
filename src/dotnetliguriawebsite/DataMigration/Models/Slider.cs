@@ -1,4 +1,4 @@
-﻿using DotNetLiguria.Models.Enums;
+using DotNetLiguria.Models.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,44 +27,6 @@ namespace DotNetLiguria.Models
         public SliderTransition? SlideTransitionType { get; set; }
 
         public virtual List<SliderObjBase>? SliderOjects { get; set; }
-    }
-
-    public abstract class SliderObjBase
-    {
-        public Guid SliderObjBaseId { get; set; }
-
-        public string? Top { get; set; }
-
-        public string? Left { get; set; }
-
-        public string? Height { get; set; }
-
-        public string? Width { get; set; }
-
-        public string? LayerTransitions { get; set; }
-
-        public virtual Guid SliderId { get; set; }
-
-        public virtual Slider? Slider { get; set; }
-    }
-
-    public class ImageSliderObj : SliderObjBase
-    {
-        public string? Image { get; set; }
-
-        public string? Link { get; set; }
-    }
-
-    public class VideoSliderObj : SliderObjBase
-    {
-        public VideoType? SlideVideoType { get; set; }
-
-        public string? Source { get; set; }
-    }
-
-    public class CustomHtmlSliderObj : SliderObjBase
-    {
-        public string? InnerHtml { get; set; }
     }
 
     //public class SliderObjTransitions

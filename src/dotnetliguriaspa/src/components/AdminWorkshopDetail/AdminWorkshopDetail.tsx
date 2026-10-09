@@ -552,8 +552,8 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 	}
 
 	return (
-		<Box sx={{ width: '100%', p: 3 }}>
-			<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ width: '100%', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
 				<Typography variant="h4">
 					Workshop Edit - {workshop.title}
 				</Typography>
@@ -562,7 +562,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</IconButton>
 			</Box>
 
-			<Paper elevation={2} sx={{ p: 2, maxWidth: 800, mb: 3, position: 'sticky', top: 10, zIndex: 100, backgroundColor: '#fff' }}>
+            <Paper elevation={2} sx={{ p: 2, maxWidth: 800, mb: 3, position: 'sticky', top: 10, zIndex: 100, backgroundColor: '#fff' }}>
 				<Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
 					<Button
 						size="small"
@@ -616,21 +616,33 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Box>
 			</Paper>
 
-			<Paper id="publication-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
+            <Paper id="publication-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
 				<Grid container spacing={3} sx={{ mb: 2 }}>
-					<Grid item xs={12} md={5}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 5
+                        }}>
 						<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 							Publication Settings
 						</Typography>
 					</Grid>
-					<Grid item xs={12} md={7}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 7
+                        }}>
 						<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, textAlign: 'center' }}>
 							Feedback QrCode
 						</Typography>
 					</Grid>
 				</Grid>
 				<Grid container spacing={3}>
-					<Grid item xs={12} md={5}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 5
+                        }}>
 						<Box>
 							<FormControlLabel
 								control={
@@ -681,7 +693,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							</Button>
 						</Box>
 					</Grid>
-					<Grid item xs={12} md={7}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 7
+                        }}>
 						<Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 							<QRCodeSVG
 								value={`${window.location.origin}/feedback/${workshop.workshopId}`}
@@ -696,13 +712,13 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Grid>
 			</Paper>
 
-			<Paper id="image-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
+            <Paper id="image-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
 				<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 					Workshop Image
 				</Typography>
 				<Grid container spacing={2}>
 					{workshop.image && (
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Current Image
 							</Typography>
@@ -727,7 +743,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							/>
 						</Grid>
 					)}
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Upload workshop cover image
 						</Typography>
@@ -754,12 +770,12 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Grid>
 			</Paper>
 
-			<Paper id="description-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
+            <Paper id="description-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
 				<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 					Info
 				</Typography>
 				<Grid container spacing={2}>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Title
 						</Typography>
@@ -770,7 +786,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Workshop title"
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Event Date
 						</Typography>
@@ -779,12 +795,14 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							type="date"
 							value={eventDate}
 							onChange={(e) => setEventDate(e.target.value)}
-							InputLabelProps={{
-								shrink: true,
-							}}
+							slotProps={{
+                                inputLabel: {
+                                    shrink: true,
+                                }
+                            }}
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Workshop Description
 						</Typography>
@@ -797,7 +815,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Enter workshop description"
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
 							<Button
 								variant="contained"
@@ -818,12 +836,12 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Grid>
 			</Paper>
 
-			<Paper id="location-section" elevation={3} sx={{ p: 3, maxWidth: 800 }}>
+            <Paper id="location-section" elevation={3} sx={{ p: 3, maxWidth: 800 }}>
 				<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 					Location Information
 				</Typography>
 				<Grid container spacing={2}>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Name
 						</Typography>
@@ -834,7 +852,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Location name"
 						/>
 					</Grid>
-					<Grid item xs={12} md={6}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 6
+                        }}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Latitude
 						</Typography>
@@ -845,7 +867,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Latitude"
 						/>
 					</Grid>
-					<Grid item xs={12} md={6}>
+					<Grid
+                        size={{
+                            xs: 12,
+                            md: 6
+                        }}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Longitude
 						</Typography>
@@ -856,7 +882,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Longitude"
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Address
 						</Typography>
@@ -867,7 +893,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Address"
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 							Maximum Spaces
 						</Typography>
@@ -879,7 +905,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							placeholder="Maximum Spaces"
 						/>
 					</Grid>
-					<Grid item xs={12}>
+					<Grid size={12}>
 						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
 							<Button
 								variant="contained"
@@ -900,7 +926,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Grid>
 			</Paper>
 
-			<Paper id="tracks-section" elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }}>
+            <Paper id="tracks-section" elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }}>
 				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 					<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 						Tracks
@@ -979,7 +1005,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 									</AccordionSummary>
 									<AccordionDetails sx={{ pt: 2 }}>
 										<Grid container spacing={2}>
-											<Grid item xs={12} md={6}>
+											<Grid
+                                                size={{
+                                                    xs: 12,
+                                                    md: 6
+                                                }}>
 												<Typography variant="caption" color="text.secondary">
 													Start Time
 												</Typography>
@@ -987,7 +1017,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 													{new Date(track.startTime).toLocaleString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
 												</Typography>
 											</Grid>
-											<Grid item xs={12} md={6}>
+											<Grid
+                                                size={{
+                                                    xs: 12,
+                                                    md: 6
+                                                }}>
 												<Typography variant="caption" color="text.secondary">
 													End Time
 												</Typography>
@@ -995,7 +1029,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 													{new Date(track.endTime).toLocaleString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })}
 												</Typography>
 											</Grid>
-											<Grid item xs={12}>
+											<Grid size={12}>
 												<Typography variant="caption" color="text.secondary">
 													Level
 												</Typography>
@@ -1004,7 +1038,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 												</Typography>
 											</Grid>
 											{track.speakersName && (
-												<Grid item xs={12}>
+												<Grid size={12}>
 													<Typography variant="caption" color="text.secondary">
 														Speakers
 													</Typography>
@@ -1014,7 +1048,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 												</Grid>
 											)}
 											{track.abstract && (
-												<Grid item xs={12}>
+												<Grid size={12}>
 													<Typography variant="caption" color="text.secondary">
 														Abstract
 													</Typography>
@@ -1037,7 +1071,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				)}
 			</Paper>
 
-			<Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }} id="materials-section">
+            <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }} id="materials-section">
 				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 					<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 						Materials
@@ -1094,7 +1128,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				)}
 			</Paper>
 
-			<Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }} id="photos-section">
+            <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }} id="photos-section">
 				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 					<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 						Photos
@@ -1117,7 +1151,13 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				{photos && photos.length > 0 ? (
 					<Grid container spacing={2}>
 						{photos.map((photo) => (
-							<Grid item xs={12} sm={6} md={4} key={photo.workshopFileId}>
+							<Grid
+                                key={photo.workshopFileId}
+                                size={{
+                                    xs: 12,
+                                    sm: 6,
+                                    md: 4
+                                }}>
 								<Card sx={{ backgroundColor: '#f8f9fa' }}>
 									<Box
 										component="img"
@@ -1167,11 +1207,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				)}
 			</Paper>
 
-			<Dialog open={trackDialogOpen} onClose={handleCloseTrackDialog} maxWidth="md" fullWidth>
+            <Dialog open={trackDialogOpen} onClose={handleCloseTrackDialog} maxWidth="md" fullWidth>
 				<DialogTitle>{editingTrackId ? 'Edit Track' : 'Add New Track'}</DialogTitle>
 				<DialogContent>
 					<Grid container spacing={2} sx={{ mt: 1 }}>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Title *
 							</Typography>
@@ -1182,7 +1222,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								placeholder="Track title"
 							/>
 						</Grid>
-						<Grid item xs={12} md={6}>
+						<Grid
+                            size={{
+                                xs: 12,
+                                md: 6
+                            }}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Start Time *
 							</Typography>
@@ -1191,12 +1235,18 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								type="datetime-local"
 								value={trackStartTime}
 								onChange={(e) => setTrackStartTime(e.target.value)}
-								InputLabelProps={{
-									shrink: true,
-								}}
+								slotProps={{
+                                    inputLabel: {
+                                        shrink: true,
+                                    }
+                                }}
 							/>
 						</Grid>
-						<Grid item xs={12} md={6}>
+						<Grid
+                            size={{
+                                xs: 12,
+                                md: 6
+                            }}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								End Time *
 							</Typography>
@@ -1205,12 +1255,14 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								type="datetime-local"
 								value={trackEndTime}
 								onChange={(e) => setTrackEndTime(e.target.value)}
-								InputLabelProps={{
-									shrink: true,
-								}}
+								slotProps={{
+                                    inputLabel: {
+                                        shrink: true,
+                                    }
+                                }}
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Level
 							</Typography>
@@ -1222,7 +1274,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								placeholder="0"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Abstract
 							</Typography>
@@ -1235,7 +1287,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								placeholder="Track abstract"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Speakers
 							</Typography>
@@ -1276,11 +1328,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</DialogActions>
 			</Dialog>
 
-			<Dialog open={materialDialogOpen} onClose={handleCloseMaterialDialog} maxWidth="md" fullWidth>
+            <Dialog open={materialDialogOpen} onClose={handleCloseMaterialDialog} maxWidth="md" fullWidth>
 				<DialogTitle>Add Material</DialogTitle>
 				<DialogContent>
 					<Grid container spacing={2} sx={{ mt: 1 }}>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Title *
 							</Typography>
@@ -1291,7 +1343,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								placeholder="Material title"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								File *
 							</Typography>
@@ -1340,11 +1392,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</DialogActions>
 			</Dialog>
 
-			<Dialog open={photoDialogOpen} onClose={handleClosePhotoDialog} maxWidth="md" fullWidth>
+            <Dialog open={photoDialogOpen} onClose={handleClosePhotoDialog} maxWidth="md" fullWidth>
 				<DialogTitle>Add Photo</DialogTitle>
 				<DialogContent>
 					<Grid container spacing={2} sx={{ mt: 1 }}>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								Title *
 							</Typography>
@@ -1355,7 +1407,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								placeholder="Photo title"
 							/>
 						</Grid>
-						<Grid item xs={12}>
+						<Grid size={12}>
 							<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
 								File *
 							</Typography>
@@ -1405,7 +1457,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</DialogActions>
 			</Dialog>
 
-			<Snackbar
+            <Snackbar
 				open={snackbarOpen}
 				autoHideDuration={6000}
 				onClose={() => setSnackbarOpen(false)}
@@ -1416,7 +1468,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Alert>
 			</Snackbar>
 
-			{showScrollTop && (
+            {showScrollTop && (
 				<Fab
 					color="primary"
 					size="medium"
@@ -1431,8 +1483,8 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 					<KeyboardArrowUpIcon />
 				</Fab>
 			)}
-		</Box>
-	);
+        </Box>
+    );
 };
 
 export default AdminWorkshopDetail;

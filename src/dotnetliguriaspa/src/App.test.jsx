@@ -1,0 +1,90 @@
+import { render, screen, waitFor, makeWorkshop } from './test-utils';
+import userEvent from '@testing-library/user-event';
+import { useOidc } from '@axa-fr/react-oidc';
+import { AxiosError } from 'axios';
+import App from './App';
+import axiosClient from './utility/axiosClient';
+import { userProfileLocalStorageStore } from './store/userProfileLocalStorageStore';
+import { getWorkshops, getWorkshopsByYear, getWorkshopById } from './services/workShopService';
+import { API_BASE_URL, CONTENT_BASE_URL } from './config/apiConfig';
+
+test('public home renders the community and offers login', async () => {
+  vi.mocked(fetch).mockImplementation(async url => new Response(JSON.stringify(
+    String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? makeWorkshop() : []
+  ), { status: 200 }));
+  render(<App />);
+  expect(screen.getByText('La prima community .NET della Liguria')).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Test Workshop' })).toBeInTheDocument();
+  const login = useOidc().login;
+  await userEvent.click(screen.getByRole('button', { name: 'Area Personale' }));
+  expect(login).toHaveBeenCalledWith('/admin');
+});
+
+test.each([
+  ['/admin', 'Admin Dashboard'], ['/admin/profile/', 'Profile'],
+  ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Speakers'],
+  ['/admin/board/', 'Board'], ['/admin/feedbacks', 'Feedbacks'],
+  ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'],
+])('authenticated route %s retains its screen', async (route, heading) => {
+  userProfileLocalStorageStore.getState().setProfileSaved(true);
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn() });
+  render(<App />, { route });
+  expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'PROFILE' })).toHaveAttribute('href', '/admin/profile/');
+  await waitFor(() => expect(fetch).toHaveBeenCalled());
+});
+
+test('unauthenticated sessions clear persisted profile and cannot render admin routes', () => {
+  localStorage.setItem('profileStore', JSON.stringify({ state: { profileSaved: true }, version: 0 }));
+  render(<App />, { route: '/admin' });
+  expect(localStorage.getItem('profileStore')).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Admin Dashboard' })).not.toBeInTheDocument();
+});
+
+test('profile store persists confirmation and can be reset', () => {
+  userProfileLocalStorageStore.getState().setProfileSaved(true);
+  expect(JSON.parse(localStorage.getItem('profileStore')).state.profileSaved).toBe(true);
+  userProfileLocalStorageStore.getState().setProfileSaved(false);
+  expect(userProfileLocalStorageStore.getState().profileSaved).toBe(false);
+});
+
+test.each([null, 'synthetic-fallback'])('Axios sends a fallback token only when supplied (%s)', async token => {
+  const client = axiosClient(token);
+  const adapter = vi.fn(async config => ({ data: {}, status: 200, statusText: 'OK', headers: {}, config }));
+  client.defaults.adapter = adapter;
+  await client.get('/test');
+  expect(adapter.mock.calls[0][0].headers.get('Authorization')).toBe(token ? `Bearer ${token}` : undefined);
+});
+
+test('stored access token takes priority over a caller token', async () => {
+  localStorage.setItem('ACCESS_TOKEN', 'synthetic-stored');
+  const client = axiosClient('synthetic-fallback');
+  client.defaults.adapter = async config => {
+    expect(config.headers.get('Authorization')).toBe('Bearer synthetic-stored');
+    return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
+  };
+  await client.get('/test');
+});
+
+test.each([401, 403])('Axios rejects HTTP %s and clears only unauthorized credentials', async status => {
+  localStorage.setItem('ACCESS_TOKEN', 'synthetic-stored');
+  const client = axiosClient();
+  client.defaults.adapter = async config => {
+    throw new AxiosError('HTTP failure', 'ERR_BAD_REQUEST', config, undefined, { data: {}, status, statusText: 'Failure', headers: {}, config });
+  };
+  await expect(client.get('/test')).rejects.toBeInstanceOf(AxiosError);
+  expect(localStorage.getItem('ACCESS_TOKEN')).toBe(status === 401 ? null : 'synthetic-stored');
+});
+
+test('workshop requests preserve published filtering and year routes', async () => {
+  await getWorkshops();
+  expect(fetch).toHaveBeenLastCalledWith(`${API_BASE_URL}/Workshop/Get?onlyPublished=true`, expect.objectContaining({ method: 'GET' }));
+  await getWorkshopsByYear(2024);
+  expect(fetch).toHaveBeenLastCalledWith(`${API_BASE_URL}/Workshop/GetByYear/2024?onlyPublished=true`, expect.objectContaining({ method: 'GET' }));
+  expect(CONTENT_BASE_URL).toMatch(/\/Contents\/$/);
+});
+
+test.each([404, 500])('workshop detail rejects HTTP %s instead of returning a success payload', async status => {
+  vi.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status }));
+  await expect(getWorkshopById('missing')).rejects.toThrow(status === 404 ? 'Workshop with ID missing not found' : 'HTTP error! status: 500');
+});

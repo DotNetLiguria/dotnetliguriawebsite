@@ -1,0 +1,39 @@
+# Repository Guidance
+
+## Scope
+Read this file and the nearest scoped AGENTS.md before editing. Scoped guidance adds
+project-specific requirements; it does not relax the standards below.
+
+- `src/dotnetliguriawebsite`: ASP.NET Core website, authentication, models and data migration.
+- `src/dotnetliguriaspa`: React frontend served separately during development.
+- `src/BlazorQuestionario`: hosted WebAssembly questionnaire.
+- `src/BlazorQuestionarioServer`: server-side Blazor questionnaire and browser checks.
+- `tests`: isolated unit tests and repository standards checks.
+
+## Required Standards
+- Target .NET 10 for every .NET project. Use stable, compatible dependencies only.
+- Name every handwritten private C# field `_camelCase`, including static, readonly,
+  constant and implicitly private fields. Do not use `s_` or omit the underscore.
+- Declare one handwritten type per file, including interfaces, records, enums,
+  structs, delegates and helper types. Genuine tool-generated code is exempt.
+- Preserve public type names, namespaces, JSON/BSON contracts, routes, authentication,
+  database mappings and historical workshop assets unless a change is explicitly requested.
+- Keep changes focused and preserve existing uncommitted changes.
+- Never include credentials, keys, tokens or certificate contents in output or documentation.
+- Never run DataMigration or database schema updates against real data without approval.
+
+## Verification
+- Add focused tests for changed behavior; run the narrowest relevant checks after editing.
+- Unit tests must not require MongoDB, SQL Server, Keycloak, browsers or external network calls.
+- Fake time and collaborators; do not use sleeps or wall-clock delays in unit tests.
+- Keep browser and database checks separate from the timed unit-test gate.
+- Build all affected projects, not only the website solution. Validate Linux and Windows
+  compatibility for native QR/image dependencies.
+- Report checks actually executed and any remaining verification gaps. Never claim that
+  documentation or instructions alone enforce a rule.
+
+## Toolchains and Workflows
+Use the checked-in SDK and Node pins, lockfiles and verification scripts when present.
+Resolve upgrades from official release metadata; do not use forced peer resolution or previews.
+Repository skills under `.agents/skills` describe modernization and fast verification.
+Do not commit, deploy, rotate credentials or change machine-wide tooling without approval.

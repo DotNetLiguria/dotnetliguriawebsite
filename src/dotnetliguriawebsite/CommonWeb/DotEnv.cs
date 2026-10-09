@@ -1,15 +1,15 @@
-﻿using System;
+using System;
 
 namespace CommonWeb;
 
 public static class DotEnv
 {
-    private static readonly string BaseDotEnv = ".env";
+    private static readonly string _baseDotEnv = ".env";
     public static void SetCurrentProfile(string profile = "")
     {
         var currentDir = Environment.CurrentDirectory;
-        var baseFile = Path.Combine(currentDir, BaseDotEnv);
-        var profileFile = Path.Combine(currentDir, $"{BaseDotEnv}.{profile}");
+        var baseFile = Path.Combine(currentDir, _baseDotEnv);
+        var profileFile = Path.Combine(currentDir, $"{_baseDotEnv}.{profile}");
         if(File.Exists(baseFile))
         {
             Set(baseFile);

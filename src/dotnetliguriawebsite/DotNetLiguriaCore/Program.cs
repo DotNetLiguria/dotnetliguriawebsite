@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IdentityModel.Tokens.Jwt;
 
 using CommonAuth;
 
@@ -18,9 +17,9 @@ namespace DotNetLiguriaCore;
 
 public class Program
 {
-    private const string AuthServerSectionName = "AuthServer";
-    private const string CorsPolicy = "DotNetLiguriaCorsPolicy";
-    private static readonly string[] AllowedOrigins =
+    private const string _authServerSectionName = "AuthServer";
+    private const string _corsPolicy = "DotNetLiguriaCorsPolicy";
+    private static readonly string[] _allowedOrigins =
         {
             "https://localhost:3443",
             "http://localhost:3000",
@@ -31,6 +30,7 @@ public class Program
 
     public static void Main(string[] args)
     {
+        global::DotNetLiguriaCore.Model.BsonCompatibility.Configure();
 #if DEBUG
         Console.WriteLine("This is a debug build");
         //IdentityModelEventSource.ShowPII = true;
@@ -40,7 +40,7 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy(CorsPolicy, policy =>
+            options.AddPolicy(_corsPolicy, policy =>
             {
                 policy
                     .AllowAnyOrigin()
@@ -69,7 +69,7 @@ public class Program
         builder.Services.AddSingleton<FeedbackService>();
 
         var app = builder.Build();
-        app.UseCors(CorsPolicy);
+        app.UseCors(_corsPolicy);
 
         if (app.Environment.IsDevelopment())
         {
@@ -162,14 +162,14 @@ public class Program
     private static void ConfigureAuthentication(IServiceCollection services,
         ConfigurationManager configuration)
     {
-        var authServerSection = configuration.GetSection(AuthServerSectionName);
+        var authServerSection = configuration.GetSection(_authServerSectionName);
         services.Configure<AuthServerConfiguration>(authServerSection);
         var authServerConfig = authServerSection.Get<AuthServerConfiguration>();
 
         if (authServerConfig == null)
         {
             throw new InvalidOperationException(
-                $"The configuraton '{AuthServerSectionName}' cannot be found");
+                $"The configuraton '{_authServerSectionName}' cannot be found");
         }
 
         services.AddAuthentication(options =>
@@ -234,14 +234,7 @@ public class Program
         })
         .AddJwtBearer(options =>
         {
-            var jwtHandler = (options.SecurityTokenValidators.FirstOrDefault() as JwtSecurityTokenHandler);
-            if (jwtHandler != null)
-            {
-                // false: use the short names. For example: "acr"
-                // true: use the long uri type names
-                // names are used into the requirements to search the claims
-                jwtHandler.MapInboundClaims = false;
-            }
+            options.MapInboundClaims = false;
 
             options.MetadataAddress = authServerConfig.MetadataAddress;
             options.RequireHttpsMetadata = false;

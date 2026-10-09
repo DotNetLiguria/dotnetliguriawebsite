@@ -280,60 +280,8 @@ namespace DotNetLiguriaCore.Controllers
                 return NotFound("No feedback found for this workshop.");
             }
 
-            var trackStatistics = feedbacks
-                .GroupBy(f => 
-                {
-                    var title = f.TrackTitle ?? "L'evento ha soddisfatto le tue aspettative?";
-                    return title == "L'evento ha soddisfatto le tue aspettative?" 
-                        ? title 
-                        : f.WorkshopTrackId.ToString();
-                })
-                .Select(trackGroup =>
-                {
-                    var trackFeedbacks = trackGroup.ToList();
-                    var ratingDistribution = new Dictionary<int, int>();
-                    
-                    for (int i = 0; i <= 10; i++)
-                    {
-                        ratingDistribution[i] = trackFeedbacks.Count(f => f.Rating == i);
-                    }
-
-                    var totalFeedbacks = trackFeedbacks.Count;
-                    var averageRating = totalFeedbacks > 0 
-                        ? trackFeedbacks.Average(f => f.Rating) 
-                        : 0;
-
-                    var trackTitle = trackFeedbacks.FirstOrDefault()?.TrackTitle ?? "L'evento ha soddisfatto le tue aspettative?";
-                    var workshopTrackId = trackTitle == "L'evento ha soddisfatto le tue aspettative?" 
-                        ? Guid.Empty 
-                        : trackFeedbacks.FirstOrDefault()?.WorkshopTrackId ?? Guid.Empty;
-
-                    return new TrackFeedbackStatistics
-                    {
-                        WorkshopTrackId = workshopTrackId,
-                        TrackTitle = trackTitle,
-                        RatingDistribution = ratingDistribution,
-                        TotalFeedbacks = totalFeedbacks,
-                        AverageRating = Math.Round(averageRating, 2)
-                    };
-                })
-                .ToList();
-
-
-
-            var notes = feedbacks
-                .Where(f => !string.IsNullOrEmpty(f.Note))
-                .Select(f => f.Note!)
-                .Distinct()
-                .ToList();
-
-            var statistics = new WorkshopFeedbackStatistics
-            {
-                WorkshopId = workshop.WorkshopId,
-                WorkshopTitle = workshop.Title ?? "Untitled Workshop",
-                TrackStatistics = trackStatistics,
-                Notes = notes
-            };
+            var statistics = FeedbackStatisticsCalculator.Calculate(
+                workshop.WorkshopId, workshop.Title ?? "Untitled Workshop", feedbacks);
 
             return Ok(statistics);
         }
@@ -355,58 +303,7 @@ namespace DotNetLiguriaCore.Controllers
                     var workshopFeedbacks = workshopGroup.ToList();
                     var workshopTitle = workshopFeedbacks.FirstOrDefault()?.WorkshopTitle ?? "Unknown Workshop";
 
-                    var trackStatistics = workshopFeedbacks
-                        .GroupBy(f => 
-                        {
-                            var title = f.TrackTitle ?? "L'evento ha soddisfatto le tue aspettative?";
-                            return title == "L'evento ha soddisfatto le tue aspettative?" 
-                                ? title 
-                                : f.WorkshopTrackId.ToString();
-                        })
-                        .Select(trackGroup =>
-                        {
-                            var trackFeedbacks = trackGroup.ToList();
-                            var ratingDistribution = new Dictionary<int, int>();
-                            
-                            for (int i = 0; i <= 10; i++)
-                            {
-                                ratingDistribution[i] = trackFeedbacks.Count(f => f.Rating == i);
-                            }
-
-                            var totalFeedbacks = trackFeedbacks.Count;
-                            var averageRating = totalFeedbacks > 0 
-                                ? trackFeedbacks.Average(f => f.Rating) 
-                                : 0;
-
-                            var trackTitle = trackFeedbacks.FirstOrDefault()?.TrackTitle ?? "L'evento ha soddisfatto le tue aspettative?";
-                            var workshopTrackId = trackTitle == "L'evento ha soddisfatto le tue aspettative?" 
-                                ? Guid.Empty 
-                                : trackFeedbacks.FirstOrDefault()?.WorkshopTrackId ?? Guid.Empty;
-
-                            return new TrackFeedbackStatistics
-                            {
-                                WorkshopTrackId = workshopTrackId,
-                                TrackTitle = trackTitle,
-                                RatingDistribution = ratingDistribution,
-                                TotalFeedbacks = totalFeedbacks,
-                                AverageRating = Math.Round(averageRating, 2)
-                            };
-                        })
-                        .ToList();
-
-                    var notes = workshopFeedbacks
-                        .Where(f => !string.IsNullOrEmpty(f.Note))
-                        .Select(f => f.Note!)
-                        .Distinct()
-                        .ToList();
-
-                    return new WorkshopFeedbackStatistics
-                    {
-                        WorkshopId = workshopGroup.Key,
-                        WorkshopTitle = workshopTitle,
-                        TrackStatistics = trackStatistics,
-                        Notes = notes
-                    };
+                    return FeedbackStatisticsCalculator.Calculate(workshopGroup.Key, workshopTitle, workshopFeedbacks);
                 })
                 .ToList();
 

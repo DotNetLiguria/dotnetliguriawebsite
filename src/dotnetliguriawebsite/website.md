@@ -1,60 +1,55 @@
-# Running locally the website
+# Website Setup
 
-## Mongo DbSetup
+Read [AGENTS.md](AGENTS.md) and [architecture](../../docs/architecture.md).
+Use the root-pinned .NET 10 SDK and Node toolchain. From the repository root:
 
-DataMigration project
-
-```
-dotnet run 
-```
-We have mongodb database and tables: 
-
- - workshopFiles
- - workshops
- - workshopSpeakers
- - workshopTracks
-
-
-## The .env FILE
-
-Even if ASP.NET Core does not use `.env` files, there is a small class offering the opportunity to set some environment variables.
-
-> For no reason this file should contain any secrets 
-
-Since the Identity Provider must know the complete URL of the trusted application, when debugging pages that are subject to authentication, the `.env` file should at least contain the following line:
-
-```
-ASPNETCORE_URLS=https://0.0.0.0:5443/
+```powershell
+dotnet build src/dotnetliguriawebsite/dotnetliguriawebsite.slnx -c Release
+dotnet test tests/DotNetLiguriaCore.Tests -c Release
 ```
 
-## The secrets.json file
+## Configuration And Safety
 
-The standard `secrets.json` file is required to set the `ClientId` and `ClientSecret` data:
+Provision an isolated MongoDB instance and matching Keycloak registration before
+running the website. Supply `DotNetLiguriaDatabase` and `AuthServer` configuration
+through ASP.NET configuration, keeping secrets in user secrets or deployment secret
+storage. Configure the registered callback, signout and trusted frontend origins to
+match the actual URLs. Never print or commit secrets or certificate contents.
 
-```json
-{
-    "AuthServer": {
-        "ClientId": "DotNetLiguriaCore",
-        "ClientSecret": "the client secret goes here"
-    }
-}
+The historical collections include workshops, workshopFiles, workshopSpeakers and
+workshopTracks; service configuration also supplies the other collection names.
+Do not use DataMigration as an automatic setup command. It can read SQL data and
+write MongoDB/export files: execute it or change schemas only with explicit approval
+and a reviewed backup/restore plan. The shared verification gate never needs a DB.
+
+CommonWeb's environment-file loader is used in DEBUG builds. Keep environment files
+out of source control and free of secrets; Release configuration must be supplied
+through standard ASP.NET providers. Local launch profiles may choose different
+ports, so explicitly set the frontend public API URL rather than assuming a match.
+
+After configuration, the website can be run explicitly with its project path.
+Use a trusted local development certificate for HTTPS; the separate Vite HTTPS
+server requires its own supplied PEM paths. See [frontend setup](../dotnetliguriaspa/README.md).
+
+## Publishing
+
+Build the frontend using `npm ci` and `npm run build` in `src/dotnetliguriaspa` first.
+Then, from the repository root:
+
+```powershell
+dotnet publish src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj -c Release -o .artifacts/publish/website
 ```
 
-They are the needed to correctly qualify the running application as trusted from the Keycloak Identity Provider.
+Vite produces dist only. Website publishing overlays dist into the artifact's
+wwwroot, replacing matching SPA files but never deleting historical workshop
+content. Missing dist fails explicitly; `PublishSpa=false` is for intentional
+API-only artifacts. Use fresh output destinations. The root publish gate checks
+SPA hashes, workshop samples and all four executable entrypoints without running them.
 
-## Certificates
-
-The self-signed certificate automatically provided by ASP.NET Core is good to go for ASP.NET Core. The same certificate will also be used by React after it has been "deployed" with:
-
-```
-npm run build
-```
-
-This is because the script deploys all the file inside the `wwwroot` folder of ASP.NET Core.
-
-If instead the React application is run into its separate web host (typically https://localhost:3443), React needs its own certificate but may point to the same `localhost` certificate created by ASP.NET Core.
-
-See the React folder on how to set the certificate files exported from the ASP.NET Core certificate.
+Build Docker from the repository root using the website Dockerfile. The .NET 10
+non-root runtime listens on HTTP 8080; supply TLS, secrets and identity-provider
+registration at the deployment boundary. Images exclude local certificates and
+environment files. Do not deploy or change real data as part of verification.
 
 
 

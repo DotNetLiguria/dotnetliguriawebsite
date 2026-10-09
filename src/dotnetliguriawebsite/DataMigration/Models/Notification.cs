@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,13 +14,5 @@ namespace DotNetLiguria.Models
         public string? Description { get; set; }
 
         public virtual CustomUser? User { get; set; }
-    }
-
-    public enum NotificationType
-    {
-        WorkshopUndersigned,
-        RemoveUndersigned,
-        CheckIn,
-        Feedback
     }
 }

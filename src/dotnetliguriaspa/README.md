@@ -1,74 +1,55 @@
-# Getting Started with Create React App
+# React Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is the existing .NET Liguria public/admin UI, now using React 19, TypeScript,
+Vite and Vitest instead of Create React App. Read [AGENTS.md](AGENTS.md) before editing.
 
-## Available Scripts
+## Local Development
 
-In the project directory, you can run:
+Use Node 24.21.0 from the root [.node-version](../../.node-version), then run here:
 
-### `npm start`
+```powershell
+npm ci
+npm start
+```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+HTTP development defaults to http://localhost:3000. `npm run start:https` uses
+https://localhost:3443 and requires locally supplied `localhost.pem` and
+`localhost-key.pem`. Do not commit or print certificate/private-key contents.
+Provider registration and trusted origins must match the chosen frontend URL.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Set public API endpoints in local Vite environment configuration. `VITE_API_BASE_URL`
+defaults to `https://localhost:64561/api`; explicitly match the backend URL you run.
+`VITE_API_URL` optionally overrides the shared Axios base URL. The old
+`REACT_APP_API_BASE_URL` and `REACT_APP_API_URL` names remain supported as fallbacks.
+These values are embedded in browser code: never use them for secrets. `/Contents`
+case is significant on Linux. The dev server does not start a backend or database.
 
-### `npm test`
+## Checks And Publishing
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```powershell
+npm run typecheck
+npm run lint
+npm run test:unit
+npm run build
+```
 
-### `npm run build`
+Vitest runs 28 isolated behavior tests with mocked authentication/network and
+reset state; `npm test` is a single run, not CRA watch mode.
+Use `npm run test:unit -- --watch` for watch mode. The shared root verification script enforces discovery
+counts and a measured process-time ceiling. See [test procedures](../../tests/Tests.md).
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Build output goes to `dist`, not `build` or source `wwwroot`. Website `dotnet publish`
+stages dist into the published `wwwroot`, preserving historical content. Build
+the frontend before publishing, or use the root Dockerfile build workflow described
+in [architecture](../../docs/architecture.md). There is no eject command.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+`npm ci` runs `sync:oidc` to copy the installed AXA worker into public. Preserve
+`OidcTrustedDomains.js`, callback/silent-callback routes and token-storage behavior.
+Use `npm run sync:oidc` after an OIDC dependency change. Never use forced/legacy peer
+resolution; keep stable compatible versions and the package lock together.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-
-### Create a new component `npx generate-react-cli component [COMPONENT-NAME]` 
+Existing unused-code lint warnings and Vite's large-bundle warning remain. Live
+login/MFA, backend integration and browser layout are separate smoke checks, not
+proven by the isolated unit suite.
 
  
