@@ -1,6 +1,6 @@
 ---
 name: dependency-modernization
-description: "Use when updating .NET, React, npm or NuGet dependencies, migrating Vite or Blazor hosting, or checking Linux and Windows compatibility in this repository."
+description: "Use when updating .NET, React, npm or NuGet dependencies, migrating Vite hosting, or checking Linux and Windows compatibility in this repository."
 ---
 
 # Dependency Modernization
@@ -13,6 +13,6 @@ description: "Use when updating .NET, React, npm or NuGet dependencies, migratin
 4. Preserve public contracts, routes, auth policies, EF mappings and historical assets.
    Document packages retained for compatibility and replacements of abandoned libraries.
 5. Validate all affected solution builds and fast tests, clean npm ci and production
-   assets. Run native QR checks on Linux and Windows; keep browser/DB checks separate.
+   assets. Validate Linux and Windows hosting; keep browser/DB checks separate.
 6. Report unresolved compatibility gaps. Never run DataMigration, deploy, commit,
    rotate credentials or modify machine-wide tooling without approval.

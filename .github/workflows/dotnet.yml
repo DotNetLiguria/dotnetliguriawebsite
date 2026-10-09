@@ -39,8 +39,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: src/dotnetliguriaspa/package-lock.json
-      - name: Build, frontend checks, counted units and separate native checks
-        run: ./scripts/verify.ps1 -Native
+      - name: Build, frontend checks and counted units
+        run: ./scripts/verify.ps1
       - name: Publish and verify application assets without executing applications
         run: ./scripts/verify-publish.ps1
       - name: Build Linux container

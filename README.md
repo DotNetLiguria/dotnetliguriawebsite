@@ -7,16 +7,18 @@ Install the stable SDK selected by [global.json](global.json), Node selected by
 [.node-version](.node-version), and PowerShell 7.4 or newer. From the repository root:
 
 ```powershell
-pwsh -File scripts/verify.ps1 -Native
+pwsh -File scripts/verify.ps1
 pwsh -File scripts/verify-publish.ps1
 ```
 
 The shared gate builds every .NET project, checks the Vite frontend and enforces
-counted, time-bounded units. Native QR checks are separate; browser and database
-checks are not part of the unit gate. Publishing never executes an application.
+counted, time-bounded units. Live browser and database checks are not part of the
+unit gate. Publishing never executes an application.
 
 Open [DotNetLiguria.slnx](DotNetLiguria.slnx) for all .NET projects, or run
-`dotnet build DotNetLiguria.slnx -c Release`. Browser tests remain opt-in.
+`dotnet build DotNetLiguria.slnx -c Release`. The solution contains nine .NET projects:
+the website and migration tool, three website libraries, two Aspire projects and
+two unit-test projects. The questionnaire is integrated into the React SPA and MongoDB.
 
 See [architecture](docs/architecture.md), [frontend setup](src/dotnetliguriaspa/README.md),
 [website setup](src/dotnetliguriawebsite/website.md), and [test procedures](tests/Tests.md).
@@ -39,9 +41,7 @@ dotnet run --project src\DotNetLiguria.AppHost
 
 Alternatively select **Launch DotNetLiguria (Aspire)** in VS Code. One launcher
 starts the website/API (https://localhost:5443), React SPA
-(https://localhost:3443), hosted questionnaire (https://localhost:62045), and
-server questionnaire (https://localhost:62048), plus MongoDB and SQL Server
-containers. Open the dashboard URL printed by the launcher; its login token is
+(https://localhost:3443), and MongoDB. Open the dashboard URL printed by the launcher; its login token is
 private. No global Aspire CLI installation/update is required: orchestration
 dependencies are restored from pinned Aspire 13.6.1 NuGet packages.
 
@@ -49,12 +49,12 @@ Keycloak remains external. Supply its server client secret using website user
 secrets or AppHost user secrets, never frontend variables. The existing provider
 must allow `https://localhost:5443/*` and `https://localhost:3443/*`. See
 [Aspire development](docs/aspire.md) for configuration, storage safety, and checks.
-All four applications retain independent publishing.
+The website and DataMigration retain independent publishing.
 
 Aspire creates **new isolated databases** and persists them across launcher
-restarts. Questionnaire schemas and synthetic workshop data are initialized only
-in the guarded local Development stack. It never starts DataMigration or touches
-existing databases. Stop the launcher before resetting its data.
+restarts. It never starts DataMigration or touches existing databases. Use the
+explicit migration procedures in [questionnaire documentation](docs/questionnaire.md)
+to populate an empty local database. Stop the launcher before resetting its data.
 
 The existing `docker-compose.yaml` is a legacy/manual MongoDB alternative, not
 part of the Aspire startup. Do not start it to prepare the Aspire stack or reuse

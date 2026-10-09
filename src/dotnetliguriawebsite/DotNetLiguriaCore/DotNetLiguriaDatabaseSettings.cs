@@ -24,8 +24,6 @@ namespace DotNetLiguriaCore
 
         public string TopMenuCollectionName { get; set; } = null!;
 
-        public string FeedbackCollectionName { get; set; } = null!;
-
         public string QuestionnaireCollectionName { get; set; } = "Questionnaire";
 
         public string QuestionnaireResponseCollectionName { get; set; } = "QuestionnaireResponse";

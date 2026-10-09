@@ -2,19 +2,14 @@
 
 ## Repository Layout
 
-The repository contains three independently hosted .NET applications, a React SPA,
-a data-migration executable and isolated verification projects. All fifteen .NET
-projects originally targeted `net10.0`: eleven application/library/browser projects
-and four unit-test projects. With the two Aspire projects, the root
-[DotNetLiguria.slnx](../DotNetLiguria.slnx) now contains 17 .NET 10 projects, grouped
-into Aspire, website, hosted questionnaire, server questionnaire, unit-test and
-browser-test solution folders.
+The repository contains one ASP.NET Core website/API, a React SPA with the
+questionnaire module, a manual data-migration executable and isolated verification
+projects. The root [DotNetLiguria.slnx](../DotNetLiguria.slnx) contains nine .NET 10
+projects, grouped into Aspire, website and unit-test folders.
 
-Aspire adds two more .NET 10 projects: a single `DotNetLiguria.AppHost` and shared
-`DotNetLiguria.ServiceDefaults`, bringing the root solution to 17 projects.
-The [development launcher](aspire.md) starts all four applications, isolated
-MongoDB/SQL Server containers, and local SQLite storage. It retains external
-Keycloak and independent deployment boundaries; DataMigration never auto-starts.
+The [development launcher](aspire.md) starts the website, React SPA and MongoDB.
+It retains external Keycloak; DataMigration never auto-starts. Historical SQL
+Server/SQLite providers are confined to DataMigration, not application hosting.
 
 | Location | Responsibility |
 | --- | --- |
@@ -24,29 +19,21 @@ Keycloak and independent deployment boundaries; DataMigration never auto-starts.
 | [CommonWeb](../src/dotnetliguriawebsite/CommonWeb) | Development environment-file loading |
 | [DataMigration](../src/dotnetliguriawebsite/DataMigration) | Historical SQL/EF data export, MongoDB migration and legacy questionnaire import (`questionnaires` mode) |
 | [dotnetliguriaspa](../src/dotnetliguriaspa) | React public/admin UI, Vite, TypeScript and Vitest |
-| [BlazorQuestionario/Client](../src/BlazorQuestionario/Client) | Hosted WebAssembly questionnaire UI |
-| [BlazorQuestionario/Server](../src/BlazorQuestionario/Server) | Hosted questionnaire HTTP endpoints, SQLite and QR uploads |
-| [BlazorQuestionario/Shared](../src/BlazorQuestionario/Shared) | Hosted questionnaire validation/domain contracts |
-| [BlazorQuestionarioServer/BlazorQuestionarioServer](../src/BlazorQuestionarioServer/BlazorQuestionarioServer) | Server-side Blazor, SQL Server and circuit telemetry |
-| [BlazorQuestionarioServer/Shared](../src/BlazorQuestionarioServer/Shared) | Server questionnaire validation/domain contracts |
-| [BlazorQuestionarioServer.Tests](../src/BlazorQuestionarioServer/BlazorQuestionarioServer.Tests) | Separate Playwright/Verify browser checks |
-| [tests](../tests) | Four isolated unit suites, including executable repository standards |
-| [DotNetLiguriaCore/wwwroot/workshops](../DotNetLiguriaCore/wwwroot/workshops) | Historical workshop assets, retained in place |
+| [DotNetLiguria.AppHost](../src/DotNetLiguria.AppHost) | Development orchestration for website, SPA and MongoDB |
+| [DotNetLiguria.ServiceDefaults](../src/DotNetLiguria.ServiceDefaults) | Health checks and OpenTelemetry |
+| [tests](../tests) | Two isolated .NET unit suites and frontend Vitest coverage |
+| [DotNetLiguriaCore/Contents/workshops](../src/dotnetliguriawebsite/DotNetLiguriaCore/Contents/workshops) | Historical workshop assets, retained in place |
 
 Build everything with `dotnet build DotNetLiguria.slnx -c Release` from the repository
 root. Individual project paths still support independent builds and publishes;
 solution folders do not change deployment boundaries. The shared gate builds the
-root solution, then runs unit suites separately. Do not use an unfiltered
-solution-wide test run: browser tests require explicitly provisioned infrastructure.
+root solution, then runs unit suites separately.
 
-Both questionnaire Shared projects retain assembly name and namespace
-`BlazorAppTest.Shared`, but contain different models. They must not be referenced
-together or casually renamed. Their unit suites run in separate test processes.
-
-Both Blazor questionnaires are legacy: the website's questionnaire module (React
-designer, runner and results backed by MongoDB) replaces them. They are removed only
-after their historical data has been migrated and verified; see
-[questionnaire.md](questionnaire.md) for the feature inventory, design and removal plan.
+The retired questionnaire applications, Shared assemblies, unit/browser tests and
+native image decoder are removed. The website's React designer, runner and results
+backed by MongoDB are the only questionnaire application. See
+[questionnaire.md](questionnaire.md) for the historical feature inventory, current
+design and retained import procedure.
 
 ## Website Request Flow
 
@@ -58,7 +45,7 @@ flowchart LR
     API --> Auth[Cookie or JWT authorization]
     API --> Services[Website services]
     Services --> Mongo[(MongoDB)]
-    API --> Stats[Pure feedback and questionnaire statistics]
+    API --> Stats[Pure questionnaire statistics]
 ```
 
 Controllers are mapped before the `index.html` fallback. `wwwroot` serves the SPA;
@@ -68,9 +55,8 @@ workshop archives, images and downloads must not be deleted by frontend staging.
 
 Website services use MongoDB collections configured through
 `DotNetLiguriaDatabase`. The model assembly owns persisted BSON and public JSON
-contracts. `FeedbackStatisticsCalculator` contains the pure rating aggregation
-used by both statistics endpoints; eleven bins, rounding, event grouping and
-historical note semantics are covered without MongoDB.
+contracts. Obsolete workshop feedback endpoints and their services/DTOs are removed;
+the old Feedback BSON shape and collection name remain only in DataMigration.
 
 Questionnaires live in the `Questionnaire` and `QuestionnaireResponse` collections.
 Admin endpoints (`api/Questionnaire`) require the `FeedbackAdmin` policy (Keycloak
@@ -117,23 +103,11 @@ argument imports legacy Feedback and QuestionarioTest data as closed historical
 questionnaires; it is a dry run unless `--apply` is passed and is idempotent
 through deterministic ids and `SourceKey`.
 
-The hosted questionnaire uses the supplied `DefaultConnection-Sqlite` connection
-configuration. The server questionnaire uses SQL Server `DefaultConnection` and
-WebSocket-only Blazor circuits. Composite join keys and column mappings are tested
-through EF metadata without opening either database. Their historically different
-rating ranges are preserved rather than unified during modernization.
-
-QR decoding uses ZXing with SkiaSharp and includes Windows and Linux native assets;
-System.Drawing is not used. The decoder does not own the caller's input stream.
-Native PNG decoding is checked separately from timed units. Existing QR prefix
-matching, upload-count handling and questionnaire routes remain unchanged.
-
-The circuit handler owns a disposable TimeProvider timer, publishes
-`NumCircuitiAperti` every 30 seconds, and synchronizes circuit membership/counts.
-Unit tests advance fake time and replace telemetry with an in-memory collaborator.
-ApplicationInsights.AspNetCore stays at 2.23.0: newer 3.x removes the TrackPageView
-API used by the existing component. This is a stable compatibility exception, not
-permission to install previews or suppress peer-dependency conflicts.
+Historical import reads the former `QuestionarioTest` schemas directly in
+DataMigration and preserves their different rating scales. It does not reference
+or run either retired application. QR codes are generated in the browser using
+qrcode.react; no scanning/native image dependency, circuit telemetry or external
+Application Insights package remains.
 
 ## Toolchains And Publishing
 
@@ -150,27 +124,26 @@ registries; manifests and the npm lock retain the exact selected versions.
 
 | Area | Previous | Selected | Compatibility Decision |
 | --- | --- | --- | --- |
-| .NET targets | net6/net7/net9/netstandard | net10.0, SDK 10.0.401 | All eleven existing projects plus four unit projects |
+| .NET targets | net6/net7/net9/netstandard | net10.0, SDK 10.0.401 | All nine remaining projects |
 | Microsoft ASP.NET/EF | Mixed 3/6/7-era dependencies | 10.0.12 | Replace removed hosting APIs; preserve DB models |
 | MongoDB Driver/Bson | 2.19.1 | 3.12.0 | Explicit legacy-compatible GUID serializer |
 | Swagger | 6.5.0 | 10.3.0 | Retain existing API metadata integration |
 | React and types | 18 | 19.3.0 | Upgrade runtime, DOM and types together |
 | CRA/TypeScript | react-scripts 5 / TS 4.9 | Vite 8.3.4 / TS 6.0.3 | New HTML entry and public environment bridge |
 | MUI/Data Grid | 5 | Material 9.4.0 / Grid 9.15.0 | Grid, slots, pagination and selection API migration |
-| Test runners | Legacy Jest/browser-only .NET checks | Vitest 5.0.3 / xUnit 2.9.3 | Separate isolated units from browser/native checks |
-| QR imaging | Windows drawing bindings | ZXing Skia binding 0.16.24 / SkiaSharp 4.153.1 | Windows and Linux native assets |
-| Application Insights | TrackPageView-based component | 2.23.0 | Stable API-compatible exception to breaking 3.x |
+| Test runners | Legacy Jest/browser-only .NET checks | Vitest 5.0.3 / xUnit 2.9.3 | Offline units; live integration checks remain opt-in |
+| QR | Server-side decoding | qrcode.react 4.2.0 | Browser-side generation; native decoding removed |
 
 ```powershell
-pwsh -File scripts/verify.ps1 -Native
+pwsh -File scripts/verify.ps1
 pwsh -File scripts/verify-publish.ps1
 ```
 
 The first command restores/builds all projects, clean-installs the frontend, checks
-types/lint/build, runs counted units with deadlines, then separate native checks.
-The second publishes four executables into `.artifacts/publish` without executing
+types/lint/build and runs counted units with deadlines.
+The second publishes the website and DataMigration into `.artifacts/publish` without executing
 them. It compares every Vite output file by hash, checks historical workshop
-samples, and verifies hosted WebAssembly client assets.
+samples, and verifies executable entrypoints.
 
 `npm run build` only produces `src/dotnetliguriaspa/dist`; it does not copy to source
 `wwwroot`. Website `dotnet publish` overlays that built dist into the publish
@@ -195,11 +168,10 @@ Do not place deployment secrets in image build arguments.
 ## Verification And Agent Guidance
 
 See [test procedures](../tests/Tests.md) and
-[timing budgets](../scripts/timing-budgets.json). The measured baseline is 100 units
-with zero skips: 23 repository, 23 backend, 18 hosted questionnaire, 8 server
-questionnaire and 28 frontend. Each suite has five warmed Windows runs, with the
-backend remeasured after adding offline authentication-option coverage. Timings include process startup
-but exclude restore/build, native, browser and database work. Ceilings are three
+[timing budgets](../scripts/timing-budgets.json). Minimum discovery is 25 repository,
+97 backend and 73 frontend tests. The existing warmed Windows timing ceilings are
+unchanged. Timings include process startup
+but exclude restore/build, browser and database work. Ceilings are three
 times observed maxima, rounded up to five seconds; dropped discovery counts,
 skips, failures and timeout overruns fail the gate.
 
@@ -217,18 +189,13 @@ canonical skills under `.agents/skills`; Claude uses CLAUDE.md and forwarding
 Their paths/frontmatter are checked, but instructions do not enforce code rules by
 themselves and live host skill-discovery has not been smoke-tested.
 
-The CI workflow runs the shared gate, native checks and publish checks on Windows
+The CI workflow runs the shared gate and publish checks on Windows
 and Linux, plus an Ubuntu container build. Configure repository branch protection
 to require both Verify checks; YAML alone does not configure that policy.
 
-At modernization verification, all fifteen projects built, all 100 units and two
-Windows-native QR checks passed, and all four publishes succeeded. Both native QR
-checks also passed on Ubuntu WSL, linking the production decoder and existing tests
-in an ignored probe with a checksum-verified local-only SDK 10.0.401. Full Linux
-application builds/publishes and the image build were not run locally; Docker's
-engine is not running, and the CI matrix is the remaining full platform gate.
-Live OIDC, browser snapshots and real
-database behavior were not exercised. Historical compiler/lint warnings and the
+Full Linux application builds/publishes, image execution and live OIDC/database
+behavior require their platform/integration checks; Windows isolated tests do not
+prove those paths. Historical compiler/lint warnings and the
 large frontend bundle warning remain; they are not silently treated as clean checks.
 The editor image scan reports nine high findings in the Node 24.21.0 Alpine builder
 (no critical findings after replacing the older image). This is a build-only stage,

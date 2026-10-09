@@ -15,8 +15,9 @@ description: "Use when validating changes, running fast unit tests, checking C# 
    src/dotnetliguriaspa. Browser/native smoke checks are separate.
 5. Report commands, test counts, timings, failures and unverified platform/browser
    requirements. Never call instructions alone enforcement. Do not deploy or migrate data.
-6. Use `-Native` for separate Windows/Linux QR checks. Hosted questionnaire units
-   live in tests/Questionnaire.Tests and server-side units in tests/ServerQuestionnaire.Tests;
-   their same-named Shared assemblies must remain in separate test processes.
+6. Run repository standards and backend/questionnaire/migration units from
+   tests/RepositoryRules.Tests and tests/DotNetLiguriaCore.Tests. QR generation is
+   browser-side; no native imaging or legacy browser-test projects remain.
 7. Run `pwsh -File scripts/verify-publish.ps1` after the shared gate for deployment
-   changes. It checks four publish artifacts and static assets without running hosts.
+   changes. It checks website and DataMigration publish artifacts and static assets
+   without running hosts.

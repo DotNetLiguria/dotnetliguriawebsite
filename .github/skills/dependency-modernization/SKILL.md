@@ -1,6 +1,6 @@
 ---
 name: dependency-modernization
-description: "Use when updating .NET, React, npm or NuGet dependencies, migrating Vite or Blazor hosting, or checking Linux and Windows compatibility in this repository."
+description: "Use when updating .NET, React, npm or NuGet dependencies, migrating Vite hosting, or checking Linux and Windows compatibility in this repository."
 ---
 
 # Dependency Modernization

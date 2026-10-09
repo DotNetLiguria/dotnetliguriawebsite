@@ -40,11 +40,15 @@ internal class Program
         Console.WriteLine();
 
         using var ctx = new DotNetLiguriaContext(db!.ConnectionString!);
+        if (ctx.Workshops == null || ctx.Tracks == null || ctx.Speakers == null)
+        {
+            throw new Exception("Cannot read from SQL database. One or more tables are missing.");
+        }
 
         var workshops = ctx.Workshops
            .OrderBy(w => w.EventDate)
            .Include(w => w.Location)
-           .Include(w => w.Tracks)
+           .Include(w => w.Tracks!)
              .ThenInclude(w => w.Speakers)
            .ToList();
 

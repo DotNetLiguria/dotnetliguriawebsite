@@ -1,6 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace DotNetLiguriaCore.Model
+namespace DataMigration.Questionnaires
 {
     [BsonIgnoreExtraElements]
     public class Feedback

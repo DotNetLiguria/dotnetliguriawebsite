@@ -1,4 +1,5 @@
 using System.Text.Json;
+using DataMigration.Questionnaires;
 using DotNetLiguriaCore.Model;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -29,7 +30,7 @@ public class SerializationContractTests
     }
 
     [Fact]
-    public void NewFeedbackDocumentsKeepLegacyUuidEncodingAndLocalDateContract()
+    public void MigrationFeedbackDocumentsKeepLegacyUuidEncodingAndLocalDateContract()
     {
         var feedbackId = Guid.Parse("00112233-4455-6677-8899-aabbccddeeff");
         var utcDate = new DateTime(2024, 3, 15, 10, 0, 0, DateTimeKind.Utc);

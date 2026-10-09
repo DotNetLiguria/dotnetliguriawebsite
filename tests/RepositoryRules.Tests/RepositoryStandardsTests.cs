@@ -77,7 +77,7 @@ public class RepositoryStandardsTests
     public void InstructionAndSkillEntrypointsResolveForAllThreeHosts()
     {
         var root = FindRoot();
-        foreach (var folder in new[] { "", "src/dotnetliguriawebsite", "src/dotnetliguriaspa", "src/BlazorQuestionario", "src/BlazorQuestionarioServer", "tests" })
+        foreach (var folder in new[] { "", "src/dotnetliguriawebsite", "src/dotnetliguriaspa", "tests" })
             Assert.True(File.Exists(Path.Combine(root, folder, "AGENTS.md")), $"Missing guidance in {folder}");
         Assert.Contains("@AGENTS.md", File.ReadAllText(Path.Combine(root, "CLAUDE.md")));
         Assert.Contains("../AGENTS.md", File.ReadAllText(Path.Combine(root, ".github/copilot-instructions.md")));
@@ -122,6 +122,40 @@ public class RepositoryStandardsTests
             var project = XDocument.Load(path);
             Assert.Equal("net10.0", project.Descendants("TargetFramework").Single().Value);
             Assert.DoesNotContain(project.Descendants("PackageReference"), reference => reference.Attribute("Version")?.Value.Contains('-') == true);
+        }
+    }
+
+    [Fact]
+    public void SolutionContainsEveryRemainingProjectAndNoLegacyQuestionnaireDependencies()
+    {
+        var root = FindRoot();
+        var expected = new[]
+        {
+            "src/DotNetLiguria.AppHost/DotNetLiguria.AppHost.csproj",
+            "src/DotNetLiguria.ServiceDefaults/DotNetLiguria.ServiceDefaults.csproj",
+            "src/dotnetliguriawebsite/CommonAuth/CommonAuth.csproj",
+            "src/dotnetliguriawebsite/CommonWeb/CommonWeb.csproj",
+            "src/dotnetliguriawebsite/DataMigration/DataMigration.csproj",
+            "src/dotnetliguriawebsite/DotNetLiguriaCore.Model/DotNetLiguriaCore.Model.csproj",
+            "src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj",
+            "tests/DotNetLiguriaCore.Tests/DotNetLiguriaCore.Tests.csproj",
+            "tests/RepositoryRules.Tests/RepositoryRules.Tests.csproj",
+        };
+        var solution = XDocument.Load(Path.Combine(root, "DotNetLiguria.slnx"));
+        Assert.Equal(expected.Order(), solution.Descendants("Project").Select(project => project.Attribute("Path")!.Value).Order());
+        var projects = EnumerateFiles(root).Where(path => path.EndsWith(".csproj", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(expected.Order(), projects.Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')).Order());
+        foreach (var path in projects)
+        {
+            var project = XDocument.Load(path);
+            Assert.DoesNotContain(project.Descendants("PackageReference"), reference =>
+                reference.Attribute("Include")?.Value is { } name &&
+                (name.Contains("WebAssembly", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("SkiaSharp", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("ZXing", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("Playwright", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("ApplicationInsights", StringComparison.OrdinalIgnoreCase)
+                    || name == "Aspire.Hosting.SqlServer"));
         }
     }
 

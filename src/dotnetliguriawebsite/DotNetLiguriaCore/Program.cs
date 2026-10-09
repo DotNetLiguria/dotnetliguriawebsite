@@ -75,7 +75,6 @@ public class Program
         builder.Services.AddSingleton<CounterService>();
         builder.Services.AddSingleton<WorkshopFileService>();
         builder.Services.AddSingleton<TopMenuService>();
-        builder.Services.AddSingleton<FeedbackService>();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
         builder.Services.AddSingleton<QuestionnaireService>();

@@ -50,11 +50,12 @@ Vite produces dist only. Website publishing overlays dist into the artifact's
 wwwroot, replacing matching SPA files but never deleting historical workshop
 content. Missing dist fails explicitly; `PublishSpa=false` is for intentional
 API-only artifacts. Use fresh output destinations. The root publish gate checks
-SPA hashes, workshop samples and all four executable entrypoints without running them.
+SPA hashes, workshop samples and both website/DataMigration executable entrypoints
+without running them. Historical SQL Server/SQLite questionnaire imports are owned
+entirely by DataMigration; the running website only needs MongoDB.
 
 Build Docker from the repository root using the website Dockerfile. The .NET 10
 non-root runtime listens on HTTP 8080; supply TLS, secrets and identity-provider
 registration at the deployment boundary. Images exclude local certificates and
 environment files. Do not deploy or change real data as part of verification.
-
 

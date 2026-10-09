@@ -6,8 +6,6 @@ project-specific requirements; it does not relax the standards below.
 
 - `src/dotnetliguriawebsite`: ASP.NET Core website, authentication, models and data migration.
 - `src/dotnetliguriaspa`: React frontend served separately during development.
-- `src/BlazorQuestionario`: hosted WebAssembly questionnaire.
-- `src/BlazorQuestionarioServer`: server-side Blazor questionnaire and browser checks.
 - `tests`: isolated unit tests and repository standards checks.
 
 ## Required Standards
@@ -27,8 +25,8 @@ project-specific requirements; it does not relax the standards below.
 - Unit tests must not require MongoDB, SQL Server, Keycloak, browsers or external network calls.
 - Fake time and collaborators; do not use sleeps or wall-clock delays in unit tests.
 - Keep browser and database checks separate from the timed unit-test gate.
-- Build all affected projects, not only the website solution. Validate Linux and Windows
-  compatibility for native QR/image dependencies.
+- Build all affected projects using the root solution. Validate Linux and Windows
+  compatibility for the website and migration tool.
 - After any frontend change, rebuild the React app and publish the website using its
   project path. For local Aspire, also overlay the generated `dist` files into the
   backend's served `wwwroot` without deleting historical assets. Verify that
@@ -38,8 +36,8 @@ project-specific requirements; it does not relax the standards below.
   documentation or instructions alone enforce a rule.
 
 ## Toolchains and Workflows
-Use the root `DotNetLiguria.slnx` for all .NET projects; keep test execution scoped
-so browser checks remain opt-in. Publish applications using their project paths.
+Use the root `DotNetLiguria.slnx` for all .NET projects. Keep live browser/database
+checks opt-in. Publish applications using their project paths.
 Use the checked-in SDK and Node pins, lockfiles and verification scripts when present.
 Resolve upgrades from official release metadata; do not use forced peer resolution or previews.
 Repository skills under `.agents/skills` describe modernization and fast verification.

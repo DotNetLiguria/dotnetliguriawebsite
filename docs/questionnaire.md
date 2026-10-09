@@ -7,6 +7,10 @@ imaging libraries and no extra deployable.
 
 ## A. Legacy inventory
 
+**Historical reference only:** both Blazor applications and their test projects have
+been removed. The paths and behavior below describe the former implementation, not
+projects or endpoints that still exist. Historical import remains in DataMigration.
+
 Three independent implementations existed. None of them had a designer, an admin results view or
 authentication; every questionnaire was a hard-coded "event feedback" form.
 
@@ -270,17 +274,27 @@ dotnet run -c Release -- questionnaires --apply  # historical questionnaires + S
 is safe: existing documents are skipped, and the board and top menu are seeded only when their
 collections are empty.
 
-### B.9 Removal plan (after the migration is verified)
+### B.9 Removal completed
 
-1. Delete `src/BlazorQuestionario`, `src/BlazorQuestionarioServer` (including browser tests),
-   `tests/Questionnaire.Tests`, `tests/ServerQuestionnaire.Tests`.
-2. Update `DotNetLiguria.slnx`, AppHost resources (SQL Server container, SQLite, two projects),
-   `scripts/verify.ps1`, `scripts/verify-publish.ps1`, `scripts/timing-budgets.json`, CI, docs and
-   AGENTS.md/skill scope lists.
-3. Remove the legacy `GetFeedBack`, `SubmitFeedback`, `GetWorkshopsWithFeedback`,
-   `GetFeedbackStatistics` endpoints, `FeedbackService`, `FeedbackStatisticsCalculator` and the
-   `Feedback` collection setting once migrated data has been checked. `Workshop.FeedbackEnabled`
-   stays for contract compatibility.
+Both Blazor source trees, their Shared projects, unit/browser tests and generated
+outputs are removed. The nine-project root solution contains only the website,
+website libraries, DataMigration, Aspire and the two remaining unit-test projects.
+Aspire starts only the website, React SPA and MongoDB; it no longer provisions SQL
+Server, SQLite, questionnaire services or circuit telemetry. Native imaging and
+legacy browser-test dependencies are gone, including their CI and verification hooks.
+
+The obsolete workshop feedback endpoints (`GetFeedBack`, `SubmitFeedback`,
+`GetWorkshopFeedbackSummary`, `GetWorkshopsWithFeedback`, `GetFeedbackStatistics`),
+their services and DTOs are removed. `/feedback/:workshopId` remains a public React
+questionnaire alias; `/admin/feedbacks` redirects to `/admin/questionnaires`.
+`Workshop.FeedbackEnabled` stays for persisted/public contract compatibility.
+
+All historical SQL Server, SQLite and Mongo Feedback import logic is self-contained
+in `DataMigration/Questionnaires`, including the former Feedback BSON model and its
+collection setting. SQL/SQLite packages are needed only by that manual tool, not
+the website or AppHost. Its offline mapping/serialization tests remain in the backend
+unit suite. No legacy applications are required to import historical answers.
+Existing database volumes and local database files are not deleted by source cleanup.
 
 ### B.10 Open points
 

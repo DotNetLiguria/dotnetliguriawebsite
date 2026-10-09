@@ -8,8 +8,6 @@ $root = Split-Path $PSScriptRoot -Parent
 $output = Join-Path $root '.artifacts/publish'
 $projects = [ordered]@{
     website = 'src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj'
-    hostedQuestionnaire = 'src/BlazorQuestionario/Server/BlazorAppTest.Server.csproj'
-    serverQuestionnaire = 'src/BlazorQuestionarioServer/BlazorQuestionarioServer/BlazorQuestionarioServer.csproj'
     dataMigration = 'src/dotnetliguriawebsite/DataMigration/DataMigration.csproj'
 }
 
@@ -41,9 +39,6 @@ try {
             throw "Historical asset changed: $workshop"
         }
     }
-    if (!(Test-Path (Join-Path $output 'hostedQuestionnaire/wwwroot/_framework/blazor.webassembly.js'))) {
-        throw 'Hosted questionnaire client assets were not published'
-    }
-    Write-Host "Four executables published; $($assets.Count) SPA files match; historical assets and hosted client verified. No applications were executed."
+    Write-Host "Website and DataMigration published; $($assets.Count) SPA files match; historical assets verified. No applications were executed."
 }
 finally { Pop-Location }

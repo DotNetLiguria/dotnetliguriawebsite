@@ -19,8 +19,7 @@ public static class ServiceDefaultsExtensions
         services.AddHealthChecks().AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
         services.AddOpenTelemetry()
             .WithMetrics(metrics => metrics.AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation().AddRuntimeInstrumentation()
-                .AddMeter("DotNetLiguria.Questionnaire"))
+                .AddHttpClientInstrumentation().AddRuntimeInstrumentation())
             .WithTracing(tracing => tracing.AddAspNetCoreInstrumentation(options =>
                 options.Filter = context => !context.Request.Path.StartsWithSegments("/health")
                     && !context.Request.Path.StartsWithSegments("/alive"))

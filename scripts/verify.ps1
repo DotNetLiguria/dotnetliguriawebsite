@@ -3,7 +3,6 @@
 param(
     [switch]$NoBuild,
     [switch]$NoFrontendChecks,
-    [switch]$Native,
     [switch]$Measure,
     [ValidateRange(1, 10)][int]$Runs = 1
 )
@@ -57,8 +56,6 @@ function Invoke-CheckedProcess {
 $projects = [ordered]@{
     repository = 'tests/RepositoryRules.Tests/RepositoryRules.Tests.csproj'
     backend = 'tests/DotNetLiguriaCore.Tests/DotNetLiguriaCore.Tests.csproj'
-    hostedQuestionnaire = 'tests/Questionnaire.Tests/Questionnaire.Tests.csproj'
-    serverQuestionnaire = 'tests/ServerQuestionnaire.Tests/ServerQuestionnaire.Tests.csproj'
 }
 
 if (!$NoBuild) {
@@ -88,7 +85,7 @@ for ($run = $first; $run -le $Runs; $run++) {
         Remove-Item $report -ErrorAction SilentlyContinue
         $limit = if ($Measure) { 120 } else { [int]$budgets.suites[$suite].ceilingSeconds }
         $elapsed = Invoke-CheckedProcess $dotnet @('test', $projects[$suite], '-c', 'Release', '--no-build', '--no-restore', '--nologo',
-            '--filter', 'Category!=Native&Category!=Browser', '--logger', "trx;LogFileName=$suite-$run.trx", '--results-directory', $results) $root $limit
+            '--logger', "trx;LogFileName=$suite-$run.trx", '--results-directory', $results) $root $limit
         [xml]$trxReport = Get-Content $report -Raw
         $counters = $trxReport.SelectSingleNode("/*[local-name()='TestRun']/*[local-name()='ResultSummary']/*[local-name()='Counters']")
         if (!$counters -or [int]$counters.total -eq 0 -or [int]$counters.passed -ne [int]$counters.total -or
@@ -109,16 +106,4 @@ for ($run = $first; $run -le $Runs; $run++) {
 }
 $records | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $results 'timings.json') -Encoding utf8
 
-if ($Native) {
-    Write-Host 'Separate native QR checks'
-    $report = Join-Path $results 'native.trx'
-    Remove-Item $report -ErrorAction SilentlyContinue
-    Invoke-CheckedProcess $dotnet @('test', $projects.hostedQuestionnaire, '-c', 'Release', '--no-build', '--no-restore', '--nologo',
-        '--filter', 'Category=Native', '--logger', 'trx;LogFileName=native.trx', '--results-directory', $results) $root 120 | Out-Null
-    [xml]$nativeReport = Get-Content $report -Raw
-    $counters = $nativeReport.SelectSingleNode("/*[local-name()='TestRun']/*[local-name()='ResultSummary']/*[local-name()='Counters']")
-    if (!$counters -or [int]$counters.total -lt 2 -or [int]$counters.passed -ne [int]$counters.total -or
-        [int]$counters.executed -ne [int]$counters.total) { throw 'Both native QR checks must pass without skips' }
-    Write-Host "Native QR: $($counters.passed) passed."
-}
 Write-Host 'Verification passed.'
