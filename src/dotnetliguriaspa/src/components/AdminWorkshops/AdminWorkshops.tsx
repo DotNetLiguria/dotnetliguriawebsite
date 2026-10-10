@@ -45,12 +45,22 @@ const AdminWorkshops: FC<AdminWorkshopsProps> = () => {
             renderCell: (params) => (
                 <Box
                     sx={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        backgroundColor: params.value ? '#4caf50' : '#f44336',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
                     }}
-                />
+                >
+                    <Box
+                        sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            backgroundColor: params.value ? '#4caf50' : '#f44336',
+                        }}
+                    />
+                </Box>
             )
         },
         {
@@ -61,12 +71,22 @@ const AdminWorkshops: FC<AdminWorkshopsProps> = () => {
             renderCell: (params) => (
                 <Box
                     sx={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: '50%',
-                        backgroundColor: params.value ? '#4caf50' : '#f44336',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '100%',
+                        height: '100%',
                     }}
-                />
+                >
+                    <Box
+                        sx={{
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            backgroundColor: params.value ? '#4caf50' : '#f44336',
+                        }}
+                    />
+                </Box>
             )
         },
         {
@@ -154,4 +174,3 @@ const AdminWorkshops: FC<AdminWorkshopsProps> = () => {
 };
 
 export default AdminWorkshops;
-

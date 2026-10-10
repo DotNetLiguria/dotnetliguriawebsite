@@ -9,6 +9,7 @@ import AdminHome from './components/AdminHome/AdminHome';
 import AdminProfile from './components/AdminProfile/AdminProfile';
 
 import AdminEvents from './components/AdminEvents/AdminEvents';
+import AdminVenues from './components/AdminVenues/AdminVenues';
 import AdminLayout from "./components/AdminLayout/AdminLayout";
 import HomePage from "./components/HomePage/HomePage";
 import Workshops from "./components/Workshops/Workshops";
@@ -62,6 +63,7 @@ function App() {
                             <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
                             <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
                             <Route path='/admin/events/' element={<AdminEvents pageName={"Events"} />} />
+                            <Route path='/admin/venues/' element={<AdminVenues />} />
                             <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
                             <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
                             <Route path='/admin/questionnaires/:id/edit' element={page(<QuestionnaireDesigner />)} />

@@ -2,6 +2,40 @@ import { TrackModel } from "./TrackModel";
 import { LocationModel } from "./LocationModel";
 import { WorkshopFileModel } from "./WorkshopFileModel";
 
+export interface WorkshopTalkSpeakerModel {
+  workshopSpeakerId?: string;
+  sessionizeId?: string;
+  name: string;
+  imageUrl?: string;
+  biography?: string;
+}
+
+export interface WorkshopTalkModel {
+  workshopTalkId: string;
+  sessionizeId?: string;
+  title: string;
+  abstract?: string;
+  sessionType: string;
+  speakers: WorkshopTalkSpeakerModel[];
+}
+
+export interface WorkshopAgendaTrackModel {
+  workshopAgendaTrackId: string;
+  name: string;
+  order: number;
+}
+
+export interface WorkshopAgendaItemModel {
+  workshopAgendaItemId: string;
+  itemType: "talk" | "break" | "service";
+  talkId?: string | null;
+  trackId?: string | null;
+  title?: string;
+  roomName?: string;
+  startTime: Date | string;
+  endTime: Date | string;
+}
+
 export interface WorkshopModel {
   workshopId: string;
   title: string;
@@ -19,6 +53,11 @@ export interface WorkshopModel {
   onlyHtml: boolean;
   location: LocationModel;
   tracks: TrackModel[];
+  talks?: WorkshopTalkModel[];
+  agendaTracks?: WorkshopAgendaTrackModel[];
+  agendaItems?: WorkshopAgendaItemModel[];
+  attendeeNotes?: string;
+  bookingServiceUrl?: string;
   oldUrl: string;
   slug: string;
   materials: WorkshopFileModel[];

@@ -9,6 +9,7 @@ namespace DotNetLiguriaCore.Model
         public Guid WorkshopSpeakerId { get; set; }
         public string? Name { get; set; }
         public string? ProfileImageUrl { get; set; }
+        public string? SessionizeId { get; set; }
         public bool IsActive { get; set; }
         public string? Description { get; set; }
         public string? Email { get; set; }

@@ -1,5 +1,5 @@
-import React, { FC, useEffect, useState } from 'react';
-import { Box, Typography, Paper, Grid, TextField, IconButton, Button, Snackbar, Alert, CircularProgress, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Switch, FormControlLabel, Fab, Accordion, AccordionSummary, AccordionDetails } from "@mui/material";
+import React, { FC, useEffect, useRef, useState } from 'react';
+import { Box, Typography, Paper, Grid, TextField, IconButton, Button, Snackbar, Alert, CircularProgress, Card, CardContent, Dialog, DialogTitle, DialogContent, DialogActions, Autocomplete, Switch, FormControlLabel, Fab, Accordion, AccordionSummary, AccordionDetails, Step, StepLabel, Stepper, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { useParams, useNavigate } from 'react-router-dom';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { QRCodeSVG } from 'qrcode.react';
@@ -8,6 +8,8 @@ import { WorkshopModel } from '../../models/WorkshopModel';
 import { TrackModel } from '../../models/TrackModel';
 import { SpeakerModel } from '../../models/SpeakerModel';
 import { WorkshopFileModel } from '../../models/WorkshopFileModel';
+import { VenueModel } from '../../models/VenueModel';
+import { copyVenueLocation } from '../../utility/venueLocation';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
@@ -17,9 +19,42 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import WorkshopQuestionnaires from '../AdminQuestionnaires/WorkshopQuestionnaires';
+import AdminWorkshopAgenda from '../AdminWorkshopAgenda/AdminWorkshopAgenda';
+import { buildWorkshopUpdate } from './workshopUpdate';
 
 interface AdminWorkshopDetailProps {
 	pageName?: string;
+}
+
+const workshopSteps = [
+	'Publication',
+	'Workshop image',
+	'Workshop information',
+	'Location',
+	'Tracks',
+	'Registration details',
+	'Talk pool',
+	'Agenda tracks and schedule',
+	'Materials',
+	'Photos',
+];
+
+async function getResponseErrorMessage(response: Response, fallback: string): Promise<string> {
+	const contentType = response.headers.get('Content-Type')?.toLowerCase() ?? '';
+	if (contentType.includes('json')) {
+		const responseText = await response.text();
+		try {
+			const problem: unknown = JSON.parse(responseText);
+			if (typeof problem === 'object' && problem !== null) {
+				if ('detail' in problem && typeof problem.detail === 'string') return problem.detail;
+				if ('message' in problem && typeof problem.message === 'string') return problem.message;
+				if ('title' in problem && typeof problem.title === 'string') return problem.title;
+			}
+		} catch {
+			return `${fallback} (HTTP ${response.status})`;
+		}
+	}
+	return `${fallback} (HTTP ${response.status})`;
 }
 
 const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
@@ -32,16 +67,21 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 	const [inHomepage, setInHomepage] = useState<boolean>(false);
 	const [feedbackEnabled, setFeedbackEnabled] = useState<boolean>(false);
 	const [locationName, setLocationName] = useState<string>('');
-	const [latitude, setLatitude] = useState<string>('');
-	const [longitude, setLongitude] = useState<string>('');
+	const [coordinates, setCoordinates] = useState<string>('');
 	const [address, setAddress] = useState<string>('');
+	const [googleMapsUrl, setGoogleMapsUrl] = useState<string>('');
 	const [maximumSpaces, setMaximumSpaces] = useState<string>('');
+	const [venues, setVenues] = useState<VenueModel[]>([]);
+	const [selectedVenueId, setSelectedVenueId] = useState('');
 	const [title, setTitle] = useState<string>('');
 	const [eventDate, setEventDate] = useState<string>('');
 	const [description, setDescription] = useState<string>('');
 	const [snackbarOpen, setSnackbarOpen] = useState(false);
 	const [snackbarMessage, setSnackbarMessage] = useState('');
 	const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
+	const [activeStep, setActiveStep] = useState(0);
+	const [savingWorkshop, setSavingWorkshop] = useState(false);
+	const dirtyWorkshopFields = useRef(new Set<string>());
 
 	// Track form states
 	const [trackDialogOpen, setTrackDialogOpen] = useState(false);
@@ -80,6 +120,26 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 		};
 
 		loadSpeakers();
+	}, [fetch]);
+
+	useEffect(() => {
+		const loadVenues = async () => {
+			try {
+				const response = await fetch(`${API_BASE_URL}/Venue`);
+				if (!response.ok) {
+					throw new Error(`Failed to load venues (HTTP ${response.status})`);
+				}
+				const data: VenueModel[] = await response.json();
+				setVenues(data);
+			} catch (error) {
+				console.error('Error loading venues:', error);
+				setSnackbarMessage(error instanceof Error ? error.message : 'Error loading venues');
+				setSnackbarSeverity('error');
+				setSnackbarOpen(true);
+			}
+		};
+
+		void loadVenues();
 	}, [fetch]);
 
 	useEffect(() => {
@@ -144,8 +204,11 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 			setLoading(true);
 			try {
 				const response = await fetch(`${API_BASE_URL}/Workshop/Get/${id}`);
+				if (!response.ok) {
+					throw new Error(`Failed to load workshop (HTTP ${response.status})`);
+				}
 				const data: WorkshopModel = await response.json();
-				setWorkshop(data);
+				setWorkshop({ ...data, workshopId: data.workshopId || id });
 				// Populate publication fields
 				setPublished(data.published || false);
 				setInHomepage((data as WorkshopModel & { in_homepage?: boolean }).in_homepage || false);
@@ -158,14 +221,9 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				if (data.location) {
 					setLocationName(data.location.name || '');
 					setAddress(data.location.address || '');
+					setCoordinates(data.location.coordinates || '');
+					setGoogleMapsUrl(data.location.googleMapsUrl || '');
 					setMaximumSpaces(data.location.maximumSpaces?.toString() || '');
-
-					// Parse coordinates (format: "latitude,longitude")
-					if (data.location.coordinates) {
-						const [lat, long] = data.location.coordinates.split(',');
-						setLatitude(lat?.trim() || '');
-						setLongitude(long?.trim() || '');
-					}
 				}
 			} catch (error) {
 				console.error('Error loading workshop:', error);
@@ -180,112 +238,76 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 		loadWorkshop();
 	}, [id, fetch]);
 
-	const handleSaveLocation = async () => {
-		if (!workshop) return;
-
-		try {
-			const coordinates = `${latitude},${longitude}`;
-			const updatedWorkshop = {
-				...workshop,
-				location: {
-					name: locationName,
-					coordinates: coordinates,
-					address: address,
-					maximumSpaces: parseInt(maximumSpaces) || 0,
-				},
-			};
-
-			const response = await fetch(`${API_BASE_URL}/Workshop/Update/${workshop.workshopId}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(updatedWorkshop),
-			});
-
-			if (response.ok) {
-				setWorkshop(updatedWorkshop);
-				setSnackbarMessage('Location updated successfully');
-				setSnackbarSeverity('success');
-				setSnackbarOpen(true);
-			} else {
-				throw new Error('Failed to update location');
-			}
-		} catch (error) {
-			console.error('Error updating location:', error);
-			setSnackbarMessage('Error updating location');
-			setSnackbarSeverity('error');
-			setSnackbarOpen(true);
+	const syncWorkshopForm = (currentWorkshop: WorkshopModel) => {
+		const dirtyFields = dirtyWorkshopFields.current;
+		if (!dirtyFields.has('published')) setPublished(Boolean(currentWorkshop.published));
+		if (!dirtyFields.has('inHomepage')) setInHomepage(Boolean(currentWorkshop.in_homepage));
+		if (!dirtyFields.has('feedbackEnabled')) {
+			setFeedbackEnabled((currentWorkshop as WorkshopModel & { feedbackEnabled?: boolean }).feedbackEnabled ?? false);
 		}
+		if (!dirtyFields.has('title')) setTitle(currentWorkshop.title ?? '');
+		if (!dirtyFields.has('eventDate')) {
+			setEventDate(currentWorkshop.eventDate ? new Date(currentWorkshop.eventDate).toISOString().slice(0, 10) : '');
+		}
+		if (!dirtyFields.has('description')) setDescription(currentWorkshop.description ?? '');
+		if (!dirtyFields.has('locationName')) setLocationName(currentWorkshop.location?.name ?? '');
+		if (!dirtyFields.has('coordinates')) setCoordinates(currentWorkshop.location?.coordinates ?? '');
+		if (!dirtyFields.has('address')) setAddress(currentWorkshop.location?.address ?? '');
+		if (!dirtyFields.has('googleMapsUrl')) setGoogleMapsUrl(currentWorkshop.location?.googleMapsUrl ?? '');
+		if (!dirtyFields.has('maximumSpaces')) setMaximumSpaces(currentWorkshop.location?.maximumSpaces?.toString() ?? '');
 	};
 
-	const handleSavePublication = async () => {
-		if (!workshop) return;
-
-		try {
-			const updatedWorkshop = {
-				...workshop,
-				published: published,
-				in_homepage: inHomepage,
-				feedbackEnabled: feedbackEnabled,
-			};
-
-			const response = await fetch(`${API_BASE_URL}/Workshop/Update/${workshop.workshopId}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(updatedWorkshop),
-			});
-
-			if (response.ok) {
-				setWorkshop(updatedWorkshop as WorkshopModel);
-				setSnackbarMessage('Publication settings updated successfully');
-				setSnackbarSeverity('success');
-				setSnackbarOpen(true);
-			} else {
-				throw new Error('Failed to update publication settings');
-			}
-		} catch (error) {
-			console.error('Error updating publication settings:', error);
-			setSnackbarMessage('Error updating publication settings');
-			setSnackbarSeverity('error');
-			setSnackbarOpen(true);
-		}
+	const handleRelatedWorkshopSaved = (updatedWorkshop: WorkshopModel) => {
+		const normalizedWorkshop = { ...updatedWorkshop, workshopId: updatedWorkshop.workshopId || id || '' };
+		setWorkshop(normalizedWorkshop);
+		syncWorkshopForm(normalizedWorkshop);
 	};
 
-	const handleSaveDescription = async () => {
-		if (!workshop) return;
-
+	const handleSaveWorkshop = async () => {
+		if (!workshop || !id) return;
+		setSavingWorkshop(true);
 		try {
-			const updatedWorkshop: WorkshopModel = {
-				...workshop,
-				title: title,
-				eventDate: eventDate ? new Date(eventDate) : workshop.eventDate,
-				description: description,
-			};
-
-			const response = await fetch(`${API_BASE_URL}/Workshop/Update/${workshop.workshopId}`, {
+			const dirtyFields = dirtyWorkshopFields.current;
+			const currentFeedbackEnabled = (workshop as WorkshopModel & { feedbackEnabled?: boolean }).feedbackEnabled ?? false;
+			const updatedWorkshop = buildWorkshopUpdate(workshop, {
+				published: dirtyFields.has('published') ? published : Boolean(workshop.published),
+				inHomepage: dirtyFields.has('inHomepage') ? inHomepage : Boolean(workshop.in_homepage),
+				feedbackEnabled: dirtyFields.has('feedbackEnabled') ? feedbackEnabled : currentFeedbackEnabled,
+				title: dirtyFields.has('title') ? title : workshop.title ?? '',
+				description: dirtyFields.has('description') ? description : workshop.description ?? '',
+				eventDate: dirtyFields.has('eventDate')
+					? eventDate
+					: workshop.eventDate ? new Date(workshop.eventDate).toISOString().slice(0, 10) : '',
+				locationName: dirtyFields.has('locationName') ? locationName : workshop.location?.name ?? '',
+				coordinates: dirtyFields.has('coordinates') ? coordinates : workshop.location?.coordinates ?? '',
+				address: dirtyFields.has('address') ? address : workshop.location?.address ?? '',
+				googleMapsUrl: dirtyFields.has('googleMapsUrl') ? googleMapsUrl : workshop.location?.googleMapsUrl ?? '',
+				maximumSpaces: dirtyFields.has('maximumSpaces')
+					? maximumSpaces
+					: workshop.location?.maximumSpaces?.toString() ?? '',
+			});
+			const response = await fetch(`${API_BASE_URL}/Workshop/Update/${id}`, {
 				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-				},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(updatedWorkshop),
 			});
 
-			if (response.ok) {
-				setWorkshop(updatedWorkshop);
-				setSnackbarMessage('Info updated successfully');
-				setSnackbarSeverity('success');
-				setSnackbarOpen(true);
-			} else {
-				throw new Error('Failed to update info');
+			if (!response.ok) {
+				throw new Error(await getResponseErrorMessage(response, 'Could not save workshop'));
 			}
+
+			dirtyFields.clear();
+			handleRelatedWorkshopSaved(updatedWorkshop);
+			setSnackbarMessage('Workshop updated successfully');
+			setSnackbarSeverity('success');
+			setSnackbarOpen(true);
 		} catch (error) {
-			console.error('Error updating info:', error);
-			setSnackbarMessage('Error updating info');
+			console.error('Error updating workshop:', error);
+			setSnackbarMessage(error instanceof Error ? error.message : 'Error updating workshop');
 			setSnackbarSeverity('error');
 			setSnackbarOpen(true);
+		} finally {
+			setSavingWorkshop(false);
 		}
 	};
 
@@ -366,7 +388,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				const workshopResponse = await fetch(`${API_BASE_URL}/Workshop/Get/${workshop.workshopId}`);
 				if (workshopResponse.ok) {
 					const updatedWorkshop: WorkshopModel = await workshopResponse.json();
-					setWorkshop(updatedWorkshop);
+					handleRelatedWorkshopSaved(updatedWorkshop);
 					// Aggiorna il timestamp per forzare il reload dell'immagine
 					setImageTimestamp(Date.now());
 				}
@@ -483,7 +505,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 					startTime: t.startTime,
 					startTimeType: typeof t.startTime
 				})));
-				setWorkshop(updatedWorkshopFromServer);
+				handleRelatedWorkshopSaved(updatedWorkshopFromServer);
 				setSnackbarMessage('Track updated successfully');
 			} else {
 				// Create new track - add to workshop and update entire workshop
@@ -519,7 +541,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				// Reload workshop data to get updated tracks
 				const workshopResponse = await fetch(`${API_BASE_URL}/Workshop/Get/${workshop.workshopId}`);
 				const updatedWorkshopFromServer: WorkshopModel = await workshopResponse.json();
-				setWorkshop(updatedWorkshopFromServer);
+				handleRelatedWorkshopSaved(updatedWorkshopFromServer);
 				setSnackbarMessage('Track added successfully');
 			}
 
@@ -564,60 +586,16 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 			</Box>
 
             <Paper elevation={2} sx={{ p: 2, maxWidth: 800, mb: 3, position: 'sticky', top: 10, zIndex: 100, backgroundColor: '#fff' }}>
-				<Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('publication-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Publication
-					</Button>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('image-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Workshop Image
-					</Button>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('description-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Info
-					</Button>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('location-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Location
-					</Button>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('tracks-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Tracks
-					</Button>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('materials-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Materials
-					</Button>
-					<Button
-						size="small"
-						variant="outlined"
-						onClick={() => document.getElementById('photos-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-					>
-						Photos
-					</Button>
-				</Box>
+				<Stepper activeStep={activeStep} alternativeLabel>
+					{workshopSteps.map((step) => (
+						<Step key={step}>
+							<StepLabel>{step}</StepLabel>
+						</Step>
+					))}
+				</Stepper>
 			</Paper>
 
-            <Paper id="publication-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
+            <Paper id="publication-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3, display: activeStep === 0 ? 'block' : 'none' }}>
 				<Grid container spacing={3} sx={{ mb: 2 }}>
 					<Grid
                         size={{
@@ -649,7 +627,10 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								control={
 									<Switch
 										checked={published}
-										onChange={(e) => setPublished(e.target.checked)}
+										onChange={(e) => {
+											dirtyWorkshopFields.current.add('published');
+											setPublished(e.target.checked);
+										}}
 										color="primary"
 									/>
 								}
@@ -660,7 +641,10 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								control={
 									<Switch
 										checked={inHomepage}
-										onChange={(e) => setInHomepage(e.target.checked)}
+										onChange={(e) => {
+											dirtyWorkshopFields.current.add('inHomepage');
+											setInHomepage(e.target.checked);
+										}}
 										color="primary"
 									/>
 								}
@@ -671,27 +655,16 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 								control={
 									<Switch
 										checked={feedbackEnabled}
-										onChange={(e) => setFeedbackEnabled(e.target.checked)}
+										onChange={(e) => {
+											dirtyWorkshopFields.current.add('feedbackEnabled');
+											setFeedbackEnabled(e.target.checked);
+										}}
 										color="primary"
 									/>
 								}
 								label="Feedback Enabled"
 								sx={{ display: 'block', mb: 3 }}
 							/>
-							<Button
-								variant="contained"
-								startIcon={<SaveIcon sx={{ color: '#fff' }} />}
-								onClick={handleSavePublication}
-								sx={{
-									backgroundColor: '#4caf50',
-									color: '#fff',
-									'&:hover': {
-										backgroundColor: '#45a049',
-									},
-								}}
-							>
-								Save
-							</Button>
 						</Box>
 					</Grid>
 					<Grid
@@ -701,20 +674,20 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
                         }}>
 						<Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 							<QRCodeSVG
-								value={`${window.location.origin}/feedback/${workshop.workshopId}`}
+								value={`${window.location.origin}/feedback/${id}`}
 								size={150}
 								level="H"
 							/>
 							<Typography variant="caption" color="text.secondary" sx={{ mt: 2, textAlign: 'center', wordBreak: 'break-all' }}>
-								{`${window.location.origin}/feedback/${workshop.workshopId}`}
+								{`${window.location.origin}/feedback/${id}`}
 							</Typography>
-							<WorkshopQuestionnaires workshopId={workshop.workshopId} />
+							{ id && <WorkshopQuestionnaires workshopId={id} /> }
 						</Box>
 					</Grid>
 				</Grid>
 			</Paper>
 
-            <Paper id="image-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
+            <Paper id="image-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3, display: activeStep === 1 ? 'block' : 'none' }}>
 				<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 					Workshop Image
 				</Typography>
@@ -772,7 +745,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				</Grid>
 			</Paper>
 
-            <Paper id="description-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3 }}>
+            <Paper id="description-section" elevation={3} sx={{ p: 3, maxWidth: 800, mb: 3, display: activeStep === 2 ? 'block' : 'none' }}>
 				<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 					Info
 				</Typography>
@@ -784,7 +757,10 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 						<TextField
 							fullWidth
 							value={title}
-							onChange={(e) => setTitle(e.target.value)}
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('title');
+								setTitle(e.target.value);
+							}}
 							placeholder="Workshop title"
 						/>
 					</Grid>
@@ -796,7 +772,10 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							fullWidth
 							type="date"
 							value={eventDate}
-							onChange={(e) => setEventDate(e.target.value)}
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('eventDate');
+								setEventDate(e.target.value);
+							}}
 							slotProps={{
                                 inputLabel: {
                                     shrink: true,
@@ -813,122 +792,120 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 							multiline
 							rows={6}
 							value={description}
-							onChange={(e) => setDescription(e.target.value)}
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('description');
+								setDescription(e.target.value);
+							}}
 							placeholder="Enter workshop description"
 						/>
-					</Grid>
-					<Grid size={12}>
-						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-							<Button
-								variant="contained"
-								startIcon={<SaveIcon sx={{ color: '#fff' }} />}
-								onClick={handleSaveDescription}
-								sx={{
-									backgroundColor: '#4caf50',
-									color: '#fff',
-									'&:hover': {
-										backgroundColor: '#45a049',
-									},
-								}}
-							>
-								Save
-							</Button>
-						</Box>
 					</Grid>
 				</Grid>
 			</Paper>
 
-            <Paper id="location-section" elevation={3} sx={{ p: 3, maxWidth: 800 }}>
+            <Paper id="location-section" elevation={3} sx={{ p: 3, maxWidth: 800, display: activeStep === 3 ? 'block' : 'none' }}>
 				<Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
 					Location Information
 				</Typography>
 				<Grid container spacing={2}>
 					<Grid size={12}>
-						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
-							Name
-						</Typography>
+						<FormControl fullWidth>
+							<InputLabel id="workshop-detail-venue-label">Copy from venue</InputLabel>
+							<Select
+								labelId="workshop-detail-venue-label"
+								label="Copy from venue"
+								value={selectedVenueId}
+								onChange={(event) => {
+									const venue = venues.find((item) => item.venueId === event.target.value);
+									if (!venue) return;
+									setSelectedVenueId(venue.venueId);
+									const venueLocation = copyVenueLocation(venue);
+									setLocationName(venueLocation.name);
+									setAddress(venueLocation.address);
+									setCoordinates(venueLocation.coordinates);
+									setGoogleMapsUrl(venueLocation.googleMapsUrl ?? '');
+									setMaximumSpaces(venueLocation.maximumSpaces.toString());
+									['locationName', 'address', 'coordinates', 'googleMapsUrl', 'maximumSpaces']
+										.forEach((field) => dirtyWorkshopFields.current.add(field));
+								}}
+								disabled={venues.length === 0}
+							>
+								{venues.map((venue) => (
+									<MenuItem key={venue.venueId} value={venue.venueId}>{venue.name}</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+						{venues.length === 0 && (
+							<Typography variant="caption" color="text.secondary">
+								No venues are available to copy.
+							</Typography>
+						)}
+					</Grid>
+					<Grid size={12}>
 						<TextField
 							fullWidth
+							label="Name"
 							value={locationName}
-							onChange={(e) => setLocationName(e.target.value)}
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('locationName');
+								setLocationName(e.target.value);
+							}}
 							placeholder="Location name"
-						/>
-					</Grid>
-					<Grid
-                        size={{
-                            xs: 12,
-                            md: 6
-                        }}>
-						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
-							Latitude
-						</Typography>
-						<TextField
-							fullWidth
-							value={latitude}
-							onChange={(e) => setLatitude(e.target.value)}
-							placeholder="Latitude"
-						/>
-					</Grid>
-					<Grid
-                        size={{
-                            xs: 12,
-                            md: 6
-                        }}>
-						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
-							Longitude
-						</Typography>
-						<TextField
-							fullWidth
-							value={longitude}
-							onChange={(e) => setLongitude(e.target.value)}
-							placeholder="Longitude"
+							required
 						/>
 					</Grid>
 					<Grid size={12}>
-						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
-							Address
-						</Typography>
 						<TextField
 							fullWidth
+							label="Coordinates"
+							placeholder="Latitude, longitude"
+							value={coordinates}
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('coordinates');
+								setCoordinates(e.target.value);
+							}}
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Address"
 							value={address}
-							onChange={(e) => setAddress(e.target.value)}
-							placeholder="Address"
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('address');
+								setAddress(e.target.value);
+							}}
+							required
 						/>
 					</Grid>
 					<Grid size={12}>
-						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
-							Maximum Spaces
-						</Typography>
 						<TextField
 							fullWidth
+							label="Google Maps URL"
+							type="url"
+							placeholder="https://maps.google.com/..."
+							value={googleMapsUrl}
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('googleMapsUrl');
+								setGoogleMapsUrl(e.target.value);
+							}}
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Maximum spaces"
 							type="number"
 							value={maximumSpaces}
-							onChange={(e) => setMaximumSpaces(e.target.value)}
-							placeholder="Maximum Spaces"
+							onChange={(e) => {
+								dirtyWorkshopFields.current.add('maximumSpaces');
+								setMaximumSpaces(e.target.value);
+							}}
 						/>
-					</Grid>
-					<Grid size={12}>
-						<Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-							<Button
-								variant="contained"
-								startIcon={<SaveIcon sx={{ color: '#fff' }} />}
-								onClick={handleSaveLocation}
-								sx={{
-									backgroundColor: '#4caf50',
-									color: '#fff',
-									'&:hover': {
-										backgroundColor: '#45a049',
-									},
-								}}
-							>
-								Save
-							</Button>
-						</Box>
 					</Grid>
 				</Grid>
 			</Paper>
 
-            <Paper id="tracks-section" elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }}>
+            <Paper id="tracks-section" elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3, display: activeStep === 4 ? 'block' : 'none' }}>
 				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 					<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 						Tracks
@@ -1073,7 +1050,17 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				)}
 			</Paper>
 
-            <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }} id="materials-section">
+			{workshop && (
+				<Box sx={{ display: activeStep >= 5 && activeStep <= 7 ? 'block' : 'none' }}>
+				<AdminWorkshopAgenda
+					workshop={workshop}
+					onSaved={handleRelatedWorkshopSaved}
+					activePage={activeStep === 5 ? 'registration' : activeStep === 6 ? 'talks' : 'schedule'}
+				/>
+				</Box>
+			)}
+
+            <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3, display: activeStep === 8 ? 'block' : 'none' }} id="materials-section">
 				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 					<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 						Materials
@@ -1130,7 +1117,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				)}
 			</Paper>
 
-            <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3 }} id="photos-section">
+            <Paper elevation={3} sx={{ p: 3, maxWidth: 800, mt: 3, display: activeStep === 9 ? 'block' : 'none' }} id="photos-section">
 				<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
 					<Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600 }}>
 						Photos
@@ -1208,6 +1195,30 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 					</Box>
 				)}
 			</Paper>
+
+			<Box sx={{ display: 'flex', justifyContent: 'space-between', maxWidth: 800, mb: 3 }}>
+				<Button
+					variant="outlined"
+					disabled={activeStep === 0 || savingWorkshop}
+					onClick={() => setActiveStep((step) => Math.max(step - 1, 0))}
+				>
+					Previous
+				</Button>
+				{activeStep < workshopSteps.length - 1 ? (
+					<Button variant="contained" onClick={() => setActiveStep((step) => Math.min(step + 1, workshopSteps.length - 1))}>
+						Next
+					</Button>
+				) : (
+					<Button
+						variant="contained"
+						startIcon={<SaveIcon sx={{ color: '#fff' }} />}
+						onClick={() => void handleSaveWorkshop()}
+						disabled={savingWorkshop}
+					>
+						{savingWorkshop ? 'Saving...' : 'Save changes'}
+					</Button>
+				)}
+			</Box>
 
             <Dialog open={trackDialogOpen} onClose={handleCloseTrackDialog} maxWidth="md" fullWidth>
 				<DialogTitle>{editingTrackId ? 'Edit Track' : 'Add New Track'}</DialogTitle>

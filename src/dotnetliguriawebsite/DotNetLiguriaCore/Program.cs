@@ -74,7 +74,10 @@ public class Program
         builder.Services.AddSingleton<BoardService>();
         builder.Services.AddSingleton<CounterService>();
         builder.Services.AddSingleton<WorkshopFileService>();
+        builder.Services.AddHttpClient<SessionizeImportService>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddSingleton<TopMenuService>();
+        builder.Services.AddSingleton<VenueService>();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
         builder.Services.AddSingleton<QuestionnaireService>();

@@ -28,6 +28,25 @@ Do not use DataMigration as an automatic setup command. It can read SQL data and
 write MongoDB/export files: execute it or change schemas only with explicit approval
 and a reviewed backup/restore plan. The shared verification gate never needs a DB.
 
+## Workshop agendas
+
+New workshop agenda data is stored additively on the workshop document: `talks` is
+the workshop's available talk pool, `agendaTracks` describes logical concurrent
+tracks, and `agendaItems` schedules talks or event/track breaks with optional room
+names. These fields are optional so existing `workshopTracks` and historical
+workshops remain readable. Admins can edit the agenda from a workshop's detail page.
+Event details also include `location.googleMapsUrl`, `bookingServiceUrl`, and
+`attendeeNotes`.
+
+To import proposals for an existing workshop, POST
+`/api/Workshop/ImportSessionize/{workshopId}` with JSON `{ "url":
+"https://sessionize.com/api/v2/{id}/view/All" }`. Imports use Sessionize IDs to
+overwrite matching talks and speaker profiles, preserve talk IDs for existing
+agenda references, and retain manual/unmatched talks and speakers. The endpoint
+accepts only HTTPS Sessionize `view/All` URLs. The workshop-number counter is
+created from the highest existing `FolderName` when it is missing and reserved
+atomically; no manual counter setup is required for workshop creation.
+
 CommonWeb's environment-file loader is used in DEBUG builds. Keep environment files
 out of source control and free of secrets; Release configuration must be supplied
 through standard ASP.NET providers. Local launch profiles may choose different
@@ -58,4 +77,3 @@ Build Docker from the repository root using the website Dockerfile. The .NET 10
 non-root runtime listens on HTTP 8080; supply TLS, secrets and identity-provider
 registration at the deployment boundary. Images exclude local certificates and
 environment files. Do not deploy or change real data as part of verification.
-

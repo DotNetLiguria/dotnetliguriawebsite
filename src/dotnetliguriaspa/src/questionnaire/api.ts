@@ -29,7 +29,8 @@ function defaultMessage(status: number): string {
 }
 
 async function request<T>(fetcher: FetchLike, path: string, init?: RequestInit): Promise<T> {
-  const response = await fetcher(`${API_BASE_URL}${path}`, {
+  const url = `${API_BASE_URL}${path}`;
+  const response = await fetcher(url, {
     ...init,
     headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
   });
@@ -45,7 +46,20 @@ async function request<T>(fetcher: FetchLike, path: string, init?: RequestInit):
   }
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const responseUrl = response.url || url;
+    const responsePath = new URL(responseUrl, globalThis.location?.origin ?? 'https://localhost').pathname;
+    const contentType = response.headers.get('Content-Type') || 'sconosciuto';
+    const redirect = response.redirected ? ' dopo un reindirizzamento' : '';
+    throw new QuestionnaireApiError(response.status, {
+      code: 'InvalidResponse',
+      message: `Il server ha restituito una risposta non JSON (${contentType})${redirect} all'indirizzo ${responsePath}. Verifica che l'API sia raggiungibile e che l'identificativo dell'evento sia valido.`,
+      errors: [],
+    });
+  }
 }
 
 const json = (method: string, body?: unknown): RequestInit =>

@@ -51,6 +51,15 @@ const WorkshopItem: FC<WorkshopItemProps> = ({ workshop }) => {
     };
 
     const getTrackTimeRange = () => {
+        if (workshop.agendaItems?.length) {
+            const start = workshop.agendaItems.reduce((earliest, current) =>
+                new Date(current.startTime) < new Date(earliest) ? current.startTime : earliest,
+                workshop.agendaItems[0].startTime);
+            const end = workshop.agendaItems.reduce((latest, current) =>
+                new Date(current.endTime) > new Date(latest) ? current.endTime : latest,
+                workshop.agendaItems[0].endTime);
+            return { start, end };
+        }
         if (!workshop.tracks || workshop.tracks.length === 0) return null;
 
         // Work directly with the raw date values to avoid timezone conversions
@@ -120,10 +129,10 @@ const WorkshopItem: FC<WorkshopItemProps> = ({ workshop }) => {
                         borderRadius: '8px'
                     }}>
                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-                            {workshop.tracks ? workshop.tracks.length : 0}
+                            {workshop.agendaTracks?.length ?? workshop.tracks?.length ?? 0}
                         </Typography>
                         <Typography variant="body2" sx={{ textAlign: 'center', fontWeight: 600 }}>
-                            {workshop.tracks && workshop.tracks.length === 1 ? 'Track' : 'Tracks'}
+                            {(workshop.agendaTracks?.length ?? workshop.tracks?.length ?? 0) === 1 ? 'Track' : 'Tracks'}
                         </Typography>
                     </Box>
 

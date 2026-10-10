@@ -21,14 +21,14 @@ namespace DotNetLiguriaCore.Services
 
 		public async Task<List<WorkshopFile>> GetAsync(Guid workshopId)
 		{
-			return await _workshopFilesCollection.Find(file => file.WorkshopId == workshopId).ToListAsync();
+			return await _workshopFilesCollection.Find(BsonCompatibility.CreateGuidFilter("WorkshopId", workshopId)).ToListAsync();
 		}
 
 		public async Task CreateAsync(WorkshopFile newWorkshopFile) =>
 			await _workshopFilesCollection.InsertOneAsync(newWorkshopFile);
 
 		public async Task DeleteAsync(Guid workshopFileId) =>
-			await _workshopFilesCollection.DeleteOneAsync(x => x.WorkshopFileId == workshopFileId);
+			await _workshopFilesCollection.DeleteOneAsync(BsonCompatibility.CreateGuidFilter("_id", workshopFileId));
 
 	}
 }

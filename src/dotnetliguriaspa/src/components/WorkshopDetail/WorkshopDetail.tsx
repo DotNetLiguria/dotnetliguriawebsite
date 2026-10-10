@@ -72,7 +72,7 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
       });
    };
 
-   const formatTime = (date: Date) => {
+   const formatTime = (date: Date | string) => {
       // Convert to ISO string and extract time
       let dateStr = typeof date === 'string' ? date : new Date(date).toISOString();
 
@@ -207,12 +207,22 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
                                     <Typography variant="body1" sx={{ fontWeight: 500, fontSize: '16px !important' }}>
                                        {workshop.location.name} - {workshop.location.address}
                                     </Typography>
+                                    {(workshop.location.googleMapsUrl || workshop.location.address) && (
+                                       <Button
+                                          href={workshop.location.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(workshop.location.address)}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          size="small"
+                                       >
+                                          Open map
+                                       </Button>
+                                    )}
                                  </Stack>
                               )}
 
-                              {workshop.tracks && workshop.tracks.length > 0 && (
+                              {(workshop.agendaTracks?.length ?? workshop.tracks?.length ?? 0) > 0 && (
                                  <Chip
-                                    label={`${workshop.tracks.length} ${workshop.tracks.length === 1 ? 'Track' : 'Tracks'}`}
+                                    label={`${workshop.agendaTracks?.length ?? workshop.tracks?.length ?? 0} ${(workshop.agendaTracks?.length ?? workshop.tracks?.length ?? 0) === 1 ? 'Track' : 'Tracks'}`}
                                     sx={{
                                        backgroundColor: '#72C02C !important',
                                        color: '#ffffff !important',
@@ -264,6 +274,80 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
                                     '& li': { mb: 1 }
                                  }}
                               />
+                           </Box>
+                        )}
+
+                        {workshop.agendaItems && workshop.agendaItems.length > 0 && (
+                           <Box sx={{ mb: 4 }}>
+                              <Typography variant="h5" component="h2" sx={{ mb: 2, fontWeight: 'bold' }}>
+                                 Agenda
+                              </Typography>
+                              <Stack spacing={2}>
+                                 {[...workshop.agendaItems]
+                                    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+                                    .map(item => {
+                                       const talk = workshop.talks?.find(value => value.workshopTalkId === item.talkId);
+                                       const agendaTrack = workshop.agendaTracks?.find(value => value.workshopAgendaTrackId === item.trackId);
+                                       const isTalk = item.itemType === 'talk' && talk;
+                                       return (
+                                          <Box key={item.workshopAgendaItemId} className={styles.trackItem}>
+                                             <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                                {isTalk ? talk.title : item.title || (item.itemType === 'service' ? 'Service break' : 'Interval')}
+                                             </Typography>
+                                             <Typography variant="subtitle2" sx={{ mb: 1, color: '#666' }}>
+                                                {formatTime(item.startTime)} - {formatTime(item.endTime)}
+                                                {agendaTrack ? ` · ${agendaTrack.name}` : ' · All tracks'}
+                                                {item.roomName ? ` · ${item.roomName}` : ''}
+                                                {isTalk && talk.sessionType ? ` · ${talk.sessionType}` : ''}
+                                             </Typography>
+                                             {isTalk && talk.abstract && (
+                                                <Typography variant="body2" color="text.secondary" sx={{ mb: 1, lineHeight: 1.6 }}>
+                                                   {talk.abstract}
+                                                </Typography>
+                                             )}
+                                             {isTalk && talk.speakers.length > 0 && (
+                                                <Stack spacing={1}>
+                                                   {talk.speakers.map((speaker, index) => (
+                                                      <Stack key={speaker.workshopSpeakerId ?? speaker.sessionizeId ?? `${speaker.name}-${index}`} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                                                         {speaker.imageUrl && (
+                                                            <Box component="img" src={speaker.imageUrl} alt={speaker.name} sx={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                                                         )}
+                                                         <Box>
+                                                            <Typography variant="subtitle2">{speaker.name}</Typography>
+                                                            {speaker.biography && <Typography variant="caption" color="text.secondary">{speaker.biography}</Typography>}
+                                                         </Box>
+                                                      </Stack>
+                                                   ))}
+                                                </Stack>
+                                             )}
+                                          </Box>
+                                       );
+                                    })}
+                              </Stack>
+                           </Box>
+                        )}
+
+                        {workshop.attendeeNotes && (
+                           <Box sx={{ mb: 4 }}>
+                              <Typography variant="h5" component="h2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                                 Notes for attendees
+                              </Typography>
+                              <Typography variant="body1" sx={{ whiteSpace: 'pre-line' }}>{workshop.attendeeNotes}</Typography>
+                           </Box>
+                        )}
+
+                        {(workshop.bookingServiceUrl || workshop.externalRegistrationLink) && (
+                           <Box sx={{ textAlign: 'center', mt: 4 }}>
+                              <Button
+                                 variant="contained"
+                                 size="large"
+                                 href={workshop.bookingServiceUrl || workshop.externalRegistrationLink}
+                                 target="_blank"
+                                 rel="noopener noreferrer"
+                                 sx={{ px: 4, py: 2 }}
+                              >
+                                 Book or cancel a seat
+                              </Button>
                            </Box>
                         )}
 
@@ -441,14 +525,16 @@ const WorkshopDetail: FC<WorkshopDetailProps> = () => {
             </Grid>
 
             {/* Google Maps Section */}
-            {workshop.location && workshop.location.coordinates && (
+            {workshop.location && (workshop.location.coordinates || workshop.location.address || workshop.location.googleMapsUrl) && (
                <Box sx={{ mt: 4, mb: 4 }}>
                   <Typography variant="h5" component="h2" sx={{ mb: 2, fontWeight: 'bold' }}>
                      Sede dell&apos;evento
                   </Typography>
                   <Box
                      component="iframe"
-                     src={`https://maps.google.com/maps?q=${encodeURIComponent(workshop.location.address)}&output=embed&z=17`}
+                     src={workshop.location.googleMapsUrl?.includes('/maps/embed')
+                        ? workshop.location.googleMapsUrl
+                        : `https://maps.google.com/maps?q=${encodeURIComponent(workshop.location.address || workshop.location.coordinates || '')}&output=embed&z=17`}
                      sx={{
                         width: '100%',
                         height: '450px',
