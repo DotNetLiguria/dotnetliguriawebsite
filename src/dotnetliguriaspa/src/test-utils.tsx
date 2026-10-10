@@ -23,3 +23,25 @@ export function makeWorkshop(overrides: Partial<WorkshopModel> = {}): WorkshopMo
 export function mockJson(data: unknown, status = 200) {
   vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } }));
 }
+
+export const jsonResponse = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+type RouteAnswer = unknown | ((url: string, init?: RequestInit) => Response | Promise<Response>);
+
+/**
+ * Answers fetch calls by URL substring, in declaration order (put the most specific patterns first).
+ * Unmatched requests get an empty JSON array, like the default stub in setupTests.
+ */
+export function mockApi(routes: Record<string, RouteAnswer>) {
+  vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    for (const [pattern, answer] of Object.entries(routes)) {
+      if (!url.includes(pattern)) continue;
+      return typeof answer === 'function'
+        ? (answer as (url: string, init?: RequestInit) => Response | Promise<Response>)(url, init)
+        : jsonResponse(answer);
+    }
+    return jsonResponse([]);
+  });
+}

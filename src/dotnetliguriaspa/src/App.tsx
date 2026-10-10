@@ -2,7 +2,6 @@ import './App.css';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOidc } from "@axa-fr/react-oidc";
 import { Navigate, Route, Routes } from 'react-router-dom';
-import Layout from "./components/Layout/Layout";
 import AdminWorkshops from "./components/AdminWorkshops/AdminWorkshops";
 import AdminSpeakers from "./components/AdminSpeakers/AdminSpeakers";
 import AdminHome from './components/AdminHome/AdminHome';
@@ -10,9 +9,9 @@ import AdminProfile from './components/AdminProfile/AdminProfile';
 
 import AdminEvents from './components/AdminEvents/AdminEvents';
 import AdminLayout from "./components/AdminLayout/AdminLayout";
-import HomePage from "./components/HomePage/HomePage";
-import Workshops from "./components/Workshops/Workshops";
-import WorkshopDetail from "./components/WorkshopDetail/WorkshopDetail";
+import HomePage from "./site/home/HomePage";
+import EventsPage from "./site/events/EventsPage";
+import EventDetailPage from "./site/event/EventDetailPage";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
 import AdminBoard from "./components/AdminBoard/AdminBoard";
 import AdminBoardDetail from "./components/AdminBoardDetail/AdminBoardDetail";
@@ -74,14 +73,10 @@ function App() {
                 )}
                 <Routes>
                     <Route path='/' element={<HomePage />} />
-                    <Route element={<Layout />}>
-                        <Route>
-                            <Route path="/workshops" element={<Workshops pageName={"Workshops"} />}></Route>
-                            <Route path="/workshop/:id" element={<WorkshopDetail pageName={"Workshop Detail"} />}></Route>
-                            <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />}></Route>
-                            <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />}></Route>
-                        </Route>
-                    </Route>
+                    <Route path="/workshops" element={<EventsPage />} />
+                    <Route path="/workshop/:id" element={<EventDetailPage />} />
+                    <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />} />
+                    <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} />
                 </Routes>
             </>
         </div>

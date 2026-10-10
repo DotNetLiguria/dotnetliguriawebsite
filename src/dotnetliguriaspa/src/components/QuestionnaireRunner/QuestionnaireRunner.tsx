@@ -1,9 +1,5 @@
 import React, { FC, useEffect, useMemo, useState } from 'react';
-import {
-  Alert, Box, Button, Checkbox, FormControlLabel, FormHelperText, LinearProgress, Paper, Stack, Step, StepLabel, Stepper,
-  TextField, Typography,
-} from '@mui/material';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutlined';
+import { Button, Checkbox } from 'react-aria-components';
 import QuestionField from './QuestionField';
 import { QuestionnaireApiError } from '../../questionnaire/api';
 import { hasValue, isAnswerable, MAX_EMAIL_LENGTH, MAX_NAME_LENGTH, visibleQuestionIds } from '../../questionnaire/rules';
@@ -19,6 +15,15 @@ export interface QuestionnaireRunnerProps {
 }
 
 type Errors = Record<string, string>;
+const ring = 'outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700';
+const primaryButton = `inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full bg-site-green px-8 text-lg font-bold text-navy shadow-card transition data-[hovered]:-translate-y-0.5 data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`;
+const secondaryButton = `inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border-2 border-navy px-6 font-bold text-navy transition data-[hovered]:bg-navy data-[hovered]:text-white ${ring}`;
+const card = 'rounded-3xl bg-white p-6 shadow-card sm:p-8';
+const Notice = ({ tone, children, role }: { tone: 'info' | 'warning' | 'error'; children: React.ReactNode; role?: string }) => (
+  <div role={role} className={`rounded-2xl px-5 py-4 text-base font-semibold whitespace-pre-wrap ${tone === 'info' ? 'bg-cyan-50 text-navy' : tone === 'warning' ? 'bg-amber-50 text-amber-900' : 'bg-red-50 text-red-800'}`}>
+    {children}
+  </div>
+);
 const RESPONDENT_FIELDS = ['respondent.name', 'respondent.surname', 'respondent.email', 'consentGiven'];
 
 function loadDraft(key?: string): AnswerMap {
@@ -159,75 +164,97 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
 
   if (done) {
     return (
-      <Paper variant="outlined" sx={{ p: { xs: 3, sm: 5 }, textAlign: 'center', borderRadius: 3 }} role="status">
-        <CheckCircleOutlineIcon color="success" sx={{ fontSize: 64 }} />
-        <Typography variant="h5" component="h2" sx={{ mt: 1, mb: 1 }}>
-          {preview ? 'Anteprima: risposta valida' : 'Grazie!'}
-        </Typography>
-        <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>
+      <div className={`${card} text-center`} role="status">
+        <svg viewBox="0 0 24 24" className="mx-auto size-16" fill="none" stroke="#3b7a20" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5" />
+          <path d="M7.5 12.5l3 3 6-6.5" />
+        </svg>
+        <h2 className="mt-3 text-3xl font-bold">{preview ? 'Anteprima: risposta valida' : 'Grazie!'}</h2>
+        <p className="mx-auto mt-2 max-w-xl whitespace-pre-wrap text-lg text-navy/85">
           {preview ? 'In anteprima le risposte non vengono inviate.' : questionnaire.thankYouText || 'La tua risposta è stata registrata.'}
-        </Typography>
-        {preview && <Button sx={{ mt: 3 }} onClick={restart}>Ricomincia</Button>}
-      </Paper>
+        </p>
+        {preview && <Button className={`mt-6 ${secondaryButton}`} onPress={restart}>Ricomincia</Button>}
+      </div>
     );
   }
 
   const answeredCount = [...numbers.keys()].filter(id => hasValue(answers[id])).length;
   const progress = stepper ? ((currentStep + 1) / pages.length) * 100 : numbers.size ? (answeredCount / numbers.size) * 100 : 0;
   const showRespondent = identified && (!stepper || currentStep === 0);
-  const respondentField = (field: keyof Respondent, label: string, max: number, type = 'text') => (
-    <TextField
-      label={label}
-      required
-      size="small"
-      type={type}
-      autoComplete={field === 'name' ? 'given-name' : field === 'surname' ? 'family-name' : 'email'}
-      value={respondent[field] ?? ''}
-      onChange={e => setRespondent(r => ({ ...r, [field]: e.target.value }))}
-      error={!!errors[`respondent.${field}`]}
-      helperText={errors[`respondent.${field}`]}
-      slotProps={{ htmlInput: { maxLength: max, 'data-field': `respondent.${field}` } }}
-      fullWidth
-    />
-  );
+  const respondentField = (field: keyof Respondent, label: string, max: number, type = 'text') => {
+    const fieldId = `respondent-${field}`;
+    const error = errors[`respondent.${field}`];
+    return (
+      <div className="min-w-0 flex-1">
+        <label htmlFor={fieldId} className="text-base font-bold">
+          {label}<span aria-hidden="true" className="ml-1 text-red-700">*</span>
+        </label>
+        <input
+          id={fieldId}
+          required
+          type={type}
+          maxLength={max}
+          data-field={`respondent.${field}`}
+          autoComplete={field === 'name' ? 'given-name' : field === 'surname' ? 'family-name' : 'email'}
+          value={respondent[field] ?? ''}
+          onChange={e => setRespondent(r => ({ ...r, [field]: e.target.value }))}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${fieldId}-error` : undefined}
+          className={`mt-1 block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy focus:border-cyan-700 focus:outline-none ${error ? 'border-red-700' : 'border-line'}`}
+        />
+        {error && <p id={`${fieldId}-error`} role="alert" className="mt-1 font-bold text-red-700">{error}</p>}
+      </div>
+    );
+  };
 
   return (
-    <Box component="form" noValidate onSubmit={submit} aria-label={questionnaire.title}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>{questionnaire.title}</Typography>
-        {questionnaire.description && <Typography color="text.secondary" sx={{ whiteSpace: 'pre-wrap' }}>{questionnaire.description}</Typography>}
-        {questionnaire.introText && <Alert severity="info" sx={{ mt: 2, whiteSpace: 'pre-wrap' }}>{questionnaire.introText}</Alert>}
-      </Box>
+    <form noValidate onSubmit={submit} aria-label={questionnaire.title} className="space-y-6">
+      <header className={card}>
+        <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{questionnaire.title}</h1>
+        {questionnaire.description && <p className="mt-3 whitespace-pre-wrap text-lg text-navy/85">{questionnaire.description}</p>}
+        {questionnaire.introText && <div className="mt-5"><Notice tone="info">{questionnaire.introText}</Notice></div>}
+      </header>
 
-      <Box sx={{ position: 'sticky', top: { xs: 56, sm: 64 }, zIndex: 1, bgcolor: 'background.default', py: 1, mb: 2 }}>
+      <div className="sticky top-20 z-10 rounded-2xl bg-white/95 px-5 py-3 shadow-card backdrop-blur">
         {stepper && (
-          <Stepper activeStep={currentStep} alternativeLabel sx={{ mb: 1, display: { xs: 'none', sm: 'flex' } }}>
-            {pages.map((p, i) => <Step key={p.id}><StepLabel>{p.title || `Parte ${i + 1}`}</StepLabel></Step>)}
-          </Stepper>
+          <ol className="mb-2 hidden gap-2 sm:flex">
+            {pages.map((p, i) => (
+              <li key={p.id} className={`flex-1 truncate text-sm font-bold ${i === currentStep ? 'text-navy' : 'text-muted'}`} aria-current={i === currentStep ? 'step' : undefined}>
+                {i + 1}. {p.title || `Parte ${i + 1}`}
+              </li>
+            ))}
+          </ol>
         )}
-        <LinearProgress variant="determinate" value={progress} aria-label="Avanzamento" sx={{ height: 6, borderRadius: 3 }} />
-        {stepper && <Typography variant="caption" color="text.secondary">Passo {currentStep + 1} di {pages.length}</Typography>}
-      </Box>
+        <div
+          role="progressbar"
+          aria-label="Avanzamento"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress)}
+          className="h-2 overflow-hidden rounded-full bg-cyan-50"
+        >
+          <div className="h-full rounded-full bg-site-green transition-[width] duration-300" style={{ width: `${progress}%` }} />
+        </div>
+        {stepper && <p className="mt-1 text-sm text-muted">Passo {currentStep + 1} di {pages.length}</p>}
+      </div>
 
       {showRespondent && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }}>
-          <Typography variant="h6" component="h2" sx={{ mb: 2 }}>I tuoi dati</Typography>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <section className={card} aria-labelledby="respondent-title">
+          <h2 id="respondent-title" className="text-2xl font-bold">I tuoi dati</h2>
+          <div className="mt-5 flex flex-col gap-4 sm:flex-row">
             {respondentField('name', 'Nome', MAX_NAME_LENGTH)}
             {respondentField('surname', 'Cognome', MAX_NAME_LENGTH)}
-          </Stack>
-          {respondentField('email', 'Email', MAX_EMAIL_LENGTH, 'email')}
-          {questionnaire.onePerEmail && (
-            <Typography variant="caption" color="text.secondary">È possibile inviare una sola risposta per indirizzo email.</Typography>
-          )}
-        </Paper>
+          </div>
+          <div className="mt-4">{respondentField('email', 'Email', MAX_EMAIL_LENGTH, 'email')}</div>
+          {questionnaire.onePerEmail && <p className="mt-2 text-sm text-muted">È possibile inviare una sola risposta per indirizzo email.</p>}
+        </section>
       )}
 
       {shownPages.map(section => (
-        <Paper key={section.id} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 2, borderRadius: 3 }} component="section">
-          {section.title && <Typography variant="h6" component="h2">{section.title}</Typography>}
-          {section.description && <Typography color="text.secondary" sx={{ mb: 1, whiteSpace: 'pre-wrap' }}>{section.description}</Typography>}
-          <Stack spacing={2} sx={{ mt: section.title ? 1 : 0 }}>
+        <section key={section.id} className={card}>
+          {section.title && <h2 className="text-2xl font-bold">{section.title}</h2>}
+          {section.description && <p className="mt-2 whitespace-pre-wrap text-base text-muted">{section.description}</p>}
+          <div className={`space-y-6 ${section.title ? 'mt-5' : ''}`}>
             {section.questions.filter(q => visible.has(q.id)).map(q => (
               <QuestionField
                 key={q.id}
@@ -239,45 +266,53 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
                 onChange={a => setAnswer(q.id, a)}
               />
             ))}
-          </Stack>
-        </Paper>
+          </div>
+        </section>
       ))}
 
       {isLastStep && identified && questionnaire.consentText?.trim() && (
-        <Box sx={{ mb: 2 }} data-field="consentGiven">
-          <FormControlLabel
-            control={<Checkbox checked={consentGiven} onChange={e => setConsentGiven(e.target.checked)} />}
-            label={<Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{questionnaire.consentText}</Typography>}
-          />
-          {errors.consentGiven && <FormHelperText error role="alert">{errors.consentGiven}</FormHelperText>}
-        </Box>
+        <div className={card} data-field="consentGiven">
+          <Checkbox
+            isSelected={consentGiven}
+            onChange={setConsentGiven}
+            className={`flex cursor-pointer items-start gap-3 text-base ${ring}`}
+          >
+            {({ isSelected }) => (
+              <>
+                <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2 ${isSelected ? 'border-navy bg-navy' : 'border-muted'}`} aria-hidden="true">
+                  {isSelected && <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>}
+                </span>
+                <span className="whitespace-pre-wrap">{questionnaire.consentText}</span>
+              </>
+            )}
+          </Checkbox>
+          {errors.consentGiven && <p role="alert" className="mt-2 font-bold text-red-700">{errors.consentGiven}</p>}
+        </div>
       )}
 
-      <Box aria-hidden sx={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+      <div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
         <label>
           Lascia vuoto questo campo
           <input tabIndex={-1} autoComplete="off" name="website" value={website} onChange={e => setWebsite(e.target.value)} />
         </label>
-      </Box>
+      </div>
 
-      {submitError && <Alert severity="error" sx={{ mb: 2 }} role="alert">{submitError}</Alert>}
-      {attempted && Object.keys(errors).length > 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>Controlla le risposte evidenziate.</Alert>
-      )}
+      {submitError && <Notice tone="error" role="alert">{submitError}</Notice>}
+      {attempted && Object.keys(errors).length > 0 && <Notice tone="warning">Controlla le risposte evidenziate.</Notice>}
 
-      <Stack direction="row" spacing={2} sx={{ mb: 4, justifyContent: 'space-between' }}>
+      <div className="flex items-center justify-between gap-4 pb-4">
         {stepper && currentStep > 0
-          ? <Button onClick={() => { setStep(currentStep - 1); setAttempted(false); setErrors({}); }}>Indietro</Button>
+          ? <Button className={secondaryButton} onPress={() => { setStep(currentStep - 1); setAttempted(false); setErrors({}); }}>Indietro</Button>
           : <span />}
         {isLastStep ? (
-          <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ px: 5 }}>
+          <Button type="submit" isDisabled={submitting} className={primaryButton}>
             {submitting ? 'Invio…' : preview ? 'Prova invio' : 'Invia'}
           </Button>
         ) : (
-          <Button variant="contained" size="large" onClick={next}>Avanti</Button>
+          <Button className={primaryButton} onPress={next}>Avanti</Button>
         )}
-      </Stack>
-    </Box>
+      </div>
+    </form>
   );
 };
 

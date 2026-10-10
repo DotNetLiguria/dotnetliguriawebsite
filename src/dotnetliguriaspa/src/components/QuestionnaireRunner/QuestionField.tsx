@@ -1,8 +1,5 @@
 import React, { FC } from 'react';
-import {
-  Box, Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, FormLabel, MenuItem, Radio, RadioGroup,
-  Rating, Select, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography,
-} from '@mui/material';
+import { Button, Checkbox, CheckboxGroup, Radio, RadioGroup, ToggleButton } from 'react-aria-components';
 import { OTHER_OPTION_ID, scaleBounds, textLimit } from '../../questionnaire/rules';
 import type { Question, QuestionAnswer } from '../../questionnaire/types';
 
@@ -16,59 +13,80 @@ export interface QuestionFieldProps {
 }
 
 const range = (min: number, max: number) => Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
+const ring = 'outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-cyan-700';
+const inputClass = (error?: string) =>
+  `block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy placeholder:text-muted/70 focus:border-cyan-700 focus:outline-none disabled:opacity-60 ${error ? 'border-red-700' : 'border-line'}`;
 
+/** One button per value of a scale (1..5, 0..10): a single-choice radio group. */
 const ScaleButtons: FC<{
   min: number; max: number; value?: number | null; label: string; disabled?: boolean; onChange: (value: number | null) => void;
 }> = ({ min, max, value, label, disabled, onChange }) => (
-  <ToggleButtonGroup
-    exclusive
-    size="small"
-    value={value ?? null}
-    disabled={disabled}
+  <RadioGroup
     aria-label={label}
-    onChange={(_, v: number | null) => onChange(v)}
-    sx={{ flexWrap: 'wrap', gap: 0.5, '& .MuiToggleButton-root': { minWidth: 40, border: '1px solid', borderColor: 'divider', borderRadius: '8px !important' } }}
+    orientation="horizontal"
+    value={value === undefined || value === null ? null : String(value)}
+    isDisabled={disabled}
+    onChange={v => onChange(v === '' ? null : Number(v))}
+    className="flex flex-wrap gap-2"
   >
-    {range(min, max).map(v => <ToggleButton key={v} value={v} aria-label={`${v}`}>{v}</ToggleButton>)}
-  </ToggleButtonGroup>
+    {range(min, max).map(v => (
+      <Radio
+        key={v}
+        value={String(v)}
+        className={`grid size-11 cursor-pointer place-items-center rounded-xl border-2 border-line bg-white text-lg font-bold text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`}
+      >
+        {v}
+      </Radio>
+    ))}
+  </RadioGroup>
 );
+
+function Star({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-9" aria-hidden="true" focusable="false">
+      <path
+        d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"
+        fill={filled ? '#72c02c' : 'none'}
+        stroke={filled ? '#3b7a20' : '#44607a'}
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number, disabled, onChange }) => {
   const id = `q-${question.id}`;
   const set = (patch: Partial<QuestionAnswer>) => onChange({ ...answer, ...patch, questionId: question.id });
-  const title = (
-    <>
-      {number !== undefined && <Box component="span" sx={{ color: 'text.secondary', mr: 1 }}>{number}.</Box>}
-      {question.title}
-      {question.required && <Box component="span" aria-hidden sx={{ color: 'error.main', ml: 0.5 }}>*</Box>}
-    </>
-  );
+  const describedBy = [question.helpText ? `${id}-help` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
 
   if (question.type === 'InfoText') {
     return (
-      <Box sx={{ py: 1 }}>
-        {question.title && <Typography variant="h6" component="h3">{question.title}</Typography>}
-        {question.helpText && <Typography sx={{ whiteSpace: 'pre-wrap' }} color="text.secondary">{question.helpText}</Typography>}
-      </Box>
+      <div className="py-1">
+        {question.title && <h3 className="text-xl font-bold">{question.title}</h3>}
+        {question.helpText && <p className="mt-1 whitespace-pre-wrap text-navy/85">{question.helpText}</p>}
+      </div>
     );
   }
 
   const otherSelected = answer?.choices?.includes(OTHER_OPTION_ID) ?? false;
   const otherField = question.settings.allowOther && otherSelected && (
-    <TextField
-      size="small"
-      label="Specifica"
-      value={answer?.otherText ?? ''}
-      disabled={disabled}
-      onChange={e => set({ otherText: e.target.value })}
-      slotProps={{ htmlInput: { maxLength: 500 } }}
-      sx={{ mt: 1, maxWidth: 400 }}
-    />
+    <label className="mt-3 block max-w-md">
+      <span className="text-sm font-bold text-muted">Specifica</span>
+      <input
+        className={`mt-1 ${inputClass()}`}
+        value={answer?.otherText ?? ''}
+        disabled={disabled}
+        maxLength={500}
+        onChange={e => set({ otherText: e.target.value })}
+      />
+    </label>
   );
   const options = [
     ...question.options,
     ...(question.settings.allowOther ? [{ id: OTHER_OPTION_ID, label: question.settings.otherLabel || 'Altro' }] : []),
   ];
+  const choiceRow = `flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-4 py-2 text-lg text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-cyan-50 data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`;
 
   let control: React.ReactNode;
   switch (question.type) {
@@ -79,100 +97,121 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
     case 'Number': {
       const isNumber = question.type === 'Number';
       const limit = textLimit(question);
-      control = (
-        <TextField
-          id={id}
-          fullWidth
-          size="small"
+      const common = {
+        id,
+        'aria-labelledby': `${id}-label`,
+        'aria-describedby': describedBy,
+        'aria-invalid': error ? true : undefined,
+        disabled,
+        placeholder: question.settings.placeholder ?? undefined,
+        className: inputClass(error),
+      };
+      control = question.type === 'LongText' ? (
+        <>
+          <textarea {...common} rows={4} maxLength={limit} value={answer?.text ?? ''} onChange={e => set({ text: e.target.value })} />
+          <p className="mt-1 text-right text-sm text-muted" aria-hidden="true">{(answer?.text ?? '').length}/{limit}</p>
+        </>
+      ) : (
+        <input
+          {...common}
           type={isNumber ? 'number' : question.type === 'Email' ? 'email' : question.type === 'Date' ? 'date' : 'text'}
-          multiline={question.type === 'LongText'}
-          minRows={question.type === 'LongText' ? 4 : undefined}
-          placeholder={question.settings.placeholder ?? undefined}
           value={isNumber ? (answer?.number ?? '') : (answer?.text ?? '')}
-          disabled={disabled}
-          error={!!error}
+          {...(isNumber ? { min: question.settings.min ?? undefined, max: question.settings.max ?? undefined, step: 'any' } : { maxLength: limit })}
           onChange={e => {
             if (!isNumber) return set({ text: e.target.value });
-            const raw = e.target.value;
-            if (raw === '') onChange(undefined);
-            else set({ number: Number(raw) });
+            if (e.target.value === '') onChange(undefined);
+            else set({ number: Number(e.target.value) });
           }}
-          slotProps={{
-            htmlInput: {
-              'aria-labelledby': `${id}-label`,
-              'aria-describedby': `${id}-help`,
-              ...(isNumber ? { min: question.settings.min ?? undefined, max: question.settings.max ?? undefined, step: 'any' } : { maxLength: limit }),
-            },
-          }}
-          helperText={question.type === 'LongText' ? `${(answer?.text ?? '').length}/${limit}` : undefined}
         />
       );
       break;
     }
-    case 'YesNo':
+    case 'YesNo': {
+      const toggle = `inline-flex min-h-12 min-w-24 cursor-pointer items-center justify-center rounded-full border-2 border-line bg-white px-6 text-lg font-bold text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white data-[disabled]:opacity-60 ${ring}`;
+      const choose = (value: boolean) => (answer?.bool === value ? onChange(undefined) : set({ bool: value }));
       control = (
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={answer?.bool ?? null}
-          disabled={disabled}
-          aria-labelledby={`${id}-label`}
-          onChange={(_, v: boolean | null) => (v === null ? onChange(undefined) : set({ bool: v }))}
-        >
-          <ToggleButton value={true} sx={{ px: 3 }}>Sì</ToggleButton>
-          <ToggleButton value={false} sx={{ px: 3 }}>No</ToggleButton>
-        </ToggleButtonGroup>
+        <div role="group" aria-labelledby={`${id}-label`} className="flex gap-3">
+          <ToggleButton isSelected={answer?.bool === true} isDisabled={disabled} onChange={() => choose(true)} className={toggle}>Sì</ToggleButton>
+          <ToggleButton isSelected={answer?.bool === false} isDisabled={disabled} onChange={() => choose(false)} className={toggle}>No</ToggleButton>
+        </div>
       );
       break;
+    }
     case 'SingleChoice':
       control = question.settings.useDropdown ? (
-        <Select
-          size="small"
-          displayEmpty
+        <select
+          aria-labelledby={`${id}-label`}
+          aria-describedby={describedBy}
           value={answer?.choices?.[0] ?? ''}
           disabled={disabled}
-          inputProps={{ 'aria-labelledby': `${id}-label` }}
-          onChange={e => (e.target.value ? set({ choices: [e.target.value as string] }) : onChange(undefined))}
-          sx={{ minWidth: 240 }}
+          onChange={e => (e.target.value ? set({ choices: [e.target.value] }) : onChange(undefined))}
+          className={`${inputClass(error)} max-w-md`}
         >
-          <MenuItem value=""><em>Seleziona…</em></MenuItem>
-          {options.map(o => <MenuItem key={o.id} value={o.id}>{o.label}</MenuItem>)}
-        </Select>
+          <option value="">Seleziona…</option>
+          {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
       ) : (
-        <RadioGroup aria-labelledby={`${id}-label`} value={answer?.choices?.[0] ?? ''} onChange={e => set({ choices: [e.target.value] })}>
-          {options.map(o => <FormControlLabel key={o.id} value={o.id} control={<Radio disabled={disabled} />} label={o.label} />)}
+        <RadioGroup
+          aria-labelledby={`${id}-label`}
+          aria-describedby={describedBy}
+          value={answer?.choices?.[0] ?? null}
+          isDisabled={disabled}
+          onChange={v => set({ choices: [v] })}
+          className="grid gap-2"
+        >
+          {options.map(o => (
+            <Radio key={o.id} value={o.id} className={choiceRow}>
+              {({ isSelected }) => (
+                <>
+                  <span className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${isSelected ? 'border-navy' : 'border-muted'}`} aria-hidden="true">
+                    {isSelected && <span className="size-2.5 rounded-full bg-navy" />}
+                  </span>
+                  {o.label}
+                </>
+              )}
+            </Radio>
+          ))}
         </RadioGroup>
       );
       break;
     case 'MultipleChoice': {
       const selected = answer?.choices ?? [];
-      const toggle = (optionId: string, checked: boolean) => {
-        const choices = checked ? [...selected, optionId] : selected.filter(c => c !== optionId);
-        set({ choices });
-      };
       const { minSelections, maxSelections } = question.settings;
       control = (
         <>
-          <FormGroup aria-labelledby={`${id}-label`}>
+          <CheckboxGroup
+            aria-labelledby={`${id}-label`}
+            aria-describedby={describedBy}
+            value={selected}
+            isDisabled={disabled}
+            onChange={choices => set({ choices })}
+            className="grid gap-2"
+          >
             {options.map(o => (
-              <FormControlLabel
+              <Checkbox
                 key={o.id}
-                label={o.label}
-                control={
-                  <Checkbox
-                    checked={selected.includes(o.id)}
-                    disabled={disabled || (!selected.includes(o.id) && maxSelections != null && selected.length >= maxSelections)}
-                    onChange={e => toggle(o.id, e.target.checked)}
-                  />
-                }
-              />
+                value={o.id}
+                isDisabled={!selected.includes(o.id) && maxSelections != null && selected.length >= maxSelections}
+                className={choiceRow}
+              >
+                {({ isSelected }) => (
+                  <>
+                    <span className={`grid size-5 shrink-0 place-items-center rounded-md border-2 ${isSelected ? 'border-navy bg-navy' : 'border-muted'}`} aria-hidden="true">
+                      {isSelected && (
+                        <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>
+                      )}
+                    </span>
+                    {o.label}
+                  </>
+                )}
+              </Checkbox>
             ))}
-          </FormGroup>
+          </CheckboxGroup>
           {(minSelections || maxSelections) && (
-            <Typography variant="caption" color="text.secondary">
+            <p className="mt-2 text-sm text-muted">
               {minSelections && maxSelections ? `Seleziona da ${minSelections} a ${maxSelections} opzioni`
                 : minSelections ? `Seleziona almeno ${minSelections} opzioni` : `Seleziona al massimo ${maxSelections} opzioni`}
-            </Typography>
+            </p>
           )}
         </>
       );
@@ -180,32 +219,46 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
     }
     case 'Rating': {
       const { max } = scaleBounds(question);
+      const value = answer?.number ?? null;
       control = (
-        <Rating
-          name={id}
-          max={max}
-          size="large"
-          value={answer?.number ?? null}
-          disabled={disabled}
-          onChange={(_, v) => (v === null ? onChange(undefined) : set({ number: v }))}
-          getLabelText={v => `${v} ${v === 1 ? 'stella' : 'stelle'} su ${max}`}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <RadioGroup
+            aria-labelledby={`${id}-label`}
+            aria-describedby={describedBy}
+            orientation="horizontal"
+            value={value === null ? null : String(value)}
+            isDisabled={disabled}
+            onChange={v => set({ number: Number(v) })}
+            className="flex gap-1"
+          >
+            {range(1, max).map(v => (
+              <Radio key={v} value={String(v)} aria-label={`${v} ${v === 1 ? 'stella' : 'stelle'} su ${max}`} className={`cursor-pointer rounded-lg p-0.5 data-[disabled]:cursor-default ${ring}`}>
+                <Star filled={value !== null && v <= value} />
+              </Radio>
+            ))}
+          </RadioGroup>
+          {value !== null && !question.required && !disabled && (
+            <Button onPress={() => onChange(undefined)} className={`min-h-11 cursor-pointer rounded-full px-3 text-sm font-bold text-cyan-700 underline underline-offset-4 ${ring}`}>
+              Rimuovi voto
+            </Button>
+          )}
+        </div>
       );
       break;
     }
     case 'Scale': {
       const { min, max } = scaleBounds(question);
       control = (
-        <Box>
+        <div>
           <ScaleButtons min={min} max={max} label={question.title} value={answer?.number} disabled={disabled}
             onChange={v => (v === null ? onChange(undefined) : set({ number: v }))} />
           {(question.settings.minLabel || question.settings.maxLabel) && (
-            <Stack direction="row" sx={{ justifyContent: 'space-between', mt: 0.5, maxWidth: (max - min + 1) * 48 }}>
-              <Typography variant="caption" color="text.secondary">{min} = {question.settings.minLabel}</Typography>
-              <Typography variant="caption" color="text.secondary">{max} = {question.settings.maxLabel}</Typography>
-            </Stack>
+            <div className="mt-2 flex justify-between gap-4 text-sm text-muted" style={{ maxWidth: (max - min + 1) * 52 }}>
+              <span>{min} = {question.settings.minLabel}</span>
+              <span>{max} = {question.settings.maxLabel}</span>
+            </div>
           )}
-        </Box>
+        </div>
       );
       break;
     }
@@ -220,38 +273,40 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
         else set({ rows: ordered });
       };
       control = (
-        <Stack spacing={1.5} divider={<Box sx={{ borderTop: 1, borderColor: 'divider' }} />}>
+        <div className="divide-y divide-line">
           {(question.settings.minLabel || question.settings.maxLabel) && (
-            <Typography variant="caption" color="text.secondary">
+            <p className="pb-3 text-sm text-muted">
               {min} = {question.settings.minLabel || 'minimo'} · {max} = {question.settings.maxLabel || 'massimo'}
-            </Typography>
+            </p>
           )}
           {question.rows.map(row => (
-            <Box key={row.id} sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', justifyContent: 'space-between' }}>
-              <Box sx={{ flex: '1 1 220px' }}>
-                <Typography sx={{ fontWeight: 600 }}>{row.label}</Typography>
-                {row.description && <Typography variant="body2" color="text.secondary">{row.description}</Typography>}
-              </Box>
+            <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
+              <div className="min-w-0 flex-[1_1_14rem]">
+                <p className="text-lg font-bold">{row.label}</p>
+                {row.description && <p className="text-base text-muted">{row.description}</p>}
+              </div>
               <ScaleButtons min={min} max={max} label={row.label} disabled={disabled}
                 value={rows.find(r => r.rowId === row.id)?.value} onChange={v => setRow(row.id, v)} />
-            </Box>
+            </div>
           ))}
-        </Stack>
+        </div>
       );
       break;
     }
   }
 
   return (
-    <FormControl component="fieldset" error={!!error} fullWidth sx={{ py: 1 }} data-question-id={question.id}>
-      <FormLabel component="legend" id={`${id}-label`} sx={{ color: 'text.primary', fontWeight: 600, mb: 0.5, '&.Mui-focused': { color: 'text.primary' } }}>
-        {title}
-      </FormLabel>
-      {question.helpText && <Typography id={`${id}-help`} variant="body2" color="text.secondary" sx={{ mb: 1, whiteSpace: 'pre-wrap' }}>{question.helpText}</Typography>}
+    <fieldset className="min-w-0 py-2" data-question-id={question.id} aria-describedby={describedBy}>
+      <legend id={`${id}-label`} className="mb-2 text-xl font-bold leading-snug text-navy">
+        {number !== undefined && <span className="mr-2 text-cyan-700">{number}.</span>}
+        {question.title}
+        {question.required && <span aria-hidden="true" className="ml-1 text-red-700">*</span>}
+      </legend>
+      {question.helpText && <p id={`${id}-help`} className="-mt-1 mb-3 whitespace-pre-wrap text-base text-muted">{question.helpText}</p>}
       {control}
       {otherField}
-      {error && <FormHelperText role="alert">{error}</FormHelperText>}
-    </FormControl>
+      {error && <p id={`${id}-error`} role="alert" className="mt-2 font-bold text-red-700">{error}</p>}
+    </fieldset>
   );
 };
 
