@@ -44,6 +44,30 @@ namespace DotNetLiguriaCore.Services
         public async Task UpdateAsync(Guid id, WorkshopSpeaker updatedBook) =>
             await _workshopSpeakersCollection.ReplaceOneAsync(x => x.WorkshopSpeakerId == id, updatedBook);
 
+        public async Task<List<WorkshopSpeaker>> UpsertSessionizeAsync(IEnumerable<WorkshopSpeaker> importedSpeakers)
+        {
+            var speakers = new List<WorkshopSpeaker>();
+            foreach (var importedSpeaker in importedSpeakers)
+            {
+                var existingSpeaker = await _workshopSpeakersCollection
+                    .Find(x => x.SessionizeId == importedSpeaker.SessionizeId)
+                    .FirstOrDefaultAsync();
+                if (existingSpeaker is not null)
+                {
+                    importedSpeaker.WorkshopSpeakerId = existingSpeaker.WorkshopSpeakerId;
+                    importedSpeaker.Email = existingSpeaker.Email;
+                }
+
+                await _workshopSpeakersCollection.ReplaceOneAsync(
+                    x => x.SessionizeId == importedSpeaker.SessionizeId,
+                    importedSpeaker,
+                    new ReplaceOptions { IsUpsert = true });
+                speakers.Add(importedSpeaker);
+            }
+
+            return speakers;
+        }
+
         public async Task RemoveAsync(Guid id) =>
             await _workshopSpeakersCollection.DeleteOneAsync(x => x.WorkshopSpeakerId == id);
     }

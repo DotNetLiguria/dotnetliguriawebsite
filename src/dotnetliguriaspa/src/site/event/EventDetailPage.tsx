@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Button } from 'react-aria-components';
+import { Button, Disclosure, DisclosurePanel } from 'react-aria-components';
 import DOMPurify from 'dompurify';
 import SiteLayout from '../SiteLayout';
 import ScrollTopButton from '../ScrollTopButton';
@@ -12,8 +12,9 @@ import { SiteFile, contentUrl, getSpeakers, getWorkshop } from '../siteApi';
 import { clean, eventPhase, formatTimeRange, formatWeekday } from '../format';
 import { useLoad } from '../useLoad';
 import { publicQuestionnaireApi } from '../../questionnaire/api';
-import EventProgramme, { sortedTracks, speakerNames } from './EventProgramme';
+import EventProgramme, { triggerLink } from './EventProgramme';
 import EventInfoCard, { registrationLink } from './EventInfoCard';
+import { programme, programmeSpan, programmeSpeakers, sessionCount, sessionsLabel } from './programme';
 
 const PHASE = {
   done: { tone: 'done', label: 'Concluso' },
@@ -45,7 +46,7 @@ const backLink = (
 export default function EventDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
   const [load, retry] = useLoad(signal => getWorkshop(id, signal), id);
-  const [speakers] = useLoad(signal => getSpeakers(signal).catch(() => []));
+  const [speakerRecords] = useLoad(signal => getSpeakers(signal).catch(() => []));
   const [questionnaire] = useLoad(
     signal => publicQuestionnaireApi.byWorkshop(id, (input, init) => fetch(input, { ...init, signal })).catch(() => null),
     id,
@@ -54,9 +55,9 @@ export default function EventDetailPage() {
   const workshop = load.state === 'ready' ? load.data : null;
   const photoByName = useMemo(() => {
     const map = new Map<string, string | null | undefined>();
-    if (speakers.state === 'ready') for (const s of speakers.data) map.set(clean(s.name).toLowerCase(), s.profileImageUrl);
+    if (speakerRecords.state === 'ready') for (const s of speakerRecords.data) map.set(clean(s.name).toLowerCase(), s.profileImageUrl);
     return map;
-  }, [speakers]);
+  }, [speakerRecords]);
   const safeHtml = useMemo(() => (workshop?.blogHtml ? DOMPurify.sanitize(workshop.blogHtml, { USE_PROFILES: { html: true } }) : ''), [workshop]);
 
   if (load.state !== 'ready' || !workshop) {
@@ -92,8 +93,12 @@ export default function EventDetailPage() {
   }
 
   const phase = PHASE[eventPhase(workshop.eventDate)];
-  const tracks = sortedTracks(workshop);
-  const names = speakerNames(workshop);
+  const entries = programme(workshop);
+  const span = programmeSpan(entries);
+  const sessions = sessionCount(entries);
+  const speakers = programmeSpeakers(entries);
+  // Practical notes ("bring your laptop") only matter before the event.
+  const notes = phase.tone !== 'done' ? clean(workshop.attendeeNotes) : '';
   const image = contentUrl(workshop.image);
   const registration = registrationLink(workshop);
   const commentsOpen = questionnaire.state === 'ready' && questionnaire.data?.availability === 'Open';
@@ -111,17 +116,17 @@ export default function EventDetailPage() {
             {backLink}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Badge tone={phase.tone}>{phase.label}</Badge>
-              {tracks.length > 0 && <span className="font-semibold text-cyan-50/90">{tracks.length} sessioni</span>}
+              {sessions > 0 && <span className="font-semibold text-cyan-50/90">{sessionsLabel(sessions)}</span>}
             </div>
             <h1 id="event-title" className="mt-4 text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">{clean(workshop.title)}</h1>
             <p className="mt-6 flex flex-col gap-2 text-lg text-cyan-50/90">
               <span className="inline-flex items-center gap-2"><Icon name="calendar" className="size-5 text-cyan-200" />{formatWeekday(workshop.eventDate)}</span>
-              {tracks.length > 0 && (
-                <span className="inline-flex items-center gap-2"><Icon name="clock" className="size-5 text-cyan-200" />{formatTimeRange(tracks[0].startTime, tracks[tracks.length - 1].endTime)}</span>
+              {span && (
+                <span className="inline-flex items-center gap-2"><Icon name="clock" className="size-5 text-cyan-200" />{formatTimeRange(span.start, span.end)}</span>
               )}
               {place && <span className="inline-flex items-center gap-2"><Icon name="pin" className="size-5 text-cyan-200" />{place}</span>}
             </p>
-            {registration && <div className="mt-8"><PrimaryAction href={registration} external>Iscriviti all'evento</PrimaryAction></div>}
+            {registration && <div className="mt-8"><PrimaryAction href={registration.href} external>{registration.label}</PrimaryAction></div>}
           </div>
           {image && (
             <div className="overflow-hidden rounded-3xl bg-navy-950 shadow-card">
@@ -137,6 +142,13 @@ export default function EventDetailPage() {
             <section aria-labelledby="descrizione">
               <SectionHeading id="descrizione">Descrizione</SectionHeading>
               <p className="mt-5 max-w-[65ch] text-xl leading-relaxed text-navy/85">{clean(workshop.description)}</p>
+            </section>
+          )}
+
+          {notes && (
+            <section aria-labelledby="note" className="rounded-3xl bg-basil-50 p-7">
+              <SectionHeading id="note">Note per chi partecipa</SectionHeading>
+              <p className="mt-4 max-w-[65ch] whitespace-pre-line text-lg leading-relaxed text-navy/85">{notes}</p>
             </section>
           )}
 
@@ -156,22 +168,33 @@ export default function EventDetailPage() {
             <EventProgramme workshop={workshop} />
           </section>
 
-          {names.length > 0 && (
+          {speakers.length > 0 && (
             <section aria-labelledby="relatori">
               <SectionHeading id="relatori">Relatori</SectionHeading>
               <ul className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                {names.map(name => {
-                  const sessions = tracks.filter(track => clean(track.speakersName).split(/\s*,\s*/).includes(name)).length;
-                  return (
-                    <li key={name} className="flex items-center gap-4 rounded-3xl bg-white p-4 shadow-card">
-                      <SpeakerAvatar name={name} profileImageUrl={photoByName.get(name.toLowerCase())} />
+                {speakers.map(speaker => (
+                  <li key={speaker.name} className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-card">
+                    <div className="flex items-center gap-4">
+                      <SpeakerAvatar name={speaker.name} profileImageUrl={speaker.imageUrl || photoByName.get(speaker.name.toLowerCase())} />
                       <div className="min-w-0">
-                        <p className="text-lg font-bold leading-tight">{name}</p>
-                        <p className="text-base text-muted">{sessions} {sessions === 1 ? 'sessione' : 'sessioni'}</p>
+                        <p className="text-lg font-bold leading-tight">{speaker.name}</p>
+                        <p className="text-base text-muted">{sessionsLabel(speaker.sessions)}</p>
                       </div>
-                    </li>
-                  );
-                })}
+                    </div>
+                    {speaker.biography && (
+                      <Disclosure>
+                        {({ isExpanded }) => (
+                          <>
+                            <Button slot="trigger" aria-label={`${isExpanded ? 'Nascondi la biografia' : 'Leggi la biografia'} di ${speaker.name}`} className={triggerLink}>
+                              {isExpanded ? 'Nascondi la biografia' : 'Leggi la biografia'}
+                            </Button>
+                            <DisclosurePanel><p className="text-base leading-relaxed text-navy/85">{speaker.biography}</p></DisclosurePanel>
+                          </>
+                        )}
+                      </Disclosure>
+                    )}
+                  </li>
+                ))}
               </ul>
             </section>
           )}

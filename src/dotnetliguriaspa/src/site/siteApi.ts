@@ -18,6 +18,40 @@ export interface SiteFile {
   fileType?: number | null;
 }
 
+export interface SiteTalkSpeaker {
+  workshopSpeakerId?: string | null;
+  sessionizeId?: string | null;
+  name?: string | null;
+  imageUrl?: string | null;
+  biography?: string | null;
+}
+
+export interface SiteTalk {
+  workshopTalkId: string;
+  title?: string | null;
+  abstract?: string | null;
+  sessionType?: string | null;
+  speakers?: SiteTalkSpeaker[] | null;
+}
+
+export interface SiteAgendaTrack {
+  workshopAgendaTrackId: string;
+  name?: string | null;
+  order?: number;
+}
+
+export interface SiteAgendaItem {
+  workshopAgendaItemId: string;
+  itemType?: 'talk' | 'break' | 'service' | null;
+  talkId?: string | null;
+  trackId?: string | null;
+  order?: number;
+  title?: string | null;
+  roomName?: string | null;
+  startTime: string;
+  endTime: string;
+}
+
 export interface SiteWorkshop {
   workshopId: string;
   title: string;
@@ -30,8 +64,15 @@ export interface SiteWorkshop {
   isExternalEvent?: boolean;
   externalRegistration?: boolean;
   externalRegistrationLink?: string | null;
-  location?: { name?: string | null; address?: string | null; coordinates?: string | null } | null;
+  /** Seat booking and cancellation service; preferred over the external registration link. */
+  bookingServiceUrl?: string | null;
+  attendeeNotes?: string | null;
+  location?: { name?: string | null; address?: string | null; coordinates?: string | null; googleMapsUrl?: string | null } | null;
+  /** Legacy programme; replaced by talks, agendaTracks and agendaItems when an agenda exists. */
   tracks?: SiteTrack[] | null;
+  talks?: SiteTalk[] | null;
+  agendaTracks?: SiteAgendaTrack[] | null;
+  agendaItems?: SiteAgendaItem[] | null;
   materials?: SiteFile[] | null;
   photos?: SiteFile[] | null;
 }

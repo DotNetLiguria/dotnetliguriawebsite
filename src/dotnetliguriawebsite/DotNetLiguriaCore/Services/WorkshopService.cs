@@ -86,18 +86,24 @@ namespace DotNetLiguriaCore.Services
         public async Task CreateAsync(Workshop newWorkshop) =>
             await _workshopsCollection.InsertOneAsync(newWorkshop);
 
-        public async Task UpdateAsync(Guid id, Workshop updateWorkshop) =>
-            await _workshopsCollection.ReplaceOneAsync(x => x.WorkshopId == id, updateWorkshop);
+        public async Task UpdateAsync(Guid id, Workshop updateWorkshop)
+        {
+            var updatedFields = updateWorkshop.ToBsonDocument();
+            updatedFields.Remove("_id");
+            var update = new BsonDocumentUpdateDefinition<Workshop>(
+                new BsonDocument("$set", updatedFields));
+            await _workshopsCollection.UpdateOneAsync(BsonCompatibility.CreateGuidFilter("_id", id), update);
+        }
 
         public async Task UpdateImageAsync(Guid id, string imagePath)
         {
-            var filter = Builders<Workshop>.Filter.Eq(x => x.WorkshopId, id);
+            var filter = BsonCompatibility.CreateGuidFilter("_id", id);
             var update = Builders<Workshop>.Update.Set(x => x.Image, imagePath);
             await _workshopsCollection.UpdateOneAsync(filter, update);
         }
 
         public async Task RemoveAsync(Guid id) =>
-            await _workshopsCollection.DeleteOneAsync(x => x.WorkshopId == id);
+            await _workshopsCollection.DeleteOneAsync(BsonCompatibility.CreateGuidFilter("_id", id));
 
         public async Task ClearAllHomepageAsync()
         {
@@ -108,9 +114,7 @@ namespace DotNetLiguriaCore.Services
 
         private async Task<Workshop?> FindBBsonIdAsync(Guid workshopId)
         {
-
-            var bsonBinaryData = new BsonBinaryData(workshopId, GuidRepresentation.Standard);
-            var filter = Builders<Workshop>.Filter.Eq("_id", bsonBinaryData);
+            var filter = BsonCompatibility.CreateGuidFilter("_id", workshopId);
             return await _workshopsCollection.Find(filter).FirstOrDefaultAsync();
         }
 

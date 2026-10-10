@@ -1,10 +1,13 @@
-import React, { FC, useState } from 'react';
-import { Box, Typography, Paper, Grid, TextField, Button, Snackbar, Alert, IconButton } from '@mui/material';
+import React, { FC, useEffect, useState } from 'react';
+import { Box, Typography, Paper, Grid, TextField, Button, Snackbar, Alert, IconButton, FormControl, InputLabel, MenuItem, Select } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../../config/apiConfig';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
+import { LocationModel } from '../../models/LocationModel';
+import { VenueModel } from '../../models/VenueModel';
+import { copyVenueLocation } from '../../utility/venueLocation';
 
 const AdminWorkshopCreate: FC = () => {
 	const navigate = useNavigate();
@@ -12,19 +15,57 @@ const AdminWorkshopCreate: FC = () => {
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
 	const [eventDate, setEventDate] = useState('');
+	const [venues, setVenues] = useState<VenueModel[]>([]);
+	const [selectedVenueId, setSelectedVenueId] = useState('');
+	const [location, setLocation] = useState<LocationModel>({
+		name: '',
+		address: '',
+		coordinates: '',
+		googleMapsUrl: '',
+		maximumSpaces: 0,
+	});
+	const [rooms, setRooms] = useState('');
+	const [bookingServiceUrl, setBookingServiceUrl] = useState('');
+	const [attendeeNotes, setAttendeeNotes] = useState('');
 	const [snackbarOpen, setSnackbarOpen] = useState(false);
 	const [snackbarMessage, setSnackbarMessage] = useState('');
 	const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
 	const [loading, setLoading] = useState(false);
+	const [loadingVenues, setLoadingVenues] = useState(true);
+
+	useEffect(() => {
+		const loadVenues = async () => {
+			setLoadingVenues(true);
+			try {
+				const response = await fetch(`${API_BASE_URL}/Venue`);
+				if (!response.ok) {
+					throw new Error(`Failed to load venues (HTTP ${response.status})`);
+				}
+				const data: VenueModel[] = await response.json();
+				setVenues(data);
+			} catch (error) {
+				console.error('Error loading venues:', error);
+				setSnackbarMessage(error instanceof Error ? error.message : 'Error loading venues');
+				setSnackbarSeverity('error');
+				setSnackbarOpen(true);
+			} finally {
+				setLoadingVenues(false);
+			}
+		};
+
+		void loadVenues();
+	}, [fetch]);
 
 	const handleSubmit = async () => {
-		if (!title || !description || !eventDate) {
-			setSnackbarMessage('Please fill in all fields');
+		const selectedVenue = venues.find((venue) => venue.venueId === selectedVenueId);
+		if (!title || !description || !eventDate || !selectedVenue || !location.name || !location.address) {
+			setSnackbarMessage('Please fill in all required fields and select a venue');
 			setSnackbarSeverity('error');
 			setSnackbarOpen(true);
 			return;
 		}
 
+		const eventRooms = rooms.split(/\r?\n/).map((room) => room.trim()).filter(Boolean);
 		setLoading(true);
 		try {
 			const response = await fetch(`${API_BASE_URL}/Workshop/Post`, {
@@ -36,22 +77,44 @@ const AdminWorkshopCreate: FC = () => {
 					title,
 					description,
 					eventDate,
+					location: {
+						...location,
+						rooms: eventRooms,
+					},
+					bookingServiceUrl,
+					externalRegistration: Boolean(bookingServiceUrl),
+					externalRegistrationLink: bookingServiceUrl,
+					attendeeNotes,
 				}),
 			});
 
 			if (response.ok) {
-				setSnackbarMessage('Workshop created successfully');
-				setSnackbarSeverity('success');
-				setSnackbarOpen(true);
-				setTimeout(() => {
-					navigate('/admin/workshops');
-				}, 1500);
+				const createdWorkshop: unknown = await response.json();
+				if (typeof createdWorkshop !== 'object' || createdWorkshop === null) {
+					throw new Error('Workshop was created, but the server did not return a valid workshop ID.');
+				}
+				const workshopRecord = createdWorkshop as Record<string, unknown>;
+				const workshopId = workshopRecord.workshopId ?? workshopRecord.WorkshopId;
+				if (typeof workshopId !== 'string' || !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(workshopId)) {
+					throw new Error('Workshop was created, but the server did not return a valid workshop ID.');
+				}
+				navigate(`/admin/workshop/${workshopId}`);
 			} else {
-				throw new Error('Failed to create workshop');
+				const responseText = await response.text();
+				let message = responseText;
+				try {
+					const problem: unknown = JSON.parse(responseText);
+					if (typeof problem === 'object' && problem !== null && 'detail' in problem && typeof problem.detail === 'string') {
+						message = problem.detail;
+					}
+				} catch {
+					message = responseText;
+				}
+				throw new Error(message || `Failed to create workshop (HTTP ${response.status})`);
 			}
 		} catch (error) {
 			console.error('Error creating workshop:', error);
-			setSnackbarMessage('Error creating workshop');
+			setSnackbarMessage(error instanceof Error ? error.message : 'Error creating workshop');
 			setSnackbarSeverity('error');
 			setSnackbarOpen(true);
 		} finally {
@@ -90,6 +153,109 @@ const AdminWorkshopCreate: FC = () => {
 								},
 							}}
 						/>
+					</Grid>
+					<Grid size={12}>
+						<FormControl fullWidth required>
+							<InputLabel id="workshop-venue-label">Venue</InputLabel>
+							<Select
+								labelId="workshop-venue-label"
+								label="Venue"
+								value={selectedVenueId}
+								onChange={(event) => {
+									const venueId = event.target.value;
+									setSelectedVenueId(venueId);
+									const venue = venues.find((item) => item.venueId === venueId);
+									if (venue) {
+										setLocation(copyVenueLocation(venue));
+									}
+								}}
+								disabled={loadingVenues || venues.length === 0}
+							>
+								{venues.map((venue) => (
+									<MenuItem key={venue.venueId} value={venue.venueId}>{venue.name}</MenuItem>
+								))}
+							</Select>
+						</FormControl>
+						{!loadingVenues && venues.length === 0 && (
+							<Typography variant="caption" color="text.secondary">
+								Add a venue in Venues / Sale eventi before creating a workshop.
+							</Typography>
+						)}
+					</Grid>
+					<Grid size={12}>
+						<Typography variant="h6">Location Information</Typography>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Name"
+							placeholder="Venue name"
+							value={location.name}
+							onChange={(event) => setLocation((current) => ({ ...current, name: event.target.value }))}
+							required
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Address"
+							placeholder="Venue address"
+							value={location.address}
+							onChange={(event) => setLocation((current) => ({ ...current, address: event.target.value }))}
+							required
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Coordinates"
+							placeholder="Latitude, longitude"
+							value={location.coordinates}
+							onChange={(event) => setLocation((current) => ({ ...current, coordinates: event.target.value }))}
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Google Maps URL"
+							type="url"
+							placeholder="https://maps.google.com/..."
+							value={location.googleMapsUrl ?? ''}
+							onChange={(event) => setLocation((current) => ({ ...current, googleMapsUrl: event.target.value }))}
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Maximum spaces"
+							type="number"
+							value={location.maximumSpaces}
+							onChange={(event) => setLocation((current) => ({ ...current, maximumSpaces: Number(event.target.value) || 0 }))}
+						/>
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							multiline
+							minRows={2}
+							label="Rooms for this event"
+							value={rooms}
+							onChange={(event) => setRooms(event.target.value)}
+							placeholder="Enter one room per line"
+							helperText="Room offerings can differ for each event date."
+						/>
+					</Grid>
+					<Grid size={12}>
+						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
+							Seat booking and cancellation service URL
+						</Typography>
+						<TextField fullWidth type="url" value={bookingServiceUrl} onChange={(e) => setBookingServiceUrl(e.target.value)} placeholder="https://..." />
+					</Grid>
+					<Grid size={12}>
+						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>
+							Notes for attendees
+						</Typography>
+						<TextField fullWidth multiline rows={3} value={attendeeNotes} onChange={(e) => setAttendeeNotes(e.target.value)} placeholder="Practical information for attendees" />
 					</Grid>
 					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>

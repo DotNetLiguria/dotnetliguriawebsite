@@ -162,6 +162,24 @@ describe('api client', () => {
     expect(fetcher).toHaveBeenCalledWith(expect.stringMatching(/\/api\/Questionnaire\/q1\/publish$/), expect.objectContaining({ method: 'POST' }));
   });
 
+  it('explains when an API endpoint returns an HTML page instead of JSON', async () => {
+    const fetcher = vi.fn(async () => new Response('<!DOCTYPE html><html></html>', {
+      status: 200,
+      headers: { 'Content-Type': 'text/html' },
+    }));
+    const api = createQuestionnaireAdminApi(fetcher);
+
+    const error = await api.byWorkshop('not-a-guid').catch(e => e);
+
+    expect(error).toBeInstanceOf(QuestionnaireApiError);
+    expect(error).toMatchObject({
+      status: 200,
+      message: expect.stringContaining('risposta non JSON (text/html)'),
+    });
+    expect(error.message).toContain('/api/Questionnaire/by-workshop/not-a-guid');
+    expect(error.message).not.toContain('<!DOCTYPE');
+  });
+
   it('posts public responses as JSON', async () => {
     const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ responseId: 'r1' }), { status: 200 }));
     await expect(publicQuestionnaireApi.submit('q1', { consentGiven: false, answers: [] }, fetcher)).resolves.toEqual({ responseId: 'r1' });

@@ -4,6 +4,7 @@ import { SiteWorkshop, contentUrl } from './siteApi';
 import { clean, eventPhase, formatDayMonth, formatWeekday } from './format';
 import { Icon } from './icons';
 import { Badge } from './ui';
+import { programme, sessionCount, sessionsLabel } from './event/programme';
 
 const PHASE_BADGE = {
   done: { tone: 'done', label: 'Concluso' },
@@ -15,7 +16,7 @@ const PHASE_BADGE = {
 export default function EventCard({ workshop, large = false }: { workshop: SiteWorkshop; large?: boolean }) {
   const image = contentUrl(workshop.image);
   const place = clean(workshop.location?.name);
-  const sessions = (workshop.tracks ?? []).length;
+  const sessions = sessionCount(programme(workshop));
   const phase = PHASE_BADGE[eventPhase(workshop.eventDate)];
   const { day, month } = formatDayMonth(workshop.eventDate);
 
@@ -38,7 +39,7 @@ export default function EventCard({ workshop, large = false }: { workshop: SiteW
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={phase.tone}>{phase.label}</Badge>
-          {sessions > 0 && <span className="text-sm font-semibold text-muted">{sessions} sessioni</span>}
+          {sessions > 0 && <span className="text-sm font-semibold text-muted">{sessionsLabel(sessions)}</span>}
         </div>
         <h3 className={`${large ? 'text-2xl sm:text-3xl' : 'text-xl'} font-bold leading-tight text-navy`}>
           <Link to={`/workshop/${workshop.workshopId}`} className="text-navy no-underline after:absolute after:inset-0 hover:underline">

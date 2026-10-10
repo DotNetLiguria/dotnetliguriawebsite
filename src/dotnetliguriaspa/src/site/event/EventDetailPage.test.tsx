@@ -1,5 +1,6 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import { fireEvent, jsonResponse, mockApi, render, screen, waitFor, within } from '../../test-utils';
 import EventDetailPage from './EventDetailPage';
 
@@ -30,7 +31,7 @@ const renderAt = (id = ID) => render(
 
 describe('<EventDetailPage />', () => {
   test('presents a past event with programme, speakers, materials and topics, without registration', async () => {
-    mockApi({ [`/Workshop/Get/${ID}`]: workshop(), '/Speaker/Get': [{ workshopSpeakerId: 's1', name: 'Andrea Merlin ', profileImageUrl: '/Uploads/speakers/old.jpg' }] });
+    mockApi({ [`/Workshop/Get/${ID}`]: workshop({ attendeeNotes: 'Porta il portatile.' }), '/Speaker/Get': [{ workshopSpeakerId: 's1', name: 'Andrea Merlin ', profileImageUrl: '/Uploads/speakers/old.jpg' }] });
     renderAt();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'AI Generativa: analisi pragmatica' })).toBeInTheDocument();
@@ -44,6 +45,50 @@ describe('<EventDetailPage />', () => {
     expect(material.getAttribute('href')).toMatch(/\/Contents\/workshops\/workshop040\/gemini\.pdf$/);
     expect(within(screen.getByRole('region', { name: 'Argomenti' })).getAllByRole('listitem').map(li => li.textContent)).toEqual(['AI', 'MCP']);
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Eventi passati' })).toHaveAttribute('href', '/workshops');
+    expect(screen.queryByRole('region', { name: 'Note per chi partecipa' })).not.toBeInTheDocument();
+  });
+
+  test('shows the agenda with speaker photos and biographies, attendee notes, seat booking and the venue map', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      [`/Workshop/Get/${ID}`]: workshop({
+        eventDate: '2099-03-15T00:00:00+01:00',
+        agendaTracks: [{ workshopAgendaTrackId: 'a', name: 'Sala grande', order: 0 }, { workshopAgendaTrackId: 'b', name: 'Sala piccola', order: 1 }],
+        talks: [{
+          workshopTalkId: 'talk-1', title: 'Strumenti utili', abstract: 'Come progettare strumenti utili.', sessionType: 'panel',
+          speakers: [{ workshopSpeakerId: 's1', name: 'Ada Lovelace', imageUrl: 'https://images.example.test/ada.jpg', biography: 'Matematica e prima programmatrice.' }],
+        }],
+        agendaItems: [
+          { workshopAgendaItemId: 'i1', itemType: 'talk', talkId: 'talk-1', trackId: 'a', roomName: 'Aula A', startTime: '2099-03-15T10:00:00Z', endTime: '2099-03-15T11:00:00Z' },
+          { workshopAgendaItemId: 'i2', itemType: 'break', trackId: 'a', title: 'Technical gap', startTime: '2099-03-15T11:00:00Z', endTime: '2099-03-15T11:05:00Z' },
+          { workshopAgendaItemId: 'i3', itemType: 'service', trackId: null, title: 'Service interval', startTime: '2099-03-15T11:05:00Z', endTime: '2099-03-15T11:30:00Z' },
+        ],
+        location: { name: 'Genova', address: 'Via del Porto 1', coordinates: '44.4056,8.9463', googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=Genova' },
+        bookingServiceUrl: 'https://booking.example.test/event/1',
+        attendeeNotes: 'Porta il portatile.',
+      }),
+    });
+    renderAt();
+
+    const agenda = await screen.findByRole('region', { name: 'Programma' });
+    expect(within(agenda).getAllByRole('heading', { level: 4 }).map(h => h.textContent)).toEqual(['Strumenti utili', 'Pausa']);
+    expect(within(agenda).getByText(/Sala grande · Aula A · Panel/)).toBeInTheDocument();
+    expect(within(agenda).getByText('Come progettare strumenti utili.')).toBeInTheDocument();
+    expect(screen.queryByText('Gemini versus ChatGPT')).not.toBeInTheDocument();
+    expect(screen.getByText('1 sessione', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getAllByText('11:00–12:30').length).toBeGreaterThan(0);
+
+    const speakers = screen.getByRole('region', { name: 'Relatori' });
+    expect(within(speakers).getByRole('listitem').querySelector('img')).toHaveAttribute('src', 'https://images.example.test/ada.jpg');
+    await user.click(within(speakers).getByRole('button', { name: 'Leggi la biografia di Ada Lovelace' }));
+    expect(within(speakers).getByText('Matematica e prima programmatrice.')).toBeVisible();
+
+    expect(within(screen.getByRole('region', { name: 'Note per chi partecipa' })).getByText('Porta il portatile.')).toBeInTheDocument();
+    for (const link of screen.getAllByRole('link', { name: /Prenota o annulla il posto/ })) {
+      expect(link).toHaveAttribute('href', 'https://booking.example.test/event/1');
+    }
+    expect(screen.queryByRole('link', { name: /Iscriviti all'evento/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Apri la mappa/ })).toHaveAttribute('href', 'https://www.google.com/maps/search/?api=1&query=Genova');
   });
 
   test('loads the event from the published list when the single lookup answers 404', async () => {

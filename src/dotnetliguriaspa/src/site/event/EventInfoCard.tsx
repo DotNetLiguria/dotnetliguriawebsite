@@ -4,9 +4,14 @@ import { SiteWorkshop } from '../siteApi';
 import { clean, eventPhase, formatTimeRange, formatWeekday } from '../format';
 import { ExternalLink, Icon } from '../icons';
 import { OutlineAction, PrimaryAction } from '../ui';
-import { sortedTracks } from './EventProgramme';
+import { programme, programmeSpan } from './programme';
+
+const isWebUrl = (value?: string | null): value is string => !!value && /^https?:\/\//i.test(value);
 
 export const mapUrl = (workshop: SiteWorkshop) => {
+  // The venue's own map link wins; an embed URL is meant for iframes, not for visitors.
+  const own = workshop.location?.googleMapsUrl?.trim();
+  if (isWebUrl(own) && !own.includes('/maps/embed')) return own;
   const [lat, lon] = (workshop.location?.coordinates ?? '').split(',').map(part => part.trim());
   if (lat && lon && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lon))) {
     return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
@@ -15,10 +20,18 @@ export const mapUrl = (workshop: SiteWorkshop) => {
   return query ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}` : null;
 };
 
-/** External registration link, only while the event has not happened yet. */
-export const registrationLink = (workshop: SiteWorkshop) =>
-  workshop.externalRegistration && workshop.externalRegistrationLink && eventPhase(workshop.eventDate) !== 'done'
-    ? workshop.externalRegistrationLink : null;
+/**
+ * Where to sign up, only while the event has not happened yet: the seat booking service when there is one
+ * (it also handles cancellations), otherwise the external registration page.
+ */
+export const registrationLink = (workshop: SiteWorkshop) => {
+  if (eventPhase(workshop.eventDate) === 'done') return null;
+  const booking = workshop.bookingServiceUrl?.trim();
+  if (isWebUrl(booking)) return { href: booking, label: 'Prenota o annulla il posto' };
+  const external = workshop.externalRegistrationLink?.trim();
+  if (workshop.externalRegistration && isWebUrl(external)) return { href: external, label: "Iscriviti all'evento" };
+  return null;
+};
 
 function Row({ icon, label, children }: { icon: 'calendar' | 'clock' | 'pin'; label: string; children: React.ReactNode }) {
   return (
@@ -36,7 +49,7 @@ export default function EventInfoCard({ workshop, commentsOpen, detailsLink = tr
   detailsLink?: boolean;
   backLink?: boolean;
 }) {
-  const tracks = sortedTracks(workshop);
+  const span = programmeSpan(programme(workshop));
   const place = clean(workshop.location?.name);
   const address = clean(workshop.location?.address);
   const map = mapUrl(workshop);
@@ -46,7 +59,7 @@ export default function EventInfoCard({ workshop, commentsOpen, detailsLink = tr
     <aside className="self-start rounded-3xl bg-cyan-50 p-7 lg:sticky lg:top-28" aria-label="Informazioni sull'evento">
       <dl className="space-y-5">
         <Row icon="calendar" label="Data">{formatWeekday(workshop.eventDate)}</Row>
-        {tracks.length > 0 && <Row icon="clock" label="Orario">{formatTimeRange(tracks[0].startTime, tracks[tracks.length - 1].endTime)}</Row>}
+        {span && <Row icon="clock" label="Orario">{formatTimeRange(span.start, span.end)}</Row>}
         {place && (
           <Row icon="pin" label="Sede">
             {place}
@@ -55,7 +68,7 @@ export default function EventInfoCard({ workshop, commentsOpen, detailsLink = tr
         )}
       </dl>
       <div className="mt-7 flex flex-col gap-3">
-        {registration && <PrimaryAction href={registration} external>Iscriviti all'evento</PrimaryAction>}
+        {registration && <PrimaryAction href={registration.href} external>{registration.label}</PrimaryAction>}
         {detailsLink && <OutlineAction to={`/workshop/${workshop.workshopId}`}>Dettagli e materiali</OutlineAction>}
         {map && <ExternalLink href={map} className="min-h-11 self-start font-bold text-cyan-700 underline decoration-2 underline-offset-4">Apri la mappa</ExternalLink>}
         {backLink && (

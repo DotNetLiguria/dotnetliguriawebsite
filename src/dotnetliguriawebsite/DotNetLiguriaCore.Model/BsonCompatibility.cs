@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 
 namespace DotNetLiguriaCore.Model;
@@ -14,4 +15,11 @@ public static class BsonCompatibility
     {
         _ = _initialization.Value;
     }
+
+    public static BsonDocument CreateGuidFilter(string fieldName, Guid id) =>
+        new(fieldName, new BsonDocument("$in", new BsonArray
+        {
+            new BsonBinaryData(id, GuidRepresentation.CSharpLegacy),
+            new BsonBinaryData(id, GuidRepresentation.Standard)
+        }));
 }

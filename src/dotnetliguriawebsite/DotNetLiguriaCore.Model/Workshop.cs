@@ -32,6 +32,11 @@ namespace DotNetLiguriaCore.Model
         public string? FolderName { get; set; }
 
         public List<WorkshopTrack>? Tracks { get; set; }
+        public List<WorkshopTalk> Talks { get; set; } = [];
+        public List<WorkshopAgendaTrack> AgendaTracks { get; set; } = [];
+        public List<WorkshopAgendaItem> AgendaItems { get; set; } = [];
+        public string? AttendeeNotes { get; set; }
+        public string? BookingServiceUrl { get; set; }
 
         public string? OldUrl { get; set; }
         public string? Slug { get; set; }

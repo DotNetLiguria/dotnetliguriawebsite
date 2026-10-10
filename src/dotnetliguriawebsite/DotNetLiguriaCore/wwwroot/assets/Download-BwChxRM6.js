@@ -1,1 +1,0 @@
-import{Et as e,er as t}from"./rules-C0_OOTLC.js";var n=t(),r=e((0,n.jsx)(`path`,{d:`M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z`}),`Download`);export{r as t};

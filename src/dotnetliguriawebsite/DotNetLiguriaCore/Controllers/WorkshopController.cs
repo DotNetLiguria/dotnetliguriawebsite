@@ -7,12 +7,13 @@ namespace DotNetLiguriaCore.Controllers
 {
     [Route("api/[controller]/[action]")]
     [ApiController]
-    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, IWebHostEnvironment environment) : ControllerBase
+    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, IWebHostEnvironment environment) : ControllerBase
     {
         private readonly WorkshopService _workshopService = workshopService;
         private readonly SpeakerService _speakerService = speakerService;
         private readonly WorkshopFileService _workshopFileService = workshopFileService;
         private readonly CounterService _counterService = counterService;
+        private readonly SessionizeImportService _sessionizeImportService = sessionizeImportService;
         private readonly IWebHostEnvironment _environment = environment;
 
         [HttpGet]
@@ -68,19 +69,19 @@ namespace DotNetLiguriaCore.Controllers
         {
             newWorkshop.WorkshopId = Guid.NewGuid();
             
-            var counter = await _counterService.GetByNameAsync("Workshop");
-            
-            if (counter is null)
-            {
-                return BadRequest("Workshop counter not found.");
-            }
-            
-            var newWorkshopNumber = counter.Value ?? 1;
+            var counter = await _counterService.GetOrCreateWorkshopCounterAsync();
+            var newWorkshopNumber = await _counterService.ReserveNextWorkshopNumberAsync(counter.CounterId);
             var folderName = $"workshop{newWorkshopNumber:000}";
-            newWorkshop.FolderName = folderName;
-            
             var contentsPath = Path.Combine(_environment.ContentRootPath, "Contents");
             var workshopPath = Path.Combine(contentsPath, "workshops", folderName);
+            while (Directory.Exists(workshopPath))
+            {
+                newWorkshopNumber = await _counterService.ReserveNextWorkshopNumberAsync(counter.CounterId);
+                folderName = $"workshop{newWorkshopNumber:000}";
+                workshopPath = Path.Combine(contentsPath, "workshops", folderName);
+            }
+            newWorkshop.FolderName = folderName;
+
             Directory.CreateDirectory(workshopPath);
             Directory.CreateDirectory(Path.Combine(workshopPath, "photos"));
             Directory.CreateDirectory(Path.Combine(workshopPath, "tracks"));
@@ -100,6 +101,7 @@ namespace DotNetLiguriaCore.Controllers
                     }
                 }
             }
+            EnsureAgendaIds(newWorkshop);
             
             if (newWorkshop.In_homepage)
             {
@@ -108,10 +110,68 @@ namespace DotNetLiguriaCore.Controllers
             
             await _workshopService.CreateAsync(newWorkshop);
             
-            counter.Value = newWorkshopNumber + 1;
-            await _counterService.UpdateAsync(counter.CounterId, counter);
-
             return CreatedAtAction(nameof(Get), new { id = newWorkshop.WorkshopId }, newWorkshop);
+        }
+
+        [HttpPost("{id}")]
+        public async Task<IActionResult> ImportSessionize(Guid id, SessionizeImportRequest request, CancellationToken cancellationToken)
+        {
+            var workshop = await _workshopService.GetAsync(id);
+            if (workshop is null)
+            {
+                return NotFound();
+            }
+
+            SessionizeImportData import;
+            try
+            {
+                import = await _sessionizeImportService.ImportAsync(request.SessionizeId, cancellationToken);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Sessionize URL",
+                    Detail = exception.Message,
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+            catch (HttpRequestException)
+            {
+                return Problem(
+                    detail: "Sessionize could not be reached or returned an unsuccessful response.",
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Sessionize import failed");
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return Problem(
+                    detail: "Sessionize returned data that could not be read.",
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Sessionize import failed");
+            }
+
+            var importedSpeakers = await _speakerService.UpsertSessionizeAsync(import.Speakers);
+            var speakersBySessionizeId = new Dictionary<string, WorkshopSpeaker>(StringComparer.Ordinal);
+            foreach (var importedSpeaker in importedSpeakers)
+            {
+                if (importedSpeaker.SessionizeId is { } sessionizeId)
+                {
+                    speakersBySessionizeId[sessionizeId] = importedSpeaker;
+                }
+            }
+            foreach (var speaker in import.Talks.SelectMany(talk => talk.Speakers))
+            {
+                if (speaker.SessionizeId is not null && speakersBySessionizeId.TryGetValue(speaker.SessionizeId, out var savedSpeaker))
+                {
+                    speaker.WorkshopSpeakerId = savedSpeaker.WorkshopSpeakerId;
+                }
+            }
+
+            workshop.Talks = WorkshopTalkImportMerger.Merge(workshop.Talks ?? [], import.Talks);
+
+            await _workshopService.UpdateAsync(id, workshop);
+            return Ok(new { importedTalks = import.Talks.Count, importedSpeakers = importedSpeakers.Count });
         }
 
         [HttpPut("{id}")]
@@ -125,6 +185,7 @@ namespace DotNetLiguriaCore.Controllers
             }
 
             updatedWorkshop.WorkshopId = Workshop.WorkshopId;
+            EnsureAgendaIds(updatedWorkshop);
             
             if (updatedWorkshop.Tracks != null)
             {
@@ -192,6 +253,44 @@ namespace DotNetLiguriaCore.Controllers
                     var speakerDetails = speakers.Where(s => track.Speakers.Contains(s.WorkshopSpeakerId)).Select(s => s.Name).Where(name => name != null).Cast<string>().ToList();
                     track.SpeakersDetails = speakerDetails;
                     track.SpeakersName = string.Join(", ", speakerDetails);
+                }
+            }
+        }
+
+        private static void EnsureAgendaIds(Workshop workshop)
+        {
+            workshop.Talks ??= [];
+            foreach (var talk in workshop.Talks)
+            {
+                if (talk.WorkshopTalkId == Guid.Empty)
+                {
+                    talk.WorkshopTalkId = Guid.NewGuid();
+                }
+                talk.Speakers ??= [];
+                foreach (var speaker in talk.Speakers)
+                {
+                    if (speaker.WorkshopSpeakerId is not Guid speakerId || speakerId == Guid.Empty)
+                    {
+                        speaker.WorkshopSpeakerId = Guid.NewGuid();
+                    }
+                }
+            }
+
+            workshop.AgendaTracks ??= [];
+            foreach (var track in workshop.AgendaTracks)
+            {
+                if (track.WorkshopAgendaTrackId == Guid.Empty)
+                {
+                    track.WorkshopAgendaTrackId = Guid.NewGuid();
+                }
+            }
+
+            workshop.AgendaItems ??= [];
+            foreach (var item in workshop.AgendaItems)
+            {
+                if (item.WorkshopAgendaItemId == Guid.Empty)
+                {
+                    item.WorkshopAgendaItemId = Guid.NewGuid();
                 }
             }
         }
