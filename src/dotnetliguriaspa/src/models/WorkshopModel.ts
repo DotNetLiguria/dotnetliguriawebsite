@@ -13,6 +13,7 @@ export interface WorkshopTalkSpeakerModel {
 export interface WorkshopTalkModel {
   workshopTalkId: string;
   sessionizeId?: string;
+  trackId?: string | null;
   title: string;
   abstract?: string;
   sessionType: string;
@@ -30,6 +31,7 @@ export interface WorkshopAgendaItemModel {
   itemType: "talk" | "break" | "service";
   talkId?: string | null;
   trackId?: string | null;
+  order?: number;
   title?: string;
   roomName?: string;
   startTime: Date | string;

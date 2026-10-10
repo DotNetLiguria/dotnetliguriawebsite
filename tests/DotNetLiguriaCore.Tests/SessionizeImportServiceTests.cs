@@ -23,7 +23,7 @@ public class SessionizeImportServiceTests
         var handler = new SessionizeHttpMessageHandler(json);
         var service = new SessionizeImportService(new HttpClient(handler));
 
-        var result = await service.ImportAsync("https://sessionize.com/api/v2/test123/view/All");
+        var result = await service.ImportAsync("test123");
 
         Assert.Single(result.Talks);
         Assert.Equal("session-1", result.Talks[0].SessionizeId);
@@ -33,19 +33,20 @@ public class SessionizeImportServiceTests
         Assert.Equal("speaker-1", result.Speakers[0].SessionizeId);
         Assert.Equal(HttpMethod.Get, handler.LastRequest?.Method);
         Assert.Equal("sessionize.com", handler.LastRequest?.RequestUri?.Host);
+        Assert.Equal("/api/v2/test123/view/All", handler.LastRequest?.RequestUri?.AbsolutePath);
     }
 
     [Theory]
-    [InlineData("http://sessionize.com/api/v2/test123/view/All")]
-    [InlineData("https://example.com/api/v2/test123/view/All")]
-    [InlineData("https://sessionize.com/api/v2/test123/view/All?host=localhost")]
-    [InlineData("https://sessionize.com/api/v2/test123/view/All/../../admin")]
-    public async Task ImportAsync_rejects_urls_outside_the_sessionize_api(string url)
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("https://sessionize.com/api/v2/test123/view/All")]
+    [InlineData("../admin")]
+    public async Task ImportAsync_rejects_invalid_sessionize_ids(string sessionizeId)
     {
         var handler = new SessionizeHttpMessageHandler("{}");
         var service = new SessionizeImportService(new HttpClient(handler));
 
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ImportAsync(url));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ImportAsync(sessionizeId));
 
         Assert.Null(handler.LastRequest);
     }

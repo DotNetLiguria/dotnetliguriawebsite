@@ -1,11 +1,14 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useCallback, useEffect, useState } from 'react';
 import {
 	Alert,
+	Autocomplete,
 	Box,
 	Button,
 	Card,
 	CardContent,
+	Divider,
 	FormControl,
+	IconButton,
 	InputLabel,
 	MenuItem,
 	Paper,
@@ -16,6 +19,9 @@ import {
 } from '@mui/material';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../../config/apiConfig';
+import { SpeakerModel } from '../../models/SpeakerModel';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import {
 	WorkshopAgendaItemModel,
 	WorkshopAgendaTrackModel,
@@ -30,50 +36,98 @@ interface AdminWorkshopAgendaProps {
 }
 
 const createId = () => crypto.randomUUID();
-const toDateTimeInput = (value?: Date | string) => {
+const toClockTime = (value?: Date | string) => {
 	if (!value) return '';
 	const date = new Date(value);
 	const pad = (part: number) => part.toString().padStart(2, '0');
-	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+	return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
-const parseSpeakerLines = (value: string) => value.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
-	const [name, imageUrl, ...biography] = line.split('|').map(part => part.trim());
-	return { name, imageUrl, biography: biography.join('|') || undefined };
-});
+const toStoredTime = (clockTime: string, existingValue: Date | string | undefined, eventDate: Date | string | undefined) => {
+	const datePart = existingValue
+		? new Date(existingValue).toISOString().slice(0, 10)
+		: eventDate
+			? new Date(eventDate).toISOString().slice(0, 10)
+			: '2000-01-01';
+	return `${datePart}T${clockTime}:00.000Z`;
+};
+const itemOrder = (first: WorkshopAgendaItemModel, second: WorkshopAgendaItemModel) =>
+	(first.order ?? Number.MAX_SAFE_INTEGER) - (second.order ?? Number.MAX_SAFE_INTEGER) ||
+	new Date(first.startTime).getTime() - new Date(second.startTime).getTime();
 
 const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, activePage }) => {
 	const { fetch } = useOidcFetch();
 	const [talks, setTalks] = useState<WorkshopTalkModel[]>([]);
 	const [tracks, setTracks] = useState<WorkshopAgendaTrackModel[]>([]);
 	const [items, setItems] = useState<WorkshopAgendaItemModel[]>([]);
+	const [speakers, setSpeakers] = useState<SpeakerModel[]>([]);
 	const [bookingServiceUrl, setBookingServiceUrl] = useState('');
 	const [attendeeNotes, setAttendeeNotes] = useState('');
-	const [importUrl, setImportUrl] = useState('');
+	const [importSource, setImportSource] = useState<'none' | 'sessionize'>('none');
+	const [sessionizeId, setSessionizeId] = useState('');
 	const [talkTitle, setTalkTitle] = useState('');
 	const [talkAbstract, setTalkAbstract] = useState('');
 	const [talkType, setTalkType] = useState('talk');
-	const [speakerLines, setSpeakerLines] = useState('');
-	const [itemType, setItemType] = useState<'talk' | 'break' | 'service'>('talk');
-	const [itemTalkId, setItemTalkId] = useState('');
-	const [itemTrackId, setItemTrackId] = useState('');
-	const [itemTitle, setItemTitle] = useState('');
+	const [selectedTalkSpeakers, setSelectedTalkSpeakers] = useState<SpeakerModel[]>([]);
+	const [talkTrackId, setTalkTrackId] = useState('');
+	const [trackIndex, setTrackIndex] = useState(0);
+	const [scheduleStart, setScheduleStart] = useState('09:00');
+	const [talkDuration, setTalkDuration] = useState('60');
+	const [gapDuration, setGapDuration] = useState('5');
+	const [intervalTitle, setIntervalTitle] = useState('Lunch');
 	const [itemRoom, setItemRoom] = useState('');
-	const [itemStart, setItemStart] = useState('');
-	const [itemEnd, setItemEnd] = useState('');
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState(false);
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
-		setTalks(workshop.talks ?? []);
-		const initialTracks = workshop.agendaTracks ?? [];
-		const multipleTracks = initialTracks.length > 1;
-		setTracks(multipleTracks ? initialTracks : []);
-		setItemTrackId(multipleTracks ? initialTracks[0].workshopAgendaTrackId : '');
-		setItems((workshop.agendaItems ?? []).map(item => multipleTracks ? item : { ...item, trackId: null }));
+		const initialTracks = workshop.agendaTracks?.length
+			? workshop.agendaTracks
+			: [{ workshopAgendaTrackId: createId(), name: 'Track 1', order: 0 }];
+		const trackIds = new Set(initialTracks.map(track => track.workshopAgendaTrackId));
+		const defaultTrackId = initialTracks[0].workshopAgendaTrackId;
+		const sourceItems = workshop.agendaItems ?? [];
+		const initialTalks = (workshop.talks ?? []).map(talk => {
+			const agendaTrackId = sourceItems.find(item => item.talkId === talk.workshopTalkId)?.trackId;
+			const assignedTrackId = talk.trackId && trackIds.has(talk.trackId)
+				? talk.trackId
+				: agendaTrackId && trackIds.has(agendaTrackId) ? agendaTrackId : null;
+			return { ...talk, trackId: initialTracks.length === 1 ? defaultTrackId : assignedTrackId };
+		});
+		const initialItems = sourceItems.map(item => ({
+			...item,
+			trackId: initialTracks.length === 1
+				? defaultTrackId
+				: workshop.talks?.find(talk => talk.workshopTalkId === item.talkId)?.trackId ?? item.trackId,
+		}));
+		const orderedInitialItems = initialItems.sort(itemOrder).map((item, order) => ({ ...item, order }));
+		setTalks(initialTalks);
+		setTracks(initialTracks);
+		setTrackIndex(0);
+		setTalkTrackId(initialTracks.length === 1 ? defaultTrackId : '');
+		setItems(orderedInitialItems);
+		if (orderedInitialItems.length > 0) setScheduleStart(toClockTime(orderedInitialItems[0].startTime));
 		setBookingServiceUrl(workshop.bookingServiceUrl ?? workshop.externalRegistrationLink ?? '');
 		setAttendeeNotes(workshop.attendeeNotes ?? '');
 	}, [workshop]);
+
+	useEffect(() => {
+		let active = true;
+		const loadSpeakers = async () => {
+			try {
+				const response = await fetch(`${API_BASE_URL}/Speaker/Get?onlyActive=true`);
+				if (!response.ok) throw new Error(`Failed to load speakers (HTTP ${response.status})`);
+				const data: SpeakerModel[] = await response.json();
+				if (active) setSpeakers(data);
+			} catch (exception) {
+				if (active) {
+					setMessage(exception instanceof Error ? exception.message : 'Failed to load speakers');
+					setError(true);
+				}
+			}
+		};
+		void loadSpeakers();
+		return () => { active = false; };
+	}, [fetch]);
 
 	const reportError = async (response: Response, fallback: string) => {
 		const responseText = await response.text();
@@ -90,20 +144,27 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 	};
 
 	const handleImport = async () => {
+		if (importSource === 'none') return;
 		setBusy(true);
 		try {
 			const response = await fetch(`${API_BASE_URL}/Workshop/ImportSessionize/${workshop.workshopId}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ url: importUrl }),
+				body: JSON.stringify({ sessionizeId: sessionizeId.trim() }),
 			});
 			if (!response.ok) await reportError(response, 'Sessionize import failed');
 			const refreshed = await fetch(`${API_BASE_URL}/Workshop/Get/${workshop.workshopId}`);
 			if (!refreshed.ok) await reportError(refreshed, 'Could not reload imported talks');
 			const updatedWorkshop: WorkshopModel = await refreshed.json();
-			setTalks(updatedWorkshop.talks ?? []);
-			onSaved(updatedWorkshop);
-			setMessage('Sessionize talks and speakers imported.');
+			const nextTalks = (updatedWorkshop.talks ?? []).map(talk => ({
+				...talk,
+				trackId: tracks.length === 1 ? tracks[0].workshopAgendaTrackId : talk.trackId ?? null,
+			}));
+			setTalks(nextTalks);
+			const speakerResponse = await fetch(`${API_BASE_URL}/Speaker/Get?onlyActive=true`);
+			if (!speakerResponse.ok) await reportError(speakerResponse, 'Could not reload imported speakers');
+			setSpeakers(await speakerResponse.json());
+			setMessage('Sessionize talks imported and matching speaker records updated.');
 			setError(false);
 		} catch (exception) {
 			setMessage(exception instanceof Error ? exception.message : 'Sessionize import failed');
@@ -119,109 +180,235 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 			setError(true);
 			return;
 		}
-
-		const speakers = parseSpeakerLines(speakerLines);
-		if (speakers.length === 0 || speakers.some(speaker => !speaker.name)) {
-			setMessage('Enter at least one speaker name. You can add a picture URL on the same line.');
+		if (selectedTalkSpeakers.length === 0) {
+			setMessage('Select at least one speaker from the Speaker directory.');
+			setError(true);
+			return;
+		}
+		if (tracks.length > 1 && !talkTrackId) {
+			setMessage('Select a track for this talk.');
 			setError(true);
 			return;
 		}
 		setTalks(current => [...current, {
 			workshopTalkId: createId(),
+			trackId: tracks.length === 1 ? tracks[0].workshopAgendaTrackId : talkTrackId || null,
 			title: talkTitle.trim(),
 			abstract: talkAbstract,
 			sessionType: talkType,
-			speakers,
+			speakers: selectedTalkSpeakers.map(speaker => ({
+				workshopSpeakerId: speaker.workshopSpeakerId,
+				name: speaker.name,
+				imageUrl: speaker.profileImage,
+				biography: speaker.description,
+			})),
 		}]);
 		setTalkTitle('');
 		setTalkAbstract('');
-		setSpeakerLines('');
-		setMessage('Talk added to the workshop pool. Save the agenda to persist it.');
+		setSelectedTalkSpeakers([]);
+		setMessage('Talk added to the workshop pool. Save the talk pool to persist it.');
 		setError(false);
 	};
 
 	const handleTrackCount = (count: number) => {
 		const safeCount = Math.max(1, Math.trunc(count));
-		if (safeCount < tracks.length) {
-			const removedIds = new Set(tracks.slice(safeCount === 1 ? 1 : safeCount).map(track => track.workshopAgendaTrackId));
-			if (items.some(item => item.trackId && removedIds.has(item.trackId))) {
-				setMessage('Move agenda items from the tracks being removed before reducing the track count.');
-				setError(true);
-				return;
-			}
-		}
-		if (safeCount === 1) {
-			setTracks([]);
-			setItemTrackId('');
-			setItems(current => current.map(item => ({ ...item, trackId: null })));
-			return;
-		}
 		const next = tracks.slice(0, safeCount);
 		while (next.length < safeCount) {
 			next.push({ workshopAgendaTrackId: createId(), name: `Track ${next.length + 1}`, order: next.length });
 		}
 		const orderedTracks = next.map((track, order) => ({ ...track, order }));
+		const validIds = new Set(orderedTracks.map(track => track.workshopAgendaTrackId));
+		const fallbackId = orderedTracks[0].workshopAgendaTrackId;
 		setTracks(orderedTracks);
-		setItemTrackId(current => orderedTracks.some(track => track.workshopAgendaTrackId === current)
-			? current
-			: orderedTracks[0]?.workshopAgendaTrackId ?? '');
+		setTalks(current => current.map(talk => validIds.has(talk.trackId ?? '') ? talk : { ...talk, trackId: fallbackId }));
+		setItems(current => current.map(item => validIds.has(item.trackId ?? '') ? item : { ...item, trackId: fallbackId }));
+		setTalkTrackId(orderedTracks.length === 1 ? fallbackId : '');
+		setTrackIndex(current => Math.min(current, orderedTracks.length - 1));
 	};
 
-	const handleAddAgendaItem = () => {
-		if (!itemStart || !itemEnd || new Date(itemEnd) <= new Date(itemStart)) {
-			setMessage('Enter a valid start and end time.');
+	const handleAutoFillSchedule = useCallback(() => {
+		const duration = Number(talkDuration);
+		const gap = Number(gapDuration);
+		const [startHour, startMinute] = scheduleStart.split(':').map(Number);
+		if (!Number.isFinite(startHour) || !Number.isFinite(startMinute) ||
+			!Number.isInteger(duration) || duration < 1 || !Number.isInteger(gap) || gap < 1) {
+			setMessage('Enter a valid start time and positive session and gap durations.');
 			setError(true);
 			return;
 		}
-		if (itemType === 'talk' && !itemTalkId) {
-			setMessage('Select a talk for this agenda item.');
+		if (talks.some(talk => !talk.trackId || !tracks.some(track => track.workshopAgendaTrackId === talk.trackId))) {
+			setMessage('Assign each talk to a track before generating the schedule.');
 			setError(true);
 			return;
 		}
-		if (itemType === 'talk' && tracks.length > 1 && !itemTrackId) {
-			setMessage('Select a track for this talk.');
-			setError(true);
-			return;
-		}
-		const selectedTalk = talks.find(talk => talk.workshopTalkId === itemTalkId);
-		if (itemType === 'talk' && selectedTalk?.sessionType !== 'service' && !selectedTalk?.speakers.length) {
-			setMessage('Add at least one named speaker to the talk before scheduling it.');
-			setError(true);
-			return;
-		}
-		const item: WorkshopAgendaItemModel = {
-			workshopAgendaItemId: createId(),
-			itemType,
-			talkId: itemType === 'talk' ? itemTalkId : null,
-			trackId: tracks.length > 1 ? itemTrackId || null : null,
-			title: itemType === 'talk' ? undefined : itemTitle,
-			roomName: itemRoom,
-			startTime: new Date(itemStart).toISOString(),
-			endTime: new Date(itemEnd).toISOString(),
+
+		const nextItems: WorkshopAgendaItemModel[] = [];
+		const startAt = startHour * 60 + startMinute;
+		const dateForSchedule = workshop.eventDate
+			? new Date(workshop.eventDate).toISOString().slice(0, 10)
+			: '2000-01-01';
+		const clockAt = (minutes: number) => {
+			const normalized = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
+			return `${Math.floor(normalized / 60).toString().padStart(2, '0')}:${(normalized % 60).toString().padStart(2, '0')}`;
 		};
-		setItems(current => [...current, item].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()));
-		setItemTitle('');
+
+		tracks.forEach(track => {
+			const trackItems = items.filter(item => item.trackId === track.workshopAgendaTrackId).sort(itemOrder);
+			const existingTalkItems = new Map(trackItems.filter(item => item.itemType === 'talk' && item.talkId)
+				.map(item => [item.talkId as string, item]));
+			const oldTechnicalGaps = new Set(trackItems.filter(item =>
+				item.itemType === 'break' && item.title === 'Technical gap').map(item => item.workshopAgendaItemId));
+			const sequence: Array<{ kind: 'talk'; talk: WorkshopTalkModel; item?: WorkshopAgendaItemModel } | { kind: 'interval'; item: WorkshopAgendaItemModel }> = [];
+			const seenTalkIds = new Set<string>();
+			for (const item of trackItems) {
+				if (oldTechnicalGaps.has(item.workshopAgendaItemId)) continue;
+				if (item.itemType === 'talk' && item.talkId) {
+					const talk = talks.find(value => value.workshopTalkId === item.talkId);
+					if (talk && !seenTalkIds.has(talk.workshopTalkId)) {
+						sequence.push({ kind: 'talk', talk, item });
+						seenTalkIds.add(talk.workshopTalkId);
+					}
+				} else {
+					sequence.push({ kind: 'interval', item });
+				}
+			}
+			for (const talk of talks) {
+				if (talk.trackId === track.workshopAgendaTrackId && !seenTalkIds.has(talk.workshopTalkId)) {
+					sequence.push({ kind: 'talk', talk, item: existingTalkItems.get(talk.workshopTalkId) });
+				}
+			}
+
+			let cursor = startAt;
+			let talkCount = sequence.filter(entry => entry.kind === 'talk').length;
+			for (const entry of sequence) {
+				if (entry.kind === 'talk') {
+					const start = clockAt(cursor);
+					const end = clockAt(cursor + duration);
+					nextItems.push({
+						...(entry.item ?? {}),
+						workshopAgendaItemId: entry.item?.workshopAgendaItemId ?? createId(),
+						itemType: 'talk',
+						talkId: entry.talk.workshopTalkId,
+						trackId: track.workshopAgendaTrackId,
+						startTime: `${dateForSchedule}T${start}:00.000Z`,
+						endTime: `${dateForSchedule}T${end}:00.000Z`,
+						order: nextItems.filter(item => item.trackId === track.workshopAgendaTrackId).length,
+					});
+					cursor += duration;
+					talkCount -= 1;
+					if (talkCount > 0) {
+						const gapStart = clockAt(cursor);
+						const gapEnd = clockAt(cursor + gap);
+						nextItems.push({
+							workshopAgendaItemId: createId(),
+							itemType: 'break',
+							trackId: track.workshopAgendaTrackId,
+							title: 'Technical gap',
+							startTime: `${dateForSchedule}T${gapStart}:00.000Z`,
+							endTime: `${dateForSchedule}T${gapEnd}:00.000Z`,
+							order: nextItems.filter(item => item.trackId === track.workshopAgendaTrackId).length,
+						});
+						cursor += gap;
+					}
+				} else {
+					const intervalDuration = Math.max(1, Math.round(
+						(new Date(entry.item.endTime).getTime() - new Date(entry.item.startTime).getTime()) / 60000,
+					) || gap);
+					const intervalStart = clockAt(cursor);
+					const intervalEnd = clockAt(cursor + intervalDuration);
+					nextItems.push({
+						...entry.item,
+						trackId: track.workshopAgendaTrackId,
+						startTime: `${dateForSchedule}T${intervalStart}:00.000Z`,
+						endTime: `${dateForSchedule}T${intervalEnd}:00.000Z`,
+						order: nextItems.filter(item => item.trackId === track.workshopAgendaTrackId).length,
+					});
+					cursor += intervalDuration;
+				}
+			}
+		});
+		setItems(nextItems);
+		setMessage('Track schedules filled from the selected start time and durations. Adjust any session or interval below.');
+		setError(false);
+	}, [gapDuration, items, scheduleStart, talkDuration, talks, tracks, workshop.eventDate]);
+
+	useEffect(() => {
+		const hasUnscheduledTalk = talks.some(talk =>
+			!items.some(item => item.itemType === 'talk' && item.talkId === talk.workshopTalkId));
+		if (activePage === 'schedule' && talks.length > 0 && hasUnscheduledTalk) {
+			handleAutoFillSchedule();
+		}
+	}, [activePage, handleAutoFillSchedule, items, talks]);
+
+	const handleAddServiceInterval = () => {
+		const track = tracks[trackIndex];
+		if (!track) return;
+		const trackItems = items.filter(item => item.trackId === track.workshopAgendaTrackId).sort(itemOrder);
+		const previousEnd = trackItems.length > 0
+			? new Date(trackItems[trackItems.length - 1].endTime)
+			: new Date(toStoredTime(scheduleStart, undefined, workshop.eventDate));
+		const duration = Math.max(1, Number(gapDuration) || 5);
+		const startTime = new Date(previousEnd);
+		const endTime = new Date(startTime.getTime() + duration * 60000);
+		const newItem: WorkshopAgendaItemModel = {
+			workshopAgendaItemId: createId(),
+			itemType: 'service',
+			trackId: track.workshopAgendaTrackId,
+			title: intervalTitle.trim() || 'Service interval',
+			roomName: itemRoom,
+			startTime: startTime.toISOString(),
+			endTime: endTime.toISOString(),
+			order: trackItems.length,
+		};
+		setItems(current => [...current, newItem]);
+		setIntervalTitle('Lunch');
 		setItemRoom('');
-		setMessage('Agenda item added. Save the agenda to persist it.');
+		setMessage('Service interval added. Adjust its time and position in the track schedule.');
 		setError(false);
 	};
 
 	const handleRemoveTalk = (talkId: string) => {
-		if (items.some(item => item.talkId === talkId)) {
-			setMessage('Remove this talk from the agenda before deleting it from the talk pool.');
-			setError(true);
-			return;
-		}
 		setTalks(current => current.filter(item => item.workshopTalkId !== talkId));
+		setItems(current => current.filter(item => item.talkId !== talkId));
 	};
 
 	const updateItem = (itemId: string, update: Partial<WorkshopAgendaItemModel>) => {
 		setItems(current => current.map(item => item.workshopAgendaItemId === itemId ? { ...item, ...update } : item));
 	};
 
+	const assignTalkTrack = (talkId: string, trackId: string) => {
+		setTalks(current => current.map(talk =>
+			talk.workshopTalkId === talkId ? { ...talk, trackId: trackId || null } : talk));
+		setItems(current => current.map(item =>
+			item.talkId === talkId ? { ...item, trackId: trackId || null } : item));
+	};
+
+	const moveItem = (itemId: string, direction: -1 | 1) => {
+		const track = tracks[trackIndex];
+		if (!track) return;
+		setItems(current => {
+			const trackItems = current.filter(item => item.trackId === track.workshopAgendaTrackId).sort(itemOrder);
+			const index = trackItems.findIndex(item => item.workshopAgendaItemId === itemId);
+			const nextIndex = index + direction;
+			if (index < 0 || nextIndex < 0 || nextIndex >= trackItems.length) return current;
+			const updated = [...trackItems];
+			const first = updated[index];
+			const second = updated[nextIndex];
+			updated[index] = { ...second, startTime: first.startTime, endTime: first.endTime, order: index };
+			updated[nextIndex] = { ...first, startTime: second.startTime, endTime: second.endTime, order: nextIndex };
+			const changedById = new Map(updated.map(item => [item.workshopAgendaItemId, item]));
+			return current.map(item => changedById.get(item.workshopAgendaItemId) ?? item);
+		});
+	};
+
 	const handleSave = async () => {
-		if (tracks.length > 1 && items.some(item => item.itemType === 'talk' &&
+		if (items.some(item => item.itemType === 'talk' &&
 			(!item.trackId || !tracks.some(track => track.workshopAgendaTrackId === item.trackId)))) {
+			setMessage('Assign each talk to a track before saving the agenda.');
+			setError(true);
+			return;
+		}
+		if (talks.some(talk => !talk.trackId || !tracks.some(track => track.workshopAgendaTrackId === talk.trackId))) {
 			setMessage('Assign each talk to a track before saving the agenda.');
 			setError(true);
 			return;
@@ -266,7 +453,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 			attendeeNotes,
 			talks,
 			agendaTracks: tracks,
-			agendaItems: tracks.length > 1 ? items : items.map(item => ({ ...item, trackId: null })),
+			agendaItems: items,
 		};
 		setBusy(true);
 		try {
@@ -299,10 +486,60 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 
 			<Paper sx={{ p: 3, display: activePage === 'talks' ? 'block' : 'none' }}>
 				<Typography variant="h5" sx={{ mb: 2 }}>Talk pool</Typography>
-				<Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 2 }}>
-					<TextField fullWidth label="Sessionize All URL" placeholder="https://sessionize.com/api/v2/{id}/view/All" value={importUrl} onChange={event => setImportUrl(event.target.value)} />
-					<Button variant="outlined" onClick={handleImport} disabled={busy || !importUrl.trim()}>Import</Button>
+				<Typography variant="h6" sx={{ mb: 2 }}>Import talks</Typography>
+				<Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { md: '1fr 2fr auto' }, alignItems: 'start' }}>
+					<FormControl fullWidth>
+						<InputLabel id="talk-import-source-label">Import from</InputLabel>
+						<Select
+							labelId="talk-import-source-label"
+							label="Import from"
+							value={importSource}
+							onChange={event => setImportSource(event.target.value as 'none' | 'sessionize')}
+						>
+							<MenuItem value="none">None</MenuItem>
+							<MenuItem value="sessionize">Sessionize</MenuItem>
+						</Select>
+					</FormControl>
+					{importSource === 'sessionize' && (
+						<TextField
+							fullWidth
+							label="Sessionize ID"
+							placeholder="Event ID"
+							value={sessionizeId}
+							onChange={event => setSessionizeId(event.target.value)}
+						/>
+					)}
+					{importSource === 'sessionize' && (
+						<Button variant="outlined" onClick={() => void handleImport()} disabled={busy || !sessionizeId.trim()}>
+							Import talks
+						</Button>
+					)}
 				</Box>
+				<Divider sx={{ my: 3 }} />
+				<Typography variant="h6" sx={{ mb: 2 }}>Tracks</Typography>
+				<TextField
+					type="number"
+					label="Number of tracks"
+					value={tracks.length}
+					onChange={event => handleTrackCount(Number(event.target.value) || 1)}
+					slotProps={{ htmlInput: { min: 1 } }}
+					sx={{ mb: 2 }}
+				/>
+				<Box sx={{ display: 'grid', gap: 1, mb: 3 }}>
+					{tracks.map((track, index) => (
+						<TextField
+							key={track.workshopAgendaTrackId}
+							label={`Track ${index + 1} name`}
+							value={track.name}
+							onChange={event => setTracks(current => current.map(value =>
+								value.workshopAgendaTrackId === track.workshopAgendaTrackId
+									? { ...value, name: event.target.value }
+									: value))}
+						/>
+					))}
+				</Box>
+				<Divider sx={{ my: 3 }} />
+				<Typography variant="h6" sx={{ mb: 2 }}>Create a talk</Typography>
 				<Box sx={{ display: 'grid', gap: 2 }}>
 					<TextField label="Talk title" value={talkTitle} onChange={event => setTalkTitle(event.target.value)} />
 					<TextField label="Abstract" multiline minRows={2} value={talkAbstract} onChange={event => setTalkAbstract(event.target.value)} />
@@ -312,10 +549,32 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 						<MenuItem value="intro">Introduction</MenuItem>
 						<MenuItem value="other">Other</MenuItem>
 					</TextField>
-					<TextField label="Speakers (one per line: name | image URL | biography)" multiline minRows={2} value={speakerLines} onChange={event => setSpeakerLines(event.target.value)} />
-					<Button variant="outlined" onClick={handleAddTalk}>Add talk</Button>
+					<Autocomplete
+						multiple
+						options={speakers}
+						value={selectedTalkSpeakers}
+						getOptionLabel={option => option.name}
+						isOptionEqualToValue={(option, value) => option.workshopSpeakerId === value.workshopSpeakerId}
+						onChange={(_, value) => setSelectedTalkSpeakers(value)}
+						renderInput={params => <TextField {...params} label="Speakers" placeholder="Select one or more speakers" />}
+					/>
+					{tracks.length > 1 && (
+						<TextField
+							select
+							label="Track"
+							value={talkTrackId}
+							onChange={event => setTalkTrackId(event.target.value)}
+						>
+							{tracks.map(track => (
+								<MenuItem key={track.workshopAgendaTrackId} value={track.workshopAgendaTrackId}>{track.name}</MenuItem>
+							))}
+						</TextField>
+					)}
+					{tracks.length === 1 && <Typography color="text.secondary">Talks are assigned to {tracks[0].name} automatically.</Typography>}
+					<Button variant="outlined" onClick={handleAddTalk}>Add talk to pool</Button>
 				</Box>
-				<Box sx={{ display: 'grid', gap: 1, mt: 2 }}>
+				<Typography variant="h6" sx={{ mt: 3, mb: 2 }}>Talks in the pool</Typography>
+				<Box sx={{ display: 'grid', gap: 1 }}>
 					{talks.map(talk => (
 						<Card key={talk.workshopTalkId} variant="outlined">
 							<CardContent sx={{ display: 'grid', gap: 2, gridTemplateColumns: { md: '1fr auto' } }}>
@@ -329,78 +588,96 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 										<MenuItem value="service">Service</MenuItem>
 										<MenuItem value="other">Other</MenuItem>
 									</TextField>
-									<TextField label="Speakers (one per line: name | image URL | biography)" multiline minRows={2} value={talk.speakers.map(speaker => [speaker.name, speaker.imageUrl ?? '', speaker.biography ?? ''].join(' | ')).join('\n')} onChange={event => setTalks(current => current.map(value => value.workshopTalkId === talk.workshopTalkId ? { ...value, speakers: parseSpeakerLines(event.target.value) } : value))} />
+									<Autocomplete
+										multiple
+										options={speakers}
+										value={talk.speakers.flatMap(talkSpeaker => {
+											const speaker = speakers.find(value =>
+												value.workshopSpeakerId === talkSpeaker.workshopSpeakerId ||
+												(!talkSpeaker.workshopSpeakerId && value.name === talkSpeaker.name));
+											return speaker ? [speaker] : [];
+										})}
+										getOptionLabel={option => option.name}
+										isOptionEqualToValue={(option, value) => option.workshopSpeakerId === value.workshopSpeakerId}
+										onChange={(_, value) => setTalks(current => current.map(item =>
+											item.workshopTalkId === talk.workshopTalkId
+												? {
+													...item,
+													speakers: value.map(speaker => ({
+														workshopSpeakerId: speaker.workshopSpeakerId,
+														name: speaker.name,
+														imageUrl: speaker.profileImage,
+														biography: speaker.description,
+													})),
+												}
+												: item))}
+										renderInput={params => <TextField {...params} label="Speakers" placeholder="Select one or more speakers" />}
+									/>
+									{tracks.length > 1 ? (
+										<TextField
+											select
+											label="Track"
+											value={talk.trackId ?? ''}
+											onChange={event => assignTalkTrack(talk.workshopTalkId, event.target.value)}
+										>
+											<MenuItem value="">Select a track</MenuItem>
+											{tracks.map(track => (
+												<MenuItem key={track.workshopAgendaTrackId} value={track.workshopAgendaTrackId}>{track.name}</MenuItem>
+											))}
+										</TextField>
+									) : <Typography color="text.secondary">{tracks[0]?.name ?? 'Track 1'}</Typography>}
 								</Box>
 								<Button color="error" onClick={() => handleRemoveTalk(talk.workshopTalkId)}>Remove</Button>
 							</CardContent>
 						</Card>
 					))}
 				</Box>
+				<Button variant="contained" onClick={() => void handleSave()} disabled={busy} sx={{ mt: 3 }}>Save talk pool</Button>
 			</Paper>
 
 			<Paper sx={{ p: 3, display: activePage === 'schedule' ? 'block' : 'none' }}>
-				<Typography variant="h5" sx={{ mb: 2 }}>Agenda tracks and schedule</Typography>
-				<TextField type="number" label="Number of tracks" value={Math.max(1, tracks.length)} onChange={event => handleTrackCount(Number(event.target.value) || 1)} slotProps={{ htmlInput: { min: 1 } }} sx={{ mb: 2 }} />
-				<Box sx={{ display: 'grid', gap: 1, mb: 3 }}>
-					{tracks.map((track, index) => (
-						<TextField key={track.workshopAgendaTrackId} label={`Track ${index + 1} name`} value={track.name} onChange={event => setTracks(current => current.map(value => value.workshopAgendaTrackId === track.workshopAgendaTrackId ? { ...value, name: event.target.value } : value))} />
-					))}
+				<Typography variant="h5" sx={{ mb: 2 }}>Track schedule</Typography>
+				<Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { sm: 'repeat(3, 1fr)' }, mb: 2 }}>
+					<TextField label="Track starting time" type="time" value={scheduleStart} onChange={event => setScheduleStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
+					<TextField label="Talk duration (minutes)" type="number" value={talkDuration} onChange={event => setTalkDuration(event.target.value)} slotProps={{ htmlInput: { min: 1 } }} />
+					<TextField label="Gap duration (minutes)" type="number" value={gapDuration} onChange={event => setGapDuration(event.target.value)} slotProps={{ htmlInput: { min: 1 } }} />
 				</Box>
-				<Typography variant="h6" sx={{ mb: 2 }}>Add agenda item</Typography>
-				<Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { md: 'repeat(2, 1fr)' } }}>
-					<FormControl>
-						<InputLabel>Item type</InputLabel>
-						<Select value={itemType} label="Item type" onChange={event => setItemType(event.target.value as 'talk' | 'break' | 'service')}>
-							<MenuItem value="talk">Talk</MenuItem>
-							<MenuItem value="break">Interval</MenuItem>
-							<MenuItem value="service">Service / lunch</MenuItem>
-						</Select>
-					</FormControl>
-					{itemType === 'talk' ? (
-						<TextField select label="Talk" value={itemTalkId} onChange={event => setItemTalkId(event.target.value)}>
-							{talks.map(talk => <MenuItem key={talk.workshopTalkId} value={talk.workshopTalkId}>{talk.title}</MenuItem>)}
-						</TextField>
-					) : <TextField label="Break or service title" value={itemTitle} onChange={event => setItemTitle(event.target.value)} />}
-					{tracks.length > 1 && (
-						<TextField select label={itemType === 'talk' ? 'Track' : 'Track (all tracks if not selected)'} value={itemTrackId} onChange={event => setItemTrackId(event.target.value)}>
-							{itemType !== 'talk' && <MenuItem value="">All tracks / event-wide</MenuItem>}
-							{tracks.map(track => <MenuItem key={track.workshopAgendaTrackId} value={track.workshopAgendaTrackId}>{track.name}</MenuItem>)}
-						</TextField>
-					)}
-					<TextField label="Room name (optional)" value={itemRoom} onChange={event => setItemRoom(event.target.value)} />
-					<TextField label="Starting time" type="datetime-local" value={itemStart} onChange={event => setItemStart(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-					<TextField label="Ending time" type="datetime-local" value={itemEnd} onChange={event => setItemEnd(event.target.value)} slotProps={{ inputLabel: { shrink: true } }} />
-					<Button variant="outlined" onClick={handleAddAgendaItem} sx={{ gridColumn: { md: '1 / -1' } }}>Add to agenda</Button>
-				</Box>
-				<Box sx={{ display: 'grid', gap: 2, mt: 3 }}>
-					{items.map(item => {
+				<Button variant="outlined" onClick={handleAutoFillSchedule} sx={{ mb: 3 }}>Auto-fill track schedules</Button>
+				{tracks.length > 1 && (
+					<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+						<Button disabled={trackIndex === 0} onClick={() => setTrackIndex(index => Math.max(0, index - 1))}>Previous track</Button>
+						<Typography variant="h6">{tracks[trackIndex]?.name} ({trackIndex + 1} of {tracks.length})</Typography>
+						<Button disabled={trackIndex >= tracks.length - 1} onClick={() => setTrackIndex(index => Math.min(tracks.length - 1, index + 1))}>Next track</Button>
+					</Box>
+				)}
+				{tracks.length === 1 && <Typography variant="h6" sx={{ mb: 2 }}>{tracks[0].name}</Typography>}
+				<Box sx={{ display: 'grid', gap: 2 }}>
+					{items.filter(item => item.trackId === tracks[trackIndex]?.workshopAgendaTrackId).sort(itemOrder).map((item, index, trackItems) => {
 						const talk = talks.find(value => value.workshopTalkId === item.talkId);
 						return (
 							<Card key={item.workshopAgendaItemId} variant="outlined">
 								<CardContent sx={{ display: 'grid', gap: 2, gridTemplateColumns: { md: 'repeat(2, 1fr)' } }}>
 									<Typography variant="h6" sx={{ gridColumn: { md: '1 / -1' } }}>{talk?.title ?? item.title ?? item.itemType}</Typography>
-									{item.itemType === 'talk' && (
-										<TextField select label="Talk" value={item.talkId ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { talkId: event.target.value })}>
-											{talks.map(value => <MenuItem key={value.workshopTalkId} value={value.workshopTalkId}>{value.title}</MenuItem>)}
-										</TextField>
-									)}
-									{tracks.length > 1 && (
-										<TextField select label={item.itemType === 'talk' ? 'Track' : 'Track (all tracks if not selected)'} value={item.trackId ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { trackId: event.target.value || null })}>
-											{item.itemType !== 'talk' && <MenuItem value="">All tracks / event-wide</MenuItem>}
-											{tracks.map(track => <MenuItem key={track.workshopAgendaTrackId} value={track.workshopAgendaTrackId}>{track.name}</MenuItem>)}
-										</TextField>
-									)}
+									{item.itemType !== 'talk' && <TextField label="Service / interval title" value={item.title ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { title: event.target.value })} />}
 									<TextField label="Room name" value={item.roomName ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { roomName: event.target.value })} />
-									{item.itemType !== 'talk' && <TextField label="Break or service title" value={item.title ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { title: event.target.value })} />}
-									<TextField label="Starting time" type="datetime-local" value={toDateTimeInput(item.startTime)} onChange={event => updateItem(item.workshopAgendaItemId, { startTime: event.target.value ? new Date(event.target.value).toISOString() : '' })} slotProps={{ inputLabel: { shrink: true } }} />
-									<TextField label="Ending time" type="datetime-local" value={toDateTimeInput(item.endTime)} onChange={event => updateItem(item.workshopAgendaItemId, { endTime: event.target.value ? new Date(event.target.value).toISOString() : '' })} slotProps={{ inputLabel: { shrink: true } }} />
-									<Button color="error" onClick={() => setItems(current => current.filter(value => value.workshopAgendaItemId !== item.workshopAgendaItemId))}>Remove item</Button>
+									<TextField label="Starting time" type="time" value={toClockTime(item.startTime)} onChange={event => updateItem(item.workshopAgendaItemId, { startTime: toStoredTime(event.target.value, item.startTime, workshop.eventDate) })} slotProps={{ inputLabel: { shrink: true } }} />
+									<TextField label="Ending time" type="time" value={toClockTime(item.endTime)} onChange={event => updateItem(item.workshopAgendaItemId, { endTime: toStoredTime(event.target.value, item.endTime, workshop.eventDate) })} slotProps={{ inputLabel: { shrink: true } }} />
+									<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+										<IconButton aria-label="Move item up" disabled={index === 0} onClick={() => moveItem(item.workshopAgendaItemId, -1)}><KeyboardArrowUpIcon /></IconButton>
+										<IconButton aria-label="Move item down" disabled={index === trackItems.length - 1} onClick={() => moveItem(item.workshopAgendaItemId, 1)}><KeyboardArrowDownIcon /></IconButton>
+										{item.itemType !== 'talk' && <Button color="error" onClick={() => setItems(current => current.filter(value => value.workshopAgendaItemId !== item.workshopAgendaItemId))}>Remove interval</Button>}
+									</Box>
 								</CardContent>
 							</Card>
 						);
 					})}
 				</Box>
-				<Button variant="contained" onClick={handleSave} disabled={busy} sx={{ mt: 3 }}>Save event and agenda</Button>
+				<Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { sm: '2fr 1fr auto' }, mt: 3, alignItems: 'center' }}>
+					<TextField label="Service interval title" value={intervalTitle} onChange={event => setIntervalTitle(event.target.value)} />
+					<TextField label="Room (optional)" value={itemRoom} onChange={event => setItemRoom(event.target.value)} />
+					<Button variant="outlined" onClick={handleAddServiceInterval}>Add service interval</Button>
+				</Box>
+				<Button variant="contained" onClick={() => void handleSave()} disabled={busy} sx={{ mt: 3 }}>Save agenda</Button>
 			</Paper>
 			<Snackbar open={Boolean(message)} autoHideDuration={6000} onClose={() => setMessage('')}>
 				<Alert severity={error ? 'error' : 'success'} onClose={() => setMessage('')}>{message}</Alert>

@@ -9,6 +9,7 @@ public class WorkshopAgendaItem
     public string? ItemType { get; set; } = "talk";
     public Guid? TalkId { get; set; }
     public Guid? TrackId { get; set; }
+    public int Order { get; set; }
     public string? Title { get; set; }
     public string? RoomName { get; set; }
     public DateTime StartTime { get; set; }

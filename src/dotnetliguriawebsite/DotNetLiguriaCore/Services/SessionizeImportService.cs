@@ -5,13 +5,14 @@ namespace DotNetLiguriaCore.Services;
 
 public class SessionizeImportService(HttpClient httpClient)
 {
-    public async Task<SessionizeImportData> ImportAsync(string? sessionizeUrl, CancellationToken cancellationToken = default)
+    public async Task<SessionizeImportData> ImportAsync(string? sessionizeId, CancellationToken cancellationToken = default)
     {
-        if (!TryGetValidatedUrl(sessionizeUrl, out var url) || url is null)
+        if (string.IsNullOrWhiteSpace(sessionizeId) || !sessionizeId.All(char.IsLetterOrDigit))
         {
-            throw new ArgumentException("Use a Sessionize URL in the form https://sessionize.com/api/v2/{id}/view/All.", nameof(sessionizeUrl));
+            throw new ArgumentException("Enter a valid Sessionize event ID.", nameof(sessionizeId));
         }
 
+        var url = new Uri($"https://sessionize.com/api/v2/{sessionizeId}/view/All");
         using var response = await httpClient.GetAsync(url, cancellationToken);
         response.EnsureSuccessStatusCode();
         await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -101,35 +102,6 @@ public class SessionizeImportService(HttpClient httpClient)
         }
 
         return new SessionizeImportData { Talks = talks, Speakers = speakers };
-    }
-
-    private static bool TryGetValidatedUrl(string? value, out Uri? url)
-    {
-        url = null;
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var candidate) ||
-            candidate.Scheme != Uri.UriSchemeHttps ||
-            (candidate.Host != "sessionize.com" && candidate.Host != "www.sessionize.com") ||
-            !candidate.IsDefaultPort ||
-            !string.IsNullOrEmpty(candidate.Query) ||
-            !string.IsNullOrEmpty(candidate.Fragment))
-        {
-            return false;
-        }
-
-        var segments = candidate.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length != 5 ||
-            segments[0] != "api" ||
-            segments[1] != "v2" ||
-            segments[2].Length == 0 ||
-            !segments[2].All(char.IsLetterOrDigit) ||
-            segments[3] != "view" ||
-            segments[4] != "All")
-        {
-            return false;
-        }
-
-        url = candidate;
-        return true;
     }
 
     private static string? GetString(JsonElement element, string propertyName) =>

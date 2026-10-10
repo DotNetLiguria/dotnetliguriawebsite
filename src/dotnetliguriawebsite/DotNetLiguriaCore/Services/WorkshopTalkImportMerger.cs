@@ -21,6 +21,7 @@ public static class WorkshopTalkImportMerger
             else
             {
                 importedTalk.WorkshopTalkId = mergedTalks[existingIndex].WorkshopTalkId;
+                importedTalk.TrackId = mergedTalks[existingIndex].TrackId;
                 mergedTalks[existingIndex] = importedTalk;
             }
         }

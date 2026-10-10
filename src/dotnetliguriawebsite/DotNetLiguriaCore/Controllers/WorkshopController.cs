@@ -125,7 +125,7 @@ namespace DotNetLiguriaCore.Controllers
             SessionizeImportData import;
             try
             {
-                import = await _sessionizeImportService.ImportAsync(request.Url, cancellationToken);
+                import = await _sessionizeImportService.ImportAsync(request.SessionizeId, cancellationToken);
             }
             catch (ArgumentException exception)
             {
