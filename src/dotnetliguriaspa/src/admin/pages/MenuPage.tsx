@@ -212,7 +212,7 @@ function MenuTable({ items, busy, onMove, ...actions }: RowsProps) {
                 <Link to={`/admin/topmenu/${item.topMenuElementId}`} className={nameLink}>{name}</Link>
                 <span className="block truncate text-sm text-muted">{clean(item.url) || '—'}</span>
               </td>
-              <td className="px-3">{item.isActive ? <span className="text-muted">Sì</span> : <Badge kind="done">Non attiva</Badge>}</td>
+              <td className="px-3">{item.isActive ? <span className="sr-only">Attiva</span> : <Badge kind="done">Non attiva</Badge>}</td>
               <td className="relative z-10 pr-5">
                 <span className={`flex justify-end gap-1 ${revealOnRow}`}>
                   <Link to={`/admin/topmenu/${item.topMenuElementId}?azione=modifica`} className={iconLink} aria-label={`Modifica ${name}`}><AdminIcon name="pencil" /></Link>

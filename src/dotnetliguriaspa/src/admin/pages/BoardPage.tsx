@@ -225,7 +225,7 @@ function BoardTable({ members, busy, onMove, onToggle }: RowsProps) {
                 </div>
               </td>
               <td className="hidden px-3 text-muted xl:table-cell"><span className="block truncate">{clean(member.email) || '—'}</span></td>
-              <td className="px-3">{isVisible(member) ? <span className="text-muted">Visibile</span> : <Badge kind="done">Nascosto</Badge>}</td>
+              <td className="px-3">{isVisible(member) ? <span className="sr-only">Visibile</span> : <Badge kind="done">Nascosto</Badge>}</td>
               <td className="relative z-10 pr-5">
                 <span className={`flex justify-end gap-1 ${revealOnRow}`}>
                   <Link to={`/admin/board/${member.boardId}?azione=modifica`} className={iconLink} aria-label={`Modifica ${name}`}><AdminIcon name="pencil" /></Link>
