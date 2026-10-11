@@ -13,8 +13,8 @@ test('public home renders the community and offers login', async () => {
     String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? makeWorkshop() : []
   ), { status: 200 }));
   render(<App />);
-  expect(screen.getByText('La prima community .NET della Liguria')).toBeInTheDocument();
-  expect(await screen.findByRole('heading', { name: 'Test Workshop' })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1, name: 'La community .NET della Liguria' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { level: 2, name: 'Test Workshop' })).toBeInTheDocument();
   const login = useOidc().login;
   await userEvent.click(screen.getByRole('button', { name: 'Area Personale' }));
   expect(login).toHaveBeenCalledWith('/admin');
@@ -25,8 +25,9 @@ test('public home renders an empty state when a fresh database has no featured w
     String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? { status: 404 } : []
   ), { status: String(url).endsWith('/Workshop/GetInHomePage/HomePage') ? 404 : 200 }));
   render(<App />);
-  expect(await screen.findByText('Nessun evento disponibile.')).toBeInTheDocument();
-  expect(screen.queryByText('Caricamento evento...')).not.toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Il prossimo incontro è in preparazione' })).toBeInTheDocument();
+  expect(screen.getByText('Nessun evento pubblicato.')).toBeInTheDocument();
+  expect(screen.queryByText('Caricamento del prossimo evento…')).not.toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 

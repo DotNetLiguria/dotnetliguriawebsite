@@ -1,0 +1,67 @@
+/* Public site design system: "il sito attuale, ma moderno", with the logo colours leading.
+   Colours come from the vector logo (src/assets/logo); every text pairing passes WCAG AA.
+   Visual rules live under the .site wrapper so the MUI admin keeps its own look during the migration. */
+@import "@fontsource/titillium-web/400.css";
+@import "@fontsource/titillium-web/600.css";
+@import "@fontsource/titillium-web/700.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Titillium Web", ui-sans-serif, system-ui, sans-serif;
+
+  --color-navy: #083d73;
+  --color-navy-950: #002445;
+  --color-cyan: #00a8df;
+  --color-cyan-700: #007ba6;
+  --color-cyan-200: #8fd3ec;
+  --color-cyan-50: #e8f6fb;
+  --color-basil: #59a52c;
+  --color-basil-700: #3b7a20;
+  --color-basil-50: #eff7e9;
+  --color-site-green: #72c02c;
+  --color-muted: #44607a;
+  --color-line: #d5e3ec;
+
+  --shadow-card: 0 18px 40px -22px rgb(8 61 115 / 0.45), 0 2px 6px -2px rgb(8 61 115 / 0.12);
+  --shadow-lift: 0 26px 50px -24px rgb(8 61 115 / 0.55), 0 4px 10px -4px rgb(8 61 115 / 0.16);
+}
+
+@layer base {
+  html:has(.site) {
+    scroll-padding-top: 6rem;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html:has(.site) { scroll-behavior: smooth; }
+  }
+  .site {
+    min-height: 100dvh;
+    background: #ffffff;
+    color: var(--color-navy);
+    font-family: var(--font-sans);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .site ::selection { background: var(--color-cyan-200); color: var(--color-navy-950); }
+  .site :focus-visible { outline: 3px solid var(--color-cyan-700); outline-offset: 3px; border-radius: 6px; }
+  .site .on-navy :focus-visible { outline-color: var(--color-cyan-200); }
+  .site h1, .site h2, .site h3 { text-wrap: balance; }
+  .site p { text-wrap: pretty; }
+  .site a { text-underline-offset: 0.2em; }
+}
+
+@layer components {
+  /* The logo's brush arc, drawn once when the hero appears. */
+  .arc-draw path {
+    stroke-dasharray: 2400;
+    stroke-dashoffset: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .arc-draw path { animation: arc-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .arc-draw path:nth-child(2) { animation-delay: 0.15s; }
+  }
+  @keyframes arc-in {
+    from { stroke-dashoffset: 2400; }
+    to { stroke-dashoffset: 0; }
+  }
+}
