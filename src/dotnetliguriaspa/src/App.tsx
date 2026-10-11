@@ -23,6 +23,7 @@ import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopC
 import AdminTopMenu from "./components/AdminTopMenu/AdminTopMenu";
 import AdminTopMenuDetail from "./components/AdminTopMenuDetail/AdminTopMenuDetail";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
+import LegacyRedirect from "./site/legacy/LegacyRedirect";
 
 // Admin questionnaire tools pull in dnd-kit, Recharts and the DataGrid: load them on demand.
 const AdminQuestionnaires = lazy(() => import('./components/AdminQuestionnaires/AdminQuestionnaires'));
@@ -76,6 +77,12 @@ function App() {
                 <Route path="/workshop/:id" element={<EventDetailPage />} />
                 <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />} />
                 <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} />
+                {/* Reserved prefixes keep rendering nothing (admin without a session, OIDC callbacks handled by
+                    OidcProvider before this tree); every other unknown address is redirected when it belongs
+                    to the previous site, otherwise it is the public not-found page. */}
+                <Route path="/admin/*" element={null} />
+                <Route path="/authentication/*" element={null} />
+                <Route path="*" element={<LegacyRedirect />} />
             </Routes>
         </div>
     );

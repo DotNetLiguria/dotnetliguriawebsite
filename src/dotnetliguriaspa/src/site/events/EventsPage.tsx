@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import SiteLayout from '../SiteLayout';
+import PageMeta from '../PageMeta';
 import EventCard from '../EventCard';
 import ScrollTopButton from '../ScrollTopButton';
 import { LogoArc } from '../ui';
@@ -12,7 +13,7 @@ type Load = { state: 'loading' } | { state: 'ready'; data: SiteWorkshop[] } | { 
 
 const ALL = 'tutti';
 const yearOf = (workshop: SiteWorkshop) => Number(dayKey(workshop.eventDate).slice(0, 4));
-const focusRing = 'outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700';
+const focusRing = 'outline-none';
 
 export default function EventsPage() {
   const [load, setLoad] = useState<Load>({ state: 'loading' });
@@ -49,8 +50,19 @@ export default function EventsPage() {
 
   const chip = `inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 px-5 font-bold transition ${focusRing} border-navy/20 bg-white text-navy data-[hovered]:border-navy data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white`;
 
+  // A valid year is a page of its own (shareable address, own title); unknown values fall back to the archive.
+  const year = selected === ALL ? null : selected;
+  const since = firstYear ? ` dal ${firstYear}` : '';
+
   return (
     <SiteLayout>
+      <PageMeta
+        title={year ? `Eventi ${year}` : 'Eventi passati'}
+        description={year
+          ? `Gli eventi DotNetLiguria del ${year}: programma, relatori e materiali di ogni incontro della community .NET della Liguria.`
+          : `Tutti gli eventi DotNetLiguria${since}: programma, relatori e materiali di ogni incontro della community .NET della Liguria.`}
+        canonicalPath={year ? `/workshops?anno=${year}` : '/workshops'}
+      />
       <section className="on-navy relative isolate overflow-hidden bg-navy text-white" aria-labelledby="events-title">
         <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[75%] w-full" />
         <div className="mx-auto max-w-7xl px-4 pb-20 pt-14 sm:px-6 lg:pb-24 lg:pt-16">

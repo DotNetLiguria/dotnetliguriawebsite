@@ -3,18 +3,22 @@ import { Link, useParams } from 'react-router-dom';
 import { Button, Disclosure, DisclosurePanel } from 'react-aria-components';
 import DOMPurify from 'dompurify';
 import SiteLayout from '../SiteLayout';
+import PageMeta from '../PageMeta';
+import JsonLd from '../JsonLd';
 import ScrollTopButton from '../ScrollTopButton';
 import SpeakerAvatar from '../SpeakerAvatar';
-import { ExternalLink, Icon } from '../icons';
+import { ExternalLink, Icon, newTabLabel } from '../icons';
 import { Badge, LogoArc, PrimaryAction } from '../ui';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { SiteFile, contentUrl, getSpeakers, getWorkshop } from '../siteApi';
 import { clean, eventPhase, formatTimeRange, formatWeekday } from '../format';
+import { absoluteUrl, summarize } from '../seo';
+import { eventJsonLd } from '../structuredData';
 import { useLoad } from '../useLoad';
 import { publicQuestionnaireApi } from '../../questionnaire/api';
 import EventProgramme, { triggerLink } from './EventProgramme';
 import EventInfoCard, { registrationLink } from './EventInfoCard';
-import { programme, programmeSpan, programmeSpeakers, sessionCount, sessionsLabel } from './programme';
+import { programme, programmeSpan, programmeSpeakers, sessionCount, sessionsLabel, trackCount, tracksLabel } from './programme';
 
 const PHASE = {
   done: { tone: 'done', label: 'Concluso' },
@@ -61,8 +65,11 @@ export default function EventDetailPage() {
   const safeHtml = useMemo(() => (workshop?.blogHtml ? DOMPurify.sanitize(workshop.blogHtml, { USE_PROFILES: { html: true } }) : ''), [workshop]);
 
   if (load.state !== 'ready' || !workshop) {
+    const title = load.state === 'loading' ? 'Evento' : load.state === 'error' ? 'Evento non disponibile' : 'Evento non trovato';
     return (
       <SiteLayout>
+        {/* Nothing to index until the event is known; a missing event must not become a "soft 404". */}
+        <PageMeta title={title} description="Dettagli di un evento DotNetLiguria: programma, relatori e materiali." noindex />
         <section className="on-navy relative isolate overflow-hidden bg-navy text-white">
           <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[75%] w-full" />
           <div className="mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6">
@@ -80,7 +87,7 @@ export default function EventDetailPage() {
                 <p className="mt-2 text-muted">{load.message}. Riprova tra qualche istante.</p>
                 <Button
                   onPress={retry}
-                  className="mt-5 inline-flex min-h-12 cursor-pointer items-center rounded-full border-2 border-navy px-6 font-bold text-navy outline-none data-[hovered]:bg-navy data-[hovered]:text-white data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700"
+                  className="mt-5 inline-flex min-h-12 cursor-pointer items-center rounded-full border-2 border-navy px-6 font-bold text-navy outline-none data-[hovered]:bg-navy data-[hovered]:text-white"
                 >
                   Riprova
                 </Button>
@@ -96,6 +103,7 @@ export default function EventDetailPage() {
   const entries = programme(workshop);
   const span = programmeSpan(entries);
   const sessions = sessionCount(entries);
+  const tracks = trackCount(workshop);
   const speakers = programmeSpeakers(entries);
   // Practical notes ("bring your laptop") only matter before the event.
   const notes = phase.tone !== 'done' ? clean(workshop.attendeeNotes) : '';
@@ -106,9 +114,15 @@ export default function EventDetailPage() {
   const photos = (workshop.photos ?? []).filter(file => fileUrl(file));
   const tags = clean(workshop.tags).split(',').map(tag => tag.trim()).filter(Boolean);
   const place = clean(workshop.location?.name);
+  const when = formatWeekday(workshop.eventDate);
+  const summary = summarize(`${when.charAt(0).toUpperCase()}${when.slice(1)}${place ? `, ${place}` : ''}. ${clean(workshop.description)}`);
+  const origin = window.location.origin;
+  const pageUrl = absoluteUrl(`/workshop/${workshop.workshopId}`, origin);
 
   return (
     <SiteLayout>
+      <PageMeta title={clean(workshop.title)} description={summary} canonicalPath={`/workshop/${workshop.workshopId}`} image={image} />
+      <JsonLd data={eventJsonLd(workshop, origin, pageUrl)} />
       <section className="on-navy relative isolate overflow-hidden bg-navy text-white" aria-labelledby="event-title">
         <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%] w-full" />
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-20 pt-10 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pb-28">
@@ -117,6 +131,7 @@ export default function EventDetailPage() {
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Badge tone={phase.tone}>{phase.label}</Badge>
               {sessions > 0 && <span className="font-semibold text-cyan-50/90">{sessionsLabel(sessions)}</span>}
+              {tracks > 1 && <span className="font-semibold text-cyan-50/90">{tracksLabel(tracks)}</span>}
             </div>
             <h1 id="event-title" className="mt-4 text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">{clean(workshop.title)}</h1>
             <p className="mt-6 flex flex-col gap-2 text-lg text-cyan-50/90">
@@ -165,7 +180,7 @@ export default function EventDetailPage() {
 
           <section aria-labelledby="programma">
             <SectionHeading id="programma">Programma</SectionHeading>
-            <EventProgramme workshop={workshop} />
+            <EventProgramme workshop={workshop} headingLevel={3} />
           </section>
 
           {speakers.length > 0 && (
@@ -203,14 +218,27 @@ export default function EventDetailPage() {
             <section aria-labelledby="materiali">
               <SectionHeading id="materiali">Materiali</SectionHeading>
               <ul className="mt-6 divide-y divide-line rounded-3xl bg-white shadow-card">
-                {materials.map(file => (
-                  <li key={file.workshopFileId}>
-                    <ExternalLink href={fileUrl(file)!} className="flex min-h-14 w-full items-center gap-3 px-6 py-3 font-bold text-navy no-underline hover:bg-cyan-50 hover:underline">
-                      <span className="rounded-lg bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">{extension(file) || 'FILE'}</span>
-                      <span className="min-w-0 flex-1">{clean(file.title) || clean(file.fileName)}</span>
-                    </ExternalLink>
-                  </li>
-                ))}
+                {materials.map(file => {
+                  const label = clean(file.title) || clean(file.fileName);
+                  const kind = extension(file) || 'FILE';
+                  // The original file name helps to recognise a download; shown only when it adds something.
+                  const fileName = clean(file.fileName) !== label ? clean(file.fileName) : '';
+                  return (
+                    <li key={file.workshopFileId}>
+                      <ExternalLink
+                        href={fileUrl(file)!}
+                        name={`${label}${fileName ? `, ${fileName}` : ''}, ${kind}`}
+                        className="flex min-h-14 w-full items-center gap-3 px-6 py-3 font-bold text-navy no-underline hover:bg-cyan-50 hover:underline"
+                      >
+                        <span className="rounded-lg bg-cyan-50 px-2 py-1 text-xs font-bold text-cyan-700">{kind}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block">{label}</span>
+                          {fileName && <span className="block break-all text-sm font-normal text-muted">{fileName}</span>}
+                        </span>
+                      </ExternalLink>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}
@@ -219,14 +247,16 @@ export default function EventDetailPage() {
             <section aria-labelledby="foto">
               <SectionHeading id="foto">Foto dell'evento</SectionHeading>
               <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                {photos.map((file, index) => (
-                  <li key={file.workshopFileId}>
-                    <a href={fileUrl(file)!} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-2xl shadow-card">
-                      <img src={fileUrl(file)!} alt={clean(file.title) || `Foto ${index + 1} dell'evento`} loading="lazy" className="aspect-[4/3] w-full object-cover transition duration-500 hover:scale-[1.03]" />
-                      <span className="sr-only"> (si apre in una nuova scheda)</span>
-                    </a>
-                  </li>
-                ))}
+                {photos.map((file, index) => {
+                  const caption = clean(file.title) || `Foto ${index + 1} dell'evento`;
+                  return (
+                    <li key={file.workshopFileId}>
+                      <a href={fileUrl(file)!} target="_blank" rel="noopener noreferrer" aria-label={newTabLabel(caption)} className="block overflow-hidden rounded-2xl shadow-card">
+                        <img src={fileUrl(file)!} alt={caption} loading="lazy" className="aspect-[4/3] w-full object-cover transition duration-500 hover:scale-[1.03]" />
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}

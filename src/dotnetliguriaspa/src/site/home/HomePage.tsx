@@ -2,11 +2,15 @@ import React, { useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button, Disclosure, DisclosurePanel } from 'react-aria-components';
 import SiteLayout from '../SiteLayout';
+import PageMeta from '../PageMeta';
+import JsonLd from '../JsonLd';
+import { organizationJsonLd } from '../structuredData';
 import EventCard from '../EventCard';
 import { ExternalLink, Icon } from '../icons';
 import { Badge, GhostAction, LogoArc, OutlineAction, PrimaryAction, SectionTitle } from '../ui';
 import { SiteBoardMember, contentUrl, getActiveBoard, getFeaturedWorkshop, getPublishedWorkshops } from '../siteApi';
 import { clean, eventPhase, formatDate } from '../format';
+import { webUrl } from '../links';
 import { publicQuestionnaireApi } from '../../questionnaire/api';
 import { useLoad } from '../useLoad';
 import EventProgramme, { triggerLink } from '../event/EventProgramme';
@@ -21,7 +25,7 @@ function useHashScroll(ready: boolean) {
   const { hash } = useLocation();
   useEffect(() => {
     if (!hash || !ready) return;
-    document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' });
+    document.getElementById(hash.slice(1))?.scrollIntoView?.({ block: 'start' });
   }, [hash, ready]);
 }
 
@@ -32,10 +36,11 @@ function TeamCard({ member }: { member: SiteBoardMember }) {
   const preview = long ? `${bio.slice(0, bio.lastIndexOf(' ', 160))}…` : bio;
   const name = clean(member.name);
   const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
+  // Stored links may lack the scheme; anything that is not a web address is dropped.
   const links = [
     ['Blog', member.blogHtml], ['LinkedIn', member.lInkedinUrl], ['GitHub', member.gitHubUrl],
     ['X', member.twitterUrl], ['Facebook', member.faceboookUrl], ['Instagram', member.instagramUrl],
-  ].filter((link): link is [string, string] => !!link[1] && /^https?:\/\//.test(link[1]));
+  ].map(([label, url]) => [label, webUrl(url)]).filter((link): link is [string, string] => !!link[1]);
 
   return (
     <li className="flex flex-col overflow-hidden rounded-3xl bg-white shadow-card">
@@ -136,14 +141,15 @@ export default function HomePage() {
         <p className="mt-2 text-muted">{featured.message}. Riprova tra qualche istante: il resto della pagina è disponibile.</p>
         <Button
           onPress={retryFeatured}
-          className="mt-5 inline-flex min-h-12 cursor-pointer items-center rounded-full border-2 border-navy px-6 font-bold text-navy outline-none data-[hovered]:bg-navy data-[hovered]:text-white data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700"
+          className="mt-5 inline-flex min-h-12 cursor-pointer items-center rounded-full border-2 border-navy px-6 font-bold text-navy outline-none data-[hovered]:bg-navy data-[hovered]:text-white"
         >
           Riprova
         </Button>
       </div>
     );
   } else if (featuredWorkshop) {
-    heroCard = <EventCard workshop={featuredWorkshop} large />;
+    // Right under the page title, so the card heading is an h2.
+    heroCard = <EventCard workshop={featuredWorkshop} large headingLevel={2} />;
   } else {
     heroCard = (
       <div className="relative overflow-hidden rounded-3xl bg-white p-8 text-navy shadow-card sm:p-10">
@@ -155,7 +161,7 @@ export default function HomePage() {
             {contentUrl(latest.image) && <img src={contentUrl(latest.image)!} alt="" className="aspect-video w-28 shrink-0 rounded-xl object-cover" />}
             <div className="min-w-0">
               <p className="text-sm font-bold uppercase tracking-wide text-cyan-700">Ultimo evento · {formatDate(latest.eventDate)}</p>
-              <p className="font-bold leading-snug"><a href="#evidence" className="text-navy no-underline hover:underline">{clean(latest.title)}</a></p>
+              <p className="font-bold leading-snug"><a href="#evidence" className="inline-flex min-h-11 items-center text-navy no-underline hover:underline">{clean(latest.title)}</a></p>
             </div>
           </div>
         )}
@@ -165,6 +171,8 @@ export default function HomePage() {
 
   return (
     <SiteLayout>
+      <PageMeta />
+      <JsonLd data={organizationJsonLd(window.location.origin)} />
       <section id="about" className="on-navy relative isolate overflow-hidden bg-navy text-white" aria-labelledby="hero-title">
         <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[62%] w-full" />
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-24 pt-14 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:pb-32 lg:pt-20">

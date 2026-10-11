@@ -11,6 +11,7 @@ import {ThemeProvider} from '@mui/material';
 import theme from './theme';
 import { getOidcPublicSettings } from './config/oidcConfig';
 import TokenRenewalMonitor from './components/TokenRenewalMonitor';
+import { dropFallbackMetadata } from './site/seo';
 
 const configuration={
     //metadataUrl: "https://hello.vevy.com/realms/DotNetLiguria/.well-known/openid-configuration",
@@ -49,6 +50,8 @@ root.render(
         </BrowserRouter>
     </React.StrictMode>
 );
+// Pages render their own metadata: drop the crawler fallback tags of index.html.
+dropFallbackMetadata();
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
