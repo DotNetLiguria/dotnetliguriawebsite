@@ -123,6 +123,21 @@ describe('<QuestionnaireRunner />', () => {
     }));
   });
 
+  test('links the privacy notice beside the consent without changing the checkbox name', () => {
+    render(<QuestionnaireRunner questionnaire={sample({ respondentMode: 'Identified', consentText: 'Accetto la privacy' })} onSubmit={vi.fn()} />);
+    const link = screen.getByRole('link', { name: /informativa sulla privacy/ });
+    expect(link).toHaveAttribute('href', '/privacy');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAccessibleName('informativa sulla privacy (si apre in una nuova scheda)');
+    expect(screen.getByRole('checkbox', { name: 'Accetto la privacy' })).toBeInTheDocument();
+  });
+
+  test('anonymous questionnaires show neither consent nor privacy link', () => {
+    render(<QuestionnaireRunner questionnaire={sample()} onSubmit={vi.fn()} />);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /privacy/ })).not.toBeInTheDocument();
+  });
+
   test('preview mode validates without submitting', async () => {
     const user = userEvent.setup();
     const questionnaire = sample();
