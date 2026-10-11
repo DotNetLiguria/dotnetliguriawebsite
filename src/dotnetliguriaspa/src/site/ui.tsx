@@ -1,22 +1,27 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Icon } from './icons';
+import { Icon, newTabLabel } from './icons';
 
 // Shared visual pieces of the public site.
 
 type Action = { to?: string; href?: string; external?: boolean; children: React.ReactNode; className?: string };
 
 function ActionLink({ to, href, external, children, className = '', icon }: Action & { icon: boolean }) {
+  const text = typeof children === 'string' ? children : '';
   const content = (
     <>
       {children}
       {icon && <Icon name={external ? 'external' : 'arrow'} />}
-      {external && <span className="sr-only"> (si apre in una nuova scheda)</span>}
+      {external && !text && <span className="sr-only">(si apre in una nuova scheda)</span>}
     </>
   );
   if (to) return <Link to={to} className={className}>{content}</Link>;
   return (
-    <a href={href} className={className} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+    <a
+      href={href}
+      className={className}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer', 'aria-label': text ? newTabLabel(text) : undefined } : {})}
+    >
       {content}
     </a>
   );
