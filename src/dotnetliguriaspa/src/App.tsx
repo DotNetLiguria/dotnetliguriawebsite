@@ -6,15 +6,16 @@ import AdminWorkshops from "./components/AdminWorkshops/AdminWorkshops";
 import AdminProfile from './components/AdminProfile/AdminProfile';
 
 import AdminEvents from './components/AdminEvents/AdminEvents';
-import AdminVenues from './components/AdminVenues/AdminVenues';
 import AdminShell from "./admin/AdminShell";
 import DashboardPage from "./admin/pages/DashboardPage";
 import SpeakersPage from "./admin/pages/SpeakersPage";
+import VenuesPage from "./admin/pages/VenuesPage";
+import BackupPage from "./admin/pages/BackupPage";
+import QuestionnairesPage from "./admin/pages/QuestionnairesPage";
 import HomePage from "./site/home/HomePage";
 import EventsPage from "./site/events/EventsPage";
 import EventDetailPage from "./site/event/EventDetailPage";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
-import AdminImportExport from "./components/AdminImportExport/AdminImportExport";
 import AdminBoard from "./components/AdminBoard/AdminBoard";
 import AdminBoardDetail from "./components/AdminBoardDetail/AdminBoardDetail";
 import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopDetail";
@@ -23,8 +24,7 @@ import AdminTopMenu from "./components/AdminTopMenu/AdminTopMenu";
 import AdminTopMenuDetail from "./components/AdminTopMenuDetail/AdminTopMenuDetail";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
 
-// Admin questionnaire tools pull in dnd-kit, Recharts and the DataGrid: load them on demand.
-const AdminQuestionnaires = lazy(() => import('./components/AdminQuestionnaires/AdminQuestionnaires'));
+// The questionnaire designer and results pull in dnd-kit, Recharts and the DataGrid: load them on demand.
 const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
 const QuestionnaireResults = lazy(() => import('./components/QuestionnaireResults/QuestionnaireResults'));
 const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</Suspense>;
@@ -59,15 +59,15 @@ function App() {
                     <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
                     <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
                     <Route path='/admin/events/' element={<AdminEvents pageName={"Events"} />} />
-                    <Route path='/admin/venues/' element={<AdminVenues />} />
+                    <Route path='/admin/venues/' element={<VenuesPage />} />
                     <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
-                    <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
+                    <Route path='/admin/questionnaires' element={<QuestionnairesPage />} />
                     <Route path='/admin/questionnaires/:id/edit' element={page(<QuestionnaireDesigner />)} />
                     <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
                     <Route path='/admin/topmenu/' element={<AdminTopMenu pageName={"Top Menu"} />} />
                     <Route path='/admin/topmenu/:id' element={<AdminTopMenuDetail />} />
                     <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
-                    <Route path='/admin/import-export/' element={<AdminImportExport />} />
+                    <Route path='/admin/import-export/' element={<BackupPage />} />
                 </Route>
                 <Route path='/' element={<HomePage />} />
                 <Route path="/workshops" element={<EventsPage />} />

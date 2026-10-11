@@ -2,11 +2,10 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from '../../test-utils';
-import AdminQuestionnaires, { CreateQuestionnaireDialog } from './AdminQuestionnaires';
 import WorkshopQuestionnaires from './WorkshopQuestionnaires';
 import QuestionnaireResults from '../QuestionnaireResults/QuestionnaireResults';
 import { formatAnswer } from '../../questionnaire/format';
-import type { Question, Questionnaire, QuestionnaireStatistics, QuestionnaireSummary } from '../../questionnaire/types';
+import type { Question, Questionnaire, QuestionnaireStatistics } from '../../questionnaire/types';
 
 type Handler = (url: string, method: string, body?: unknown) => unknown;
 
@@ -25,11 +24,6 @@ function serve(handler: Handler) {
   });
   return calls;
 }
-
-const summary = (extra: Partial<QuestionnaireSummary> = {}): QuestionnaireSummary => ({
-  questionnaireId: 'q1', title: 'Feedback Meetup', status: 'Published', workshopTitle: 'Meetup Genova', responseCount: 4,
-  updatedAt: '2024-05-01T10:00:00Z', origin: 'Web', ...extra,
-});
 
 const question = (id: string, type: Question['type'], title: string, extra: Partial<Question> = {}): Question =>
   ({ id, type, title, required: false, options: [], rows: [], settings: {}, ...extra });
@@ -58,54 +52,6 @@ const statistics: QuestionnaireStatistics = {
       textAnswers: [{ responseId: 'r1', submittedAt: '2024-05-01T10:00:00Z', text: 'Più demo dal vivo' }, { responseId: 'r2', submittedAt: '2024-05-02T10:00:00Z', text: 'Pizza migliore' }] },
   ],
 };
-
-describe('<AdminQuestionnaires />', () => {
-  test('lists questionnaires and creates a workshop feedback questionnaire', async () => {
-    const user = userEvent.setup();
-    const calls = serve((url, method) => {
-      if (url.includes('/Workshop/Get')) return [{ workshopId: 'w1', title: 'Meetup Genova', eventDate: '2024-05-01T18:00:00Z' }];
-      if (method === 'POST') return { ...questionnaire, questionnaireId: 'new1' };
-      return [summary()];
-    });
-    render(
-      <Routes>
-        <Route path="/admin/questionnaires" element={<AdminQuestionnaires />} />
-        <Route path="/admin/questionnaires/:id/edit" element={<div>Editor aperto</div>} />
-      </Routes>,
-      { route: '/admin/questionnaires' },
-    );
-
-    expect(await screen.findByText('Feedback Meetup')).toBeInTheDocument();
-    expect(screen.getByText('Pubblicato')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Nuovo questionario' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Nuovo questionario' });
-    await user.click(within(dialog).getByLabelText(/Feedback di un evento/));
-    const create = within(dialog).getByRole('button', { name: 'Crea e modifica' });
-    expect(create).toBeDisabled();
-    await user.click(within(dialog).getByRole('combobox', { name: /Evento/ }));
-    await user.click(await screen.findByRole('option', { name: /Meetup Genova/ }));
-    await user.click(create);
-
-    expect(await screen.findByText('Editor aperto')).toBeInTheDocument();
-    expect(calls.find(c => c.method === 'POST')?.body).toEqual({ template: 'workshopFeedback', title: null, workshopId: 'w1' });
-  });
-
-  test('shows the permission message when the role is missing', async () => {
-    serve(url => (url.includes('/Questionnaire') ? new Response('', { status: 403 }) : []));
-    render(<AdminQuestionnaires />);
-    expect(await screen.findByText(/ruolo feedbackadmin/)).toBeInTheDocument();
-  });
-
-  test('a blank questionnaire does not require a workshop', async () => {
-    const user = userEvent.setup();
-    const onCreate = vi.fn();
-    render(<CreateQuestionnaireDialog open workshops={[]} onClose={() => undefined} onCreate={onCreate} />);
-    await user.type(screen.getByRole('textbox', { name: 'Titolo' }), ' Sondaggio soci ');
-    await user.click(screen.getByRole('button', { name: 'Crea e modifica' }));
-    expect(onCreate).toHaveBeenCalledWith({ template: 'blank', title: 'Sondaggio soci', workshopId: null });
-  });
-});
 
 describe('<WorkshopQuestionnaires />', () => {
   test('lists linked questionnaires and creates one from the workshop', async () => {

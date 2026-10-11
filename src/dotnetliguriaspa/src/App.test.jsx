@@ -45,9 +45,9 @@ test('public home reports server failures instead of presenting an empty databas
 test.each([
   ['/admin', 'Ciao, Test'], ['/admin/profile/', 'Profile'],
   ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Relatori'],
-  ['/admin/board/', 'Board'], ['/admin/venues/', 'Venues / Sale eventi'],
+  ['/admin/board/', 'Board'], ['/admin/venues/', 'Sedi'],
   ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
-  ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Import / Export'],
+  ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Backup e import'],
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
