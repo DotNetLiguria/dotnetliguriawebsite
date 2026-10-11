@@ -1,0 +1,3 @@
+# Built theme (keycloak/build-theme.sh): never committed.
+dist/
+*.jar
