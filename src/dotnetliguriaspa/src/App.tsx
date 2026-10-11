@@ -2,14 +2,13 @@ import './App.css';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOidc } from "@axa-fr/react-oidc";
 import { Navigate, Route, Routes } from 'react-router-dom';
-import AdminWorkshops from "./components/AdminWorkshops/AdminWorkshops";
 import AdminProfile from './components/AdminProfile/AdminProfile';
 
-import AdminEvents from './components/AdminEvents/AdminEvents';
 import AdminVenues from './components/AdminVenues/AdminVenues';
 import AdminShell from "./admin/AdminShell";
 import DashboardPage from "./admin/pages/DashboardPage";
 import SpeakersPage from "./admin/pages/SpeakersPage";
+import EventsAdminPage from "./admin/pages/EventsAdminPage";
 import HomePage from "./site/home/HomePage";
 import EventsPage from "./site/events/EventsPage";
 import EventDetailPage from "./site/event/EventDetailPage";
@@ -55,10 +54,10 @@ function App() {
                     <Route path='/admin/board/:id' element={<AdminBoardDetail pageName={"Board Detail"} />} />
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />
                     <Route path='/admin/speakers/:id' element={<SpeakersPage />} />
-                    <Route path='/admin/workshops/' element={<AdminWorkshops pageName={"Workshops"} />} />
+                    <Route path='/admin/workshops/' element={<EventsAdminPage />} />
                     <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
                     <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
-                    <Route path='/admin/events/' element={<AdminEvents pageName={"Events"} />} />
+                    <Route path='/admin/events/' element={<Navigate to='/admin/workshops/' replace />} />
                     <Route path='/admin/venues/' element={<AdminVenues />} />
                     <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
                     <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
