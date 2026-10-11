@@ -11,10 +11,11 @@ export default function ScrollTopButton() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
   if (!visible) return null;
+  // On phones the cookie notice spans the screen: the button stacks above it while it is shown (--site-notice-height).
   return (
     <Button
       onPress={() => window.scrollTo({ top: 0 })}
-      className="fixed bottom-6 right-6 z-30 inline-flex size-12 cursor-pointer items-center justify-center rounded-full bg-navy text-white shadow-lift outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700"
+      className="fixed bottom-6 right-6 z-30 max-sm:bottom-[max(1.5rem,calc(var(--site-notice-height,0px)_+_0.75rem))] inline-flex size-12 cursor-pointer items-center justify-center rounded-full bg-navy text-white shadow-lift outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700"
       aria-label="Torna all'inizio della pagina"
     >
       <Icon name="arrow" className="size-5 -rotate-90" />
