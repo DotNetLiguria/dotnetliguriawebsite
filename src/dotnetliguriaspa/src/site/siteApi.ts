@@ -67,6 +67,8 @@ export interface SiteWorkshop {
   /** Seat booking and cancellation service; preferred over the external registration link. */
   bookingServiceUrl?: string | null;
   attendeeNotes?: string | null;
+  /** Address of the event on the previous site, e.g. https://dotnetliguria.net/Workshops/Detail?WorkshopId=… */
+  oldUrl?: string | null;
   location?: { name?: string | null; address?: string | null; coordinates?: string | null; googleMapsUrl?: string | null } | null;
   /** Legacy programme; replaced by talks, agendaTracks and agendaItems when an agenda exists. */
   tracks?: SiteTrack[] | null;
@@ -155,7 +157,10 @@ export async function getWorkshop(id: string, signal?: AbortSignal): Promise<Sit
   // Workshop ids are GUIDs: anything else is simply not an event (the API would answer 400).
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
   try {
-    return await getJson<SiteWorkshop>(`/Workshop/Get/${encodeURIComponent(id)}`, signal);
+    const data = await getJson<unknown>(`/Workshop/Get/${encodeURIComponent(id)}`, signal);
+    // Anything that is not a workshop (empty body, array) means there is no such event.
+    if (data && typeof data === 'object' && !Array.isArray(data) && 'workshopId' in data) return data as SiteWorkshop;
+    return null;
   } catch (error) {
     if (!(error instanceof SiteApiError) || (error.status !== 404 && error.status !== 400)) throw error;
   }

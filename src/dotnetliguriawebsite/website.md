@@ -60,39 +60,15 @@ Event details also include `location.googleMapsUrl`, `bookingServiceUrl`, and
 
 ### Eventbrite drafts and tickets
 
-Eventbrite integration is configured only on the backend. Supply
-`Eventbrite:AccessToken`, `Eventbrite:OrganizationId`, and
-`Eventbrite:OrganizerId` through user secrets or deployment secret storage. The
-token must be a bearer token accepted by Eventbrite and authorized to create/update
-events, venues, ticket classes, and event descriptions. Do not place it in Vite
-environment variables, client code, appsettings files committed to source control,
-or logs. Optional settings are `TimeZoneId` (defaults to `Europe/Rome`), `Currency`
-(defaults to `EUR`), and `CountryCode` (defaults to `IT`).
+See [the complete Eventbrite setup and admin workflow](../../docs/eventbrite.md).
 
-Workshop creation stores a desired initial free-ticket total separately from
-`Location.MaximumSpaces`. Eventbrite draft creation is attempted after a saved update
-contains a title, description, event date, location, positive ticket quantity, agenda
-track and scheduled agenda item. Event time is derived from the earliest and latest
-agenda times on the event date in the configured timezone. The workshop's description
-is sent as the Eventbrite summary (truncated to 140 characters); its full text and
-agenda are synchronized using Eventbrite structured content. Location edits update the
-associated Eventbrite venue, and saved agenda edits update the Eventbrite description.
-The workshop is not published on Eventbrite automatically. The admin can publish it
-separately after the draft and free ticket are synchronized.
-
-Admins can raise the desired Eventbrite ticket total from the registration panel; this
-is independent of venue capacity and cannot reduce the last synchronized total.
-Optional ticket sales start and end times are interpreted in the configured Eventbrite
-timezone. The API applies the capacity and sales window to the Eventbrite ticket class;
-Eventbrite still enforces its inventory and sold/pending ticket constraints. Event writes that time out are
-marked for reconciliation rather than blindly retried because the provider may have
-accepted the request without returning a response. Such a status requires checking
-the Eventbrite account before retrying.
-
-Workshop mutations and Eventbrite actions require the configured feedback-admin JWT
-policy. Before production use, validate the token and permissions in a non-production
-Eventbrite account. Image upload and live-account end-to-end verification are not part
-of the current integration; the app's local workshop image is not copied to Eventbrite.
+Eventbrite credentials are backend-only. Admins save local workshop and agenda edits,
+then explicitly create/update the Eventbrite event from Registration details, which
+follows Agenda tracks and schedule. That panel also supports on-demand aggregate
+ticket-sales refresh and a separate Eventbrite publish action. The API prevents
+capacity updates below the currently observed sold and pending tickets. Image upload
+is not supported; see the linked guide for secret configuration, mappings, recovery,
+and all operational details.
 
 To import proposals for an existing workshop, POST
 `/api/Workshop/ImportSessionize/{workshopId}` with JSON `{ "url":

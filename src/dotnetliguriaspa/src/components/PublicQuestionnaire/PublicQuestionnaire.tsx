@@ -4,7 +4,10 @@ import QuestionnaireRunner from '../QuestionnaireRunner/QuestionnaireRunner';
 import { publicQuestionnaireApi, QuestionnaireApiError } from '../../questionnaire/api';
 import type { PublicQuestionnaireView } from '../../questionnaire/types';
 import SiteLayout from '../../site/SiteLayout';
+import PageMeta from '../../site/PageMeta';
 import { LogoArc } from '../../site/ui';
+
+const DESCRIPTION = 'Questionario di feedback di un evento DotNetLiguria: valuta i talk e suggerisci i temi del prossimo incontro.';
 
 const formatDate = (value?: string | null) =>
   value ? new Date(value).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : '';
@@ -46,9 +49,11 @@ const PublicQuestionnaire: FC = () => {
 
   const panel = 'rounded-3xl bg-white p-6 shadow-card sm:p-8';
   let content: React.ReactNode;
+  let title = 'Questionario';
   if (state.kind === 'loading') {
     content = <div className={panel}><p className="text-lg font-semibold text-muted" role="status">Caricamento del questionario…</p></div>;
   } else if (state.kind === 'error') {
+    title = 'Questionario non disponibile';
     content = (
       <div className={panel}>
         <h1 className="text-3xl font-bold">Questionario non disponibile</h1>
@@ -58,6 +63,7 @@ const PublicQuestionnaire: FC = () => {
     );
   } else {
     const { view } = state;
+    title = view.title || title;
     if (view.availability === 'Open' && view.questionnaire) {
       const q = view.questionnaire;
       content = (
@@ -85,11 +91,14 @@ const PublicQuestionnaire: FC = () => {
 
   return (
     <SiteLayout>
+      {/* Questionnaires are reached from a QR code or a link: never indexed. */}
+      <PageMeta title={title} description={DESCRIPTION} noindex />
       <div className="on-navy relative isolate overflow-hidden bg-navy" aria-hidden="true">
         <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-full w-full" />
         <div className="h-40 sm:h-48" />
       </div>
-      <div className="relative mx-auto -mt-28 max-w-3xl px-4 pb-16 sm:-mt-32 sm:px-6">
+      {/* site-questionnaire raises the scroll padding for the sticky progress bar (site.css). */}
+      <div className="site-questionnaire relative mx-auto -mt-28 max-w-3xl px-4 pb-16 sm:-mt-32 sm:px-6">
         {content}
       </div>
     </SiteLayout>

@@ -19,7 +19,7 @@ public sealed class EventbriteIntegrationService(
     {
         if (!IsReady(workshop))
         {
-            return;
+            throw new InvalidOperationException("Complete the workshop title, description, event date, location, free-ticket quantity, agenda track and scheduled agenda before synchronizing Eventbrite.");
         }
         EnsureConfigured();
         _ = BuildTicketClass(workshop);
@@ -57,6 +57,22 @@ public sealed class EventbriteIntegrationService(
         }
 
         await UpdateEventAsync(workshop, cancellationToken);
+    }
+
+    public async Task<EventbriteTicketSales> GetTicketSalesAsync(Workshop workshop, CancellationToken cancellationToken = default)
+    {
+        EnsureConfigured();
+        if (string.IsNullOrWhiteSpace(workshop.EventbriteEventId) ||
+            string.IsNullOrWhiteSpace(workshop.EventbriteTicketClassId))
+        {
+            throw new InvalidOperationException("Synchronize the Eventbrite event and its free ticket before refreshing ticket sales.");
+        }
+
+        using var response = await apiClient.GetTicketClassAsync(
+            workshop.EventbriteEventId,
+            workshop.EventbriteTicketClassId,
+            cancellationToken);
+        return EventbriteTicketSales.FromApiResponse(response.RootElement, _timeProvider.GetUtcNow());
     }
 
     private async Task CreateEventAsync(Workshop workshop, CancellationToken cancellationToken)

@@ -8,7 +8,7 @@ namespace DotNetLiguriaCore.Controllers;
 
 [Route("api/[controller]/[action]")]
 [ApiController]
-[Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
+[Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
 public sealed class EventbriteController(
     WorkshopService workshopService,
     EventbriteIntegrationService integrationService,
@@ -52,6 +52,35 @@ public sealed class EventbriteController(
         return Ok(await workshopService.GetAsync(id));
     }
 
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<EventbriteTicketSales>> TicketSales(Guid id, CancellationToken cancellationToken)
+    {
+        var workshop = await workshopService.GetAsync(id);
+        if (workshop is null)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            return Ok(await integrationService.GetTicketSalesAsync(workshop, cancellationToken));
+        }
+        catch (EventbriteApiException exception)
+        {
+            return Problem(
+                detail: exception.Message,
+                statusCode: StatusCodes.Status502BadGateway,
+                title: "Could not refresh Eventbrite ticket sales");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Problem(
+                detail: exception.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Eventbrite ticket sales are not available");
+        }
+    }
+
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<Workshop>> SetTicketCapacity(
         Guid id,
@@ -83,27 +112,39 @@ public sealed class EventbriteController(
             });
         }
 
-        workshop.EventbriteTicketCapacity = request.Capacity;
-        await workshopService.UpdateAsync(id, workshop);
+        EventbriteTicketSales liveSales;
         try
         {
-            await integrationService.SyncIfReadyAsync(workshop, cancellationToken);
+            liveSales = await integrationService.GetTicketSalesAsync(workshop, cancellationToken);
         }
         catch (EventbriteApiException exception)
         {
             return Problem(
-                detail: $"The requested capacity was saved locally, but Eventbrite could not be updated: {exception.Message}",
+                detail: $"Capacity was not changed because current Eventbrite ticket sales could not be verified: {exception.Message}",
                 statusCode: StatusCodes.Status502BadGateway,
-                title: "Eventbrite ticket update failed");
+                title: "Could not verify Eventbrite ticket capacity");
         }
         catch (InvalidOperationException exception)
         {
             return Problem(
-                detail: $"The requested capacity was saved locally, but Eventbrite needs attention: {exception.Message}",
+                detail: exception.Message,
                 statusCode: StatusCodes.Status409Conflict,
-                title: "Eventbrite ticket update needs attention");
+                title: "Eventbrite ticket capacity is not available");
+        }
+        if (request.Capacity < liveSales.Sold + liveSales.Pending)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Capacity is below sold and pending tickets",
+                Detail = $"Capacity must be at least {liveSales.Sold + liveSales.Pending} (sold: {liveSales.Sold}, pending: {liveSales.Pending}).",
+                Status = StatusCodes.Status400BadRequest
+            });
         }
 
+        workshop.EventbriteTicketCapacity = request.Capacity;
+        workshop.EventbriteSyncStatus = "update-pending";
+        workshop.EventbriteLastError = null;
+        await workshopService.UpdateEventbriteAsync(workshop);
         return Ok(await workshopService.GetAsync(id));
     }
 

@@ -1,8 +1,9 @@
 import React from 'react';
 import SiteHeader from './SiteHeader';
 import SiteFooter from './SiteFooter';
+import CookieNotice from './legal/CookieNotice';
 
-/** Shell of every public page: skip link, header, main landmark, footer. */
+/** Shell of every public page: skip link, header, main landmark, footer and the informational cookie notice. */
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="site flex flex-col">
@@ -17,6 +18,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         {children}
       </main>
       <SiteFooter />
+      <CookieNotice />
     </div>
   );
 }

@@ -15,7 +15,7 @@ export interface QuestionnaireRunnerProps {
 }
 
 type Errors = Record<string, string>;
-const ring = 'outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700';
+const ring = 'outline-none';
 const primaryButton = `inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-full bg-site-green px-8 text-lg font-bold text-navy shadow-card transition data-[hovered]:-translate-y-0.5 data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`;
 const secondaryButton = `inline-flex min-h-12 cursor-pointer items-center justify-center rounded-full border-2 border-navy px-6 font-bold text-navy transition data-[hovered]:bg-navy data-[hovered]:text-white ${ring}`;
 const card = 'rounded-3xl bg-white p-6 shadow-card sm:p-8';
@@ -96,13 +96,16 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers, respondent, consentGiven]);
 
+  /** Brings the first invalid question into view and moves focus to its first control (WCAG 3.3.1). */
   const focusFirstError = (errs: Errors) => {
     const first = Object.keys(errs)[0];
     if (!first) return;
-    const element = document.querySelector(`[data-question-id="${first}"], [data-field="${first}"]`);
-    if (element && 'scrollIntoView' in element && typeof element.scrollIntoView === 'function') {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    const element = document.querySelector<HTMLElement>(`[data-question-id="${first}"], [data-field="${first}"]`);
+    if (!element) return;
+    // Smoothness follows the page's scroll-behavior, which honours prefers-reduced-motion.
+    if (typeof element.scrollIntoView === 'function') element.scrollIntoView({ block: 'center' });
+    const control = 'input:not([type="hidden"]), textarea, select, button';
+    (element.matches(control) ? element : element.querySelector<HTMLElement>(control))?.focus({ preventScroll: true });
   };
 
   const setAnswer = (questionId: string, answer: QuestionAnswer | undefined) =>
@@ -165,11 +168,12 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
   if (done) {
     return (
       <div className={`${card} text-center`} role="status">
-        <svg viewBox="0 0 24 24" className="mx-auto size-16" fill="none" stroke="#3b7a20" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="mx-auto size-16 text-basil-700" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9.5" />
           <path d="M7.5 12.5l3 3 6-6.5" />
         </svg>
-        <h2 className="mt-3 text-3xl font-bold">{preview ? 'Anteprima: risposta valida' : 'Grazie!'}</h2>
+        {/* The form (and its h1) is gone: this is now the page's main heading. */}
+        <h1 className="mt-3 text-3xl font-bold">{preview ? 'Anteprima: risposta valida' : 'Grazie!'}</h1>
         <p className="mx-auto mt-2 max-w-xl whitespace-pre-wrap text-lg text-navy/85">
           {preview ? 'In anteprima le risposte non vengono inviate.' : questionnaire.thankYouText || 'La tua risposta è stata registrata.'}
         </p>
@@ -180,7 +184,9 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
 
   const answeredCount = [...numbers.keys()].filter(id => hasValue(answers[id])).length;
   const progress = stepper ? ((currentStep + 1) / pages.length) * 100 : numbers.size ? (answeredCount / numbers.size) * 100 : 0;
+  const progressText = stepper ? `Passo ${currentStep + 1} di ${pages.length}` : `${answeredCount} risposte su ${numbers.size}`;
   const showRespondent = identified && (!stepper || currentStep === 0);
+  const anyRequired = identified || questionnaire.sections.some(s => s.questions.some(q => q.required));
   const respondentField = (field: keyof Respondent, label: string, max: number, type = 'text') => {
     const fieldId = `respondent-${field}`;
     const error = errors[`respondent.${field}`];
@@ -200,7 +206,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
           onChange={e => setRespondent(r => ({ ...r, [field]: e.target.value }))}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${fieldId}-error` : undefined}
-          className={`mt-1 block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy focus:border-cyan-700 focus:outline-none ${error ? 'border-red-700' : 'border-line'}`}
+          className={`mt-1 block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy focus:border-cyan-700 ${error ? 'border-red-700' : 'border-line-strong'}`}
         />
         {error && <p id={`${fieldId}-error`} role="alert" className="mt-1 font-bold text-red-700">{error}</p>}
       </div>
@@ -213,6 +219,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
         <h1 className="text-3xl font-bold leading-tight sm:text-4xl">{questionnaire.title}</h1>
         {questionnaire.description && <p className="mt-3 whitespace-pre-wrap text-lg text-navy/85">{questionnaire.description}</p>}
         {questionnaire.introText && <div className="mt-5"><Notice tone="info">{questionnaire.introText}</Notice></div>}
+        {anyRequired && <p className="mt-4 text-base text-muted">I campi contrassegnati con l'asterisco (<span className="text-red-700">*</span>) sono obbligatori.</p>}
       </header>
 
       <div className="sticky top-20 z-10 rounded-2xl bg-white/95 px-5 py-3 shadow-card backdrop-blur">
@@ -231,9 +238,11 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(progress)}
+          aria-valuetext={progressText}
           className="h-2 overflow-hidden rounded-full bg-cyan-50"
         >
-          <div className="h-full rounded-full bg-site-green transition-[width] duration-300" style={{ width: `${progress}%` }} />
+          {/* basil-700 on cyan-50 is 4.8:1: the bar reads without relying on the text below. */}
+          <div className="h-full rounded-full bg-basil-700 transition-[width] duration-300" style={{ width: `${progress}%` }} />
         </div>
         {stepper && <p className="mt-1 text-sm text-muted">Passo {currentStep + 1} di {pages.length}</p>}
       </div>
@@ -275,18 +284,27 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
           <Checkbox
             isSelected={consentGiven}
             onChange={setConsentGiven}
+            isRequired
+            isInvalid={!!errors.consentGiven}
+            aria-describedby={errors.consentGiven ? 'consent-error' : undefined}
             className={`flex cursor-pointer items-start gap-3 text-base ${ring}`}
           >
             {({ isSelected }) => (
               <>
-                <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2 ${isSelected ? 'border-navy bg-navy' : 'border-muted'}`} aria-hidden="true">
+                <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2 ${isSelected ? 'border-navy bg-navy' : errors.consentGiven ? 'border-red-700' : 'border-muted'}`} aria-hidden="true">
                   {isSelected && <svg viewBox="0 0 16 16" className="size-4" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M3.5 8.5l3 3 6-7" /></svg>}
                 </span>
                 <span className="whitespace-pre-wrap">{questionnaire.consentText}</span>
               </>
             )}
           </Checkbox>
-          {errors.consentGiven && <p role="alert" className="mt-2 font-bold text-red-700">{errors.consentGiven}</p>}
+          <p className="mt-3 pl-9 text-base text-muted">
+            Come trattiamo i tuoi dati: leggi l'
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-cyan-700 underline decoration-2 underline-offset-4">
+              informativa sulla privacy{' '}<span className="sr-only">(si apre in una nuova scheda)</span>
+            </a>.
+          </p>
+          {errors.consentGiven && <p id="consent-error" role="alert" className="mt-2 font-bold text-red-700">{errors.consentGiven}</p>}
         </div>
       )}
 
@@ -298,7 +316,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
       </div>
 
       {submitError && <Notice tone="error" role="alert">{submitError}</Notice>}
-      {attempted && Object.keys(errors).length > 0 && <Notice tone="warning">Controlla le risposte evidenziate.</Notice>}
+      {attempted && Object.keys(errors).length > 0 && <Notice tone="warning" role="status">Controlla le risposte evidenziate.</Notice>}
 
       <div className="flex items-center justify-between gap-4 pb-4">
         {stepper && currentStep > 0

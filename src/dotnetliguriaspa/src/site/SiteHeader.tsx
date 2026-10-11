@@ -29,7 +29,7 @@ function scrollToHash(hash: string) {
   else window.scrollTo({ top: 0 });
 }
 
-const focusRing = 'outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-3 data-[focus-visible]:outline-cyan-700';
+const focusRing = 'outline-none';
 
 function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
   const { login, logout, isAuthenticated } = useOidc();

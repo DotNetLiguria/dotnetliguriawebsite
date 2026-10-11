@@ -28,10 +28,18 @@ describe('<HomePage />', () => {
     const sessions = within(evidence).getAllByRole('heading', { level: 4 }).map(h => h.textContent);
     expect(sessions).toEqual(['Introduzione', 'MCP in pratica']);
     expect(within(evidence).getByText('14:15–14:45')).toBeInTheDocument();
-    const register = within(evidence).getByRole('link', { name: /Iscriviti all'evento/ });
+    const register = within(evidence).getByRole('link', { name: "Iscriviti all'evento (si apre in una nuova scheda)" });
     expect(register).toHaveAttribute('href', 'https://iscrizioni.example.test/season');
     expect(register).toHaveAttribute('target', '_blank');
     expect(within(evidence).getByRole('link', { name: 'Dettagli e materiali' })).toHaveAttribute('href', '/workshop/next');
+
+    // The hero card sits right under the h1, so its heading is an h2 and no level is skipped.
+    const hero = screen.getByRole('region', { name: 'La community .NET della Liguria' });
+    expect(within(hero).getByRole('heading', { level: 2, name: 'Season of AI' })).toBeInTheDocument();
+    expect(document.title).toBe('DotNetLiguria · La community .NET della Liguria');
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/`);
+    const jsonLd = JSON.parse(document.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(jsonLd).toMatchObject({ '@type': 'Organization', name: 'DotNetLiguria', url: `${window.location.origin}/` });
   });
 
   test('without a featured event it shows the preparation state and the latest events, newest first', async () => {
@@ -66,8 +74,8 @@ describe('<HomePage />', () => {
     const bio = 'Mi occupo professionalmente di sviluppo software dal 1987 e mi sono specializzato nelle tecnologie Microsoft. '.repeat(3);
     mockApi({
       '/Board/Get?onlyActive=true': [
-        { boardId: 'b2', name: 'Seconda Persona', description: 'Consigliere', order: 2, lInkedinUrl: 'javascript:alert(1)' },
-        { boardId: 'b1', name: 'Prima Persona', description: 'Presidente', order: 1, fullBio: bio, twitterUrl: 'https://x.example.test/prima' },
+        { boardId: 'b2', name: 'Seconda Persona', description: 'Consigliere', order: 2, lInkedinUrl: 'javascript:alert(1)', gitHubUrl: 'www.github.com/seconda', instagramUrl: 'data:text/html,x' },
+        { boardId: 'b1', name: 'Prima Persona', description: 'Presidente', order: 1, fullBio: bio, twitterUrl: 'https://x.example.test/prima', lInkedinUrl: 'linkedin.com/in/prima' },
       ],
     });
     render(<HomePage />);
@@ -79,8 +87,12 @@ describe('<HomePage />', () => {
     await user.click(more);
     expect(within(team).getByRole('button', { name: 'Mostra meno su Prima Persona' })).toHaveAttribute('aria-expanded', 'true');
     expect(within(team).getByText(bio.trim())).toBeVisible();
-    expect(within(team).getByRole('link', { name: /^X/ })).toHaveAttribute('href', 'https://x.example.test/prima');
-    expect(within(team).queryByRole('link', { name: /LinkedIn/ })).not.toBeInTheDocument();
+    expect(within(team).getByRole('link', { name: 'X (si apre in una nuova scheda)' })).toHaveAttribute('href', 'https://x.example.test/prima');
+    // Links saved without a scheme are completed; non-web schemes are dropped.
+    expect(within(team).getByRole('link', { name: /^LinkedIn/ })).toHaveAttribute('href', 'https://linkedin.com/in/prima');
+    expect(within(team).getByRole('link', { name: /^GitHub/ })).toHaveAttribute('href', 'https://www.github.com/seconda');
+    expect(within(team).getAllByRole('link').map(link => link.getAttribute('href'))).not.toContain(expect.stringMatching(/^(javascript|data):/));
+    expect(within(team).queryByRole('link', { name: /Instagram/ })).not.toBeInTheDocument();
   });
 
   test('marks the sections that have no backend yet', async () => {

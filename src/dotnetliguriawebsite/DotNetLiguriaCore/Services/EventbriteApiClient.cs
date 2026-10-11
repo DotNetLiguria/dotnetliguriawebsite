@@ -49,6 +49,13 @@ public sealed class EventbriteApiClient(HttpClient httpClient, IOptions<Eventbri
             new JsonObject { ["ticket_class"] = ticketClass },
             cancellationToken);
 
+    public Task<JsonDocument> GetTicketClassAsync(string eventId, string ticketClassId, CancellationToken cancellationToken) =>
+        SendAsync(
+            HttpMethod.Get,
+            $"events/{Uri.EscapeDataString(eventId)}/ticket_classes/{Uri.EscapeDataString(ticketClassId)}/",
+            null,
+            cancellationToken);
+
     public Task<JsonDocument> UpdateStructuredContentAsync(string eventId, JsonArray modules, CancellationToken cancellationToken) =>
         SendAsync(
             HttpMethod.Post,

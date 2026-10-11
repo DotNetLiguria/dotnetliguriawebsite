@@ -10,16 +10,21 @@ import EventsAdminPage from "./admin/pages/EventsAdminPage";
 import ProfilePage from "./admin/pages/ProfilePage";
 import VenuesPage from "./admin/pages/VenuesPage";
 import BackupPage from "./admin/pages/BackupPage";
+import AdminNotFoundPage from "./admin/pages/AdminNotFoundPage";
 import QuestionnairesPage from "./admin/pages/QuestionnairesPage";
 import HomePage from "./site/home/HomePage";
 import EventsPage from "./site/events/EventsPage";
 import EventDetailPage from "./site/event/EventDetailPage";
+import PrivacyPage from "./site/legal/PrivacyPage";
+import TermsPage from "./site/legal/TermsPage";
+import CookiePolicyPage from "./site/legal/CookiePolicyPage";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
 import BoardPage from "./admin/pages/BoardPage";
 import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopDetail";
 import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopCreate";
 import MenuPage from "./admin/pages/MenuPage";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
+import LegacyRedirect from "./site/legacy/LegacyRedirect";
 
 // The questionnaire designer and results pull in dnd-kit, Recharts and the DataGrid: load them on demand.
 const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
@@ -65,12 +70,21 @@ function App() {
                     <Route path='/admin/topmenu/:id' element={<MenuPage />} />
                     <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
                     <Route path='/admin/import-export/' element={<BackupPage />} />
+                    <Route path='/admin/*' element={<AdminNotFoundPage />} />
                 </Route>
                 <Route path='/' element={<HomePage />} />
                 <Route path="/workshops" element={<EventsPage />} />
                 <Route path="/workshop/:id" element={<EventDetailPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/termini-di-servizio" element={<TermsPage />} />
+                <Route path="/cookie" element={<CookiePolicyPage />} />
                 <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />} />
                 <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} />
+                {/* OIDC callbacks render nothing here (OidcProvider handles them before this tree); unknown /admin
+                    addresses stay inside the admin shell above; every other unknown address is redirected when it
+                    belongs to the previous site, otherwise it is the public not-found page. */}
+                <Route path="/authentication/*" element={null} />
+                <Route path="*" element={<LegacyRedirect />} />
             </Routes>
         </div>
     );

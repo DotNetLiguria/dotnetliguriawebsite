@@ -106,6 +106,49 @@ public sealed class EventbriteApiClientTests
     }
 
     [Fact]
+    public async Task GetTicketClassAsync_uses_eventbrite_ticket_read_endpoint()
+    {
+        string? requestPath = null;
+        var handler = new EventbriteHttpMessageHandler((request, _) =>
+        {
+            requestPath = request.RequestUri?.AbsolutePath;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"capacity":50,"quantity_sold":12,"quantity_pending":3,"quantity_available":35}""", Encoding.UTF8, "application/json")
+            });
+        });
+        var client = CreateClient(handler, new EventbriteOptions { AccessToken = "fake-token" });
+
+        using var response = await client.GetTicketClassAsync("event-2", "ticket-3", CancellationToken.None);
+        var sales = EventbriteTicketSales.FromApiResponse(response.RootElement, DateTimeOffset.Parse("2026-10-11T10:00:00Z"));
+
+        Assert.Equal("/v3/events/event-2/ticket_classes/ticket-3/", requestPath);
+        Assert.Equal(new EventbriteTicketSales(50, 12, 3, 35, DateTimeOffset.Parse("2026-10-11T10:00:00Z")), sales);
+    }
+
+    [Fact]
+    public void Ticket_sales_summary_defaults_pending_to_zero_and_derives_remaining()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse("""{"capacity":"20","quantity_sold":7}""");
+        var refreshedAt = DateTimeOffset.Parse("2026-10-11T10:00:00Z");
+
+        var sales = EventbriteTicketSales.FromApiResponse(document.RootElement, refreshedAt);
+
+        Assert.Equal(new EventbriteTicketSales(20, 7, 0, 13, refreshedAt), sales);
+    }
+
+    [Fact]
+    public void Ticket_sales_summary_rejects_missing_sold_count()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse("""{"capacity":20}""");
+
+        var exception = Assert.Throws<EventbriteApiException>(() =>
+            EventbriteTicketSales.FromApiResponse(document.RootElement, DateTimeOffset.Parse("2026-10-11T10:00:00Z")));
+
+        Assert.Contains("sold quantity", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Non_success_response_surfaces_status_without_returning_success_shaped_data()
     {
         var handler = new EventbriteHttpMessageHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Forbidden)

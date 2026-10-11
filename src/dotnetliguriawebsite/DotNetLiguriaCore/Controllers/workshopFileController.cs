@@ -1,5 +1,7 @@
-﻿using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,12 +9,14 @@ namespace DotNetLiguriaCore.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class WorkshopFileController(WorkshopService workshopService, WorkshopFileService workshopFileService, IWebHostEnvironment environment) : ControllerBase
+    public class WorkshopFileController(WorkshopService workshopService, WorkshopFileService workshopFileService, IWebHostEnvironment environment, IAuthorizationService authorizationService) : ControllerBase
     {
         private readonly WorkshopService _workshopService = workshopService;
         private readonly WorkshopFileService _workshopFileService = workshopFileService;
         private readonly IWebHostEnvironment _environment = environment;
+        private readonly IAuthorizationService _authorizationService = authorizationService;
 
+        [AllowAnonymous]
         [HttpGet("{workshopId}")]
         public async Task<ActionResult<List<WorkshopFile>>> Get(Guid workshopId)
         {
@@ -21,10 +25,23 @@ namespace DotNetLiguriaCore.Controllers
                 return BadRequest("Workshop ID is required.");
             }
 
+            var workshop = await _workshopService.GetAsync(workshopId);
+            if (workshop is null)
+            {
+                return NotFound();
+            }
+
+            var isAdmin = await HttpContext.IsWebDevAdminAsync(_authorizationService);
+            if (!isAdmin && workshop.Published != true)
+            {
+                return NotFound();
+            }
+
             var files = await _workshopFileService.GetAsync(workshopId);
             return Ok(files);
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPost("UploadWorkshopImage")]
         public async Task<IActionResult> UploadWorkshopImage(IFormFile file, [FromForm] Guid workshopId)
         {
@@ -50,15 +67,25 @@ namespace DotNetLiguriaCore.Controllers
                 return BadRequest("Workshop folder name is not set.");
             }
 
+            if (!WorkshopUploadValidation.TryGetSafeExtension(file.FileName, WorkshopFileTypeEnum.Image, out var extension))
+            {
+                return BadRequest("Only JPEG, PNG, WebP, and GIF images are allowed.");
+            }
+
             var contentsPath = Path.Combine(_environment.ContentRootPath, "Contents");
-            var workshopPath = Path.Combine(contentsPath, "workshops", workshop.FolderName);
-            
+            var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
+            var workshopPath = Path.GetFullPath(Path.Combine(workshopsPath, workshop.FolderName));
+            if (!IsPathWithinDirectory(workshopsPath, workshopPath))
+            {
+                return BadRequest("Workshop folder name is invalid.");
+            }
+
             if (!Directory.Exists(workshopPath))
             {
                 Directory.CreateDirectory(workshopPath);
             }
 
-            var fileName = "workshop.png";
+            var fileName = $"workshop{extension}";
             var filePath = Path.Combine(workshopPath, fileName);
             
             using (var stream = System.IO.File.Create(filePath))
@@ -78,6 +105,7 @@ namespace DotNetLiguriaCore.Controllers
             });
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPost("Upload")]
         public async Task<IActionResult> Upload(IFormFile file, [FromForm] Guid workshopId, [FromForm] int fileType, [FromForm] string? title)
         {
@@ -103,18 +131,29 @@ namespace DotNetLiguriaCore.Controllers
                 return BadRequest("Workshop folder name is not set.");
             }
 
+            if (!Enum.IsDefined((WorkshopFileTypeEnum)fileType) ||
+                !WorkshopUploadValidation.TryGetSafeExtension(file.FileName, (WorkshopFileTypeEnum)fileType, out var extension))
+            {
+                return BadRequest("The file type or extension is not allowed.");
+            }
+
             var contentsPath = Path.Combine(_environment.ContentRootPath, "Contents");
-            var workshopPath = Path.Combine(contentsPath, "workshops", workshop.FolderName);
-            
+            var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
+            var workshopPath = Path.GetFullPath(Path.Combine(workshopsPath, workshop.FolderName));
+            if (!IsPathWithinDirectory(workshopsPath, workshopPath))
+            {
+                return BadRequest("Workshop folder name is invalid.");
+            }
+
             if (!Directory.Exists(workshopPath))
             {
                 Directory.CreateDirectory(workshopPath);
             }
 
-            string subFolder = fileType switch
+            string subFolder = (WorkshopFileTypeEnum)fileType switch
             {
-                4 => "photos",
-                3 => "tracks",
+                WorkshopFileTypeEnum.Photo => "photos",
+                WorkshopFileTypeEnum.Material => "tracks",
                 _ => ""
             };
 
@@ -130,15 +169,21 @@ namespace DotNetLiguriaCore.Controllers
                     Directory.CreateDirectory(targetPath);
                 }
                 
-                relativePath = $"/workshops/{workshop.FolderName}/{subFolder}/{file.FileName}";
+                relativePath = $"/workshops/{workshop.FolderName}/{subFolder}/{Guid.NewGuid():N}{extension}";
             }
             else
             {
                 targetPath = workshopPath;
-                relativePath = $"/workshops/{workshop.FolderName}/{file.FileName}";
+                relativePath = $"/workshops/{workshop.FolderName}/{Guid.NewGuid():N}{extension}";
             }
 
-            var filePath = Path.Combine(targetPath, file.FileName);
+            var fileName = Path.GetFileName(relativePath);
+            var filePath = Path.GetFullPath(Path.Combine(targetPath, fileName));
+            if (!IsPathWithinDirectory(workshopsPath, filePath))
+            {
+                return BadRequest("Upload path is invalid.");
+            }
+
             using (var stream = System.IO.File.Create(filePath))
             {
                 await file.CopyToAsync(stream);
@@ -148,8 +193,8 @@ namespace DotNetLiguriaCore.Controllers
             {
                 WorkshopFileId = Guid.NewGuid(),
                 WorkshopId = workshopId,
-                Title = title ?? file.FileName,
-                FileName = file.FileName,
+                Title = string.IsNullOrWhiteSpace(title) ? Path.GetFileNameWithoutExtension(file.FileName) : title,
+                FileName = fileName,
                 FullPath = relativePath,
                 FileType = (WorkshopFileTypeEnum)fileType
             };
@@ -158,7 +203,7 @@ namespace DotNetLiguriaCore.Controllers
             
             return Ok(new 
             { 
-                file.FileName, 
+                fileName,
                 filePath = relativePath, 
                 workshopId, 
                 fileType,
@@ -166,6 +211,7 @@ namespace DotNetLiguriaCore.Controllers
             });
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpDelete("{workshopFileId}")]
         public async Task<IActionResult> Delete(Guid workshopFileId)
         {
@@ -185,25 +231,33 @@ namespace DotNetLiguriaCore.Controllers
             if (!string.IsNullOrEmpty(workshopFile.FullPath))
             {
                 var contentsPath = Path.Combine(_environment.ContentRootPath, "Contents");
-                var relativePath = workshopFile.FullPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-                var physicalPath = Path.Combine(contentsPath, relativePath);
+                var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
+                var relativePath = workshopFile.FullPath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+                var physicalPath = Path.GetFullPath(Path.Combine(contentsPath, relativePath));
+                if (!IsPathWithinDirectory(workshopsPath, physicalPath))
+                {
+                    return BadRequest("Workshop file path is invalid.");
+                }
 
                 if (System.IO.File.Exists(physicalPath))
                 {
-                    try
-                    {
-                        System.IO.File.Delete(physicalPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        return StatusCode(500, $"Error deleting physical file: {ex.Message}");
-                    }
+                    System.IO.File.Delete(physicalPath);
                 }
             }
 
             await _workshopFileService.DeleteAsync(workshopFileId);
 
             return NoContent();
+        }
+
+        private static bool IsPathWithinDirectory(string directory, string path)
+        {
+            var relativePath = Path.GetRelativePath(directory, path);
+            return !Path.IsPathRooted(relativePath) &&
+                relativePath != "." &&
+                relativePath != ".." &&
+                !relativePath.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal) &&
+                !relativePath.StartsWith($"..{Path.AltDirectorySeparatorChar}", StringComparison.Ordinal);
         }
     }
 }

@@ -38,11 +38,32 @@ describe('<EventDetailPage />', () => {
     expect(screen.getAllByText('Concluso').length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: /Iscriviti/ })).not.toBeInTheDocument();
     expect(screen.getAllByText('16:00–17:20').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/track parallele/)).not.toBeInTheDocument();
 
     const speakers = screen.getByRole('region', { name: 'Relatori' });
     expect(within(speakers).getAllByRole('listitem').map(li => li.textContent)).toEqual(['Andrea Merlin2 sessioni', 'Giampaolo Tucci1 sessione']);
-    const material = screen.getByRole('link', { name: /Slide Gemini/ });
+    // Session titles follow the h2 "Programma" directly.
+    const agenda = screen.getByRole('region', { name: 'Programma' });
+    expect(within(agenda).getAllByRole('heading', { level: 3 })).toHaveLength(2);
+    expect(within(agenda).queryByRole('heading', { level: 4 })).not.toBeInTheDocument();
+    // The original file name is shown under the title and read with the link.
+    const material = screen.getByRole('link', { name: 'Slide Gemini, gemini.pdf, PDF (si apre in una nuova scheda)' });
     expect(material.getAttribute('href')).toMatch(/\/Contents\/workshops\/workshop040\/gemini\.pdf$/);
+    expect(within(material).getByText('gemini.pdf')).toBeInTheDocument();
+
+    expect(document.title).toBe('AI Generativa: analisi pragmatica · DotNetLiguria');
+    expect(document.head.querySelector('meta[name="description"]')).toHaveAttribute('content', 'Giovedì 12 giugno 2025, Confindustria. Una giornata sulle novità della AI generativa.');
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshop/${ID}`);
+    expect(document.head.querySelector('meta[property="og:image"]')?.getAttribute('content')).toMatch(/^https?:\/\/.*\/Contents\/workshops\/workshop040\/workshop\.png$/);
+    const jsonLd = JSON.parse(document.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(jsonLd).toMatchObject({
+      '@context': 'https://schema.org', '@type': 'Event', name: 'AI Generativa: analisi pragmatica',
+      startDate: '2025-06-12T16:00:00+02:00', endDate: '2025-06-12T17:20:00+02:00',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      location: { '@type': 'Place', name: 'Confindustria', address: { '@type': 'PostalAddress', streetAddress: 'Via Minzoni 2, La Spezia', addressCountry: 'IT' }, geo: { latitude: 44.1042, longitude: 9.822 } },
+      performer: [{ '@type': 'Person', name: 'Andrea Merlin' }, { '@type': 'Person', name: 'Giampaolo Tucci' }],
+    });
+    expect(jsonLd).not.toHaveProperty('offers');
     expect(within(screen.getByRole('region', { name: 'Argomenti' })).getAllByRole('listitem').map(li => li.textContent)).toEqual(['AI', 'MCP']);
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Eventi passati' })).toHaveAttribute('href', '/workshops');
     expect(screen.queryByRole('region', { name: 'Note per chi partecipa' })).not.toBeInTheDocument();
@@ -71,8 +92,12 @@ describe('<EventDetailPage />', () => {
     renderAt();
 
     const agenda = await screen.findByRole('region', { name: 'Programma' });
-    expect(within(agenda).getAllByRole('heading', { level: 4 }).map(h => h.textContent)).toEqual(['Strumenti utili', 'Pausa']);
+    expect(within(agenda).getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['Strumenti utili', 'Pausa']);
     expect(within(agenda).getByText(/Sala grande · Aula A · Panel/)).toBeInTheDocument();
+    expect(screen.getByText('2 track parallele')).toBeInTheDocument();
+    expect(JSON.parse(document.querySelector('script[type="application/ld+json"]')!.textContent!)).toMatchObject({
+      startDate: '2099-03-15T11:00:00+01:00', offers: { '@type': 'Offer', url: 'https://booking.example.test/event/1' },
+    });
     expect(within(agenda).getByText('Come progettare strumenti utili.')).toBeInTheDocument();
     expect(screen.queryByText('Gemini versus ChatGPT')).not.toBeInTheDocument();
     expect(screen.getByText('1 sessione', { selector: 'span' })).toBeInTheDocument();
@@ -101,11 +126,14 @@ describe('<EventDetailPage />', () => {
     expect(screen.getAllByRole('link', { name: /Iscriviti all'evento/ })[0]).toHaveAttribute('href', 'https://iscrizioni.example.test');
   });
 
-  test('says when an event does not exist instead of reporting an error', async () => {
+  test('says when an event does not exist instead of reporting an error, and keeps it out of search engines', async () => {
     renderAt('non-esiste');
     expect(await screen.findByRole('heading', { level: 1, name: 'Evento non trovato' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/Workshop/Get/non-esiste'), expect.anything());
+    expect(document.title).toBe('Evento non trovato · DotNetLiguria');
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();
   });
 
   test('sanitises the free HTML block and falls back to initials for missing speaker photos', async () => {

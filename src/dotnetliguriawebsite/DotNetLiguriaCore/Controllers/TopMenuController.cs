@@ -1,5 +1,7 @@
-﻿using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetLiguriaCore.Controllers
@@ -27,6 +29,7 @@ namespace DotNetLiguriaCore.Controllers
             return topMenuElement;
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPost]
         public async Task<IActionResult> Post(TopMenu newTopMenuElement)
         {
@@ -35,6 +38,7 @@ namespace DotNetLiguriaCore.Controllers
             return CreatedAtAction(nameof(Get), new { id = newTopMenuElement.TopMenuElementId }, newTopMenuElement);
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, TopMenu updatedTopMenuElement)
         {
@@ -52,6 +56,7 @@ namespace DotNetLiguriaCore.Controllers
             return NoContent();
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {

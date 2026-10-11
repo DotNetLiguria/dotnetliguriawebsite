@@ -1,5 +1,7 @@
-﻿using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetLiguriaCore.Controllers
@@ -9,26 +11,64 @@ namespace DotNetLiguriaCore.Controllers
     public class SpeakerController : ControllerBase
     {
         private readonly SpeakerService _speakerService;
+        private readonly IAuthorizationService _authorizationService;
 
-        public SpeakerController(SpeakerService speakerService) => _speakerService = speakerService;
-
-        [HttpGet]
-        public async Task<List<WorkshopSpeaker>> Get([FromQuery] bool onlyActive = false) =>
-            await _speakerService.GetAsync(onlyActive);
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<WorkshopSpeaker>> Get(Guid id)
+        public SpeakerController(SpeakerService speakerService, IAuthorizationService authorizationService)
         {
-            var speacker = await _speakerService.GetAsync(id);
+            _speakerService = speakerService;
+            _authorizationService = authorizationService;
+        }
 
-            if (speacker is null)
+        [AllowAnonymous]
+        [HttpGet]
+        public async Task<IActionResult> Get([FromQuery] bool onlyActive = false)
+        {
+            if (await HttpContext.IsWebDevAdminAsync(_authorizationService))
+            {
+                return Ok(await _speakerService.GetAsync(onlyActive));
+            }
+
+            var publicSpeakers = (await _speakerService.GetAsync(onlyActive: true))
+                .Select(speaker => new
+                {
+                    speaker.WorkshopSpeakerId,
+                    speaker.Name,
+                    speaker.ProfileImageUrl,
+                    speaker.IsActive,
+                    speaker.Description
+                });
+
+            return Ok(publicSpeakers);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Get(Guid id)
+        {
+            var isAdmin = await HttpContext.IsWebDevAdminAsync(_authorizationService);
+            var speaker = await _speakerService.GetAsync(id);
+
+            if (speaker is null || (!isAdmin && !speaker.IsActive))
             {
                 return NotFound();
             }
 
-            return speacker;
+            if (isAdmin)
+            {
+                return Ok(speaker);
+            }
+
+            return Ok(new
+            {
+                speaker.WorkshopSpeakerId,
+                speaker.Name,
+                speaker.ProfileImageUrl,
+                speaker.IsActive,
+                speaker.Description
+            });
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPost]
         public async Task<IActionResult> Post(WorkshopSpeaker newWorkshopSpeaker)
         {
@@ -37,6 +77,7 @@ namespace DotNetLiguriaCore.Controllers
             return CreatedAtAction(nameof(Get), new { id = newWorkshopSpeaker.WorkshopSpeakerId }, newWorkshopSpeaker);
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, WorkshopSpeaker updatedWorkshopSpeacker)
         {
@@ -54,6 +95,7 @@ namespace DotNetLiguriaCore.Controllers
             return NoContent();
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
@@ -68,5 +110,6 @@ namespace DotNetLiguriaCore.Controllers
 
             return NoContent();
         }
+
     }
 }
