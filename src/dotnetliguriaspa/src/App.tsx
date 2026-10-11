@@ -14,12 +14,10 @@ import EventsPage from "./site/events/EventsPage";
 import EventDetailPage from "./site/event/EventDetailPage";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
 import AdminImportExport from "./components/AdminImportExport/AdminImportExport";
-import AdminBoard from "./components/AdminBoard/AdminBoard";
-import AdminBoardDetail from "./components/AdminBoardDetail/AdminBoardDetail";
+import BoardPage from "./admin/pages/BoardPage";
 import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopDetail";
 import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopCreate";
-import AdminTopMenu from "./components/AdminTopMenu/AdminTopMenu";
-import AdminTopMenuDetail from "./components/AdminTopMenuDetail/AdminTopMenuDetail";
+import MenuPage from "./admin/pages/MenuPage";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
 
 // Admin questionnaire tools pull in dnd-kit, Recharts and the DataGrid: load them on demand.
@@ -50,8 +48,8 @@ function App() {
                 <Route element={<AdminShell />}>
                     <Route path='/admin' element={<DashboardPage />} />
                     <Route path='/admin/profile/' element={<ProfilePage />} />
-                    <Route path='/admin/board/' element={<AdminBoard pageName={"Board"} />} />
-                    <Route path='/admin/board/:id' element={<AdminBoardDetail pageName={"Board Detail"} />} />
+                    <Route path='/admin/board/' element={<BoardPage />} />
+                    <Route path='/admin/board/:id' element={<BoardPage />} />
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />
                     <Route path='/admin/speakers/:id' element={<SpeakersPage />} />
                     <Route path='/admin/workshops/' element={<EventsAdminPage />} />
@@ -63,8 +61,8 @@ function App() {
                     <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
                     <Route path='/admin/questionnaires/:id/edit' element={page(<QuestionnaireDesigner />)} />
                     <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
-                    <Route path='/admin/topmenu/' element={<AdminTopMenu pageName={"Top Menu"} />} />
-                    <Route path='/admin/topmenu/:id' element={<AdminTopMenuDetail />} />
+                    <Route path='/admin/topmenu/' element={<MenuPage />} />
+                    <Route path='/admin/topmenu/:id' element={<MenuPage />} />
                     <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
                     <Route path='/admin/import-export/' element={<AdminImportExport />} />
                 </Route>
