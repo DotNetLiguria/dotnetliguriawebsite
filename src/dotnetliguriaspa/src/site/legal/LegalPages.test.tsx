@@ -121,7 +121,7 @@ describe('routing', () => {
     userProfileLocalStorageStore.getState().setProfileSaved(true);
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
     render(<App />, { route: '/admin' });
-    expect(await screen.findByRole('heading', { name: 'Admin Dashboard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ciao, Test' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Informativa sui cookie' })).not.toBeInTheDocument();
   });
 });

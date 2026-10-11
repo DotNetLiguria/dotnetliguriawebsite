@@ -91,7 +91,14 @@ describe('public fallback route', () => {
   });
 
   test('never answers for the admin or the OIDC callbacks', () => {
-    for (const route of ['/admin', '/admin/workshops/', '/authentication/callback', '/authentication/silent-callback']) {
+    // The admin shell owns /admin: without a session it asks to sign in, never the public not-found page.
+    for (const route of ['/admin', '/admin/workshops/', '/admin/sezione-inesistente']) {
+      const { unmount } = renderApp(route);
+      expect(notFound()).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Area riservata' })).toBeInTheDocument();
+      unmount();
+    }
+    for (const route of ['/authentication/callback', '/authentication/silent-callback']) {
       const { unmount } = renderApp(route);
       expect(notFound()).not.toBeInTheDocument();
       expect(screen.queryByRole('main')).not.toBeInTheDocument();
@@ -102,7 +109,7 @@ describe('public fallback route', () => {
   test('keeps the admin screens when signed in', async () => {
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() } as unknown as ReturnType<typeof useOidc>);
     renderApp('/admin/venues/');
-    expect(await screen.findByRole('heading', { name: 'Venues / Sale eventi' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sedi' })).toBeInTheDocument();
     expect(notFound()).not.toBeInTheDocument();
   });
 });

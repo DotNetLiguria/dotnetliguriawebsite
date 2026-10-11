@@ -1,4 +1,4 @@
-import { render, screen, waitFor, makeWorkshop } from './test-utils';
+import { render, screen, waitFor, within, makeWorkshop } from './test-utils';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
 import { AxiosError } from 'axios';
@@ -44,11 +44,11 @@ test('public home reports server failures instead of presenting an empty databas
 });
 
 test.each([
-  ['/admin', 'Admin Dashboard'], ['/admin/profile/', 'Profile'],
-  ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Speakers'],
-  ['/admin/board/', 'Board'], ['/admin/venues/', 'Venues / Sale eventi'],
+  ['/admin', 'Ciao, Test'], ['/admin/profile/', 'Profilo'],
+  ['/admin/workshops/', 'Eventi'], ['/admin/speakers/', 'Relatori'],
+  ['/admin/board/', 'Board'], ['/admin/venues/', 'Sedi'],
   ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
-  ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Import / Export'],
+  ['/admin/topmenu/', 'Menu del sito'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Backup e import'],
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
@@ -56,22 +56,38 @@ test.each([
   render(<App />, { route });
   expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
   expect(routeWarnings).not.toHaveBeenCalledWith(expect.stringContaining('No routes matched location'));
-  expect(screen.getByRole('link', { name: 'PROFILE' })).toHaveAttribute('href', '/admin/profile/');
-  await waitFor(() => expect(fetch).toHaveBeenCalled());
+  const sections = screen.getByRole('navigation', { name: 'Sezioni' });
+  expect(within(sections).getByRole('link', { name: 'Panoramica' })).toHaveAttribute('href', '/admin');
+  expect(screen.getByRole('button', { name: /^Menu di Test User/ })).toBeInTheDocument();
 });
 
-test('unauthenticated sessions clear persisted profile and cannot render admin routes', () => {
+test('unauthenticated sessions clear persisted profile and are asked to sign in instead of seeing admin routes', async () => {
+  const login = vi.fn();
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: false, login, logout: vi.fn(), renewTokens: vi.fn() });
   localStorage.setItem('profileStore', JSON.stringify({ state: { profileSaved: true }, version: 0 }));
-  render(<App />, { route: '/admin' });
+  render(<App />, { route: '/admin/speakers/?filtro=senza-foto' });
   expect(localStorage.getItem('profileStore')).toBeNull();
-  expect(screen.queryByRole('heading', { name: 'Admin Dashboard' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Area riservata' })).toBeInTheDocument();
+  expect(screen.queryByRole('navigation', { name: 'Sezioni' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Accedi' }));
+  expect(login).toHaveBeenCalledWith('/admin/speakers/?filtro=senza-foto');
+});
+
+test('unknown admin addresses stay in the admin: sign-in without a session, not-found page with one', async () => {
+  const { unmount } = render(<App />, { route: '/admin/sezione-inesistente' });
+  expect(screen.getByRole('heading', { name: 'Area riservata' })).toBeInTheDocument();
+  unmount();
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  render(<App />, { route: '/admin/sezione-inesistente' });
+  expect(screen.getByRole('heading', { name: 'Pagina non trovata' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /Vai alla panoramica/ })).toHaveAttribute('href', '/admin');
 });
 
 test('the questionnaire sidebar link opens the new questionnaire screen', async () => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
   render(<App />, { route: '/admin' });
-  const link = screen.getByRole('link', { name: 'QUESTIONARI' });
+  const link = within(screen.getByRole('navigation', { name: 'Sezioni' })).getByRole('link', { name: 'Questionari' });
   expect(link).toHaveAttribute('href', '/admin/questionnaires');
   expect(screen.queryByRole('link', { name: /feedback/i })).not.toBeInTheDocument();
   await userEvent.click(link);
