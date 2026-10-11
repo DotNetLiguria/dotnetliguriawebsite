@@ -73,6 +73,19 @@ describe('<SiteFooter />', () => {
     expect(screen.getByRole('img', { name: 'DotNetLiguria' })).toBeInTheDocument();
   });
 
+  test('groups the links into two labelled navigations, with no unnamed one', () => {
+    render(<SiteFooter />);
+    const site = screen.getByRole('navigation', { name: 'Il sito' });
+    expect(within(site).getAllByRole('link').map(link => link.textContent)).toEqual(['Eventi passati', 'Il team']);
+    const legal = screen.getByRole('navigation', { name: 'Informazioni legali' });
+    expect(within(legal).getAllByRole('link').map(link => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['Privacy', '/privacy'],
+      ['Termini di servizio', '/termini-di-servizio'],
+      ['Cookie', '/cookie'],
+    ]);
+    expect(screen.getAllByRole('navigation')).toHaveLength(2);
+  });
+
   test('shows the legal line as the owner wrote it, with the authors notice', () => {
     render(<SiteFooter />);
     expect(screen.getByText(
