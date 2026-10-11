@@ -12,13 +12,17 @@ const PHASE_BADGE = {
   planned: { tone: 'planned', label: 'In programma' },
 } as const;
 
-/** Event card: poster, date badge, status, title (whole card is the link), date and venue. */
-export default function EventCard({ workshop, large = false }: { workshop: SiteWorkshop; large?: boolean }) {
+/**
+ * Event card: poster, date badge, status, title (whole card is the link), date and venue.
+ * `headingLevel` follows the heading above the card: 2 right under the page title, 3 inside a section.
+ */
+export default function EventCard({ workshop, large = false, headingLevel = 3 }: { workshop: SiteWorkshop; large?: boolean; headingLevel?: 2 | 3 }) {
   const image = contentUrl(workshop.image);
   const place = clean(workshop.location?.name);
   const sessions = sessionCount(programme(workshop));
   const phase = PHASE_BADGE[eventPhase(workshop.eventDate)];
   const { day, month } = formatDayMonth(workshop.eventDate);
+  const Heading = `h${headingLevel}` as const;
 
   return (
     <article className={`group relative flex w-full flex-col overflow-hidden rounded-3xl bg-white shadow-card transition ${large ? '' : 'hover:-translate-y-1 hover:shadow-lift'}`}>
@@ -41,11 +45,11 @@ export default function EventCard({ workshop, large = false }: { workshop: SiteW
           <Badge tone={phase.tone}>{phase.label}</Badge>
           {sessions > 0 && <span className="text-sm font-semibold text-muted">{sessionsLabel(sessions)}</span>}
         </div>
-        <h3 className={`${large ? 'text-2xl sm:text-3xl' : 'text-xl'} font-bold leading-tight text-navy`}>
+        <Heading className={`${large ? 'text-2xl sm:text-3xl' : 'text-xl'} font-bold leading-tight text-navy`}>
           <Link to={`/workshop/${workshop.workshopId}`} className="text-navy no-underline after:absolute after:inset-0 hover:underline">
             {clean(workshop.title)}
           </Link>
-        </h3>
+        </Heading>
         <p className="mt-auto flex flex-col gap-1 text-base text-muted">
           <span className="inline-flex items-center gap-2"><Icon name="calendar" className="size-4 text-cyan-700" />{formatWeekday(workshop.eventDate)}</span>
           {place && <span className="inline-flex items-center gap-2"><Icon name="pin" className="size-4 text-cyan-700" />{place}</span>}

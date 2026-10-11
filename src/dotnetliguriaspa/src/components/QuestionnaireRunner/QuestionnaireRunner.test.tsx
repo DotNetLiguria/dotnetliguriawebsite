@@ -41,11 +41,20 @@ describe('<QuestionnaireRunner />', () => {
     render(<QuestionnaireRunner questionnaire={sample()} onSubmit={onSubmit} draftKey="draft" />);
 
     expect(screen.queryByText('Perché no?')).not.toBeInTheDocument();
+    expect(screen.getByText(/sono obbligatori/)).toBeInTheDocument();
+    const stars = screen.getByRole('radiogroup', { name: /Voto complessivo/ });
+    expect(stars).toHaveAttribute('aria-required', 'true');
+    expect(screen.getByRole('progressbar', { name: 'Avanzamento' })).toHaveAttribute('aria-valuetext', '0 risposte su 3');
     await user.click(screen.getByRole('button', { name: 'Invia' }));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(await screen.findByText('Risposta obbligatoria.')).toBeInTheDocument();
+    // Focus lands on the first invalid question, which is marked as such.
+    expect(screen.getByRole('radio', { name: '1 stella su 5' })).toHaveFocus();
+    expect(stars).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('Controlla le risposte evidenziate.');
 
     fireEvent.click(screen.getByRole('radio', { name: '4 stelle su 5' }));
+    expect(screen.getByRole('progressbar', { name: 'Avanzamento' })).toHaveAttribute('aria-valuetext', '1 risposte su 3');
     await user.click(screen.getByRole('button', { name: 'No' }));
     const why = await screen.findByRole('textbox', { name: /Perché no\?/ });
     await user.type(why, '  troppo lungo ');
@@ -95,6 +104,12 @@ describe('<QuestionnaireRunner />', () => {
     await user.click(screen.getByRole('button', { name: 'Invia' }));
     expect(await screen.findByText('Il nome è obbligatorio.')).toBeInTheDocument();
     expect(screen.getByText("È necessario accettare l'informativa.")).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveFocus();
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toBeRequired();
+    const consent = screen.getByRole('checkbox', { name: 'Accetto la privacy' });
+    expect(consent).toBeRequired();
+    expect(consent).toHaveAttribute('aria-invalid', 'true');
+    expect(consent).toHaveAccessibleDescription("È necessario accettare l'informativa.");
 
     await user.type(screen.getByRole('textbox', { name: 'Nome' }), 'Mario');
     await user.type(screen.getByRole('textbox', { name: 'Cognome' }), 'Rossi');
@@ -106,6 +121,21 @@ describe('<QuestionnaireRunner />', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
       consentGiven: true, respondent: { name: 'Mario', surname: 'Rossi', email: 'mario@example.com' },
     }));
+  });
+
+  test('links the privacy notice beside the consent without changing the checkbox name', () => {
+    render(<QuestionnaireRunner questionnaire={sample({ respondentMode: 'Identified', consentText: 'Accetto la privacy' })} onSubmit={vi.fn()} />);
+    const link = screen.getByRole('link', { name: /informativa sulla privacy/ });
+    expect(link).toHaveAttribute('href', '/privacy');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAccessibleName('informativa sulla privacy (si apre in una nuova scheda)');
+    expect(screen.getByRole('checkbox', { name: 'Accetto la privacy' })).toBeInTheDocument();
+  });
+
+  test('anonymous questionnaires show neither consent nor privacy link', () => {
+    render(<QuestionnaireRunner questionnaire={sample()} onSubmit={vi.fn()} />);
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /privacy/ })).not.toBeInTheDocument();
   });
 
   test('preview mode validates without submitting', async () => {
@@ -136,11 +166,16 @@ describe('<PublicQuestionnaire />', () => {
       '/PublicQuestionnaire/by-workshop/w1': { questionnaireId: 'q1', title: 'Feedback evento', availability: 'Open', questionnaire },
     });
     renderAt('/feedback/w1');
-    expect(await screen.findByRole('heading', { name: 'Feedback evento' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Feedback evento' })).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith(`${API_BASE_URL}/PublicQuestionnaire/by-workshop/w1`, expect.anything());
+    // Reached from a QR code: titled, never indexed.
+    expect(document.title).toBe('Feedback evento · DotNetLiguria');
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    expect(document.head.querySelector('link[rel="canonical"]')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Invia' }));
     expect(await screen.findByText('Grazie mille!')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Grazie!' })).toBeInTheDocument();
     expect(fetch).toHaveBeenLastCalledWith(`${API_BASE_URL}/PublicQuestionnaire/q1/responses`, expect.objectContaining({ method: 'POST' }));
   });
 
@@ -154,5 +189,7 @@ describe('<PublicQuestionnaire />', () => {
     mockApi({ '/PublicQuestionnaire/by-workshop/w2': () => jsonResponse({ code: 'NotFound', message: 'x', errors: [] }, 404) });
     renderAt('/feedback/w2');
     expect(await screen.findByText('Non ci sono questionari attivi per questo evento.')).toBeInTheDocument();
+    expect(document.title).toBe('Questionario non disponibile · DotNetLiguria');
+    expect(document.head.querySelector('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
   });
 });

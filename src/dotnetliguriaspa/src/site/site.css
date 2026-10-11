@@ -12,7 +12,8 @@
   --color-navy: #083d73;
   --color-navy-950: #002445;
   --color-cyan: #00a8df;
-  --color-cyan-700: #007ba6;
+  /* Text-safe cyan: 5.6:1 on white, 5.1:1 on cyan-50 and basil-50 (WCAG AA for any text size). */
+  --color-cyan-700: #006f98;
   --color-cyan-200: #8fd3ec;
   --color-cyan-50: #e8f6fb;
   --color-basil: #59a52c;
@@ -20,15 +21,22 @@
   --color-basil-50: #eff7e9;
   --color-site-green: #72c02c;
   --color-muted: #44607a;
+  /* Hairline for dividers only (1.3:1); form controls use line-strong, 3.4:1 on white and 3.1:1 on cyan-50. */
   --color-line: #d5e3ec;
+  --color-line-strong: #6f8ea6;
 
   --shadow-card: 0 18px 40px -22px rgb(8 61 115 / 0.45), 0 2px 6px -2px rgb(8 61 115 / 0.12);
   --shadow-lift: 0 26px 50px -24px rgb(8 61 115 / 0.55), 0 4px 10px -4px rgb(8 61 115 / 0.16);
 }
 
 @layer base {
+  /* Anchor jumps and focused elements land below the sticky header (WCAG 2.4.11). */
   html:has(.site) {
     scroll-padding-top: 6rem;
+  }
+  /* The questionnaire adds a sticky progress bar under the header. */
+  html:has(.site-questionnaire) {
+    scroll-padding-top: 11rem;
   }
   @media (prefers-reduced-motion: no-preference) {
     html:has(.site) { scroll-behavior: smooth; }
@@ -43,12 +51,21 @@
     -webkit-font-smoothing: antialiased;
   }
   .site ::selection { background: var(--color-cyan-200); color: var(--color-navy-950); }
-  .site :focus-visible { outline: 3px solid var(--color-cyan-700); outline-offset: 3px; border-radius: 6px; }
-  .site .on-navy :focus-visible { outline-color: var(--color-cyan-200); }
+  /* Two-colour focus ring (WCAG technique C40): a white inner ring and a cyan-700 outer ring contrast with
+     each other, so the indicator stays visible on white, cyan-50 and navy surfaces alike. */
+  .site :focus-visible { outline: 3px solid var(--color-cyan-700); outline-offset: 3px; box-shadow: 0 0 0 3px #ffffff; }
+  /* The skip link's target is not interactive: no ring around the whole page. */
+  .site main:focus-visible { outline: none; box-shadow: none; }
   .site h1, .site h2, .site h3 { text-wrap: balance; }
   .site p { text-wrap: pretty; }
   .site a { text-underline-offset: 0.2em; }
 }
+
+/* Deliberately outside the Tailwind layers. React Aria components reset the browser ring with `outline-none`
+   (a utility, which also sets --tw-outline-style to none, so a `data-[focus-visible]:outline-3` utility on the
+   same element resolves to no outline) and mark keyboard focus with data-focus-visible: this unlayered rule
+   beats the utilities layer and gives them the same two-colour ring as every other control. */
+.site [data-focus-visible] { outline: 3px solid var(--color-cyan-700); outline-offset: 3px; box-shadow: 0 0 0 3px #ffffff; }
 
 @layer components {
   /* The logo's brush arc, drawn once when the hero appears. */

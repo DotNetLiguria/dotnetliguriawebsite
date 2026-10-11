@@ -13,19 +13,22 @@ export interface QuestionFieldProps {
 }
 
 const range = (min: number, max: number) => Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
-const ring = 'outline-none data-[focus-visible]:outline-3 data-[focus-visible]:outline-offset-2 data-[focus-visible]:outline-cyan-700';
+const ring = 'outline-none';
+// Control boundaries use line-strong (3:1 on white) and placeholders the full muted colour (WCAG 1.4.3, 1.4.11).
+// Focus shows the site ring (site.css) and a cyan border.
 const inputClass = (error?: string) =>
-  `block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy placeholder:text-muted/70 focus:border-cyan-700 focus:outline-none disabled:opacity-60 ${error ? 'border-red-700' : 'border-line'}`;
+  `block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy placeholder:text-muted focus:border-cyan-700 disabled:opacity-60 ${error ? 'border-red-700' : 'border-line-strong'}`;
 
 /** One button per value of a scale (1..5, 0..10): a single-choice radio group. */
 const ScaleButtons: FC<{
-  min: number; max: number; value?: number | null; label: string; disabled?: boolean; onChange: (value: number | null) => void;
-}> = ({ min, max, value, label, disabled, onChange }) => (
+  min: number; max: number; value?: number | null; label: string; disabled?: boolean; required?: boolean; onChange: (value: number | null) => void;
+}> = ({ min, max, value, label, disabled, required, onChange }) => (
   <RadioGroup
     aria-label={label}
     orientation="horizontal"
     value={value === undefined || value === null ? null : String(value)}
     isDisabled={disabled}
+    isRequired={required}
     onChange={v => onChange(v === '' ? null : Number(v))}
     className="flex flex-wrap gap-2"
   >
@@ -33,7 +36,7 @@ const ScaleButtons: FC<{
       <Radio
         key={v}
         value={String(v)}
-        className={`grid size-11 cursor-pointer place-items-center rounded-xl border-2 border-line bg-white text-lg font-bold text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`}
+        className={`grid size-11 cursor-pointer place-items-center rounded-xl border-2 border-line-strong bg-white text-lg font-bold text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`}
       >
         {v}
       </Radio>
@@ -41,13 +44,13 @@ const ScaleButtons: FC<{
   </RadioGroup>
 );
 
+/* A chosen star is basil on white (3.1:1) with a basil-700 outline; an empty one keeps the muted outline. */
 function Star({ filled }: { filled: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="size-9" aria-hidden="true" focusable="false">
       <path
         d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"
-        fill={filled ? '#72c02c' : 'none'}
-        stroke={filled ? '#3b7a20' : '#44607a'}
+        className={filled ? 'fill-basil stroke-basil-700' : 'fill-none stroke-muted'}
         strokeWidth={1.6}
         strokeLinejoin="round"
       />
@@ -86,7 +89,8 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
     ...question.options,
     ...(question.settings.allowOther ? [{ id: OTHER_OPTION_ID, label: question.settings.otherLabel || 'Altro' }] : []),
   ];
-  const choiceRow = `flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-4 py-2 text-lg text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-cyan-50 data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`;
+  const choiceRow = `flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line-strong bg-white px-4 py-2 text-lg text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-cyan-50 data-[disabled]:cursor-default data-[disabled]:opacity-60 ${ring}`;
+  const required = question.required || undefined;
 
   let control: React.ReactNode;
   switch (question.type) {
@@ -102,6 +106,7 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
         'aria-labelledby': `${id}-label`,
         'aria-describedby': describedBy,
         'aria-invalid': error ? true : undefined,
+        required,
         disabled,
         placeholder: question.settings.placeholder ?? undefined,
         className: inputClass(error),
@@ -127,7 +132,7 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
       break;
     }
     case 'YesNo': {
-      const toggle = `inline-flex min-h-12 min-w-24 cursor-pointer items-center justify-center rounded-full border-2 border-line bg-white px-6 text-lg font-bold text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white data-[disabled]:opacity-60 ${ring}`;
+      const toggle = `inline-flex min-h-12 min-w-24 cursor-pointer items-center justify-center rounded-full border-2 border-line-strong bg-white px-6 text-lg font-bold text-navy transition data-[hovered]:border-cyan-700 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white data-[disabled]:opacity-60 ${ring}`;
       const choose = (value: boolean) => (answer?.bool === value ? onChange(undefined) : set({ bool: value }));
       control = (
         <div role="group" aria-labelledby={`${id}-label`} className="flex gap-3">
@@ -142,6 +147,8 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
         <select
           aria-labelledby={`${id}-label`}
           aria-describedby={describedBy}
+          aria-invalid={error ? true : undefined}
+          required={required}
           value={answer?.choices?.[0] ?? ''}
           disabled={disabled}
           onChange={e => (e.target.value ? set({ choices: [e.target.value] }) : onChange(undefined))}
@@ -156,6 +163,8 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
           aria-describedby={describedBy}
           value={answer?.choices?.[0] ?? null}
           isDisabled={disabled}
+          isRequired={required}
+          isInvalid={!!error}
           onChange={v => set({ choices: [v] })}
           className="grid gap-2"
         >
@@ -184,6 +193,8 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
             aria-describedby={describedBy}
             value={selected}
             isDisabled={disabled}
+            isRequired={required}
+            isInvalid={!!error}
             onChange={choices => set({ choices })}
             className="grid gap-2"
           >
@@ -228,6 +239,8 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
             orientation="horizontal"
             value={value === null ? null : String(value)}
             isDisabled={disabled}
+            isRequired={required}
+            isInvalid={!!error}
             onChange={v => set({ number: Number(v) })}
             className="flex gap-1"
           >
@@ -250,7 +263,7 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
       const { min, max } = scaleBounds(question);
       control = (
         <div>
-          <ScaleButtons min={min} max={max} label={question.title} value={answer?.number} disabled={disabled}
+          <ScaleButtons min={min} max={max} label={question.title} value={answer?.number} disabled={disabled} required={required}
             onChange={v => (v === null ? onChange(undefined) : set({ number: v }))} />
           {(question.settings.minLabel || question.settings.maxLabel) && (
             <div className="mt-2 flex justify-between gap-4 text-sm text-muted" style={{ maxWidth: (max - min + 1) * 52 }}>
@@ -285,7 +298,7 @@ const QuestionField: FC<QuestionFieldProps> = ({ question, answer, error, number
                 <p className="text-lg font-bold">{row.label}</p>
                 {row.description && <p className="text-base text-muted">{row.description}</p>}
               </div>
-              <ScaleButtons min={min} max={max} label={row.label} disabled={disabled}
+              <ScaleButtons min={min} max={max} label={row.label} disabled={disabled} required={required}
                 value={rows.find(r => r.rowId === row.id)?.value} onChange={v => setRow(row.id, v)} />
             </div>
           ))}

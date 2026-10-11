@@ -71,13 +71,26 @@ export function Icon({ name, className = 'size-5' }: { name: IconName; className
   );
 }
 
-/** External link that announces it opens a new tab. */
-export function ExternalLink({ href, children, className = '' }: { href: string; children: React.ReactNode; className?: string }) {
+/**
+ * Accessible name of a link that opens a new tab: the visible text first (WCAG 2.5.3), then the hint.
+ * An sr-only suffix would lose its leading space in name computation, hence an explicit label.
+ */
+export const newTabLabel = (text: string) => `${text.trim()} (si apre in una nuova scheda)`;
+
+/** External link that announces it opens a new tab; `name` is the visible text when children are not a plain string. */
+export function ExternalLink({ href, children, className = '', name }: { href: string; children: React.ReactNode; className?: string; name?: string }) {
+  const text = name ?? (typeof children === 'string' ? children : '');
   return (
-    <a href={href} className={`inline-flex items-center gap-1.5 ${className}`} target="_blank" rel="noopener noreferrer">
+    <a
+      href={href}
+      className={`inline-flex items-center gap-1.5 ${className}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={text ? newTabLabel(text) : undefined}
+    >
       {children}
       <Icon name="external" className="size-4" />
-      <span className="sr-only"> (si apre in una nuova scheda)</span>
+      {!text && <span className="sr-only">(si apre in una nuova scheda)</span>}
     </a>
   );
 }

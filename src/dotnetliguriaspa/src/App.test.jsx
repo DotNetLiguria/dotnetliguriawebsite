@@ -14,7 +14,8 @@ test('public home renders the community and offers login', async () => {
   ), { status: 200 }));
   render(<App />);
   expect(screen.getByRole('heading', { level: 1, name: 'La community .NET della Liguria' })).toBeInTheDocument();
-  expect(await screen.findByRole('heading', { level: 2, name: 'Test Workshop' })).toBeInTheDocument();
+  // The featured card in the hero and the evidence section both present the event at level 2.
+  expect(await screen.findAllByRole('heading', { level: 2, name: 'Test Workshop' })).toHaveLength(2);
   const login = useOidc().login;
   await userEvent.click(screen.getByRole('button', { name: 'Area Personale' }));
   expect(login).toHaveBeenCalledWith('/admin');

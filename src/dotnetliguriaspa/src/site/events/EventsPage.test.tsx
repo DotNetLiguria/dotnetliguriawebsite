@@ -35,10 +35,17 @@ describe('<EventsPage />', () => {
 
     const filter = screen.getByRole('radiogroup', { name: 'Filtra per anno' });
     expect(within(filter).getAllByRole('radio').map(r => r.textContent)).toEqual(['Tutti gli anni', '2025', '2024', '2023']);
+    expect(document.title).toBe('Eventi passati · DotNetLiguria');
+    expect(document.head.querySelector('meta[name="description"]')).toHaveAttribute('content', expect.stringContaining('dal 2023'));
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops`);
+
     await user.click(within(filter).getByRole('radio', { name: '2023' }));
     expect(yearHeadings()).toEqual(['2023']);
     expect(screen.getByRole('link', { name: 'Build After Party' })).toHaveAttribute('href', '/workshop/a');
     expect(screen.getByLabelText('query')).toHaveTextContent('?anno=2023');
+    // The year is a page of its own: title and canonical follow it.
+    expect(document.title).toBe('Eventi 2023 · DotNetLiguria');
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops?anno=2023`);
 
     await user.click(within(filter).getByRole('radio', { name: 'Tutti gli anni' }));
     expect(yearHeadings()).toEqual(['2025', '2024', '2023']);
@@ -54,6 +61,17 @@ describe('<EventsPage />', () => {
     renderAt('/workshops?anno=1999');
     expect(await screen.findByRole('region', { name: '2025' })).toBeInTheDocument();
     expect(yearHeadings()).toEqual(['2025', '2024', '2023']);
+    // An unknown year is not a page: the canonical goes back to the archive.
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops`);
+  });
+
+  test.each(['02024', '2024.0', ' 2024'])('treats the non-normalised year %j as the whole archive, not as a duplicate 2024 page', async value => {
+    mockApi({ '/Workshop/Get?onlyPublished=true': LIST });
+    renderAt(`/workshops?anno=${encodeURIComponent(value)}`);
+    expect(await screen.findByRole('region', { name: '2025' })).toBeInTheDocument();
+    expect(yearHeadings()).toEqual(['2025', '2024', '2023']);
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops`);
+    expect(document.title).not.toContain(value.trim());
   });
 
   test('reports failures with a retry and shows an empty archive plainly', async () => {
