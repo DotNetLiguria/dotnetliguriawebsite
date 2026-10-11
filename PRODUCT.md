@@ -52,7 +52,7 @@ User group .NET con eventi dal vivo dal 2011 in sedi della Liguria (La Spezia, G
 
 - Export storico di eventi, track, speaker, board e menu in `src/dotnetliguriawebsite/DataMigration/json/`.
 - Locandine, foto e materiali degli eventi in `src/dotnetliguriawebsite/DotNetLiguriaCore/Contents/workshops/`.
-- Logo vettoriale (compatto, esteso, basilico) in `src/dotnetliguriaspa/src/assets/logo/`.
+- Logo in `src/dotnetliguriaspa/src/assets/logo/`: per ora il sito usa il logo storico di dotnetliguria.net (PNG, con una variante a scritta bianca per il piè di pagina); il nuovo logo vettoriale (compatto, esteso, basilico) è pronto per quando verrà adottato (deciso 2026-10-11).
 - Assenti, da non inventare: testimonianze, numeri di partecipanti, sponsor, premi.
 
 ## Product Principles

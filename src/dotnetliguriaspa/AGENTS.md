@@ -10,7 +10,8 @@ Keep API and content URLs distinct and preserve their case for Linux hosting.
 Read the root PRODUCT.md for audience, brand and tone before changing public pages.
 Public pages live in `src/site` (plus the public questionnaire components) and use
 Tailwind CSS 4 with React Aria Components; design tokens are in `src/site/site.css`
-and the vector logos in `src/assets/logo`. Do not add MUI, Emotion or styled-components
+and the logos in `src/assets/logo` (for now the historic dotnetliguria.net logo; the
+vector set is ready for the new identity). Do not add MUI, Emotion or styled-components
 to public pages. The admin area keeps MUI until its own redesign; keep the two
 separated by the `.site` scope.
 Public copy is Italian. Meet WCAG 2.2 AA mobile first: full keyboard and screen-reader

@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Disclosure, DisclosurePanel } from 'react-aria-components';
 import { useOidc, useOidcUser } from '@axa-fr/react-oidc';
-import logo from '../assets/logo/dotnet-liguria-compatto-light.svg';
+// Historic logo of dotnetliguria.net, in use until the new vector identity ships (see src/assets/logo).
+import logo from '../assets/logo/dotnet-liguria-storico.png';
+import logo2x from '../assets/logo/dotnet-liguria-storico-2x.png';
 import { getTopMenu, isAbortError } from './siteApi';
 import { Icon } from './icons';
 
@@ -117,7 +119,7 @@ export default function SiteHeader() {
       <Disclosure isExpanded={expanded} onExpandedChange={setExpanded}>
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-6 px-4 sm:px-6">
           <Link to="/" className="inline-flex items-center rounded-lg" aria-label="DotNetLiguria, pagina iniziale" onClick={() => setExpanded(false)}>
-            <img src={logo} alt="" width={1634} height={700} className="h-12 w-auto sm:h-14" />
+            <img src={logo} srcSet={`${logo} 1x, ${logo2x} 2x`} alt="" width={241} height={105} className="h-14 w-auto sm:h-16" />
           </Link>
           <nav aria-label="Principale" className="hidden lg:block">
             <ul className="flex items-center gap-1">
