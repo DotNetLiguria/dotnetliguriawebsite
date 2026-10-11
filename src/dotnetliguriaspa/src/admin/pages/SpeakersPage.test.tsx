@@ -95,6 +95,24 @@ describe('<SpeakersPage />', () => {
     expect(await screen.findByText('Relatore disattivato')).toBeInTheDocument();
   });
 
+  test('keeps the card status in sync after the Attivo field is changed from the edit form', async () => {
+    const user = userEvent.setup();
+    let saved = false;
+    mockApi({
+      '/Speaker/Update/s-tucci': () => { saved = true; return new Response(null, { status: 204 }); },
+      '/Speaker/Get': () => jsonResponse(speakers.map(s => (s.workshopSpeakerId === 's-tucci' && saved ? { ...s, isActive: false } : s))),
+      '/Workshop/Get': workshops, '/Contents/': contents,
+    });
+    renderAt('/admin/speakers/s-tucci');
+    const card = await screen.findByRole('dialog', { name: 'Giampaolo Tucci' });
+    expect(within(card).getByRole('switch', { name: 'Attivo' })).toBeChecked();
+    await user.click(within(card).getByRole('button', { name: 'Modifica' }));
+    await user.click(within(card).getByRole('switch', { name: 'Attivo' }));
+    await user.click(within(card).getByRole('button', { name: 'Salva' }));
+    await waitFor(() => expect(within(card).getByRole('switch', { name: 'Attivo' })).not.toBeChecked());
+    expect(within(card).getByText('Non attivo')).toBeInTheDocument();
+  });
+
   test('requires a name for a new speaker and creates it', async () => {
     const user = userEvent.setup();
     const created: unknown[] = [];

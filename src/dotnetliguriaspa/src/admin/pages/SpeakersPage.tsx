@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Dialog, Form, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { AdminIcon } from '../icons';
@@ -86,6 +86,8 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
   const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view');
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(speaker.isActive !== false);
+  // The card stays mounted across reloads: follow the saved state after an edit from the form.
+  useEffect(() => setActive(speaker.isActive !== false), [speaker.isActive]);
   const name = clean(speaker.name);
 
   const toggleActive = async (next: boolean) => {

@@ -8,10 +8,13 @@ export type AdminMenuItem = TopMenuElementModel & { [key: string]: unknown };
 /** The id the API expects (and ignores) when a new entry is created. */
 export const NEW_MENU_ITEM_ID = '00000000-0000-0000-0000-000000000000';
 
-/** A page of this site ("/workshops", "/#team") or a full http(s) address. */
+/**
+ * A page of this site ("/workshops", "/#team") or a full http(s) address. Site paths reject "//" and any
+ * backslash: browsers read "/\evil.example" as "//evil.example", a link to another site.
+ */
 export const isMenuUrl = (value?: string | null) => {
   const url = clean(value);
-  return /^\/(?!\/)\S*$/.test(url) || isWebUrl(url);
+  return /^\/(?![/\\])[^\s\\]*$/.test(url) || isWebUrl(url);
 };
 
 export const menuUrlError = (value: string) => {
