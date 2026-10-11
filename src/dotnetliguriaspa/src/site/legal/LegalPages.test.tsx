@@ -23,7 +23,7 @@ describe.each(pages)('$name page', ({ Page, route, title }) => {
   test('has its main heading, title, description and update date', () => {
     render(<Page />, { route });
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
-    expect(document.title).toBe(`${title} | DotNetLiguria`);
+    expect(document.title).toBe(`${title} · DotNetLiguria`);
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBeTruthy();
     const updated = screen.getByText(/Ultimo aggiornamento/);
     expect(within(updated).getByText('11 ottobre 2026')).toHaveAttribute('datetime', '2026-10-11');

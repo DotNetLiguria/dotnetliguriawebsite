@@ -7,6 +7,9 @@ import HomePage from './home/HomePage';
 import EventsPage from './events/EventsPage';
 import EventDetailPage from './event/EventDetailPage';
 import NotFoundPage from './notfound/NotFoundPage';
+import PrivacyPage from './legal/PrivacyPage';
+import TermsPage from './legal/TermsPage';
+import CookiePolicyPage from './legal/CookiePolicyPage';
 import PublicQuestionnaire from '../components/PublicQuestionnaire/PublicQuestionnaire';
 import type { Question, Questionnaire } from '../questionnaire/types';
 
@@ -94,6 +97,18 @@ describe('public pages pass axe', () => {
     await user.click(screen.getByRole('radio', { name: 'Altro' }));
     await user.click(screen.getByRole('button', { name: 'Invia' }));
     await screen.findByText('Il nome è obbligatorio.');
+    await expectNoViolations();
+  });
+
+  test.each([
+    ['/privacy', PrivacyPage],
+    ['/termini-di-servizio', TermsPage],
+    ['/cookie', CookiePolicyPage],
+  ])('legal page %s, with the cookie notice', async (route, Page) => {
+    mockApi({ '/TopMenu': menu });
+    render(<Page />, { route });
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.getByRole('region', { name: 'Informativa sui cookie' })).toBeInTheDocument();
     await expectNoViolations();
   });
 

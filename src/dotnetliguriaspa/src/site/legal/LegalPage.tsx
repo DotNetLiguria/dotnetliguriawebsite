@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import SiteLayout from '../SiteLayout';
+import PageMeta from '../PageMeta';
 import { Badge, LogoArc } from '../ui';
 import { formatDate } from '../format';
 import { LEGAL_PAGES, LEGAL_UPDATED } from './legalFacts';
@@ -102,8 +103,7 @@ export default function LegalPage({ title, description, children }: LegalPagePro
   const { pathname } = useLocation();
   return (
     <SiteLayout>
-      <title>{`${title} | DotNetLiguria`}</title>
-      <meta name="description" content={description} />
+      <PageMeta title={title} description={description} />
       <section className="on-navy relative isolate overflow-hidden bg-navy text-white" aria-labelledby="legal-title">
         <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[75%] w-full" />
         <div className="mx-auto max-w-7xl px-4 pb-16 pt-12 sm:px-6 lg:pb-20 lg:pt-16">
