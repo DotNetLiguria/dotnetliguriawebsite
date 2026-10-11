@@ -36,6 +36,17 @@ Each server provides `/health` and `/alive`; the website readiness check pings
 MongoDB. OpenTelemetry supplies server instrumentation. Standalone application
 instrumentation and deployment remain supported.
 
+### Re-enable Visual Studio Browser Link
+
+Aspire excludes Visual Studio's `Microsoft.WebTools.BrowserLink.Net` hosting
+startup assembly for the website to avoid Browser Link's deprecated `unload`
+event warning in Chrome. To re-enable Browser Link for a local Aspire session,
+comment out the `+ ";Microsoft.WebTools.BrowserLink.Net"` line in
+`src\DotNetLiguria.AppHost\ApplicationResources.cs`, leaving
+`Microsoft.WebTools.ApiEndpointDiscovery` excluded, then restart the AppHost.
+This setting is scoped to the Aspire website; it does not enable Browser Link
+for direct website launch profiles.
+
 ## External Keycloak And Secrets
 
 Keep the existing provider and clients. Register the website callback origin

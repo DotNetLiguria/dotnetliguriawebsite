@@ -44,13 +44,16 @@ test('public home reports server failures instead of presenting an empty databas
 test.each([
   ['/admin', 'Admin Dashboard'], ['/admin/profile/', 'Profile'],
   ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Speakers'],
-  ['/admin/board/', 'Board'], ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
+  ['/admin/board/', 'Board'], ['/admin/venues/', 'Venues / Sale eventi'],
+  ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
   ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Import / Export'],
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  const routeWarnings = vi.spyOn(console, 'warn').mockImplementation(() => {});
   render(<App />, { route });
   expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
+  expect(routeWarnings).not.toHaveBeenCalledWith(expect.stringContaining('No routes matched location'));
   expect(screen.getByRole('link', { name: 'PROFILE' })).toHaveAttribute('href', '/admin/profile/');
   await waitFor(() => expect(fetch).toHaveBeenCalled());
 });

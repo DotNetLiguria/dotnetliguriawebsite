@@ -20,7 +20,9 @@ public static class ApplicationResources
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
             .WithEnvironment("DOTNET_LIGURIA_ASPIRE", "true")
             .WithEnvironment("ASPNETCORE_HOSTINGSTARTUPEXCLUDEASSEMBLIES",
-                "Microsoft.WebTools.ApiEndpointDiscovery")
+                "Microsoft.WebTools.ApiEndpointDiscovery"
+                // Comment out the next line to re-enable Browser Link in Chrome.
+                + ";Microsoft.WebTools.BrowserLink.Net")
             .WithEnvironment("DotNetLiguriaDatabase__ConnectionString", websiteDatabase)
             .WithEnvironment("DotNetLiguriaDatabase__DatabaseName", "DotNetLiguriaAspire")
             .WithReference(websiteDatabase)
