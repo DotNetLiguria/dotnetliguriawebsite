@@ -28,6 +28,26 @@ Do not use DataMigration as an automatic setup command. It can read SQL data and
 write MongoDB/export files: execute it or change schemas only with explicit approval
 and a reviewed backup/restore plan. The shared verification gate never needs a DB.
 
+## MongoDB backup and restore
+
+The admin Import / Export page stores timestamped backup sets on the website host in
+`DotNetLiguriaDatabase:BackupFolder` (relative paths resolve from the website content
+root). Each set contains one Canonical Extended JSON Lines file per non-system
+collection and a manifest with collection options and index definitions. Files stay
+on the backend and are not downloaded by the browser.
+
+Configure the dedicated `BackupAuthorization:AdminRole` or `AdminClaim` (`backupadmin`
+by default) for the API token used by trusted administrators. Import validates all
+snapshot files before making changes and creates a safety snapshot first. It then
+replaces the database's non-system collections; a failure during this multi-collection
+operation can leave a partial restore, so keep the safety snapshot and perform imports
+during a maintenance window with no concurrent database edits. Exports should also run
+while writes are quiesced because MongoDB does not provide a single atomic snapshot
+across all collections through this format. Snapshots are retained
+without automatic pruning; monitor host disk capacity and protect the backup directory.
+The files contain the database's full document data and should be stored with restrictive
+filesystem permissions outside publicly served paths.
+
 ## Workshop agendas
 
 New workshop agenda data is stored additively on the workshop document: `talks` is

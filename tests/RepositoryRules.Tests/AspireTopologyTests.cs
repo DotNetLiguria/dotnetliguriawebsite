@@ -35,8 +35,8 @@ public class AspireTopologyTests
         var websiteEnvironment = await websiteWithEnvironment.GetEnvironmentVariableValuesAsync(
             DistributedApplicationOperation.Publish);
 #pragma warning restore CS0618
-        Assert.Equal("Microsoft.WebTools.ApiEndpointDiscovery",
-            websiteEnvironment["ASPNETCORE_HOSTINGSTARTUPEXCLUDEASSEMBLIES"]);
+        Assert.Equal(new[] { "Microsoft.WebTools.ApiEndpointDiscovery", "Microsoft.WebTools.BrowserLink.Net" },
+            websiteEnvironment["ASPNETCORE_HOSTINGSTARTUPEXCLUDEASSEMBLIES"].Split(';'));
         var spa = Assert.Single(builder.Resources, resource => resource.Name == "spa");
         Assert.Equal(3443, Assert.Single(spa.Annotations.OfType<EndpointAnnotation>()).Port);
         foreach (var project in builder.Resources.OfType<ProjectResource>())

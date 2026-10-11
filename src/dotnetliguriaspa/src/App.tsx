@@ -14,6 +14,7 @@ import HomePage from "./site/home/HomePage";
 import EventsPage from "./site/events/EventsPage";
 import EventDetailPage from "./site/event/EventDetailPage";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
+import AdminImportExport from "./components/AdminImportExport/AdminImportExport";
 import AdminBoard from "./components/AdminBoard/AdminBoard";
 import AdminBoardDetail from "./components/AdminBoardDetail/AdminBoardDetail";
 import AdminSpeakerDetail from "./components/AdminSpeakerDetail/AdminSpeakerDetail";
@@ -42,45 +43,40 @@ function App() {
         if (!isAuthenticated) {
             localStorage.removeItem("profileStore");
         }
-        console.log("Auth: ", isAuthenticated);
     }, [isAuthenticated]);
 
     return (
         <div className="App">
-            <>
+            <Routes>
                 {isAuthenticated && (
-                    <Routes>
-                        {/*<Route path='/' element={ <HomePage/> }/>*/}
-                        <Route element={<AdminLayout />}>
-                            <Route path='/admin' element={<AdminHome pageName={"Admin Dashboard"} />} />
-                            <Route path='/admin/profile/' element={<AdminProfile />} />
-                            <Route path='/admin/board/' element={<AdminBoard pageName={"Board"} />} />
-                            <Route path='/admin/board/:id' element={<AdminBoardDetail pageName={"Board Detail"} />} />
-                            <Route path='/admin/speakers/' element={<AdminSpeakers pageName={"Speakers"} />} />
-                            <Route path='/admin/speakers/:id' element={<AdminSpeakerDetail />} />
-                            <Route path='/admin/workshops/' element={<AdminWorkshops pageName={"Workshops"} />} />
-                            <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
-                            <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
-                            <Route path='/admin/events/' element={<AdminEvents pageName={"Events"} />} />
-                            <Route path='/admin/venues/' element={<AdminVenues />} />
-                            <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
-                            <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
-                            <Route path='/admin/questionnaires/:id/edit' element={page(<QuestionnaireDesigner />)} />
-                            <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
-                            <Route path='/admin/topmenu/' element={<AdminTopMenu pageName={"Top Menu"} />} />
-                            <Route path='/admin/topmenu/:id' element={<AdminTopMenuDetail />} />
-                            <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
-                        </Route>
-                    </Routes>
+                    <Route element={<AdminLayout />}>
+                        <Route path='/admin' element={<AdminHome pageName={"Admin Dashboard"} />} />
+                        <Route path='/admin/profile/' element={<AdminProfile />} />
+                        <Route path='/admin/board/' element={<AdminBoard pageName={"Board"} />} />
+                        <Route path='/admin/board/:id' element={<AdminBoardDetail pageName={"Board Detail"} />} />
+                        <Route path='/admin/speakers/' element={<AdminSpeakers pageName={"Speakers"} />} />
+                        <Route path='/admin/speakers/:id' element={<AdminSpeakerDetail />} />
+                        <Route path='/admin/workshops/' element={<AdminWorkshops pageName={"Workshops"} />} />
+                        <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
+                        <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
+                        <Route path='/admin/events/' element={<AdminEvents pageName={"Events"} />} />
+                        <Route path='/admin/venues/' element={<AdminVenues />} />
+                        <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
+                        <Route path='/admin/questionnaires' element={page(<AdminQuestionnaires pageName={"Questionari"} />)} />
+                        <Route path='/admin/questionnaires/:id/edit' element={page(<QuestionnaireDesigner />)} />
+                        <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
+                        <Route path='/admin/topmenu/' element={<AdminTopMenu pageName={"Top Menu"} />} />
+                        <Route path='/admin/topmenu/:id' element={<AdminTopMenuDetail />} />
+                        <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
+                        <Route path='/admin/import-export/' element={<AdminImportExport />} />
+                    </Route>
                 )}
-                <Routes>
-                    <Route path='/' element={<HomePage />} />
-                    <Route path="/workshops" element={<EventsPage />} />
-                    <Route path="/workshop/:id" element={<EventDetailPage />} />
-                    <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />} />
-                    <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} />
-                </Routes>
-            </>
+                <Route path='/' element={<HomePage />} />
+                <Route path="/workshops" element={<EventsPage />} />
+                <Route path="/workshop/:id" element={<EventDetailPage />} />
+                <Route path="/feedback/:workshopId" element={<PublicQuestionnaire />} />
+                <Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} />
+            </Routes>
         </div>
     );
 

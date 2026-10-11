@@ -654,19 +654,24 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 				<Box sx={{ display: 'grid', gap: 2 }}>
 					{items.filter(item => item.trackId === tracks[trackIndex]?.workshopAgendaTrackId).sort(itemOrder).map((item, index, trackItems) => {
 						const talk = talks.find(value => value.workshopTalkId === item.talkId);
+						const itemTitle = talk?.title ?? item.title ?? item.itemType;
 						return (
 							<Card key={item.workshopAgendaItemId} variant="outlined">
-								<CardContent sx={{ display: 'grid', gap: 2, gridTemplateColumns: { md: 'repeat(2, 1fr)' } }}>
-									<Typography variant="h6" sx={{ gridColumn: { md: '1 / -1' } }}>{talk?.title ?? item.title ?? item.itemType}</Typography>
-									{item.itemType !== 'talk' && <TextField label="Service / interval title" value={item.title ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { title: event.target.value })} />}
-									<TextField label="Room name" value={item.roomName ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { roomName: event.target.value })} />
-									<TextField label="Starting time" type="time" value={toClockTime(item.startTime)} onChange={event => updateItem(item.workshopAgendaItemId, { startTime: toStoredTime(event.target.value, item.startTime, workshop.eventDate) })} slotProps={{ inputLabel: { shrink: true } }} />
-									<TextField label="Ending time" type="time" value={toClockTime(item.endTime)} onChange={event => updateItem(item.workshopAgendaItemId, { endTime: toStoredTime(event.target.value, item.endTime, workshop.eventDate) })} slotProps={{ inputLabel: { shrink: true } }} />
-									<Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-										<IconButton aria-label="Move item up" disabled={index === 0} onClick={() => moveItem(item.workshopAgendaItemId, -1)}><KeyboardArrowUpIcon /></IconButton>
-										<IconButton aria-label="Move item down" disabled={index === trackItems.length - 1} onClick={() => moveItem(item.workshopAgendaItemId, 1)}><KeyboardArrowDownIcon /></IconButton>
-										{item.itemType !== 'talk' && <Button color="error" onClick={() => setItems(current => current.filter(value => value.workshopAgendaItemId !== item.workshopAgendaItemId))}>Remove interval</Button>}
+								<CardContent sx={{ display: 'grid', gap: 1, gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' } }}>
+									<Box role="group" aria-label="Schedule item title and controls" sx={{ gridColumn: '1 / -1', display: 'flex', gap: 1, alignItems: 'center', minWidth: 0 }}>
+										<Typography variant="h6" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{itemTitle}</Typography>
+										<Box sx={{ display: 'flex', gap: 1, alignItems: 'center', ml: 'auto', flexShrink: 0 }}>
+											<IconButton aria-label="Move item up" disabled={index === 0} onClick={() => moveItem(item.workshopAgendaItemId, -1)}><KeyboardArrowUpIcon /></IconButton>
+											<IconButton aria-label="Move item down" disabled={index === trackItems.length - 1} onClick={() => moveItem(item.workshopAgendaItemId, 1)}><KeyboardArrowDownIcon /></IconButton>
+											{item.itemType !== 'talk' && <Button color="error" onClick={() => setItems(current => current.filter(value => value.workshopAgendaItemId !== item.workshopAgendaItemId))}>Remove interval</Button>}
+										</Box>
 									</Box>
+									<Box role="group" aria-label="Schedule times" sx={{ gridColumn: 'span 2', display: 'grid', gap: 1, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', minWidth: 0 }}>
+										<TextField label="Starting time" type="time" value={toClockTime(item.startTime)} onChange={event => updateItem(item.workshopAgendaItemId, { startTime: toStoredTime(event.target.value, item.startTime, workshop.eventDate) })} slotProps={{ inputLabel: { shrink: true } }} />
+										<TextField label="Ending time" type="time" value={toClockTime(item.endTime)} onChange={event => updateItem(item.workshopAgendaItemId, { endTime: toStoredTime(event.target.value, item.endTime, workshop.eventDate) })} slotProps={{ inputLabel: { shrink: true } }} />
+									</Box>
+									<TextField label="Room name" value={item.roomName ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { roomName: event.target.value })} />
+									{item.itemType !== 'talk' && <TextField label="Service / interval title" value={item.title ?? ''} onChange={event => updateItem(item.workshopAgendaItemId, { title: event.target.value })} />}
 								</CardContent>
 							</Card>
 						);
