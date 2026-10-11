@@ -1,0 +1,516 @@
+/*
+ * DotNetLiguria login skin, on top of keycloak.v2 (PatternFly 5).
+ *
+ * Same look as the public site (src/dotnetliguriaspa/src/site/site.css): navy page with the
+ * cyan arc of the logo, a white rounded card, pill buttons, site-green primary action with navy
+ * text, cyan-700 links, Titillium Web. All text pairs are WCAG 2.2 AA (see docs/keycloak-theme.md).
+ *
+ * The PatternFly variables are remapped first, so what is not restyled by hand still wears the
+ * brand; then the few components of the login pages are restyled by class.
+ */
+
+/* ---------------------------------------------------------------- fonts (self-hosted, OFL) */
+@font-face { font-family: "Titillium Web"; font-style: normal; font-display: swap; font-weight: 400;
+  src: url("../fonts/titillium-web-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Titillium Web"; font-style: normal; font-display: swap; font-weight: 400;
+  src: url("../fonts/titillium-web-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Titillium Web"; font-style: normal; font-display: swap; font-weight: 600;
+  src: url("../fonts/titillium-web-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Titillium Web"; font-style: normal; font-display: swap; font-weight: 600;
+  src: url("../fonts/titillium-web-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: "Titillium Web"; font-style: normal; font-display: swap; font-weight: 700;
+  src: url("../fonts/titillium-web-latin-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+@font-face { font-family: "Titillium Web"; font-style: normal; font-display: swap; font-weight: 700;
+  src: url("../fonts/titillium-web-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+
+/* ---------------------------------------------------------------- tokens */
+:root {
+  /* Brand: same values as the public site. */
+  --dnl-navy: #083d73;
+  --dnl-navy-950: #002445;
+  --dnl-cyan: #00a8df;
+  --dnl-cyan-700: #007ba6;
+  --dnl-cyan-200: #8fd3ec;
+  --dnl-cyan-50: #e8f6fb;
+  --dnl-basil: #59a52c;
+  --dnl-basil-700: #3b7a20;
+  --dnl-basil-50: #eff7e9;
+  --dnl-green: #72c02c;
+  --dnl-muted: #44607a;
+  --dnl-line: #d5e3ec;
+  /* Field outline: 3.9:1 on white (the site's line colour, 1.3:1, is too faint to find a field). */
+  --dnl-field: #6a859b;
+  --dnl-error: #b42318;
+  --dnl-error-50: #fef3f2;
+  --dnl-warning: #8a5300;
+  --dnl-warning-50: #fff4d6;
+
+  --dnl-font: "Titillium Web", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --dnl-shadow-card: 0 18px 40px -22px rgb(8 61 115 / 0.45), 0 2px 6px -2px rgb(8 61 115 / 0.12);
+  --dnl-shadow-lift: 0 26px 50px -24px rgb(8 61 115 / 0.55), 0 4px 10px -4px rgb(8 61 115 / 0.16);
+  --dnl-focus: 3px solid var(--dnl-cyan-700);
+
+  /* keycloak.v2: no polygon background */
+  --keycloak-bg-logo-url: none;
+
+  /* PatternFly 5 remapped to the brand */
+  --pf-v5-global--FontFamily--text: var(--dnl-font);
+  --pf-v5-global--FontFamily--heading: var(--dnl-font);
+  --pf-v5-global--Color--100: var(--dnl-navy);
+  --pf-v5-global--Color--200: var(--dnl-muted);
+  --pf-v5-global--primary-color--100: var(--dnl-navy);
+  --pf-v5-global--primary-color--200: var(--dnl-navy-950);
+  --pf-v5-global--active-color--100: var(--dnl-navy);
+  --pf-v5-global--link--Color: var(--dnl-cyan-700);
+  --pf-v5-global--link--Color--hover: var(--dnl-navy);
+  --pf-v5-global--BorderColor--100: var(--dnl-line);
+  --pf-v5-global--BorderColor--200: var(--dnl-field);
+  --pf-v5-global--BorderColor--300: var(--dnl-field);
+  --pf-v5-global--danger-color--100: var(--dnl-error);
+  --pf-v5-global--danger-color--200: var(--dnl-error);
+  --pf-v5-global--success-color--100: var(--dnl-basil-700);
+  --pf-v5-global--info-color--100: var(--dnl-cyan-700);
+  --pf-v5-global--warning-color--100: var(--dnl-warning);
+}
+
+/* ---------------------------------------------------------------- page */
+.login-pf,
+.login-pf body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.login-pf body {
+  height: auto;
+  margin: 0;
+  background: var(--dnl-navy);
+  color: var(--dnl-navy);
+  font-family: var(--dnl-font);
+  font-size: 1.125rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.login-pf ::selection { background: var(--dnl-cyan-200); color: var(--dnl-navy-950); }
+
+/* Decorative arc of the logo: behind everything, drawn once. */
+.dnl-arc {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 0;
+  width: 100%;
+  height: 62%;
+  pointer-events: none;
+}
+.dnl-arc-draw path { stroke-dasharray: 2400; stroke-dashoffset: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .dnl-arc-draw path { animation: dnl-arc-in 1.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .dnl-arc-draw path:nth-child(2) { animation-delay: 0.15s; }
+}
+@keyframes dnl-arc-in {
+  from { stroke-dashoffset: 2400; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Layout: one centred column, logo (and language) above the card. */
+.login-pf .pf-v5-c-login {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start; /* every page starts at the same height: the logo does not jump between steps */
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0;
+  background: none;
+}
+.login-pf .pf-v5-c-login__container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.25rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 33rem;
+  margin: 0 auto;
+  padding: 1rem 1rem 2rem;
+  grid-template-areas: none;
+  grid-template-columns: none;
+  padding-inline: 1rem;
+}
+@media (min-width: 36rem) {
+  .login-pf .pf-v5-c-login__container { gap: 1.75rem; padding: 2rem 1.5rem 3rem; padding-inline: 1.5rem; }
+}
+@media (min-width: 64rem) and (min-height: 50rem) {
+  .login-pf .pf-v5-c-login__container { padding-top: 3.5rem; }
+}
+
+.dnl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+}
+/* Logo: 152px on a phone, 176px from 576px up; it gives way a little (never below 120px) before the language pill wraps. */
+.dnl-brand { display: block; flex: 0 1 9.5rem; min-width: 7.5rem; border-radius: 0.5rem; }
+.dnl-logo { display: block; width: 100%; height: auto; }
+@media (min-width: 36rem) { .dnl-brand { flex-basis: 11rem; } }
+
+/* Language switch: a pill on the navy page. */
+.dnl-lang { flex: none; margin: 0; }
+.login-pf .dnl-lang .pf-v5-c-form-control {
+  min-height: 2.75rem;
+  border: 2px solid var(--dnl-cyan-200);
+  border-radius: 9999px;
+  background: transparent;
+  color: #fff;
+}
+.login-pf .dnl-lang .pf-v5-c-form-control::before,
+.login-pf .dnl-lang .pf-v5-c-form-control::after { display: none; }
+.login-pf .dnl-lang .pf-v5-c-form-control:hover { border-color: #fff; }
+.login-pf .dnl-lang select {
+  min-height: 2.5rem;
+  padding: 0 2.5rem 0 1rem;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.login-pf .dnl-lang select option { background: #fff; color: var(--dnl-navy); }
+.login-pf .dnl-lang .pf-v5-c-form-control__utilities,
+.login-pf .dnl-lang .pf-v5-c-form-control__toggle-icon { color: #fff; }
+.login-pf .dnl-lang .pf-v5-c-form-control:focus-within { outline-color: var(--dnl-cyan-200); outline-offset: 3px; border-radius: 9999px; }
+
+/* The card. */
+.login-pf .pf-v5-c-login__main {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  border-radius: 1.5rem;
+  background: #fff;
+  color: var(--dnl-navy);
+  box-shadow: var(--dnl-shadow-card);
+  overflow: hidden; /* rounded corners also cut the line below */
+}
+/* A thin cyan-to-green line along the top edge (a real element in the flow, so that the card behind the text stays plain white for contrast checkers). */
+.login-pf .pf-v5-c-login__main::before {
+  content: "";
+  display: block;
+  height: 0.375rem;
+  background: linear-gradient(90deg, var(--dnl-cyan), var(--dnl-green));
+}
+.login-pf .pf-v5-c-login__main-header {
+  display: block;
+  padding: 1.75rem 1.5rem 0;
+  border-top: 0;
+}
+.login-pf .pf-v5-c-login__main-body { padding: 1.25rem 1.5rem 1.75rem; }
+@media (min-width: 36rem) {
+  .login-pf .pf-v5-c-login__main-header { padding: 2.25rem 2.25rem 0; }
+  .login-pf .pf-v5-c-login__main-body { padding: 1.5rem 2.25rem 2.25rem; }
+}
+.login-pf .pf-v5-c-login__main-header .pf-v5-c-title {
+  margin: 0;
+  color: var(--dnl-navy);
+  font-family: var(--dnl-font);
+  font-size: clamp(1.75rem, 1.45rem + 1.2vw, 2.125rem);
+  font-weight: 700;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+
+/* ---------------------------------------------------------------- text and links */
+.login-pf .pf-v5-c-login__main p { text-wrap: pretty; }
+.login-pf .instruction { margin: 0 0 1.25rem; color: var(--dnl-navy); }
+.login-pf a {
+  color: var(--dnl-cyan-700);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.login-pf a:hover { color: var(--dnl-navy); }
+.login-pf .pf-v5-c-login__main-footer-band-item,
+.login-pf .pf-v5-c-login__main-footer-helper-text { color: var(--dnl-muted); font-size: 1rem; }
+.login-pf hr { border-color: var(--dnl-line); }
+.login-pf .pf-v5-c-login__main-footer-band { border-color: var(--dnl-line); }
+.login-pf .pf-v5-u-font-size-sm { font-size: 1rem !important; }
+.login-pf #kc-info { margin-top: 1.25rem; padding-top: 0.5rem; }
+.login-pf #kc-registration a { display: inline-flex; align-items: center; min-height: 2.75rem; padding-inline: 0.25rem; }
+
+/* Visible focus on every control; cyan-700 on white (4.8:1), cyan-200 on navy (6.6:1). */
+.login-pf :focus-visible { outline: var(--dnl-focus); outline-offset: 3px; border-radius: 6px; }
+.dnl-header :focus-visible { outline-color: var(--dnl-cyan-200); }
+
+/* Text only for screen readers. */
+.dnl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- form */
+.login-pf .pf-v5-c-form { --pf-v5-c-form--GridGap: 1.25rem; }
+.login-pf .pf-v5-c-form__label,
+.login-pf .pf-v5-c-form__label-text {
+  color: var(--dnl-navy);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.login-pf .pf-v5-c-form__helper-text { font-size: 1rem; }
+/* The username shown (read only) above the password / OTP field of the second step. */
+.login-pf .pf-v5-c-login__main-body > .pf-v5-c-form:has(#kc-attempted-username) { margin-bottom: 1.25rem; }
+
+/* Text fields: rounded outline, 48px tall, one ring on focus. */
+.login-pf .pf-v5-c-form-control {
+  box-sizing: border-box;
+  min-height: 3rem;
+  border: 2px solid var(--dnl-field);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: var(--dnl-navy);
+  font-size: 1.125rem;
+}
+.login-pf .pf-v5-c-form-control::before,
+.login-pf .pf-v5-c-form-control::after { display: none; }
+.login-pf .pf-v5-c-form-control:hover { border-color: var(--dnl-navy); }
+.login-pf .pf-v5-c-form-control:focus-within {
+  border-color: var(--dnl-navy);
+  outline: var(--dnl-focus);
+  outline-offset: 1px;
+}
+.login-pf .pf-v5-c-form-control.pf-m-error { border-color: var(--dnl-error); }
+.login-pf .pf-v5-c-form-control.pf-m-readonly { background: var(--dnl-cyan-50); }
+.login-pf .pf-v5-c-form-control input,
+.login-pf .pf-v5-c-form-control select {
+  min-height: 2.75rem;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  outline: none;
+}
+.login-pf .pf-v5-c-form-control .pf-v5-c-form-control__icon { color: var(--dnl-error); }
+
+/* Password field with its show/hide button: one outline around both. */
+.login-pf .pf-v5-c-input-group {
+  align-items: stretch;
+  border: 2px solid var(--dnl-field);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+.login-pf .pf-v5-c-input-group:hover { border-color: var(--dnl-navy); }
+.login-pf .pf-v5-c-input-group:focus-within {
+  border-color: var(--dnl-navy);
+  outline: var(--dnl-focus);
+  outline-offset: 1px;
+}
+.login-pf .pf-v5-c-input-group .pf-v5-c-form-control {
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0.625rem 0 0 0.625rem;
+  outline: none;
+}
+.login-pf .pf-v5-c-input-group .pf-v5-c-form-control:hover,
+.login-pf .pf-v5-c-input-group .pf-v5-c-form-control:focus-within { outline: none; }
+.login-pf .pf-v5-c-input-group .pf-v5-c-button.pf-m-control {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0 0.625rem 0.625rem 0;
+  background: transparent;
+  color: var(--dnl-navy);
+}
+.login-pf .pf-v5-c-input-group .pf-v5-c-button.pf-m-control::after { display: none; }
+.login-pf .pf-v5-c-input-group .pf-v5-c-button.pf-m-control:hover { background: var(--dnl-cyan-50); }
+.login-pf .pf-v5-c-input-group .pf-v5-c-button.pf-m-control:focus-visible {
+  outline: var(--dnl-focus);
+  outline-offset: -3px;
+}
+/* Same for the read-only username shown on the password step. */
+.login-pf #reset-login.pf-v5-c-button.pf-m-control { color: var(--dnl-navy); }
+
+/* Remember me / forgot password: 44px targets. */
+.login-pf .pf-v5-c-form__helper-text .pf-v5-c-helper-text { align-items: center; gap: 0.5rem 1rem; flex-wrap: wrap; }
+.login-pf .pf-v5-c-check { display: flex; align-items: center; }
+.login-pf .pf-v5-c-check label,
+.login-pf label.pf-v5-c-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+.login-pf .pf-v5-c-check__input {
+  flex: none;
+  align-self: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+  accent-color: var(--dnl-navy);
+}
+.login-pf .pf-v5-c-check__label { color: var(--dnl-navy); font-size: 1rem; }
+.login-pf .pf-v5-c-helper-text__item-text a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-size: 1rem;
+}
+/* Messages under a field. */
+.login-pf .pf-v5-c-helper-text__item.pf-m-error .pf-v5-c-helper-text__item-text {
+  color: var(--dnl-error);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- buttons */
+.login-pf .pf-v5-c-button {
+  --pf-v5-c-button--BorderRadius: 9999px;
+  min-height: 3rem;
+  padding: 0.5rem 1.5rem;
+  border-radius: 9999px;
+  font-family: var(--dnl-font);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-decoration: none;
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+.login-pf .pf-v5-c-button::after { display: none; }
+
+/* Primary: site green with navy text (4.8:1). */
+.login-pf .pf-v5-c-button.pf-m-primary {
+  border: 0;
+  background: var(--dnl-green);
+  color: var(--dnl-navy);
+  box-shadow: var(--dnl-shadow-card);
+}
+.login-pf .pf-v5-c-button.pf-m-primary:hover,
+.login-pf .pf-v5-c-button.pf-m-primary:focus {
+  background: var(--dnl-green);
+  color: var(--dnl-navy);
+  box-shadow: var(--dnl-shadow-lift);
+}
+.login-pf .pf-v5-c-button.pf-m-primary:hover { transform: translateY(-2px); }
+.login-pf .pf-v5-c-button.pf-m-primary:active { transform: none; }
+
+/* Secondary: outlined navy. */
+.login-pf .pf-v5-c-button.pf-m-secondary {
+  border: 2px solid var(--dnl-navy);
+  background: transparent;
+  color: var(--dnl-navy);
+  box-shadow: none;
+}
+.login-pf .pf-v5-c-button.pf-m-secondary:hover,
+.login-pf .pf-v5-c-button.pf-m-secondary:focus {
+  background: var(--dnl-navy);
+  color: #fff;
+}
+.login-pf .pf-v5-c-button.pf-m-link { color: var(--dnl-cyan-700); text-decoration: underline; text-underline-offset: 0.2em; }
+.login-pf .pf-v5-c-button.pf-m-block { display: flex; align-items: center; justify-content: center; width: 100%; }
+.login-pf .pf-v5-c-form__actions { gap: 0.75rem; }
+
+/* Identity providers (Google): the same outlined pill, light hover so that the logo colours stay on white. */
+.login-pf #kc-social-providers .pf-v5-c-button {
+  position: relative;
+  justify-content: center !important;
+  border: 2px solid var(--dnl-navy);
+  background: #fff;
+  color: var(--dnl-navy);
+}
+.login-pf #kc-social-providers .pf-v5-c-button:hover,
+.login-pf #kc-social-providers .pf-v5-c-button:focus {
+  background: var(--dnl-cyan-50);
+  color: var(--dnl-navy);
+}
+.login-pf #kc-social-providers svg { flex: none; width: 1.375rem; height: 1.375rem; }
+.login-pf #kc-social-providers svg:not(.google) { filter: none; fill: currentColor; }
+.login-pf #kc-social-providers .pf-v5-c-button > svg { position: absolute; inset-inline-start: 1.25rem; }
+.login-pf #kc-social-providers .pf-v5-u-m-auto { margin: 0 !important; }
+.login-pf #kc-social-providers ul { list-style: none; margin: 0; padding: 0; }
+
+/* ---------------------------------------------------------------- feedback messages */
+.login-pf .pf-v5-c-alert {
+  --dnl-alert: var(--dnl-cyan-700);
+  --dnl-alert-bg: var(--dnl-cyan-50);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+  padding: 0.875rem 1rem;
+  border: 0;
+  border-inline-start: 0.375rem solid var(--dnl-alert);
+  border-radius: 0.75rem;
+  background: var(--dnl-alert-bg);
+  color: var(--dnl-navy);
+}
+.login-pf .pf-v5-c-alert::before { display: none; }
+.login-pf .pf-v5-c-alert.pf-m-danger { --dnl-alert: var(--dnl-error); --dnl-alert-bg: var(--dnl-error-50); }
+.login-pf .pf-v5-c-alert.pf-m-warning { --dnl-alert: var(--dnl-warning); --dnl-alert-bg: var(--dnl-warning-50); }
+.login-pf .pf-v5-c-alert.pf-m-success { --dnl-alert: var(--dnl-basil-700); --dnl-alert-bg: var(--dnl-basil-50); }
+.login-pf .pf-v5-c-alert__icon { margin: 0.125rem 0 0; padding: 0; color: var(--dnl-alert); font-size: 1.125rem; }
+.login-pf .pf-v5-c-alert__title { color: var(--dnl-navy); font-size: 1rem; font-weight: 600; line-height: 1.4; }
+
+/* ---------------------------------------------------------------- other pages (info, error, logout, OTP, ...) */
+.login-pf #kc-info-message .pf-v5-c-form__group,
+.login-pf #kc-error-message .pf-v5-c-form__group,
+.login-pf #kc-logout-confirm .pf-v5-c-form__group { margin: 0; }
+.login-pf #kc-logout-confirm .form-actions { margin: 0; }
+
+/* "Restart login" button next to the username (upstream tooltip, hover only): it opened to the right
+   of the button, outside the card, and made the page scroll sideways on a phone. Now it opens
+   below, aligned to the button's right edge, and also shows on keyboard focus. */
+.login-pf .kc-login-tooltip .kc-tooltip-text {
+  top: calc(100% + 0.5rem);
+  right: 0;
+  left: auto;
+  z-index: 2;
+  width: max-content;
+  min-width: 0;
+  max-width: 14rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--dnl-navy-950);
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.3;
+  text-align: start;
+}
+.login-pf .kc-login-tooltip .kc-tooltip-text::after { display: none; }
+.login-pf .kc-login-tooltip:hover .kc-tooltip-text,
+.login-pf .kc-login-tooltip:focus-visible .kc-tooltip-text { visibility: visible; opacity: 1; }
+
+/* ---------------------------------------------------------------- motion */
+@media (prefers-reduced-motion: reduce) {
+  .login-pf *,
+  .login-pf *::before,
+  .login-pf *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .login-pf .pf-v5-c-button.pf-m-primary:hover { transform: none; }
+}
+
+/* Windows high contrast / forced colours: keep borders and focus visible. */
+@media (forced-colors: active) {
+  .login-pf .pf-v5-c-login__main { border: 1px solid CanvasText; }
+  .login-pf .pf-v5-c-form-control,
+  .login-pf .pf-v5-c-input-group,
+  .login-pf .pf-v5-c-button { forced-color-adjust: auto; border: 2px solid ButtonText; }
+}

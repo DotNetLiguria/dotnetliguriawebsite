@@ -1,0 +1,49 @@
+{
+  "realm": "DotNetLiguria",
+  "displayName": "DotNetLiguria",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "rememberMe": true,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "loginTheme": "dotnetliguria",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["it", "en"],
+  "defaultLocale": "it",
+  "clients": [
+    {
+      "clientId": "DotNetLiguriaSpa",
+      "name": "DotNetLiguria SPA (local test)",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "baseUrl": "https://localhost:5443/",
+      "redirectUris": ["https://localhost:5443/*", "https://localhost:3443/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      }
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "google",
+      "displayName": "Google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": false,
+      "storeToken": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "local-test-not-a-real-client-id",
+        "clientSecret": "local-test-not-a-real-secret",
+        "syncMode": "IMPORT"
+      }
+    }
+  ]
+}

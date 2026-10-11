@@ -1,0 +1,8 @@
+{
+  "themes": [
+    {
+      "name": "dotnetliguria",
+      "types": ["login"]
+    }
+  ]
+}
