@@ -1,13 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import { loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), ['VITE_', 'REACT_APP_']);
   return {
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   define: {
     'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || env.REACT_APP_API_BASE_URL || ''),
     'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || env.REACT_APP_API_URL || ''),

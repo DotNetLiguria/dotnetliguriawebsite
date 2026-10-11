@@ -1,9 +1,10 @@
 import React, { FC, useEffect, useState } from 'react';
-import { Alert, Box, CircularProgress, Container, Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import QuestionnaireRunner from '../QuestionnaireRunner/QuestionnaireRunner';
 import { publicQuestionnaireApi, QuestionnaireApiError } from '../../questionnaire/api';
 import type { PublicQuestionnaireView } from '../../questionnaire/types';
+import SiteLayout from '../../site/SiteLayout';
+import { LogoArc } from '../../site/ui';
 
 const formatDate = (value?: string | null) =>
   value ? new Date(value).toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' }) : '';
@@ -12,6 +13,12 @@ type LoadState =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
   | { kind: 'loaded'; view: PublicQuestionnaireView };
+
+const homeLink = (
+  <Link to="/" className="mt-6 inline-flex min-h-11 items-center gap-2 font-bold text-cyan-700 underline decoration-2 underline-offset-4">
+    Torna alla pagina iniziale
+  </Link>
+);
 
 const PublicQuestionnaire: FC = () => {
   const { questionnaireId, workshopId } = useParams<{ questionnaireId?: string; workshopId?: string }>();
@@ -37,11 +44,18 @@ const PublicQuestionnaire: FC = () => {
     return () => { cancelled = true; };
   }, [questionnaireId, workshopId]);
 
+  const panel = 'rounded-3xl bg-white p-6 shadow-card sm:p-8';
   let content: React.ReactNode;
   if (state.kind === 'loading') {
-    content = <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress aria-label="Caricamento" /></Box>;
+    content = <div className={panel}><p className="text-lg font-semibold text-muted" role="status">Caricamento del questionario…</p></div>;
   } else if (state.kind === 'error') {
-    content = <Alert severity="info">{state.message}</Alert>;
+    content = (
+      <div className={panel}>
+        <h1 className="text-3xl font-bold">Questionario non disponibile</h1>
+        <div><p className="mt-3 text-lg text-navy/85">{state.message}</p></div>
+        {homeLink}
+      </div>
+    );
   } else {
     const { view } = state;
     if (view.availability === 'Open' && view.questionnaire) {
@@ -60,18 +74,25 @@ const PublicQuestionnaire: FC = () => {
           ? 'Il questionario è chiuso e non accetta più risposte. Grazie per l\'interesse!'
           : 'Il questionario non è disponibile.';
       content = (
-        <>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 2 }}>{view.title}</Typography>
-          <Alert severity="info">{message}</Alert>
-        </>
+        <div className={panel}>
+          <h1 className="text-3xl font-bold">{view.title}</h1>
+          <div><p className="mt-3 text-lg text-navy/85">{message}</p></div>
+          {homeLink}
+        </div>
       );
     }
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: '80px', mb: 4, minHeight: 'calc(100vh - 200px)', px: { xs: 1.5, sm: 3 } }}>
-      {content}
-    </Container>
+    <SiteLayout>
+      <div className="on-navy relative isolate overflow-hidden bg-navy" aria-hidden="true">
+        <LogoArc className="pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-full w-full" />
+        <div className="h-40 sm:h-48" />
+      </div>
+      <div className="relative mx-auto -mt-28 max-w-3xl px-4 pb-16 sm:-mt-32 sm:px-6">
+        {content}
+      </div>
+    </SiteLayout>
   );
 };
 
