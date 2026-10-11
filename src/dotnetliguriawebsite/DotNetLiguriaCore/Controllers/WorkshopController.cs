@@ -1,5 +1,7 @@
 ﻿using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Cryptography.X509Certificates;
 
@@ -7,13 +9,14 @@ namespace DotNetLiguriaCore.Controllers
 {
     [Route("api/[controller]/[action]")]
     [ApiController]
-    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, IWebHostEnvironment environment) : ControllerBase
+    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, EventbriteIntegrationService eventbriteIntegrationService, IWebHostEnvironment environment) : ControllerBase
     {
         private readonly WorkshopService _workshopService = workshopService;
         private readonly SpeakerService _speakerService = speakerService;
         private readonly WorkshopFileService _workshopFileService = workshopFileService;
         private readonly CounterService _counterService = counterService;
         private readonly SessionizeImportService _sessionizeImportService = sessionizeImportService;
+        private readonly EventbriteIntegrationService _eventbriteIntegrationService = eventbriteIntegrationService;
         private readonly IWebHostEnvironment _environment = environment;
 
         [HttpGet]
@@ -65,6 +68,7 @@ namespace DotNetLiguriaCore.Controllers
             await _workshopService.GetByYearAsync(year);
 
         [HttpPost]
+        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> Post(Workshop newWorkshop)
         {
             newWorkshop.WorkshopId = Guid.NewGuid();
@@ -114,6 +118,7 @@ namespace DotNetLiguriaCore.Controllers
         }
 
         [HttpPost("{id}")]
+        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> ImportSessionize(Guid id, SessionizeImportRequest request, CancellationToken cancellationToken)
         {
             var workshop = await _workshopService.GetAsync(id);
@@ -175,6 +180,7 @@ namespace DotNetLiguriaCore.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> Update(Guid id, Workshop updatedWorkshop)
         {
             var Workshop = await _workshopService.GetAsync(id);
@@ -183,8 +189,31 @@ namespace DotNetLiguriaCore.Controllers
             {
                 return NotFound();
             }
+            if (updatedWorkshop.EventbriteTicketCapacity < Workshop.EventbriteSyncedTicketCapacity)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Eventbrite ticket capacity cannot be reduced",
+                    Detail = $"Increase the desired total to at least {Workshop.EventbriteSyncedTicketCapacity}; sold tickets are not released by this integration.",
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
 
             updatedWorkshop.WorkshopId = Workshop.WorkshopId;
+            if (!string.IsNullOrWhiteSpace(Workshop.EventbriteEventId))
+            {
+                updatedWorkshop.EventbriteEventId = Workshop.EventbriteEventId;
+                updatedWorkshop.EventbriteEventUrl = Workshop.EventbriteEventUrl;
+                updatedWorkshop.EventbriteVenueId = Workshop.EventbriteVenueId;
+                updatedWorkshop.EventbriteTicketClassId = Workshop.EventbriteTicketClassId;
+                updatedWorkshop.EventbriteSyncedTicketCapacity = Workshop.EventbriteSyncedTicketCapacity;
+                updatedWorkshop.EventbriteSyncStatus = Workshop.EventbriteSyncStatus;
+                updatedWorkshop.EventbriteLastError = Workshop.EventbriteLastError;
+                updatedWorkshop.EventbriteLastSyncedAt = Workshop.EventbriteLastSyncedAt;
+                updatedWorkshop.EventbritePublished = Workshop.EventbritePublished;
+                updatedWorkshop.ExternalRegistrationLink = Workshop.ExternalRegistrationLink;
+                updatedWorkshop.ExternalRegistration = Workshop.ExternalRegistration;
+            }
             EnsureAgendaIds(updatedWorkshop);
             
             if (updatedWorkshop.Tracks != null)
@@ -205,10 +234,37 @@ namespace DotNetLiguriaCore.Controllers
 
             await _workshopService.UpdateAsync(id, updatedWorkshop);
 
+            try
+            {
+                await _eventbriteIntegrationService.SyncIfReadyAsync(updatedWorkshop, HttpContext.RequestAborted);
+            }
+            catch (EventbriteApiException exception)
+            {
+                return Problem(
+                    detail: $"The workshop was saved locally, but Eventbrite synchronization failed: {exception.Message}",
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Eventbrite synchronization failed");
+            }
+            catch (InvalidOperationException exception)
+            {
+                return Problem(
+                    detail: $"The workshop was saved locally, but Eventbrite needs attention: {exception.Message}",
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Eventbrite synchronization needs attention");
+            }
+            catch (ArgumentException exception)
+            {
+                return Problem(
+                    detail: $"The workshop was saved locally, but Eventbrite data is invalid: {exception.Message}",
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Invalid Eventbrite event data");
+            }
+
             return NoContent();
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> Delete(Guid id)
         {
             var Workshop = await _workshopService.GetAsync(id);

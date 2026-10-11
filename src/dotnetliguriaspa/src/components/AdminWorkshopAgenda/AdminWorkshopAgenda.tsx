@@ -61,6 +61,11 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 	const [items, setItems] = useState<WorkshopAgendaItemModel[]>([]);
 	const [speakers, setSpeakers] = useState<SpeakerModel[]>([]);
 	const [bookingServiceUrl, setBookingServiceUrl] = useState('');
+	const [eventbriteTicketCapacity, setEventbriteTicketCapacity] = useState(0);
+	const [eventbriteSalesStart, setEventbriteSalesStart] = useState('');
+	const [eventbriteSalesEnd, setEventbriteSalesEnd] = useState('');
+	const [syncingEventbrite, setSyncingEventbrite] = useState(false);
+	const [publishingEventbrite, setPublishingEventbrite] = useState(false);
 	const [attendeeNotes, setAttendeeNotes] = useState('');
 	const [importSource, setImportSource] = useState<'none' | 'sessionize'>('none');
 	const [sessionizeId, setSessionizeId] = useState('');
@@ -106,7 +111,11 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		setTalkTrackId(initialTracks.length === 1 ? defaultTrackId : '');
 		setItems(orderedInitialItems);
 		if (orderedInitialItems.length > 0) setScheduleStart(toClockTime(orderedInitialItems[0].startTime));
-		setBookingServiceUrl(workshop.bookingServiceUrl ?? workshop.externalRegistrationLink ?? '');
+		setBookingServiceUrl(workshop.bookingServiceUrl ??
+			(workshop.eventbriteEventId ? '' : workshop.externalRegistrationLink ?? ''));
+		setEventbriteTicketCapacity(workshop.eventbriteTicketCapacity ?? 0);
+		setEventbriteSalesStart(workshop.eventbriteSalesStart ?? '');
+		setEventbriteSalesEnd(workshop.eventbriteSalesEnd ?? '');
 		setAttendeeNotes(workshop.attendeeNotes ?? '');
 	}, [workshop]);
 
@@ -236,7 +245,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 			setError(true);
 			return;
 		}
-		if (talks.some(talk => !talk.trackId || !tracks.some(track => track.workshopAgendaTrackId === talk.trackId))) {
+		if (activePage !== 'registration' && talks.some(talk => !talk.trackId || !tracks.some(track => track.workshopAgendaTrackId === talk.trackId))) {
 			setMessage('Assign each talk to a track before generating the schedule.');
 			setError(true);
 			return;
@@ -330,7 +339,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		setItems(nextItems);
 		setMessage('Track schedules filled from the selected start time and durations. Adjust any session or interval below.');
 		setError(false);
-	}, [gapDuration, items, scheduleStart, talkDuration, talks, tracks, workshop.eventDate]);
+	}, [activePage, gapDuration, items, scheduleStart, talkDuration, talks, tracks, workshop.eventDate]);
 
 	useEffect(() => {
 		const hasUnscheduledTalk = talks.some(talk =>
@@ -402,7 +411,12 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 	};
 
 	const handleSave = async () => {
-		if (items.some(item => item.itemType === 'talk' &&
+		if (eventbriteSalesStart && eventbriteSalesEnd && eventbriteSalesStart >= eventbriteSalesEnd) {
+			setMessage('Eventbrite ticket sales must end after they start.');
+			setError(true);
+			return;
+		}
+		if (activePage !== 'registration' && items.some(item => item.itemType === 'talk' &&
 			(!item.trackId || !tracks.some(track => track.workshopAgendaTrackId === item.trackId)))) {
 			setMessage('Assign each talk to a track before saving the agenda.');
 			setError(true);
@@ -413,7 +427,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 			setError(true);
 			return;
 		}
-		for (const item of items) {
+		for (const item of activePage === 'registration' ? [] : items) {
 			const start = new Date(item.startTime).getTime();
 			const end = new Date(item.endTime).getTime();
 			if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
@@ -422,7 +436,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 				return;
 			}
 		}
-		for (let firstIndex = 0; firstIndex < items.length; firstIndex += 1) {
+		for (let firstIndex = 0; activePage !== 'registration' && firstIndex < items.length; firstIndex += 1) {
 			for (let secondIndex = firstIndex + 1; secondIndex < items.length; secondIndex += 1) {
 				const first = items[firstIndex];
 				const second = items[secondIndex];
@@ -448,6 +462,9 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		const updatedWorkshop: WorkshopModel = {
 			...workshop,
 			bookingServiceUrl,
+			eventbriteTicketCapacity,
+			eventbriteSalesStart,
+			eventbriteSalesEnd,
 			externalRegistration: Boolean(bookingServiceUrl),
 			externalRegistrationLink: bookingServiceUrl,
 			attendeeNotes,
@@ -474,13 +491,124 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		}
 	};
 
+	const handleSetEventbriteCapacity = async () => {
+		setBusy(true);
+		try {
+			const response = await fetch(`${API_BASE_URL}/Eventbrite/SetTicketCapacity/${workshop.workshopId}`, {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ capacity: eventbriteTicketCapacity }),
+			});
+			if (!response.ok) await reportError(response, 'Could not update Eventbrite ticket availability');
+			const updatedWorkshop: WorkshopModel = await response.json();
+			onSaved(updatedWorkshop);
+			setMessage('Eventbrite ticket availability updated.');
+			setError(false);
+		} catch (exception) {
+			setMessage(exception instanceof Error ? exception.message : 'Could not update Eventbrite ticket availability');
+			setError(true);
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	const handleSyncEventbrite = async () => {
+		setSyncingEventbrite(true);
+		try {
+			const response = await fetch(`${API_BASE_URL}/Eventbrite/Sync/${workshop.workshopId}`, { method: 'POST' });
+			if (!response.ok) await reportError(response, 'Eventbrite synchronization failed');
+			const updatedWorkshop: WorkshopModel = await response.json();
+			onSaved(updatedWorkshop);
+			setMessage(updatedWorkshop.eventbriteEventId
+				? 'Eventbrite draft synchronized.'
+				: 'Workshop saved. Add its location, agenda, and initial ticket quantity before Eventbrite can create a draft.');
+			setError(false);
+		} catch (exception) {
+			setMessage(exception instanceof Error ? exception.message : 'Eventbrite synchronization failed');
+			setError(true);
+		} finally {
+			setSyncingEventbrite(false);
+		}
+	};
+
+	const handlePublishEventbrite = async () => {
+		if (!window.confirm('Publish this event on Eventbrite? This is separate from publishing the workshop on this website.')) return;
+		setPublishingEventbrite(true);
+		try {
+			const response = await fetch(`${API_BASE_URL}/Eventbrite/Publish/${workshop.workshopId}`, { method: 'POST' });
+			if (!response.ok) await reportError(response, 'Eventbrite publishing failed');
+			onSaved({ ...workshop, eventbritePublished: true });
+			setMessage('Event published on Eventbrite.');
+			setError(false);
+		} catch (exception) {
+			setMessage(exception instanceof Error ? exception.message : 'Eventbrite publishing failed');
+			setError(true);
+		} finally {
+			setPublishingEventbrite(false);
+		}
+	};
+
 	return (
 		<Box sx={{ display: 'grid', gap: 3, mt: 4 }}>
 			<Paper sx={{ p: 3, display: activePage === 'registration' ? 'block' : 'none' }}>
 				<Typography variant="h5" sx={{ mb: 2 }}>Registration and attendee details</Typography>
 				<Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { sm: '1fr 1fr' } }}>
 					<TextField label="Seat booking and cancellation URL" value={bookingServiceUrl} onChange={event => setBookingServiceUrl(event.target.value)} />
+					<TextField
+						label="Available free Eventbrite tickets"
+						type="number"
+						slotProps={{ htmlInput: { min: workshop.eventbriteSyncedTicketCapacity ?? 0, step: 1 } }}
+						value={eventbriteTicketCapacity}
+						onChange={event => setEventbriteTicketCapacity(Math.max(0, Number.parseInt(event.target.value, 10) || 0))}
+						helperText={`Separate from venue capacity. Increase this value to release more tickets; currently synchronized total: ${workshop.eventbriteSyncedTicketCapacity ?? 0}.`}
+					/>
+					<TextField
+						label="Eventbrite ticket sales start"
+						type="datetime-local"
+						value={eventbriteSalesStart}
+						onChange={event => setEventbriteSalesStart(event.target.value)}
+						helperText="Optional; interpreted in the configured Eventbrite timezone."
+						slotProps={{ inputLabel: { shrink: true } }}
+					/>
+					<TextField
+						label="Eventbrite ticket sales end"
+						type="datetime-local"
+						value={eventbriteSalesEnd}
+						onChange={event => setEventbriteSalesEnd(event.target.value)}
+						helperText="Optional; interpreted in the configured Eventbrite timezone."
+						slotProps={{ inputLabel: { shrink: true } }}
+					/>
 					<TextField label="Attendee notes" multiline minRows={2} value={attendeeNotes} onChange={event => setAttendeeNotes(event.target.value)} sx={{ gridColumn: { sm: '1 / -1' } }} />
+				</Box>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 2 }}>
+					<Typography variant="body2">
+						Eventbrite status: {workshop.eventbriteSyncStatus ?? 'Not created'}
+						{workshop.eventbriteLastSyncedAt ? ` · Last synced ${new Date(workshop.eventbriteLastSyncedAt).toLocaleString()}` : ''}
+					</Typography>
+					{workshop.eventbriteEventUrl && (
+						<Button component="a" href={workshop.eventbriteEventUrl} target="_blank" rel="noreferrer">
+							Open Eventbrite event
+						</Button>
+					)}
+					<Button variant="contained" onClick={() => void handleSave()} disabled={busy || syncingEventbrite}>
+						Save registration details
+					</Button>
+					{workshop.eventbriteEventId &&
+						eventbriteTicketCapacity > (workshop.eventbriteSyncedTicketCapacity ?? 0) && (
+							<Button variant="outlined" onClick={() => void handleSetEventbriteCapacity()} disabled={busy}>
+								Add Eventbrite ticket availability
+							</Button>
+						)}
+					<Button variant="outlined" onClick={() => void handleSyncEventbrite()} disabled={busy || syncingEventbrite}>
+						{syncingEventbrite ? 'Syncing…' : workshop.eventbriteEventId ? 'Sync Eventbrite draft' : 'Create Eventbrite draft'}
+					</Button>
+					{workshop.eventbriteEventId && !workshop.eventbritePublished && (
+						<Button variant="contained" color="warning" onClick={() => void handlePublishEventbrite()} disabled={busy || publishingEventbrite}>
+							{publishingEventbrite ? 'Publishing…' : 'Publish on Eventbrite'}
+						</Button>
+					)}
+					{workshop.eventbritePublished && <Typography color="success.main">Published on Eventbrite</Typography>}
+					{workshop.eventbriteLastError && <Alert severity="error" sx={{ width: '100%' }}>{workshop.eventbriteLastError}</Alert>}
 				</Box>
 			</Paper>
 

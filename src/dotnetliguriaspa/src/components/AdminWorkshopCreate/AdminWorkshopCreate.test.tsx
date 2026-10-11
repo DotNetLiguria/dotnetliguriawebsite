@@ -44,6 +44,7 @@ describe('<AdminWorkshopCreate />', () => {
 		fireEvent.change(screen.getByPlaceholderText('Latitude, longitude'), { target: { value: '44.5,9.0' } });
 		fireEvent.change(screen.getByPlaceholderText('https://maps.google.com/...'), { target: { value: 'https://maps.google.com/?q=Updated+Hall' } });
 		fireEvent.change(screen.getByLabelText('Maximum spaces'), { target: { value: '150' } });
+		fireEvent.change(screen.getByLabelText('Initial free Eventbrite tickets'), { target: { value: '50' } });
 		fireEvent.change(screen.getByLabelText('Rooms for this event'), { target: { value: 'Auditorium\nRoom B' } });
 		fireEvent.change(screen.getByPlaceholderText('https://...'), { target: { value: 'https://booking.example.test/event/1' } });
 		fireEvent.change(screen.getByPlaceholderText('Practical information for attendees'), { target: { value: 'Bring your laptop' } });
@@ -66,6 +67,7 @@ describe('<AdminWorkshopCreate />', () => {
 				rooms: ['Auditorium', 'Room B'],
 			},
 			bookingServiceUrl: 'https://booking.example.test/event/1',
+			eventbriteTicketCapacity: 50,
 			attendeeNotes: 'Bring your laptop',
 		});
 	});

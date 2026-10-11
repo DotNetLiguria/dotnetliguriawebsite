@@ -60,6 +60,16 @@ export interface WorkshopModel {
   agendaItems?: WorkshopAgendaItemModel[];
   attendeeNotes?: string;
   bookingServiceUrl?: string;
+  eventbriteTicketCapacity?: number;
+  eventbriteSyncedTicketCapacity?: number;
+  eventbriteSalesStart?: string;
+  eventbriteSalesEnd?: string;
+  eventbriteEventId?: string;
+  eventbriteEventUrl?: string;
+  eventbriteSyncStatus?: string;
+  eventbriteLastError?: string;
+  eventbriteLastSyncedAt?: Date | string;
+  eventbritePublished?: boolean;
   oldUrl: string;
   slug: string;
   materials: WorkshopFileModel[];

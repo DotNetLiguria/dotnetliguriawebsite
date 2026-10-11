@@ -26,6 +26,7 @@ const AdminWorkshopCreate: FC = () => {
 	});
 	const [rooms, setRooms] = useState('');
 	const [bookingServiceUrl, setBookingServiceUrl] = useState('');
+	const [eventbriteTicketCapacity, setEventbriteTicketCapacity] = useState(0);
 	const [attendeeNotes, setAttendeeNotes] = useState('');
 	const [snackbarOpen, setSnackbarOpen] = useState(false);
 	const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -84,6 +85,7 @@ const AdminWorkshopCreate: FC = () => {
 					bookingServiceUrl,
 					externalRegistration: Boolean(bookingServiceUrl),
 					externalRegistrationLink: bookingServiceUrl,
+					eventbriteTicketCapacity,
 					attendeeNotes,
 				}),
 			});
@@ -250,6 +252,17 @@ const AdminWorkshopCreate: FC = () => {
 							Seat booking and cancellation service URL
 						</Typography>
 						<TextField fullWidth type="url" value={bookingServiceUrl} onChange={(e) => setBookingServiceUrl(e.target.value)} placeholder="https://..." />
+					</Grid>
+					<Grid size={12}>
+						<TextField
+							fullWidth
+							label="Initial free Eventbrite tickets"
+							type="number"
+							slotProps={{ htmlInput: { min: 0, step: 1 } }}
+							value={eventbriteTicketCapacity}
+							onChange={(event) => setEventbriteTicketCapacity(Math.max(0, Number.parseInt(event.target.value, 10) || 0))}
+							helperText="Separate from the venue's maximum spaces. The Eventbrite draft is created after its agenda is saved."
+						/>
 					</Grid>
 					<Grid size={12}>
 						<Typography variant="caption" sx={{ mb: 0.5, display: 'block', color: 'text.secondary' }}>

@@ -81,6 +81,12 @@ public class Program
         builder.Services.AddSingleton<WorkshopFileService>();
         builder.Services.AddHttpClient<SessionizeImportService>()
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddOptions<EventbriteOptions>()
+            .Bind(builder.Configuration.GetSection(EventbriteOptions.SectionName));
+        builder.Services.AddHttpClient<EventbriteApiClient>(client =>
+            client.BaseAddress = new Uri("https://www.eventbriteapi.com/v3/"))
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        builder.Services.AddTransient<EventbriteIntegrationService>();
         builder.Services.AddSingleton<TopMenuService>();
         builder.Services.AddSingleton<VenueService>();
         builder.Services.AddSingleton(TimeProvider.System);

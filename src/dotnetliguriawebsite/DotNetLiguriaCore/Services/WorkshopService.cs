@@ -90,9 +90,66 @@ namespace DotNetLiguriaCore.Services
         {
             var updatedFields = updateWorkshop.ToBsonDocument();
             updatedFields.Remove("_id");
+            updatedFields.Remove(nameof(Workshop.EventbriteSyncedTicketCapacity));
+            updatedFields.Remove(nameof(Workshop.EventbriteEventId));
+            updatedFields.Remove(nameof(Workshop.EventbriteEventUrl));
+            updatedFields.Remove(nameof(Workshop.EventbriteVenueId));
+            updatedFields.Remove(nameof(Workshop.EventbriteTicketClassId));
+            updatedFields.Remove(nameof(Workshop.EventbritePublished));
+            updatedFields.Remove(nameof(Workshop.EventbriteSyncStatus));
+            updatedFields.Remove(nameof(Workshop.EventbriteLastError));
+            updatedFields.Remove(nameof(Workshop.EventbriteLastSyncedAt));
             var update = new BsonDocumentUpdateDefinition<Workshop>(
                 new BsonDocument("$set", updatedFields));
             await _workshopsCollection.UpdateOneAsync(BsonCompatibility.CreateGuidFilter("_id", id), update);
+        }
+
+        public async Task UpdateEventbriteAsync(Workshop workshop)
+        {
+            var update = Builders<Workshop>.Update
+                .Set(value => value.EventbriteSyncedTicketCapacity, workshop.EventbriteSyncedTicketCapacity)
+                .Set(value => value.EventbriteEventId, workshop.EventbriteEventId)
+                .Set(value => value.EventbriteEventUrl, workshop.EventbriteEventUrl)
+                .Set(value => value.EventbriteVenueId, workshop.EventbriteVenueId)
+                .Set(value => value.EventbriteTicketClassId, workshop.EventbriteTicketClassId)
+                .Set(value => value.EventbritePublished, workshop.EventbritePublished)
+                .Set(value => value.EventbriteSyncStatus, workshop.EventbriteSyncStatus)
+                .Set(value => value.EventbriteLastError, workshop.EventbriteLastError)
+                .Set(value => value.EventbriteLastSyncedAt, workshop.EventbriteLastSyncedAt)
+                .Set(value => value.ExternalRegistrationLink, workshop.ExternalRegistrationLink)
+                .Set(value => value.ExternalRegistration, workshop.ExternalRegistration);
+            await _workshopsCollection.UpdateOneAsync(
+                BsonCompatibility.CreateGuidFilter("_id", workshop.WorkshopId),
+                update);
+        }
+
+        public async Task<bool> TryStartEventbriteCreationAsync(Guid id)
+        {
+            var filter = Builders<Workshop>.Filter.And(
+                BsonCompatibility.CreateGuidFilter("_id", id),
+                Builders<Workshop>.Filter.Eq(workshop => workshop.EventbriteEventId, null),
+                Builders<Workshop>.Filter.Ne(workshop => workshop.EventbriteSyncStatus, "creating-event"),
+                Builders<Workshop>.Filter.Ne(workshop => workshop.EventbriteSyncStatus, "reconciliation-required"));
+            var update = Builders<Workshop>.Update
+                .Set(workshop => workshop.EventbriteSyncStatus, "creating-event")
+                .Set(workshop => workshop.EventbriteLastError, null);
+            var result = await _workshopsCollection.UpdateOneAsync(filter, update);
+            return result.ModifiedCount == 1;
+        }
+
+        public async Task<bool> TryStartEventbriteTicketCreationAsync(Guid id)
+        {
+            var filter = Builders<Workshop>.Filter.And(
+                BsonCompatibility.CreateGuidFilter("_id", id),
+                Builders<Workshop>.Filter.Ne(workshop => workshop.EventbriteEventId, null),
+                Builders<Workshop>.Filter.Eq(workshop => workshop.EventbriteTicketClassId, null),
+                Builders<Workshop>.Filter.Ne(workshop => workshop.EventbriteSyncStatus, "creating-ticket"),
+                Builders<Workshop>.Filter.Ne(workshop => workshop.EventbriteSyncStatus, "reconciliation-required"));
+            var update = Builders<Workshop>.Update
+                .Set(workshop => workshop.EventbriteSyncStatus, "creating-ticket")
+                .Set(workshop => workshop.EventbriteLastError, null);
+            var result = await _workshopsCollection.UpdateOneAsync(filter, update);
+            return result.ModifiedCount == 1;
         }
 
         public async Task UpdateImageAsync(Guid id, string imagePath)

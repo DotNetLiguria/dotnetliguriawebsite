@@ -30,6 +30,30 @@ describe('<AdminWorkshopAgenda />', () => {
 		expect(screen.getByText('Talk pool')).not.toBeVisible();
 	}, 10000);
 
+	test('saves an initial Eventbrite ticket quantity separately from venue spaces', async () => {
+		const workshop = makeWorkshop({
+			location: { name: 'Community Hall', coordinates: '', address: '1 Main Street', maximumSpaces: 120 },
+		});
+		render(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="registration" />);
+
+		fireEvent.change(screen.getByLabelText('Available free Eventbrite tickets'), { target: { value: '35' } });
+		fireEvent.change(screen.getByLabelText('Eventbrite ticket sales start'), { target: { value: '2024-03-01T09:00' } });
+		fireEvent.change(screen.getByLabelText('Eventbrite ticket sales end'), { target: { value: '2024-03-14T18:00' } });
+		fireEvent.click(screen.getByRole('button', { name: 'Save registration details' }));
+
+		await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+			expect.stringContaining('/Workshop/Update/workshop-1'),
+			expect.objectContaining({ method: 'PUT' }),
+		));
+		const request = vi.mocked(fetch).mock.calls.find(call =>
+			String(call[0]).includes('/Workshop/Update/'))?.[1];
+		const body = JSON.parse(String(request?.body));
+		expect(body.eventbriteTicketCapacity).toBe(35);
+		expect(body.eventbriteSalesStart).toBe('2024-03-01T09:00');
+		expect(body.eventbriteSalesEnd).toBe('2024-03-14T18:00');
+		expect(body.location.maximumSpaces).toBe(120);
+	}, 10000);
+
 	test('auto-fills every single-track talk with time-only editable slots and technical gaps', async () => {
 		const workshop = makeWorkshop({
 			agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main stage', order: 0 }],

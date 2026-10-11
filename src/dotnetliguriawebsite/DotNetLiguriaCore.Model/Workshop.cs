@@ -37,6 +37,18 @@ namespace DotNetLiguriaCore.Model
         public List<WorkshopAgendaItem> AgendaItems { get; set; } = [];
         public string? AttendeeNotes { get; set; }
         public string? BookingServiceUrl { get; set; }
+        public int EventbriteTicketCapacity { get; set; }
+        public int EventbriteSyncedTicketCapacity { get; set; }
+        public string? EventbriteSalesStart { get; set; }
+        public string? EventbriteSalesEnd { get; set; }
+        public string? EventbriteEventId { get; set; }
+        public string? EventbriteEventUrl { get; set; }
+        public string? EventbriteVenueId { get; set; }
+        public string? EventbriteTicketClassId { get; set; }
+        public bool EventbritePublished { get; set; }
+        public string? EventbriteSyncStatus { get; set; }
+        public string? EventbriteLastError { get; set; }
+        public DateTime? EventbriteLastSyncedAt { get; set; }
 
         public string? OldUrl { get; set; }
         public string? Slug { get; set; }
