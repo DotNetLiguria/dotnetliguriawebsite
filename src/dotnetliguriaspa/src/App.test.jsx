@@ -48,7 +48,7 @@ test.each([
   ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Import / Export'],
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
-  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn() });
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
   render(<App />, { route });
   expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'PROFILE' })).toHaveAttribute('href', '/admin/profile/');
@@ -64,7 +64,7 @@ test('unauthenticated sessions clear persisted profile and cannot render admin r
 
 test('the questionnaire sidebar link opens the new questionnaire screen', async () => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
-  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn() });
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
   render(<App />, { route: '/admin' });
   const link = screen.getByRole('link', { name: 'QUESTIONARI' });
   expect(link).toHaveAttribute('href', '/admin/questionnaires');

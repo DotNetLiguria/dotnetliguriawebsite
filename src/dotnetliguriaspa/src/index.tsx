@@ -9,6 +9,7 @@ import {OidcProvider} from "@axa-fr/react-oidc";
 import {ThemeProvider} from '@mui/material';
 import theme from './theme';
 import { getOidcPublicSettings } from './config/oidcConfig';
+import TokenRenewalMonitor from './components/TokenRenewalMonitor';
 
 const configuration={
     //metadataUrl: "https://hello.vevy.com/realms/DotNetLiguria/.well-known/openid-configuration",
@@ -41,6 +42,7 @@ root.render(
     <React.StrictMode>
         <BrowserRouter>
             <OidcProvider configuration={ configuration }>
+                <TokenRenewalMonitor />
                 <App/>
             </OidcProvider>
         </BrowserRouter>
