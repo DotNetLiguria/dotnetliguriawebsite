@@ -1,5 +1,7 @@
 using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetLiguriaCore.Controllers
@@ -49,6 +51,7 @@ namespace DotNetLiguriaCore.Controllers
 			return counterGetModel;
 		}
 
+		[Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
 		[HttpPost]
 		public async Task<IActionResult> Post(Counter newCounter)
 		{
@@ -57,6 +60,7 @@ namespace DotNetLiguriaCore.Controllers
 			return CreatedAtAction(nameof(Get), new { id = newCounter.CounterId }, newCounter);
 		}
 
+		[Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
 		[HttpPut("{id}")]
 		public async Task<IActionResult> Update(Guid id, Counter updatedCounter)
 		{

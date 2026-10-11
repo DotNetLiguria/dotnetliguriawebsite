@@ -1,5 +1,7 @@
-﻿using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DotNetLiguriaCore.Controllers
@@ -21,6 +23,7 @@ namespace DotNetLiguriaCore.Controllers
             return venue is null ? NotFound() : venue;
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPost]
         public async Task<IActionResult> Post(Venue newVenue)
         {
@@ -29,6 +32,7 @@ namespace DotNetLiguriaCore.Controllers
             return CreatedAtAction(nameof(Get), new { id = newVenue.VenueId }, newVenue);
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, Venue updatedVenue)
         {
@@ -43,6 +47,7 @@ namespace DotNetLiguriaCore.Controllers
             return NoContent();
         }
 
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {

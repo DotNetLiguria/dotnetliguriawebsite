@@ -8,7 +8,7 @@ namespace DotNetLiguriaCore.Controllers;
 
 [Route("api/[controller]/[action]")]
 [ApiController]
-[Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
+[Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
 public sealed class EventbriteController(
     WorkshopService workshopService,
     EventbriteIntegrationService integrationService,

@@ -1,4 +1,4 @@
-﻿using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Authorization;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +9,7 @@ namespace DotNetLiguriaCore.Controllers
 {
     [Route("api/[controller]/[action]")]
     [ApiController]
-    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, EventbriteIntegrationService eventbriteIntegrationService, IWebHostEnvironment environment) : ControllerBase
+    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, EventbriteIntegrationService eventbriteIntegrationService, IWebHostEnvironment environment, IAuthorizationService authorizationService) : ControllerBase
     {
         private readonly WorkshopService _workshopService = workshopService;
         private readonly SpeakerService _speakerService = speakerService;
@@ -18,11 +18,14 @@ namespace DotNetLiguriaCore.Controllers
         private readonly SessionizeImportService _sessionizeImportService = sessionizeImportService;
         private readonly EventbriteIntegrationService _eventbriteIntegrationService = eventbriteIntegrationService;
         private readonly IWebHostEnvironment _environment = environment;
+        private readonly IAuthorizationService _authorizationService = authorizationService;
 
+        [AllowAnonymous]
         [HttpGet]
         public async Task<List<Workshop>> Get([FromQuery] bool onlyPublished = false)
         {
-            var returnValue = await _workshopService.GetAsync(onlyPublished);
+            var isAdmin = await HttpContext.IsWebDevAdminAsync(_authorizationService);
+            var returnValue = await _workshopService.GetAsync(onlyPublished || !isAdmin);
             foreach (var workshop in returnValue)
             {
                 await AddSpeakers(workshop);
@@ -31,12 +34,14 @@ namespace DotNetLiguriaCore.Controllers
             return returnValue;
         }
 
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<Workshop>> Get(Guid id)
         {
+            var isAdmin = await HttpContext.IsWebDevAdminAsync(_authorizationService);
             var workshop = await _workshopService.GetAsync(id);
 
-            if (workshop is null)
+            if (workshop is null || (!isAdmin && workshop.Published != true))
             {
                 return NotFound();
             }
@@ -47,6 +52,7 @@ namespace DotNetLiguriaCore.Controllers
             return workshop;
         }
 
+        [AllowAnonymous]
         [HttpGet("HomePage")]
         public async Task<ActionResult<Workshop>> GetInHomePage()
         {
@@ -63,12 +69,13 @@ namespace DotNetLiguriaCore.Controllers
             return workshop;
         }
 
+        [AllowAnonymous]
         [HttpGet("{year}")]
         public async Task<List<Workshop>> GetByYear(int year) =>
             await _workshopService.GetByYearAsync(year);
 
         [HttpPost]
-        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> Post(Workshop newWorkshop)
         {
             newWorkshop.WorkshopId = Guid.NewGuid();
@@ -118,7 +125,7 @@ namespace DotNetLiguriaCore.Controllers
         }
 
         [HttpPost("{id}")]
-        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> ImportSessionize(Guid id, SessionizeImportRequest request, CancellationToken cancellationToken)
         {
             var workshop = await _workshopService.GetAsync(id);
@@ -180,7 +187,7 @@ namespace DotNetLiguriaCore.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> Update(Guid id, Workshop updatedWorkshop)
         {
             var Workshop = await _workshopService.GetAsync(id);
@@ -264,7 +271,7 @@ namespace DotNetLiguriaCore.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = QuestionnaireAuthorizationOptions.PolicyName)]
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> Delete(Guid id)
         {
             var Workshop = await _workshopService.GetAsync(id);
@@ -350,5 +357,6 @@ namespace DotNetLiguriaCore.Controllers
                 }
             }
         }
+
     }
 }

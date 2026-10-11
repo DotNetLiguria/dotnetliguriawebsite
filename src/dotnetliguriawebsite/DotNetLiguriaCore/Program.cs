@@ -294,6 +294,8 @@ public class Program
         services.AddHttpContextAccessor();
         services.Configure<QuestionnaireAuthorizationOptions>(
             configuration.GetSection(QuestionnaireAuthorizationOptions.SectionName));
+        services.Configure<WebDevAdminAuthorizationOptions>(
+            configuration.GetSection(WebDevAdminAuthorizationOptions.SectionName));
         services.AddAuthorization(options =>
         {
             options.AddPolicy("mfa",
@@ -307,6 +309,10 @@ public class Program
                 .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
                 .AddRequirements(new FeedbackAdminRequirement()));
+            options.AddPolicy(WebDevAdminAuthorizationOptions.PolicyName, policy => policy
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                .RequireAuthenticatedUser()
+                .AddRequirements(new WebDevAdminRequirement()));
             options.AddPolicy(BackupAuthorizationOptions.PolicyName, policy => policy
                 .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
@@ -315,6 +321,7 @@ public class Program
 
         services.AddScoped<IAuthorizationHandler, OtpRequirementHandler>();
         services.AddSingleton<IAuthorizationHandler, FeedbackAdminHandler>();
+        services.AddSingleton<IAuthorizationHandler, WebDevAdminHandler>();
         services.AddSingleton<IAuthorizationHandler, BackupAdminHandler>();
     }
 

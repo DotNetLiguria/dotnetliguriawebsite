@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using DotNetLiguriaCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -40,18 +41,21 @@ public class ValuesController : ControllerBase
 
     // POST api/<ApiController>
     [HttpPost]
+    [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
     public void Post([FromBody] string value)
     {
     }
 
     // PUT api/<ApiController>/5
     [HttpPut("{id}")]
+    [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
     public void Put(int id, [FromBody] string value)
     {
     }
 
     // DELETE api/<ApiController>/5
     [HttpDelete("{id}")]
+    [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
     public void Delete(int id)
     {
     }
