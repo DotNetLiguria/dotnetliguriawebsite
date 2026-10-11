@@ -109,7 +109,7 @@ export default function DashboardPage() {
   const speakers = dataOf(speakersLoad);
   const photos = useSpeakerPhotos(speakers);
 
-  const { next, latest, firstYear, withoutMaterials } = useMemo(() => {
+  const { next, latest, firstYear, withoutMaterials, recent, drafts } = useMemo(() => {
     const today = dayKey(new Date().toISOString());
     const sorted = [...(workshops ?? [])].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
     const past = sorted.filter(w => dayKey(w.eventDate) < today);
@@ -118,6 +118,8 @@ export default function DashboardPage() {
       latest: past[past.length - 1] ?? null,
       firstYear: sorted.length ? new Date(sorted[0].eventDate).getFullYear() : null,
       withoutMaterials: past.filter(w => w.published !== false && !(w.materials?.length)).length,
+      recent: [...sorted].reverse().slice(0, 5),
+      drafts: sorted.filter(w => w.published === false).length,
     };
   }, [workshops]);
 
@@ -177,8 +179,8 @@ export default function DashboardPage() {
             <h2 id="archive-title" className="px-5 pt-5 text-lg font-bold sm:px-6">In archivio</h2>
             <ul className="grid grid-cols-2 gap-1 p-4 pt-2 sm:px-5">
               {([
-                ['Eventi', workshops?.filter(w => w.published !== false).length, '/admin/workshops/'],
-                ['Relatori', speakers?.length, '/admin/speakers/'],
+                ['Eventi', workshops ? `${workshops.length}${drafts ? ` · ${drafts} in bozza` : ''}` : undefined, '/admin/workshops/'],
+                ['Relatori', speakers ? `${speakers.length} · ${speakers.filter(s => s.isActive !== false).length} attivi` : undefined, '/admin/speakers/'],
                 ['Board', dataOf(boardLoad)?.length, '/admin/board/'],
                 ['Dal', firstYear ?? undefined, '/admin/workshops/'],
               ] as const).map(([label, value, to]) => (
@@ -191,6 +193,24 @@ export default function DashboardPage() {
               ))}
             </ul>
           </Panel>
+          {recent.length > 0 && (
+            <Panel labelledBy="recent-title">
+              <div className="flex items-center justify-between px-5 pt-5 sm:px-6">
+                <h2 id="recent-title" className="text-lg font-bold">Ultimi eventi</h2>
+                <Link to="/admin/workshops/" className={`text-sm font-bold text-cyan-700 underline ${linkFocus}`}>Tutti gli eventi</Link>
+              </div>
+              <ul className="p-2 sm:p-3">
+                {recent.map(w => (
+                  <li key={w.workshopId}>
+                    <Link to={eventLink(w)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-cyan-50 ${linkFocus}`}>
+                      <span className="min-w-0 flex-1"><span className="block truncate font-bold">{clean(w.title)}</span><span className="block text-sm text-muted">{formatDate(w.eventDate)}</span></span>
+                      {w.published === false && <Badge kind="warn">Bozza</Badge>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
         </div>
       </div>
     </>

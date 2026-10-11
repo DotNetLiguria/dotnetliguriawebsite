@@ -43,7 +43,7 @@ test('public home reports server failures instead of presenting an empty databas
 });
 
 test.each([
-  ['/admin', 'Ciao, Test'], ['/admin/profile/', 'Profile'],
+  ['/admin', 'Ciao, Test'], ['/admin/profile/', 'Profilo'],
   ['/admin/workshops/', 'Eventi'], ['/admin/speakers/', 'Relatori'],
   ['/admin/board/', 'Board'], ['/admin/venues/', 'Venues / Sale eventi'],
   ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],

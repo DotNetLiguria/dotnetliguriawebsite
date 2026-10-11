@@ -2,13 +2,13 @@ import './App.css';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOidc } from "@axa-fr/react-oidc";
 import { Navigate, Route, Routes } from 'react-router-dom';
-import AdminProfile from './components/AdminProfile/AdminProfile';
 
 import AdminVenues from './components/AdminVenues/AdminVenues';
 import AdminShell from "./admin/AdminShell";
 import DashboardPage from "./admin/pages/DashboardPage";
 import SpeakersPage from "./admin/pages/SpeakersPage";
 import EventsAdminPage from "./admin/pages/EventsAdminPage";
+import ProfilePage from "./admin/pages/ProfilePage";
 import HomePage from "./site/home/HomePage";
 import EventsPage from "./site/events/EventsPage";
 import EventDetailPage from "./site/event/EventDetailPage";
@@ -49,7 +49,7 @@ function App() {
                 {/* The shell asks unauthenticated visitors to sign in instead of rendering a blank page. */}
                 <Route element={<AdminShell />}>
                     <Route path='/admin' element={<DashboardPage />} />
-                    <Route path='/admin/profile/' element={<AdminProfile />} />
+                    <Route path='/admin/profile/' element={<ProfilePage />} />
                     <Route path='/admin/board/' element={<AdminBoard pageName={"Board"} />} />
                     <Route path='/admin/board/:id' element={<AdminBoardDetail pageName={"Board Detail"} />} />
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />

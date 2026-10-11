@@ -47,7 +47,7 @@ describe('<DashboardPage />', () => {
     expect(within(todo).getByRole('link', { name: /1 evento senza materiali/ })).toBeInTheDocument();
 
     const archive = screen.getByRole('region', { name: 'In archivio' });
-    expect(within(archive).getByRole('link', { name: /Relatori\s*3/ })).toHaveAttribute('href', '/admin/speakers/');
+    expect(within(archive).getByRole('link', { name: /Relatori\s*3 · 3 attivi/ })).toHaveAttribute('href', '/admin/speakers/');
     expect(within(archive).getByRole('link', { name: /Board\s*2/ })).toBeInTheDocument();
   });
 
@@ -61,6 +61,12 @@ describe('<DashboardPage />', () => {
     expect(within(next).getByRole('link', { name: 'Aggiungi il link' })).toHaveAttribute('href', '/admin/workshop/w-next');
     expect(within(next).getByRole('link', { name: 'Pubblica' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Nuovo evento/ })).toHaveAttribute('href', '/admin/workshop/create');
+
+    const archive = screen.getByRole('region', { name: 'In archivio' });
+    expect(within(archive).getByRole('link', { name: /Eventi\s*2 · 1 in bozza/ })).toBeInTheDocument();
+    const recent = screen.getByRole('region', { name: 'Ultimi eventi' });
+    expect(within(recent).getAllByRole('link').filter(l => l.getAttribute('href')?.startsWith('/admin/workshop/')).map(l => l.querySelector('.font-bold')?.textContent)).toEqual(['Season of AI', 'AI Generativa']);
+    expect(within(recent).getByText('Bozza')).toBeInTheDocument();
   });
 
   test('reports a failed load with a retry instead of an empty dashboard', async () => {

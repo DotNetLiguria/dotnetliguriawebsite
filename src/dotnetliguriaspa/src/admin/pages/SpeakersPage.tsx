@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Button, Dialog, Form, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton } from 'react-aria-components';
+import { Button, Dialog, Form, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { AdminIcon } from '../icons';
 import { Avatar, Badge, EmptyState, LoadError, PageHeader, Panel, SwitchInput, TextAreaInput, TextInput, btn, focusRing, linkFocus } from '../ui';
 import { AdminApiError, AdminSpeaker, AdminWorkshop, clean, nameKey, useAdminFetch, useAdminLoad, useSpeakerPhotos } from '../adminApi';
@@ -85,7 +85,20 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
   const api = useAdminFetch();
   const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view');
   const [busy, setBusy] = useState(false);
+  const [active, setActive] = useState(speaker.isActive !== false);
   const name = clean(speaker.name);
+
+  const toggleActive = async (next: boolean) => {
+    setActive(next);
+    try {
+      await api(`/Speaker/Update/${speaker.workshopSpeakerId}`, { method: 'PUT', body: JSON.stringify({ ...speaker, isActive: next }) });
+      notify(next ? 'Relatore attivato' : 'Relatore disattivato', { description: name });
+      onChanged();
+    } catch (error) {
+      setActive(!next);
+      notify('Modifica non riuscita', { description: errorText(error), kind: 'error' });
+    }
+  };
 
   const remove = async () => {
     setBusy(true);
@@ -106,7 +119,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
         <div className="min-w-0 flex-1">
           <Heading slot="title" className="text-2xl font-bold leading-tight">{name}</Heading>
           <p className="mt-1.5 flex flex-wrap gap-1.5">
-            {speaker.isActive === false ? <Badge kind="done">Non attivo</Badge> : <Badge kind="ok">Attivo</Badge>}
+            {!active ? <Badge kind="done">Non attivo</Badge> : <Badge kind="ok">Attivo</Badge>}
             {photo === null && <Badge kind="warn">Senza foto</Badge>}
             {duplicates.length > 0 && <Badge kind="warn">Doppione?</Badge>}
           </p>
@@ -152,6 +165,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
                 </ul>
               ) : <p className="mt-1 text-muted">Nessun talk in archivio.</p>}
             </div>
+            <SwitchInput isSelected={active} onChange={toggleActive}>Attivo</SwitchInput>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div><dt className="font-semibold text-muted">Email</dt><dd className="break-all">{clean(speaker.email) || '—'}</dd></div>
               <div><dt className="font-semibold text-muted">Sessionize</dt><dd>{clean(speaker.sessionizeId) || 'Non collegato'}</dd></div>
@@ -187,6 +201,7 @@ export default function SpeakersPage() {
   const speakers = speakersLoad.state === 'ready' ? speakersLoad.data : null;
   const photos = useSpeakerPhotos(speakers);
   const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'talk' | 'nome'>('talk');
   const onlyNoPhoto = params.get('filtro') === 'senza-foto';
 
   const talks = useMemo(() => talksBySpeaker(workshopsLoad.state === 'ready' ? workshopsLoad.data : []), [workshopsLoad]);
@@ -196,10 +211,11 @@ export default function SpeakersPage() {
     return map;
   }, [speakers]);
   const sorted = useMemo(() => [...(speakers ?? [])].sort((a, b) =>
-    (talks.get(nameKey(b.name))?.length ?? 0) - (talks.get(nameKey(a.name))?.length ?? 0) || clean(a.name).localeCompare(clean(b.name), 'it')), [speakers, talks]);
+    (sortBy === 'talk' ? (talks.get(nameKey(b.name))?.length ?? 0) - (talks.get(nameKey(a.name))?.length ?? 0) : 0)
+    || clean(a.name).localeCompare(clean(b.name), 'it')), [speakers, talks, sortBy]);
   const missing = photos ? sorted.filter(s => photos.get(s.workshopSpeakerId) === null) : [];
   const q = nameKey(query);
-  const visible = sorted.filter(s => (!q || nameKey(s.name).includes(q)) && (!onlyNoPhoto || photos?.get(s.workshopSpeakerId) === null));
+  const visible = sorted.filter(s => (!q || nameKey(s.name).includes(q) || nameKey(s.email).includes(q)) && (!onlyNoPhoto || photos?.get(s.workshopSpeakerId) === null));
 
   const listSearch = params.toString() ? `?${params.toString()}` : '';
   const close = () => navigate(`/admin/speakers/${listSearch}`);
@@ -215,7 +231,7 @@ export default function SpeakersPage() {
       <div className="mt-6 flex flex-wrap items-center gap-2.5" role="search">
         <SearchField aria-label="Cerca un relatore" value={query} onChange={setQuery} className="relative w-full sm:w-80">
           <span className="pointer-events-none absolute inset-y-0 left-3.5 grid place-items-center text-muted"><AdminIcon name="search" /></span>
-          <Input placeholder="Nome del relatore" className="min-h-11 w-full rounded-full border border-line bg-white pr-4 pl-11 text-base text-navy outline-none placeholder:text-[#6b8399] hover:border-cyan-200 focus:border-cyan-700 focus:ring-3 focus:ring-cyan-700/25 [&::-webkit-search-cancel-button]:hidden" />
+          <Input placeholder="Nome o email" className="min-h-11 w-full rounded-full border border-line bg-white pr-4 pl-11 text-base text-navy outline-none placeholder:text-[#6b8399] hover:border-cyan-200 focus:border-cyan-700 focus:ring-3 focus:ring-cyan-700/25 [&::-webkit-search-cancel-button]:hidden" />
         </SearchField>
         <ToggleButton
           isSelected={onlyNoPhoto}
@@ -224,6 +240,10 @@ export default function SpeakersPage() {
         >
           Senza foto{photos && <span className="tabular-nums">{missing.length}</span>}
         </ToggleButton>
+        <ToggleButtonGroup aria-label="Ordina per" selectionMode="single" disallowEmptySelection selectedKeys={[sortBy]} onSelectionChange={keys => setSortBy(([...keys][0] as 'talk' | 'nome') ?? 'talk')} className="flex gap-2 sm:ml-auto">
+          <ToggleButton id="talk" className={pill}>Più talk</ToggleButton>
+          <ToggleButton id="nome" className={pill}>Nome</ToggleButton>
+        </ToggleButtonGroup>
       </div>
 
       {speakersLoad.state === 'error' && <div className="mt-5"><LoadError message={`I relatori non sono disponibili (${speakersLoad.message}).`} onRetry={reloadSpeakers} /></div>}
@@ -231,7 +251,7 @@ export default function SpeakersPage() {
       {speakers && (
         <Panel className="mt-5 overflow-hidden">
           {visible.length ? (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line" aria-label="Elenco relatori">
               {visible.map(s => {
                 const t = talks.get(nameKey(s.name)) ?? [];
                 const photo = photos?.get(s.workshopSpeakerId);

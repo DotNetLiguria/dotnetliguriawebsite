@@ -32,7 +32,7 @@ const renderAt = (route: string) => render(
   </>,
   { route },
 );
-const rowNames = () => within(screen.getByRole('list')).getAllByRole('link').map(l => l.querySelector('span.block.font-bold')?.textContent);
+const rowNames = () => within(screen.getByRole('list', { name: 'Elenco relatori' })).getAllByRole('link').map(l => l.querySelector('span.block.font-bold')?.textContent);
 
 beforeEach(() => resetPhotoCache());
 
@@ -72,6 +72,27 @@ describe('<SpeakersPage />', () => {
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0]).toMatchObject({ workshopSpeakerId: 's-tucci', name: 'Giampaolo Tucci', email: 'gt@example.test', description: 'Architetto e speaker.', isActive: true });
     expect(await screen.findByText('Relatore aggiornato')).toBeInTheDocument();
+  });
+
+  test('sorts by name on request and toggles the active state with one click', async () => {
+    const user = userEvent.setup();
+    const saved: unknown[] = [];
+    mockApi({
+      '/Speaker/Update/s-merlin': (_url: string, init?: RequestInit) => { saved.push(JSON.parse(String(init?.body))); return new Response(null, { status: 204 }); },
+      '/Speaker/Get': speakers, '/Workshop/Get': workshops, '/Contents/': contents,
+    });
+    renderAt('/admin/speakers/');
+    await screen.findByText('4 relatori, 1 con foto.');
+    await user.click(within(screen.getByRole('radiogroup', { name: 'Ordina per' })).getByRole('radio', { name: 'Nome' }));
+    expect(rowNames()).toEqual(['Andrea Merlin', 'Angelo Ferrando', 'Angelo Ferrando', 'Giampaolo Tucci']);
+
+    await user.click(screen.getAllByRole('link', { name: /Andrea Merlin/ })[0]);
+    const card = await screen.findByRole('dialog', { name: 'Andrea Merlin' });
+    const active = within(card).getByRole('switch', { name: 'Attivo' });
+    expect(active).toBeChecked();
+    await user.click(active);
+    await waitFor(() => expect(saved).toEqual([expect.objectContaining({ workshopSpeakerId: 's-merlin', isActive: false })]));
+    expect(await screen.findByText('Relatore disattivato')).toBeInTheDocument();
   });
 
   test('requires a name for a new speaker and creates it', async () => {
