@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, makeWorkshop, render, screen, waitFor } from '../../test-utils';
+import { fireEvent, makeWorkshop, render, screen, waitFor, within } from '../../test-utils';
 import '@testing-library/jest-dom/vitest';
 import AdminWorkshopAgenda from './AdminWorkshopAgenda';
 
@@ -108,6 +108,36 @@ describe('<AdminWorkshopAgenda />', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Next track' }));
 		expect(screen.getByText('Room B session')).toBeVisible();
 		expect(screen.queryByText('Room A session')).not.toBeInTheDocument();
+	}, 10000);
+
+	test('keeps schedule times together before compact room and interval fields', () => {
+		const workshop = makeWorkshop({
+			agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main stage', order: 0 }],
+			agendaItems: [
+				{
+					workshopAgendaItemId: 'item-1',
+					itemType: 'service',
+					title: 'Lunch',
+					roomName: 'Dining room',
+					trackId: 'track-1',
+					startTime: '2024-03-15T12:00:00Z',
+					endTime: '2024-03-15T13:00:00Z',
+				},
+			],
+		});
+		render(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="schedule" />);
+
+		const times = screen.getByRole('group', { name: 'Schedule times' });
+		expect(within(times).getByLabelText('Starting time')).toHaveValue('12:00');
+		expect(within(times).getByLabelText('Ending time')).toHaveValue('13:00');
+		expect(screen.getByLabelText('Room name')).toHaveValue('Dining room');
+		expect(screen.getByLabelText('Service / interval title')).toHaveValue('Lunch');
+		expect(times.compareDocumentPosition(screen.getByLabelText('Room name')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+		const titleAndControls = screen.getByRole('group', { name: 'Schedule item title and controls' });
+		expect(within(titleAndControls).getByText('Lunch')).toBeVisible();
+		expect(within(titleAndControls).getByRole('button', { name: 'Move item up' })).toBeDisabled();
+		expect(within(titleAndControls).getByRole('button', { name: 'Move item down' })).toBeDisabled();
 	}, 10000);
 
 	test('sends only the Sessionize ID to the importer', async () => {
