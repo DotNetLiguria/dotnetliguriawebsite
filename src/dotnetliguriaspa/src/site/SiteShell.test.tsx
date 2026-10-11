@@ -62,11 +62,22 @@ describe('<SiteHeader />', () => {
 });
 
 describe('<SiteFooter />', () => {
-  test('links the archive and the team, and marks the missing legal pages', () => {
+  test('links the archive, the team and the three legal pages', () => {
     render(<SiteFooter />);
     expect(screen.getByRole('link', { name: 'Eventi passati' })).toHaveAttribute('href', '/workshops');
     expect(screen.getByRole('link', { name: 'Il team' })).toHaveAttribute('href', '/#team');
-    expect(screen.getAllByText('da completare')).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Termini di servizio' })).toHaveAttribute('href', '/termini-di-servizio');
+    expect(screen.getByRole('link', { name: 'Cookie' })).toHaveAttribute('href', '/cookie');
+    expect(screen.queryByText('da completare')).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'DotNetLiguria' })).toBeInTheDocument();
+  });
+
+  test('shows the legal line as the owner wrote it, with the authors notice', () => {
+    render(<SiteFooter />);
+    expect(screen.getByText(
+      '©DotNetLiguria, hosted by Vevy Europe S.p.A. via Semeria, 16A - 16131 Genova - Italia - P.IVA IT00269300109',
+    )).toBeInTheDocument();
+    expect(screen.getByText('I contenuti dei talk appartengono ai rispettivi autori.')).toBeInTheDocument();
   });
 });
