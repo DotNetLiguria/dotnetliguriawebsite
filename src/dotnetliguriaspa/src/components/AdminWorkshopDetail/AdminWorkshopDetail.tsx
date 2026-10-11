@@ -32,9 +32,9 @@ const workshopSteps = [
 	'Workshop information',
 	'Location',
 	'Tracks',
-	'Registration details',
 	'Talk pool',
 	'Agenda tracks and schedule',
+	'Registration details',
 	'Materials',
 	'Photos',
 ];
@@ -258,7 +258,16 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 	};
 
 	const handleRelatedWorkshopSaved = (updatedWorkshop: WorkshopModel) => {
-		const normalizedWorkshop = { ...updatedWorkshop, workshopId: updatedWorkshop.workshopId || id || '' };
+		const normalizedWorkshop = {
+			...updatedWorkshop,
+			workshopId: updatedWorkshop.workshopId || id || '',
+			eventbriteSyncStatus: updatedWorkshop.eventbriteEventId
+				? 'update-pending'
+				: updatedWorkshop.eventbriteSyncStatus,
+			eventbriteLastError: updatedWorkshop.eventbriteEventId
+				? undefined
+				: updatedWorkshop.eventbriteLastError,
+		};
 		setWorkshop(normalizedWorkshop);
 		syncWorkshopForm(normalizedWorkshop);
 	};
@@ -1055,7 +1064,7 @@ const AdminWorkshopDetail: FC<AdminWorkshopDetailProps> = () => {
 				<AdminWorkshopAgenda
 					workshop={workshop}
 					onSaved={handleRelatedWorkshopSaved}
-					activePage={activeStep === 5 ? 'registration' : activeStep === 6 ? 'talks' : 'schedule'}
+					activePage={activeStep === 5 ? 'talks' : activeStep === 6 ? 'schedule' : 'registration'}
 				/>
 				</Box>
 			)}

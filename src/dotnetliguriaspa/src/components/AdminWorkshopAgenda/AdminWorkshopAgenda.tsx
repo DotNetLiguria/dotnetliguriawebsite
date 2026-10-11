@@ -64,6 +64,14 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 	const [eventbriteTicketCapacity, setEventbriteTicketCapacity] = useState(0);
 	const [eventbriteSalesStart, setEventbriteSalesStart] = useState('');
 	const [eventbriteSalesEnd, setEventbriteSalesEnd] = useState('');
+	const [eventbriteSales, setEventbriteSales] = useState<{
+		totalCapacity: number;
+		sold: number;
+		pending: number;
+		remaining: number;
+		refreshedAt: string;
+	} | null>(null);
+	const [refreshingEventbriteSales, setRefreshingEventbriteSales] = useState(false);
 	const [syncingEventbrite, setSyncingEventbrite] = useState(false);
 	const [publishingEventbrite, setPublishingEventbrite] = useState(false);
 	const [attendeeNotes, setAttendeeNotes] = useState('');
@@ -116,6 +124,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		setEventbriteTicketCapacity(workshop.eventbriteTicketCapacity ?? 0);
 		setEventbriteSalesStart(workshop.eventbriteSalesStart ?? '');
 		setEventbriteSalesEnd(workshop.eventbriteSalesEnd ?? '');
+		setEventbriteSales(null);
 		setAttendeeNotes(workshop.attendeeNotes ?? '');
 	}, [workshop]);
 
@@ -414,18 +423,18 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		if (eventbriteSalesStart && eventbriteSalesEnd && eventbriteSalesStart >= eventbriteSalesEnd) {
 			setMessage('Eventbrite ticket sales must end after they start.');
 			setError(true);
-			return;
+			return false;
 		}
 		if (activePage !== 'registration' && items.some(item => item.itemType === 'talk' &&
 			(!item.trackId || !tracks.some(track => track.workshopAgendaTrackId === item.trackId)))) {
 			setMessage('Assign each talk to a track before saving the agenda.');
 			setError(true);
-			return;
+			return false;
 		}
 		if (talks.some(talk => !talk.trackId || !tracks.some(track => track.workshopAgendaTrackId === talk.trackId))) {
 			setMessage('Assign each talk to a track before saving the agenda.');
 			setError(true);
-			return;
+			return false;
 		}
 		for (const item of activePage === 'registration' ? [] : items) {
 			const start = new Date(item.startTime).getTime();
@@ -433,7 +442,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 			if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
 				setMessage('Each agenda item must have a valid ending time after its start time.');
 				setError(true);
-				return;
+				return false;
 			}
 		}
 		for (let firstIndex = 0; activePage !== 'registration' && firstIndex < items.length; firstIndex += 1) {
@@ -455,7 +464,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 				if (overlaps && (sharesTrack || eventWide || sharesRoom || sharesSpeaker)) {
 					setMessage('Agenda items cannot overlap in the same track, room, or event-wide break, or schedule a speaker twice.');
 					setError(true);
-					return;
+					return false;
 				}
 			}
 		}
@@ -480,12 +489,18 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 				body: JSON.stringify(updatedWorkshop),
 			});
 			if (!response.ok) await reportError(response, 'Could not save workshop agenda');
-			onSaved(updatedWorkshop);
+			onSaved({
+				...updatedWorkshop,
+				eventbriteSyncStatus: workshop.eventbriteEventId ? 'update-pending' : workshop.eventbriteSyncStatus,
+				eventbriteLastError: undefined,
+			});
 			setMessage('Workshop details and agenda saved.');
 			setError(false);
+			return true;
 		} catch (exception) {
 			setMessage(exception instanceof Error ? exception.message : 'Could not save workshop agenda');
 			setError(true);
+			return false;
 		} finally {
 			setBusy(false);
 		}
@@ -502,7 +517,7 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 			if (!response.ok) await reportError(response, 'Could not update Eventbrite ticket availability');
 			const updatedWorkshop: WorkshopModel = await response.json();
 			onSaved(updatedWorkshop);
-			setMessage('Eventbrite ticket availability updated.');
+			setMessage('Ticket capacity saved locally. Use Sync/Update Eventbrite to apply it.');
 			setError(false);
 		} catch (exception) {
 			setMessage(exception instanceof Error ? exception.message : 'Could not update Eventbrite ticket availability');
@@ -512,15 +527,32 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		}
 	};
 
+	const handleRefreshEventbriteSales = async () => {
+		setRefreshingEventbriteSales(true);
+		try {
+			const response = await fetch(`${API_BASE_URL}/Eventbrite/TicketSales/${workshop.workshopId}`);
+			if (!response.ok) await reportError(response, 'Could not refresh Eventbrite ticket sales');
+			setEventbriteSales(await response.json());
+			setMessage('Live Eventbrite ticket sales refreshed.');
+			setError(false);
+		} catch (exception) {
+			setMessage(exception instanceof Error ? exception.message : 'Could not refresh Eventbrite ticket sales');
+			setError(true);
+		} finally {
+			setRefreshingEventbriteSales(false);
+		}
+	};
+
 	const handleSyncEventbrite = async () => {
 		setSyncingEventbrite(true);
 		try {
+			if (!await handleSave()) return;
 			const response = await fetch(`${API_BASE_URL}/Eventbrite/Sync/${workshop.workshopId}`, { method: 'POST' });
 			if (!response.ok) await reportError(response, 'Eventbrite synchronization failed');
 			const updatedWorkshop: WorkshopModel = await response.json();
 			onSaved(updatedWorkshop);
 			setMessage(updatedWorkshop.eventbriteEventId
-				? 'Eventbrite draft synchronized.'
+				? 'Eventbrite event synchronized.'
 				: 'Workshop saved. Add its location, agenda, and initial ticket quantity before Eventbrite can create a draft.');
 			setError(false);
 		} catch (exception) {
@@ -537,7 +569,8 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		try {
 			const response = await fetch(`${API_BASE_URL}/Eventbrite/Publish/${workshop.workshopId}`, { method: 'POST' });
 			if (!response.ok) await reportError(response, 'Eventbrite publishing failed');
-			onSaved({ ...workshop, eventbritePublished: true });
+			const refreshed = await fetch(`${API_BASE_URL}/Workshop/Get/${workshop.workshopId}`);
+			if (refreshed.ok) onSaved(await refreshed.json());
 			setMessage('Event published on Eventbrite.');
 			setError(false);
 		} catch (exception) {
@@ -548,16 +581,43 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 		}
 	};
 
+	const readinessIssues = [
+		!workshop.title?.trim() && 'Workshop title',
+		!workshop.description?.trim() && 'Workshop description',
+		!workshop.eventDate && 'Event date',
+		!workshop.location?.name?.trim() && 'Location name',
+		!workshop.location?.address?.trim() && 'Location address',
+		eventbriteTicketCapacity <= 0 && 'Positive free-ticket capacity',
+		tracks.length === 0 && 'At least one agenda track',
+		items.length === 0 && 'At least one scheduled agenda item',
+		items.some(item => !Number.isFinite(new Date(item.startTime).getTime()) ||
+			!Number.isFinite(new Date(item.endTime).getTime()) ||
+			new Date(item.endTime) <= new Date(item.startTime)) && 'Valid start and end times for each agenda item',
+		eventbriteSalesStart && eventbriteSalesEnd && eventbriteSalesStart >= eventbriteSalesEnd &&
+			'Sales end time later than sales start time',
+	].filter((issue): issue is string => Boolean(issue));
+
 	return (
 		<Box sx={{ display: 'grid', gap: 3, mt: 4 }}>
 			<Paper sx={{ p: 3, display: activePage === 'registration' ? 'block' : 'none' }}>
 				<Typography variant="h5" sx={{ mb: 2 }}>Registration and attendee details</Typography>
+				<Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+					Save workshop and agenda changes locally first. Eventbrite is changed only when you select Sync/Update below.
+				</Typography>
+				{readinessIssues.length > 0 && (
+					<Alert severity="info" sx={{ mb: 2 }}>
+						<Typography variant="subtitle2">Required before Eventbrite can be synchronized</Typography>
+						<ul style={{ margin: '4px 0 0', paddingLeft: 22 }}>
+							{readinessIssues.map(issue => <li key={issue}>{issue}</li>)}
+						</ul>
+					</Alert>
+				)}
 				<Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { sm: '1fr 1fr' } }}>
 					<TextField label="Seat booking and cancellation URL" value={bookingServiceUrl} onChange={event => setBookingServiceUrl(event.target.value)} />
 					<TextField
 						label="Available free Eventbrite tickets"
 						type="number"
-						slotProps={{ htmlInput: { min: workshop.eventbriteSyncedTicketCapacity ?? 0, step: 1 } }}
+						slotProps={{ htmlInput: { min: Math.max(workshop.eventbriteSyncedTicketCapacity ?? 0, (eventbriteSales?.sold ?? 0) + (eventbriteSales?.pending ?? 0)), step: 1 } }}
 						value={eventbriteTicketCapacity}
 						onChange={event => setEventbriteTicketCapacity(Math.max(0, Number.parseInt(event.target.value, 10) || 0))}
 						helperText={`Separate from venue capacity. Increase this value to release more tickets; currently synchronized total: ${workshop.eventbriteSyncedTicketCapacity ?? 0}.`}
@@ -590,17 +650,29 @@ const AdminWorkshopAgenda: FC<AdminWorkshopAgendaProps> = ({ workshop, onSaved, 
 							Open Eventbrite event
 						</Button>
 					)}
+					{workshop.eventbriteEventId && (
+						<Button variant="outlined" onClick={() => void handleRefreshEventbriteSales()} disabled={refreshingEventbriteSales || busy}>
+							{refreshingEventbriteSales ? 'Refreshing ticket sales…' : 'Refresh live ticket sales'}
+						</Button>
+					)}
+					{eventbriteSales && (
+						<Alert severity="info" sx={{ width: '100%' }}>
+							Eventbrite tickets — sold: {eventbriteSales.sold}, pending: {eventbriteSales.pending},
+							{' '}total capacity: {eventbriteSales.totalCapacity}, remaining: {eventbriteSales.remaining}.
+							{' '}Refreshed {new Date(eventbriteSales.refreshedAt).toLocaleString()}.
+						</Alert>
+					)}
 					<Button variant="contained" onClick={() => void handleSave()} disabled={busy || syncingEventbrite}>
-						Save registration details
+						Save registration and agenda
 					</Button>
 					{workshop.eventbriteEventId &&
 						eventbriteTicketCapacity > (workshop.eventbriteSyncedTicketCapacity ?? 0) && (
 							<Button variant="outlined" onClick={() => void handleSetEventbriteCapacity()} disabled={busy}>
-								Add Eventbrite ticket availability
+								Save ticket capacity
 							</Button>
 						)}
-					<Button variant="outlined" onClick={() => void handleSyncEventbrite()} disabled={busy || syncingEventbrite}>
-						{syncingEventbrite ? 'Syncing…' : workshop.eventbriteEventId ? 'Sync Eventbrite draft' : 'Create Eventbrite draft'}
+					<Button variant="outlined" onClick={() => void handleSyncEventbrite()} disabled={busy || syncingEventbrite || readinessIssues.length > 0}>
+						{syncingEventbrite ? 'Syncing…' : workshop.eventbriteEventId ? 'Sync/Update Eventbrite' : 'Create Eventbrite draft'}
 					</Button>
 					{workshop.eventbriteEventId && !workshop.eventbritePublished && (
 						<Button variant="contained" color="warning" onClick={() => void handlePublishEventbrite()} disabled={busy || publishingEventbrite}>

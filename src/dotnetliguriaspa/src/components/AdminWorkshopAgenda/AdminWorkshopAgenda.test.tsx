@@ -7,20 +7,14 @@ const jsonResponse = (data: unknown, status = 200) =>
 	new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
 describe('<AdminWorkshopAgenda />', () => {
-	test('keeps registration, talk pool and per-track schedule pages separate', () => {
+	test('keeps the talk pool, schedule, and final registration pages separate', () => {
 		const workshop = makeWorkshop();
 		const { rerender } = render(
-			<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="registration" />
+			<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="talks" />
 		);
 
-		expect(screen.getByText('Registration and attendee details')).toBeVisible();
-		expect(screen.getByLabelText('Seat booking and cancellation URL')).toBeVisible();
-		expect(screen.getByText('Talk pool')).not.toBeVisible();
-
-		rerender(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="talks" />);
 		expect(screen.getByText('Talk pool')).toBeVisible();
-		expect(screen.getByRole('combobox', { name: 'Import from' })).toHaveTextContent('None');
-		expect(screen.getByLabelText('Talk title')).toBeVisible();
+		expect(screen.queryByText('Registration and attendee details')).not.toBeVisible();
 
 		rerender(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="schedule" />);
 		expect(screen.getByText('Track schedule')).toBeVisible();
@@ -28,6 +22,10 @@ describe('<AdminWorkshopAgenda />', () => {
 		expect(screen.getByLabelText('Talk duration (minutes)')).toHaveValue(60);
 		expect(screen.getByLabelText('Gap duration (minutes)')).toHaveValue(5);
 		expect(screen.getByText('Talk pool')).not.toBeVisible();
+
+		rerender(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="registration" />);
+		expect(screen.getByText('Registration and attendee details')).toBeVisible();
+		expect(screen.getByLabelText('Seat booking and cancellation URL')).toBeVisible();
 	}, 10000);
 
 	test('saves an initial Eventbrite ticket quantity separately from venue spaces', async () => {
@@ -39,7 +37,7 @@ describe('<AdminWorkshopAgenda />', () => {
 		fireEvent.change(screen.getByLabelText('Available free Eventbrite tickets'), { target: { value: '35' } });
 		fireEvent.change(screen.getByLabelText('Eventbrite ticket sales start'), { target: { value: '2024-03-01T09:00' } });
 		fireEvent.change(screen.getByLabelText('Eventbrite ticket sales end'), { target: { value: '2024-03-14T18:00' } });
-		fireEvent.click(screen.getByRole('button', { name: 'Save registration details' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Save registration and agenda' }));
 
 		await waitFor(() => expect(fetch).toHaveBeenCalledWith(
 			expect.stringContaining('/Workshop/Update/workshop-1'),
@@ -53,6 +51,58 @@ describe('<AdminWorkshopAgenda />', () => {
 		expect(body.eventbriteSalesEnd).toBe('2024-03-14T18:00');
 		expect(body.location.maximumSpaces).toBe(120);
 	}, 10000);
+
+	test('refreshes Eventbrite inventory and displays aggregate counts only', async () => {
+		const workshop = makeWorkshop({
+			eventbriteEventId: 'event-1',
+			eventbriteTicketCapacity: 40,
+			agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main', order: 0 }],
+			agendaItems: [{
+				workshopAgendaItemId: 'item-1', itemType: 'service', trackId: 'track-1',
+				startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z',
+			}],
+		});
+		render(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="registration" />);
+		vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
+			totalCapacity: 40, sold: 12, pending: 2, remaining: 26, refreshedAt: '2026-10-11T10:00:00Z',
+		}));
+
+		fireEvent.click(await screen.findByRole('button', { name: 'Refresh live ticket sales' }));
+
+		await waitFor(() => expect(screen.getAllByRole('alert').find(alert =>
+			alert.textContent?.includes('Eventbrite tickets'))).toHaveTextContent(
+			/sold: 12, pending: 2, total capacity: 40, remaining: 26/,
+		));
+		expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/Eventbrite/TicketSales/workshop-1'));
+	});
+
+	test('saves local agenda before explicitly syncing Eventbrite', async () => {
+		const workshop = makeWorkshop({
+			agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main', order: 0 }],
+			agendaItems: [{
+				workshopAgendaItemId: 'item-1', itemType: 'service', trackId: 'track-1',
+				startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z',
+			}],
+			eventbriteTicketCapacity: 25,
+		});
+		render(<AdminWorkshopAgenda workshop={workshop} onSaved={() => undefined} activePage="registration" />);
+		vi.mocked(fetch)
+			.mockResolvedValueOnce(new Response(null, { status: 204 }))
+			.mockResolvedValueOnce(jsonResponse({ ...workshop, eventbriteEventId: 'event-1' }));
+
+		fireEvent.click(await screen.findByRole('button', { name: 'Create Eventbrite draft' }));
+
+		await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(call =>
+			String(call[0]).includes('/Eventbrite/Sync/'))).toBe(true));
+		const saveCall = vi.mocked(fetch).mock.calls.find(call =>
+			String(call[0]).includes('/Workshop/Update/'));
+		const syncCall = vi.mocked(fetch).mock.calls.find(call =>
+			String(call[0]).includes('/Eventbrite/Sync/'));
+		expect(saveCall).toBeDefined();
+		expect(syncCall).toBeDefined();
+		expect(vi.mocked(fetch).mock.calls.indexOf(saveCall!)).toBeLessThan(
+			vi.mocked(fetch).mock.calls.indexOf(syncCall!));
+	});
 
 	test('auto-fills every single-track talk with time-only editable slots and technical gaps', async () => {
 		const workshop = makeWorkshop({

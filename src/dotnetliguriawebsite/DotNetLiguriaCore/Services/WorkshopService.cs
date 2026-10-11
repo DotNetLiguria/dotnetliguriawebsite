@@ -107,7 +107,10 @@ namespace DotNetLiguriaCore.Services
         public async Task UpdateEventbriteAsync(Workshop workshop)
         {
             var update = Builders<Workshop>.Update
+                .Set(value => value.EventbriteTicketCapacity, workshop.EventbriteTicketCapacity)
                 .Set(value => value.EventbriteSyncedTicketCapacity, workshop.EventbriteSyncedTicketCapacity)
+                .Set(value => value.EventbriteSalesStart, workshop.EventbriteSalesStart)
+                .Set(value => value.EventbriteSalesEnd, workshop.EventbriteSalesEnd)
                 .Set(value => value.EventbriteEventId, workshop.EventbriteEventId)
                 .Set(value => value.EventbriteEventUrl, workshop.EventbriteEventUrl)
                 .Set(value => value.EventbriteVenueId, workshop.EventbriteVenueId)

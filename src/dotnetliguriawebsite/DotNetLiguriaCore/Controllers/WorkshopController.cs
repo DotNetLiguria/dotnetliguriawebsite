@@ -9,14 +9,13 @@ namespace DotNetLiguriaCore.Controllers
 {
     [Route("api/[controller]/[action]")]
     [ApiController]
-    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, EventbriteIntegrationService eventbriteIntegrationService, IWebHostEnvironment environment, IAuthorizationService authorizationService) : ControllerBase
+    public class WorkshopController(WorkshopService workshopService, SpeakerService speakerService, WorkshopFileService workshopFileService, CounterService counterService, SessionizeImportService sessionizeImportService, IWebHostEnvironment environment, IAuthorizationService authorizationService) : ControllerBase
     {
         private readonly WorkshopService _workshopService = workshopService;
         private readonly SpeakerService _speakerService = speakerService;
         private readonly WorkshopFileService _workshopFileService = workshopFileService;
         private readonly CounterService _counterService = counterService;
         private readonly SessionizeImportService _sessionizeImportService = sessionizeImportService;
-        private readonly EventbriteIntegrationService _eventbriteIntegrationService = eventbriteIntegrationService;
         private readonly IWebHostEnvironment _environment = environment;
         private readonly IAuthorizationService _authorizationService = authorizationService;
 
@@ -220,6 +219,8 @@ namespace DotNetLiguriaCore.Controllers
                 updatedWorkshop.EventbritePublished = Workshop.EventbritePublished;
                 updatedWorkshop.ExternalRegistrationLink = Workshop.ExternalRegistrationLink;
                 updatedWorkshop.ExternalRegistration = Workshop.ExternalRegistration;
+                updatedWorkshop.EventbriteSyncStatus = "update-pending";
+                updatedWorkshop.EventbriteLastError = null;
             }
             EnsureAgendaIds(updatedWorkshop);
             
@@ -240,31 +241,9 @@ namespace DotNetLiguriaCore.Controllers
             }
 
             await _workshopService.UpdateAsync(id, updatedWorkshop);
-
-            try
+            if (!string.IsNullOrWhiteSpace(updatedWorkshop.EventbriteEventId))
             {
-                await _eventbriteIntegrationService.SyncIfReadyAsync(updatedWorkshop, HttpContext.RequestAborted);
-            }
-            catch (EventbriteApiException exception)
-            {
-                return Problem(
-                    detail: $"The workshop was saved locally, but Eventbrite synchronization failed: {exception.Message}",
-                    statusCode: StatusCodes.Status502BadGateway,
-                    title: "Eventbrite synchronization failed");
-            }
-            catch (InvalidOperationException exception)
-            {
-                return Problem(
-                    detail: $"The workshop was saved locally, but Eventbrite needs attention: {exception.Message}",
-                    statusCode: StatusCodes.Status409Conflict,
-                    title: "Eventbrite synchronization needs attention");
-            }
-            catch (ArgumentException exception)
-            {
-                return Problem(
-                    detail: $"The workshop was saved locally, but Eventbrite data is invalid: {exception.Message}",
-                    statusCode: StatusCodes.Status400BadRequest,
-                    title: "Invalid Eventbrite event data");
+                await _workshopService.UpdateEventbriteAsync(updatedWorkshop);
             }
 
             return NoContent();
