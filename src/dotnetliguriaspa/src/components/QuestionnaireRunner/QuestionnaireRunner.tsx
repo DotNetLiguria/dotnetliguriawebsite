@@ -286,7 +286,13 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
               </>
             )}
           </Checkbox>
-          {errors.consentGiven && <p role="alert" className="mt-2 font-bold text-red-700">{errors.consentGiven}</p>}
+          <p className="mt-3 pl-9 text-base text-muted">
+            Come trattiamo i tuoi dati: leggi l'
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-bold text-cyan-700 underline decoration-2 underline-offset-4">
+              informativa sulla privacy{' '}<span className="sr-only">(si apre in una nuova scheda)</span>
+            </a>.
+          </p>
+          {errors.consentGiven &&<p role="alert" className="mt-2 font-bold text-red-700">{errors.consentGiven}</p>}
         </div>
       )}
 
