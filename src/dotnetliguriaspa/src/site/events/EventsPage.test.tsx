@@ -65,6 +65,15 @@ describe('<EventsPage />', () => {
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops`);
   });
 
+  test.each(['02024', '2024.0', ' 2024'])('treats the non-normalised year %j as the whole archive, not as a duplicate 2024 page', async value => {
+    mockApi({ '/Workshop/Get?onlyPublished=true': LIST });
+    renderAt(`/workshops?anno=${encodeURIComponent(value)}`);
+    expect(await screen.findByRole('region', { name: '2025' })).toBeInTheDocument();
+    expect(yearHeadings()).toEqual(['2025', '2024', '2023']);
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops`);
+    expect(document.title).not.toContain(value.trim());
+  });
+
   test('reports failures with a retry and shows an empty archive plainly', async () => {
     const user = userEvent.setup();
     vi.spyOn(console, 'error').mockImplementation(() => {});

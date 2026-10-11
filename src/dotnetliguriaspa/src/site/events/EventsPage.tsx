@@ -40,7 +40,8 @@ export default function EventsPage() {
   );
   const years = useMemo(() => [...new Set(newest.map(yearOf))], [newest]);
   const requested = params.get('anno');
-  const selected = requested && years.includes(Number(requested)) ? requested : ALL;
+  // Only an exact four-digit year selects a page: "02024" or "2024.0" would duplicate the 2024 archive.
+  const selected = requested && /^\d{4}$/.test(requested) && years.includes(Number(requested)) ? requested : ALL;
   const visibleYears = selected === ALL ? years : [Number(selected)];
   const firstYear = years.length ? years[years.length - 1] : null;
 
