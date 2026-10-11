@@ -1,0 +1,126 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useOidcFetch } from '@axa-fr/react-oidc';
+import { API_BASE_URL } from '../config/apiConfig';
+import { SiteWorkshop, contentUrl } from '../site/siteApi';
+
+// Shapes used by the admin, as serialized by DotNetLiguriaCore (fields the admin does not edit are kept as-is).
+export interface AdminWorkshop extends SiteWorkshop {
+  published?: boolean;
+  in_homepage?: boolean;
+  feedbackEnabled?: boolean;
+}
+
+export interface AdminSpeaker {
+  workshopSpeakerId: string;
+  name: string;
+  email?: string | null;
+  description?: string | null;
+  profileImageUrl?: string | null;
+  isActive?: boolean;
+  sessionizeId?: string | null;
+  [key: string]: unknown;
+}
+
+export interface AdminVenue {
+  venueId: string;
+  name: string;
+  address?: string | null;
+}
+
+export class AdminApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Errore HTTP: ${status}`);
+    this.name = 'AdminApiError';
+    this.status = status;
+  }
+}
+
+/** fetch for the admin API: adds the signed-in user's token (useOidcFetch), parses JSON, throws on errors. */
+export function useAdminFetch() {
+  const { fetch } = useOidcFetch();
+  return useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
+    const headers: Record<string, string> = { Accept: 'application/json', ...(init.headers as Record<string, string> | undefined) };
+    if (init.body) headers['Content-Type'] = 'application/json';
+    const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+    if (!response.ok) throw new AdminApiError(response.status);
+    const text = response.status === 204 ? '' : await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }, [fetch]);
+}
+
+export type AdminLoad<T> = { state: 'loading' } | { state: 'ready'; data: T } | { state: 'error'; message: string };
+
+/** Loads data with the admin fetch; reload() runs it again (after a save or a failed load). */
+export function useAdminLoad<T>(path: string) {
+  const api = useAdminFetch();
+  const [load, setLoad] = useState<AdminLoad<T>>({ state: 'loading' });
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setLoad(current => (current.state === 'ready' ? current : { state: 'loading' }));
+    api<T>(path)
+      .then(data => { if (alive) setLoad({ state: 'ready', data }); })
+      .catch((error: unknown) => { if (alive) setLoad({ state: 'error', message: error instanceof Error ? error.message : String(error) }); });
+    return () => { alive = false; };
+  }, [api, path, version]);
+  const reload = useCallback(() => setVersion(v => v + 1), []);
+  return [load, reload] as const;
+}
+
+export const clean = (text?: string | null) => (text ?? '').replace(/\s+/g, ' ').trim();
+export const nameKey = (name?: string | null) => clean(name).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/** Speaker names of a workshop: from the agenda talks when present, otherwise from the legacy tracks. */
+export function speakerNamesOf(workshop: AdminWorkshop): string[] {
+  if (workshop.talks?.length) return workshop.talks.flatMap(talk => (talk.speakers ?? []).map(s => clean(s.name))).filter(Boolean);
+  return (workshop.tracks ?? []).flatMap(track => clean(track.speakersName).split(/\s*,\s*/)).filter(Boolean);
+}
+
+// Photo candidates, same rule as the public site's SpeakerAvatar: the record (unless it is a stale /Uploads path),
+// then /Contents/speakers and /Contents/profile named after the speaker.
+const slug = (name: string) =>
+  name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/['’]/g, '_').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+export function photoCandidates(name: string, profileImageUrl?: string | null) {
+  const list: string[] = [];
+  if (profileImageUrl && !/^\/?uploads\//i.test(profileImageUrl)) {
+    const url = /^https?:\/\//.test(profileImageUrl) ? profileImageUrl : contentUrl(profileImageUrl);
+    if (url) list.push(url);
+  }
+  const base = slug(clean(name));
+  if (base) for (const folder of ['speakers', 'profile']) for (const ext of ['jpg', 'png']) list.push(contentUrl(`${folder}/${base}.${ext}`)!);
+  return list;
+}
+
+const photoCache = new Map<string, Promise<string | null>>();
+
+async function firstReachable(urls: string[]) {
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      if (response.ok && !(response.headers.get('content-type') ?? '').includes('text/html')) return url;
+    } catch { /* try the next candidate */ }
+  }
+  return null;
+}
+
+/** Resolves each speaker's usable photo (or null) with lightweight HEAD requests, cached for the session. */
+export function useSpeakerPhotos(speakers: AdminSpeaker[] | null) {
+  const [photos, setPhotos] = useState<Map<string, string | null> | null>(null);
+  useEffect(() => {
+    if (!speakers) return;
+    let alive = true;
+    Promise.all(speakers.map(async speaker => {
+      const key = `${speaker.workshopSpeakerId}|${speaker.profileImageUrl ?? ''}|${speaker.name}`;
+      if (!photoCache.has(key)) photoCache.set(key, firstReachable(photoCandidates(speaker.name, speaker.profileImageUrl)));
+      return [speaker.workshopSpeakerId, await photoCache.get(key)!] as const;
+    })).then(entries => { if (alive) setPhotos(new Map(entries)); });
+    return () => { alive = false; };
+  }, [speakers]);
+  return photos;
+}
+
+/** Test hook: forget resolved photos between tests. */
+export const resetPhotoCache = () => photoCache.clear();

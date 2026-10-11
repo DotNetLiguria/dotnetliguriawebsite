@@ -16,7 +16,7 @@ and elapsed timings are written under `.artifacts/test-results`.
 | --- | ---: | ---: |
 | RepositoryRules.Tests | 25 | 20 |
 | DotNetLiguriaCore.Tests | 97 | 15 |
-| Vitest | 117 | 60 |
+| Vitest | 125 | 60 |
 
 The backend suite covers authentication, BSON/JSON compatibility, questionnaire
 validation, APIs, statistics, CSV export and historical migration mappings.
