@@ -22,7 +22,21 @@ export interface ProgrammeEntry {
 }
 
 const LOGISTICS = /^(registrazione|q\s*&\s*a|saluto|saluti|pausa|chiusura)/i;
-const SESSION_TYPE: Record<string, string> = { panel: 'Panel', intro: 'Introduzione' };
+// Session types with an Italian label; keys are lower case without punctuation ("Lightning talk" → lightningtalk).
+const SESSION_TYPE: Record<string, string> = {
+  panel: 'Panel', intro: 'Introduzione', introduction: 'Introduzione', workshop: 'Workshop', keynote: 'Keynote',
+  demo: 'Demo', lightning: 'Lightning talk', lightningtalk: 'Lightning talk', qa: 'Domande e risposte', qanda: 'Domande e risposte',
+};
+// The default type and the generic ones say nothing to the visitor.
+const SILENT_TYPES = new Set(['', 'talk', 'other', 'service']);
+
+/** Label of a session type: the Italian name when known, otherwise the stored value with an initial capital. */
+export function sessionTypeLabel(type?: string | null): string | undefined {
+  const text = clean(type);
+  const key = text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (SILENT_TYPES.has(key)) return undefined;
+  return SESSION_TYPE[key] ?? `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+}
 // Titles the agenda editor fills in by itself.
 const CHANGEOVER = 'technical gap';
 const DEFAULT_BREAK = new Set(['service interval', 'interval', 'service break', 'break']);
@@ -46,7 +60,7 @@ function fromAgenda(workshop: SiteWorkshop): ProgrammeEntry[] {
       details.push(clean(tracks.find(track => track.workshopAgendaTrackId === item.trackId)?.name) || 'Tutte le track');
     }
     if (clean(item.roomName)) details.push(clean(item.roomName));
-    const type = isTalk ? SESSION_TYPE[clean(talk!.sessionType).toLowerCase()] : undefined;
+    const type = isTalk ? sessionTypeLabel(talk!.sessionType) : undefined;
     if (type) details.push(type);
 
     entries.push({
@@ -95,6 +109,11 @@ export function programmeSpan(entries: ProgrammeEntry[]) {
 export const sessionCount = (entries: ProgrammeEntry[]) => entries.filter(entry => !entry.logistics).length;
 
 export const sessionsLabel = (count: number) => `${count} ${count === 1 ? 'sessione' : 'sessioni'}`;
+
+/** Number of parallel tracks of the agenda (0 for the legacy single-track programme). */
+export const trackCount = (workshop: SiteWorkshop) => (workshop.agendaItems?.length ? (workshop.agendaTracks ?? []).length : 0);
+
+export const tracksLabel = (count: number) => `${count} track parallele`;
 
 /** Speakers in programme order, without duplicates, with how many sessions each one holds. */
 export function programmeSpeakers(entries: ProgrammeEntry[]) {

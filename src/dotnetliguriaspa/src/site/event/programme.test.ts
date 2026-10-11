@@ -1,5 +1,5 @@
 import { SiteWorkshop } from '../siteApi';
-import { programme, programmeSpan, programmeSpeakers, sessionCount, sessionsLabel } from './programme';
+import { programme, programmeSpan, programmeSpeakers, sessionCount, sessionsLabel, sessionTypeLabel, trackCount, tracksLabel } from './programme';
 
 const base = (extra: Partial<SiteWorkshop>): SiteWorkshop => ({ workshopId: 'w', title: 'Evento', eventDate: '2099-03-15T00:00:00+01:00', ...extra });
 
@@ -31,6 +31,21 @@ describe('programme', () => {
   test('omits the track name when the agenda has a single track', () => {
     const entries = programme({ ...agendaWorkshop, agendaTracks: [{ workshopAgendaTrackId: 'a', name: 'Sala grande' }] });
     expect(entries[0].details).toEqual(['Aula A', 'Panel']);
+  });
+
+  test('names every session type except the default ones, in Italian when known', () => {
+    expect(['panel', 'Intro', 'workshop', 'KEYNOTE', 'demo', 'lightning', 'Lightning talk', 'qa', 'Q&A'].map(sessionTypeLabel))
+      .toEqual(['Panel', 'Introduzione', 'Workshop', 'Keynote', 'Demo', 'Lightning talk', 'Lightning talk', 'Domande e risposte', 'Domande e risposte']);
+    expect(sessionTypeLabel('roundtable')).toBe('Roundtable');
+    expect(['talk', 'other', 'service', '', null, undefined].map(sessionTypeLabel)).toEqual([undefined, undefined, undefined, undefined, undefined, undefined]);
+    const entries = programme({ ...agendaWorkshop, talks: agendaWorkshop.talks!.map(talk => ({ ...talk, sessionType: 'workshop' })) });
+    expect(entries[0].details).toEqual(['Sala grande', 'Aula A', 'Workshop']);
+  });
+
+  test('counts the parallel tracks of an agenda only', () => {
+    expect(trackCount(agendaWorkshop)).toBe(2);
+    expect(trackCount({ ...agendaWorkshop, agendaItems: [] })).toBe(0);
+    expect(tracksLabel(2)).toBe('2 track parallele');
   });
 
   test('summarises time span, sessions and speakers', () => {
