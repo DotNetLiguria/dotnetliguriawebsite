@@ -1,5 +1,4 @@
 /* eslint-disable no-undef */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
@@ -43,8 +42,10 @@ root.render(
     <React.StrictMode>
         <BrowserRouter>
             <OidcProvider configuration={ configuration }>
-                <TokenRenewalMonitor />
-                <App/>
+                <ThemeProvider theme={theme}>
+                    <TokenRenewalMonitor />
+                    <App/>
+                </ThemeProvider>
             </OidcProvider>
         </BrowserRouter>
     </React.StrictMode>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, mockJson } from '../../test-utils';
+import { render, screen, mockJson, within } from '../../test-utils';
 import '@testing-library/jest-dom/vitest';
 import TopBar from './TopBar';
 
@@ -12,7 +12,8 @@ describe('<TopBar />', () => {
     ]);
     render(<TopBar showMenu />);
     expect(await screen.findByRole('link', { name: 'First' })).toHaveAttribute('href', '/first');
-    expect(screen.getAllByRole('link').map(link => link.textContent)).toEqual(['First', 'Later']);
+    expect(within(screen.getByRole('list')).getAllByRole('link').map(link => link.textContent)).toEqual(['First', 'Later']);
+    expect(screen.getByRole('link', { name: 'DotNetLiguria, area amministrazione' })).toHaveAttribute('href', '/admin');
     expect(screen.queryByRole('link', { name: 'Hidden' })).not.toBeInTheDocument();
   });
 

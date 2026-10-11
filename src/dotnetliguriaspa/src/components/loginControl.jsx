@@ -72,13 +72,13 @@ function LoginControl(props) {
         let name = oidcUser == null ? "(none)" : oidcUser.name;
         return (
             <Box     component={"div"} sx={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 1 }}>
-                <Typography    color="white" sx={{ fontSize: "1.1rem", fontFamily: "Titillium Web", fontWeight: 600 }}>
+                <Typography    color="primary" sx={{ fontSize: "1.1rem", fontFamily: "Titillium Web", fontWeight: 600 }}>
                     Benvenuto,{' '}
                 </Typography>
                 <RouterLink
                     to="/admin"
                     style={{
-                        color: 'white',
+                        color: '#083d73',
                         textDecoration: 'none',
                         fontSize: '1.1rem',
                         fontFamily: 'Titillium Web',
@@ -89,7 +89,7 @@ function LoginControl(props) {
                     {name}
                 </RouterLink>
                 <Button color="inherit" sx={{ padding: "0", minWidth: 'auto', ml: 1 }} onClick={logoutPlain}>
-                    <Typography    color="white" sx={{ fontSize: "1.1rem", fontFamily: "Titillium Web", fontWeight: 600 }}>Logout</Typography>
+                    <Typography    color="primary" sx={{ fontSize: "1.1rem", fontFamily: "Titillium Web", fontWeight: 600 }}>Logout</Typography>
                 </Button>
             </Box>
         );
@@ -97,7 +97,7 @@ function LoginControl(props) {
         return (
             <Box    component={"div"} sx={{ display: "flex", flexDirection: "row", alignItems: 'center' }}>
                 <Button color="inherit" onClick={loginPlain} sx={{ padding: "0", minWidth: 'auto', lineHeight: 1 }}>
-                    <Typography    color="white" sx={{ fontSize: "1.1rem", fontFamily: "Titillium Web", fontWeight: 600 }}>Area Personale</Typography>
+                    <Typography    color="primary" sx={{ fontSize: "1.1rem", fontFamily: "Titillium Web", fontWeight: 600 }}>Area Personale</Typography>
                 </Button>
             </Box>
         );

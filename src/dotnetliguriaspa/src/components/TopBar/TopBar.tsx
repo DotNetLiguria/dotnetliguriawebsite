@@ -4,6 +4,8 @@ import LoginControl from '../loginControl';
 import './TopBar.css';
 import { API_BASE_URL } from '../../config/apiConfig';
 import TopMenuElementModel from '../../models/TopMenuElementModel';
+import logo from '../../assets/logo/dotnet-liguria-storico.png';
+import logo2x from '../../assets/logo/dotnet-liguria-storico-2x.png';
 
 interface TopBarProps {
     pageName?: string;
@@ -82,6 +84,9 @@ const TopBar: FC<TopBarProps> = () => {
 
     return (
         <nav className="main-menu">
+            <RouterLink to="/admin" className="main-menu__logo" aria-label="DotNetLiguria, area amministrazione">
+                <img src={logo} srcSet={`${logo} 1x, ${logo2x} 2x`} alt="" width={241} height={105} />
+            </RouterLink>
             <ul>
                 {menuItems.map(item => (
                     <li key={item.href}>
