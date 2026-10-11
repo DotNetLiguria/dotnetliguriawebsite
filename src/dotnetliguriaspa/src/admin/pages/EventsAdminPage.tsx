@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, Input, Menu, MenuItem, MenuTrigger, Popover, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
+import { Button, Input, Label, ListBox, ListBoxItem, Menu, MenuItem, MenuTrigger, Popover, SearchField, Select, SelectValue, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn, focusRing, linkFocus } from '../ui';
 import { AdminWorkshop, clean, nameKey, speakerNamesOf, useAdminLoad } from '../adminApi';
@@ -13,6 +13,9 @@ type Sort = { key: SortKey; direction: 'ascending' | 'descending' };
 
 const pill = `inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-4 font-semibold text-navy transition-colors data-[hovered]:border-cyan-200 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white ${focusRing}`;
 const yearOf = (iso: string) => dayKey(iso).slice(0, 4);
+const PAGE = 25;
+// Few years fit as pills; a long archive (events since 2011) gets a compact select instead.
+const MAX_YEAR_PILLS = 5;
 
 interface Row {
   w: AdminWorkshop;
@@ -27,7 +30,7 @@ interface Row {
 function StatusBadges({ row }: { row: Row }) {
   return (
     <span className="flex flex-wrap gap-1.5">
-      {row.upcoming ? <Badge kind="planned">In programma</Badge> : <Badge kind="done">Concluso</Badge>}
+      {row.upcoming && <Badge kind="planned">In programma</Badge>}
       {row.w.in_homepage && <Badge kind="ok">In evidenza</Badge>}
       {row.w.published === false && <Badge kind="warn">Bozza</Badge>}
     </span>
@@ -76,6 +79,7 @@ export default function EventsAdminPage() {
   const [onlyDrafts, setOnlyDrafts] = useState(false);
   const [onlyFeatured, setOnlyFeatured] = useState(false);
   const [sort, setSort] = useState<Sort>({ key: 'date', direction: 'descending' });
+  const [shown, setShown] = useState(PAGE);
 
   const rows: Row[] = useMemo(() => {
     if (load.state !== 'ready') return [];
@@ -104,6 +108,7 @@ export default function EventsAdminPage() {
     });
   const onSort = (key: SortKey) => setSort(s => (s.key === key ? { key, direction: s.direction === 'ascending' ? 'descending' : 'ascending' } : { key, direction: key === 'title' ? 'ascending' : 'descending' }));
   const reset = () => { setQuery(''); setYear('tutti'); setOnlyDrafts(false); setOnlyFeatured(false); };
+  const page = visible.slice(0, shown);
   const drafts = rows.filter(r => r.w.published === false).length;
 
   return (
@@ -119,7 +124,22 @@ export default function EventsAdminPage() {
           <span className="pointer-events-none absolute inset-y-0 left-3.5 grid place-items-center text-muted"><AdminIcon name="search" /></span>
           <Input placeholder="Titolo, sede o relatore" className="min-h-11 w-full rounded-full border border-line bg-white pr-4 pl-11 text-base text-navy outline-none placeholder:text-[#6b8399] hover:border-cyan-200 focus:border-cyan-700 focus:ring-3 focus:ring-cyan-700/25 [&::-webkit-search-cancel-button]:hidden" />
         </SearchField>
-        {years.length > 1 && (
+        {years.length > MAX_YEAR_PILLS && (
+          <Select aria-label="Anno" selectedKey={year} onSelectionChange={key => setYear(String(key ?? 'tutti'))} className="flex items-center gap-2">
+            <Label className="sr-only">Anno</Label>
+            <Button className={`${pill} min-w-36 justify-between`}>
+              <SelectValue />
+              <AdminIcon name="chevron" className="size-4" />
+            </Button>
+            <Popover className="max-h-72 min-w-[var(--trigger-width)] overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-lift outline-none">
+              <ListBox className="outline-none">
+                <ListBoxItem id="tutti" textValue="Tutti gli anni" className="flex min-h-10 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50 data-[selected]:text-cyan-700">Tutti gli anni</ListBoxItem>
+                {years.map(y => <ListBoxItem key={y} id={y} textValue={y} className="flex min-h-10 cursor-pointer items-center rounded-lg px-3 font-semibold tabular-nums outline-none data-[focused]:bg-cyan-50 data-[selected]:text-cyan-700">{y}</ListBoxItem>)}
+              </ListBox>
+            </Popover>
+          </Select>
+        )}
+        {years.length > 1 && years.length <= MAX_YEAR_PILLS && (
           <ToggleButtonGroup aria-label="Anno" selectionMode="single" disallowEmptySelection selectedKeys={[year]} onSelectionChange={keys => setYear(String([...keys][0] ?? 'tutti'))} className="flex flex-wrap gap-2">
             <ToggleButton id="tutti" className={pill}>Tutti</ToggleButton>
             {years.map(y => <ToggleButton key={y} id={y} className={pill}>{y}</ToggleButton>)}
@@ -150,7 +170,7 @@ export default function EventsAdminPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {visible.map(row => {
+                  {page.map(row => {
                     const poster = contentUrl(row.w.image);
                     return (
                       <tr key={row.w.workshopId} className="group relative transition-colors hover:bg-cyan-50/60">
@@ -172,7 +192,7 @@ export default function EventsAdminPage() {
                 </tbody>
               </table>
               <ul className="divide-y divide-line md:hidden" aria-label="Eventi">
-                {visible.map(row => {
+                {page.map(row => {
                   const poster = contentUrl(row.w.image);
                   return (
                     <li key={row.w.workshopId}>
@@ -188,7 +208,12 @@ export default function EventsAdminPage() {
                   );
                 })}
               </ul>
-              <p className="border-t border-line px-5 py-3 text-sm text-muted">{visible.length} di {rows.length} eventi</p>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+                <p className="text-sm text-muted">{page.length} di {visible.length}{visible.length < rows.length ? ` (su ${rows.length})` : ''} eventi</p>
+                {visible.length > page.length && (
+                  <Button onPress={() => setShown(n => n + PAGE)} className={btn.ghost}>Mostra altri {Math.min(PAGE, visible.length - page.length)}</Button>
+                )}
+              </div>
             </>
           ) : rows.length ? (
             <EmptyState icon="calendar" title="Nessun evento corrisponde ai filtri" actions={<Button onPress={reset} className={btn.secondary}>Azzera i filtri</Button>} />

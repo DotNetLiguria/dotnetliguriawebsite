@@ -75,6 +75,25 @@ describe('<EventsAdminPage />', () => {
     expect(titles()[0]).toBe('Bozza futura');
   });
 
+  test('handles a long archive: year select instead of pills, 25 rows at a time, no routine badges', async () => {
+    const user = userEvent.setup();
+    const archive = Array.from({ length: 40 }, (_, i) => event(`e${i}`, `Evento ${i}`, `${2011 + Math.floor(i / 2.6)}-0${(i % 9) + 1}-10T00:00:00+02:00`));
+    mockApi({ '/Workshop/Get?onlyPublished=false': archive });
+    render(<EventsAdminPage />, { route: '/admin/workshops/' });
+    await screen.findByRole('table');
+    expect(screen.queryByRole('radiogroup', { name: 'Anno' })).not.toBeInTheDocument();
+    expect(titles()).toHaveLength(25);
+    expect(screen.getByText('25 di 40 eventi')).toBeInTheDocument();
+    expect(within(table()).queryByText('Concluso')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Mostra altri 15' }));
+    expect(titles()).toHaveLength(40);
+
+    await user.click(screen.getByRole('button', { name: /Tutti gli anni/ }));
+    await user.click(await screen.findByRole('option', { name: '2011' }));
+    expect(titles()).toEqual(['Evento 2', 'Evento 1', 'Evento 0']);
+    expect(screen.getByText('3 di 3 (su 40) eventi')).toBeInTheDocument();
+  });
+
   test('reports a failed load with a retry', async () => {
     const user = userEvent.setup();
     let calls = 0;
