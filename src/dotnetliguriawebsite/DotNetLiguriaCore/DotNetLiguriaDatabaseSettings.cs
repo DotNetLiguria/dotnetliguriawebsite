@@ -12,6 +12,8 @@ namespace DotNetLiguriaCore
 
         public string DatabaseName { get; set; } = null!;
 
+        public string BackupFolder { get; set; } = null!;
+
         public string WorkshopCollectionName { get; set; } = null!;
 
         public string SpeakerCollectionName { get; set; } = null!;

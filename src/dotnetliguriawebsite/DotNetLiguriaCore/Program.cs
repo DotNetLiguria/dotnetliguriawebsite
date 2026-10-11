@@ -66,8 +66,13 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
-        builder.Services.Configure<DotNetLiguriaDatabaseSettings>(
-        builder.Configuration.GetSection("DotNetLiguriaDatabase"));
+        builder.Services.AddOptions<DotNetLiguriaDatabaseSettings>()
+            .Bind(builder.Configuration.GetSection("DotNetLiguriaDatabase"))
+            .Validate(settings => !string.IsNullOrWhiteSpace(settings.BackupFolder),
+                "DotNetLiguriaDatabase:BackupFolder must be configured.")
+            .ValidateOnStart();
+        builder.Services.Configure<BackupAuthorizationOptions>(
+            builder.Configuration.GetSection(BackupAuthorizationOptions.SectionName));
 
         builder.Services.AddSingleton<WorkshopService>();
         builder.Services.AddSingleton<SpeakerService>();
@@ -81,6 +86,7 @@ public class Program
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
         builder.Services.AddSingleton<QuestionnaireService>();
+        builder.Services.AddSingleton<DatabaseBackupService>();
 
         var app = builder.Build();
         app.UseCors(_corsPolicy);
@@ -295,10 +301,15 @@ public class Program
                 .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
                 .AddRequirements(new FeedbackAdminRequirement()));
+            options.AddPolicy(BackupAuthorizationOptions.PolicyName, policy => policy
+                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
+                .RequireAuthenticatedUser()
+                .AddRequirements(new BackupAdminRequirement()));
         });
 
         services.AddScoped<IAuthorizationHandler, OtpRequirementHandler>();
         services.AddSingleton<IAuthorizationHandler, FeedbackAdminHandler>();
+        services.AddSingleton<IAuthorizationHandler, BackupAdminHandler>();
     }
 
     private static void ConfigureRateLimiting(IServiceCollection services)

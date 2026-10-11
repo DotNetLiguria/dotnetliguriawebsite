@@ -45,7 +45,7 @@ test.each([
   ['/admin', 'Admin Dashboard'], ['/admin/profile/', 'Profile'],
   ['/admin/workshops/', 'Workshops'], ['/admin/speakers/', 'Speakers'],
   ['/admin/board/', 'Board'], ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
-  ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'],
+  ['/admin/topmenu/', 'Top Menu'], ['/admin/downloads', 'Downloads'], ['/admin/import-export/', 'Import / Export'],
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn() });

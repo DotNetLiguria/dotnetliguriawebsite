@@ -15,6 +15,7 @@ import HomePage from "./components/HomePage/HomePage";
 import Workshops from "./components/Workshops/Workshops";
 import WorkshopDetail from "./components/WorkshopDetail/WorkshopDetail";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
+import AdminImportExport from "./components/AdminImportExport/AdminImportExport";
 import AdminBoard from "./components/AdminBoard/AdminBoard";
 import AdminBoardDetail from "./components/AdminBoardDetail/AdminBoardDetail";
 import AdminSpeakerDetail from "./components/AdminSpeakerDetail/AdminSpeakerDetail";
@@ -71,6 +72,7 @@ function App() {
                             <Route path='/admin/topmenu/' element={<AdminTopMenu pageName={"Top Menu"} />} />
                             <Route path='/admin/topmenu/:id' element={<AdminTopMenuDetail />} />
                             <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
+                            <Route path='/admin/import-export/' element={<AdminImportExport />} />
                         </Route>
                     </Routes>
                 )}
