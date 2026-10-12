@@ -25,9 +25,9 @@ See [architecture](docs/architecture.md), [frontend setup](src/dotnetliguriaspa/
 Read [AGENTS.md](AGENTS.md) and scoped guidance before editing. Canonical portable
 skills live under [.agents/skills](.agents/skills), with Claude and Copilot adapters.
 
-The Keycloak login theme (`keycloak/`, outside the solution) is documented, in Italian, in
-[docs/keycloak-theme.md](docs/keycloak-theme.md): production Keycloak version, build,
-installation, activation, rollback and upgrade checks.
+The Keycloak login theme (`keycloak/`, outside the solution) is documented in
+[docs/keycloak-theme.md](docs/keycloak-theme.md), including local testing and
+the container-image build and deployment steps for production.
 
 Do not execute DataMigration, apply schemas against real data, deploy, rotate
 credentials or commit changes without explicit approval. Store secrets outside
