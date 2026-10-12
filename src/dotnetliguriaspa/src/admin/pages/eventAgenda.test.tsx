@@ -245,7 +245,8 @@ describe('agenda tab', () => {
     const legacy = await screen.findByRole('region', { name: 'Sessioni in formato storico' });
     expect(within(legacy).getByText('Intro a Blazor')).toBeInTheDocument();
     expect(within(legacy).getByText('Ada Lovelace · Livello 2')).toBeInTheDocument();
-    expect(within(legacy).getByText('15/03/2024, 09:00–10:00')).toBeInTheDocument();
+    expect(within(legacy).getByText('09:00–10:00')).toBeInTheDocument();
+    expect(within(legacy).queryByText("Data diversa dall'evento")).not.toBeInTheDocument();
 
     await user.click(within(legacy).getByRole('button', { name: 'Aggiungi sessione' }));
     let dialog = await screen.findByRole('dialog', { name: 'Nuova sessione' });
@@ -277,6 +278,38 @@ describe('agenda tab', () => {
     await user.click(within(legacy).getByRole('button', { name: 'Elimina' }));
     await waitFor(() => expect(api.lastUpdate()!.tracks!.map(track => track.workshopTrackId)).toEqual(['k2', '00000000-0000-0000-0000-000000000000']));
     expect(await screen.findByText('Sessione eliminata')).toBeInTheDocument();
+  });
+
+  test('opens on the historic sessions when the event has no agenda, flags tracks on another day, and keeps the builder one action away', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture({ tracks: [
+      { workshopTrackId: 'k1', title: 'Registrazione', startTime: '2024-03-15T08:30:00Z', endTime: '2024-03-15T09:00:00Z', speakersName: '' },
+      // Day and month swapped by the old admin: 3 December instead of 12 March.
+      { workshopTrackId: 'k2', title: 'Keynote', startTime: '2024-12-03T09:00:00Z', endTime: '2024-12-03T10:00:00Z', speakersName: 'Ada Lovelace' },
+    ] }));
+    renderAgenda();
+    const legacy = await screen.findByRole('region', { name: 'Sessioni in formato storico' });
+    expect(screen.queryByText('Nessuna sessione')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Programma' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Importa da Sessionize' })).not.toBeInTheDocument();
+    const create = screen.getByRole('button', { name: "Crea un'agenda nuova" });
+    expect(legacy.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/Il sito mostra queste sessioni storiche finché/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '2. Agenda, completato' })).toHaveTextContent('1 sessione');
+
+    const rows = within(legacy).getAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent('08:30–09:00');
+    expect(rows[0]).not.toHaveTextContent('2024');
+    expect(within(rows[0]).queryByText("Data diversa dall'evento")).not.toBeInTheDocument();
+    expect(rows[1]).toHaveTextContent('3 dicembre 2024');
+    expect(rows[1]).toHaveTextContent('09:00–10:00');
+    expect(within(rows[1]).getByText("Data diversa dall'evento")).toBeInTheDocument();
+
+    await user.click(create);
+    expect(await screen.findByRole('region', { name: 'Programma' })).toBeInTheDocument();
+    expect(screen.getByText('Nessuna sessione')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Sessioni in formato storico' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: "Crea un'agenda nuova" })).not.toBeInTheDocument();
   });
 
   test('blocks the import while the agenda has unsaved changes', async () => {

@@ -1,43 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, TextAreaInput, TextInput, btn, linkFocus } from '../ui';
 import { clean, useAdminLoad } from '../adminApi';
 import { notify } from '../toasts';
 import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatWeekday } from '../../site/format';
-import { programme, programmeSpan, sessionCount } from '../../site/event/programme';
+import { programme, programmeSpan } from '../../site/event/programme';
 import type { VenueModel } from '../../models/VenueModel';
 import { ExternalLink, RowMenu, Skeleton } from './listUi';
 import { isHttpUrl as isWebUrl, mapsHref, parseCoordinates } from './VenuesPage';
 import {
-  CardForm, Dropzone, EditCard, EventApiError, EventIcon, EventPage, Facts, Missing, SelectInput, errorText, tabCls, useEventApi,
+  CardForm, Dropzone, EditCard, EventApiError, EventIcon, EventPage, Facts, Missing, SelectInput, errorText, useEventApi,
 } from './eventKit';
 import {
-  EventRecord, EventSpeaker, IMAGE_EXTENSIONS, afterSave, bookingUrlOf, buildWorkshopUpdate, coreValuesOf, dateInputValue,
-  eventSpeakers, hasAllowedExtension, locationFromVenue, parseRooms, roomsText, toClockTime, withBookingUrl,
+  EventRecord, EventSpeaker, IMAGE_EXTENSIONS, STEPS, StepId, afterSave, bookingUrlOf, buildWorkshopUpdate, coreValuesOf, dateInputValue,
+  eventSpeakers, hasAllowedExtension, locationFromVenue, parseRooms, roomsText, stepStatuses, toClockTime, withBookingUrl,
 } from './eventModel';
+import { StepNav, Stepper } from './eventStepper';
 import { AgendaPanel, useAgendaDraft } from './eventAgenda';
 import { FilesPanel, PublishPanel, QuestionnairePanel, SpeakersPanel } from './eventPanels';
 
-// Event card: /admin/workshop/:id with the section in the hash (#agenda, #pubblicazione…), so links from the
-// dashboard and the lists land on the right tab. Every section is a read-only card with its own pencil;
+// Event card: /admin/workshop/:id with the step in the hash (#agenda, #pubblicazione…), so links from the
+// dashboard and the lists land on the right step. Every section is a read-only card with its own pencil;
 // saves send the whole record (PUT /Workshop/Update/{id}) exactly as the previous admin did.
 
-const TABS = [
-  { id: 'panoramica', label: 'Panoramica' },
-  { id: 'agenda', label: 'Agenda' },
-  { id: 'relatori', label: 'Relatori' },
-  { id: 'materiali', label: 'Materiali e foto' },
-  { id: 'questionario', label: 'Questionario' },
-  { id: 'pubblicazione', label: 'Pubblicazione' },
-] as const;
-type TabId = typeof TABS[number]['id'];
-
-const tabOf = (hash: string, search: string): TabId => {
+const stepOf = (hash: string, search: string): StepId => {
   const wanted = hash.replace(/^#/, '') || new URLSearchParams(search).get('tab') || '';
-  return (TABS.find(tab => tab.id === wanted)?.id ?? 'panoramica');
+  return (STEPS.find(step => step.id === wanted)?.id ?? 'panoramica');
 };
 
 type RecordLoad = { state: 'loading' } | { state: 'ready' } | { state: 'error'; message: string; status?: number };
@@ -287,9 +277,20 @@ export default function EventDetailAdminPage() {
     void fetchWorkshop();
   }, [fetchWorkshop]);
 
-  const tab = tabOf(location.hash, location.search);
+  const step = stepOf(location.hash, location.search);
   const tabHref = useCallback((next: string) => `${location.pathname}#${next}`, [location.pathname]);
-  const selectTab = (next: React.Key) => navigate({ pathname: location.pathname, hash: `#${String(next)}` }, { replace: true });
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeading = useRef(false);
+  // Indietro/Avanti move the reader to the new step's heading once it is on screen.
+  useEffect(() => {
+    if (!focusHeading.current) return;
+    focusHeading.current = false;
+    headingRef.current?.focus();
+  }, [step]);
+  const selectStep = (next: StepId, moveFocus = false) => {
+    focusHeading.current = moveFocus;
+    navigate({ pathname: location.pathname, hash: `#${next}` }, { replace: true });
+  };
 
   const save = useCallback(async (body: EventRecord, toast: { title: string; description?: string }) => {
     try {
@@ -352,14 +353,33 @@ export default function EventDetailAdminPage() {
   }
 
   const title = clean(workshop.title) || 'Evento senza titolo';
-  const entries = programme(workshop);
-  const span = programmeSpan(entries);
-  const sessions = sessionCount(entries);
+  const span = programmeSpan(programme(workshop));
   const speakerCount = eventSpeakers(workshop, speakers).length;
   const upcoming = dayKey(workshop.eventDate) >= dayKey(new Date().toISOString());
   const poster = contentUrl(workshop.image);
   const place = clean(workshop.location?.name);
-  const counts: Partial<Record<TabId, number>> = { agenda: sessions, relatori: speakerCount };
+  const statuses = stepStatuses(workshop, speakerCount);
+  const stepDefinition = STEPS.find(item => item.id === step) ?? STEPS[0];
+  const stepIndex = STEPS.indexOf(stepDefinition);
+
+  const stepContent = () => {
+    switch (step) {
+      case 'agenda': return <AgendaPanel page={page} draft={agenda} />;
+      case 'relatori': return <SpeakersPanel page={page} />;
+      case 'materiali': return <FilesPanel page={page} />;
+      case 'questionario': return <QuestionnairePanel page={page} />;
+      case 'pubblicazione': return <PublishPanel page={page} />;
+      default: return (
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          <DescriptionCard page={page} />
+          <DateVenueCard page={page} venues={venues} venuesState={venuesLoad.state} reloadVenues={reloadVenues} />
+          <PosterCard page={page} stamp={posterStamp} onUploaded={() => setPosterStamp(Date.now())} />
+          <BookingCard page={page} />
+          <NotesCard page={page} />
+        </div>
+      );
+    }
+  };
 
   return (
     <>
@@ -390,27 +410,15 @@ export default function EventDetailAdminPage() {
         </div>
       </div>
 
-      <Tabs selectedKey={tab} onSelectionChange={selectTab} className="mt-6">
-        <TabList aria-label="Sezioni dell'evento" className="flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
-          {TABS.map(item => (
-            <Tab key={item.id} id={item.id} className={tabCls}>
-              {item.label}{counts[item.id] !== undefined && <span className="ml-1.5 text-muted tabular-nums">{counts[item.id]}</span>}
-            </Tab>
-          ))}
-        </TabList>
-        <TabPanel id="panoramica" className="mt-6 grid items-start gap-5 outline-none xl:grid-cols-2">
-          <DescriptionCard page={page} />
-          <DateVenueCard page={page} venues={venues} venuesState={venuesLoad.state} reloadVenues={reloadVenues} />
-          <PosterCard page={page} stamp={posterStamp} onUploaded={() => setPosterStamp(Date.now())} />
-          <BookingCard page={page} />
-          <NotesCard page={page} />
-        </TabPanel>
-        <TabPanel id="agenda" className="mt-6 outline-none"><AgendaPanel page={page} draft={agenda} /></TabPanel>
-        <TabPanel id="relatori" className="mt-6 outline-none"><SpeakersPanel page={page} /></TabPanel>
-        <TabPanel id="materiali" className="mt-6 outline-none"><FilesPanel page={page} /></TabPanel>
-        <TabPanel id="questionario" className="mt-6 outline-none"><QuestionnairePanel page={page} /></TabPanel>
-        <TabPanel id="pubblicazione" className="mt-6 outline-none"><PublishPanel page={page} /></TabPanel>
-      </Tabs>
+      <Stepper current={step} statuses={statuses} hrefFor={tabHref} onSelect={id => selectStep(id)} />
+      <section aria-labelledby="step-heading" className="mt-6">
+        <h2 id="step-heading" ref={headingRef} tabIndex={-1} className="text-2xl font-bold leading-tight outline-none">
+          <span className="text-muted">{stepIndex + 1}.</span> {stepDefinition.label}
+        </h2>
+        <p className="mt-1 max-w-[65ch] text-muted">{stepDefinition.description}</p>
+        <div className="mt-5">{stepContent()}</div>
+        <StepNav current={step} onMove={id => selectStep(id, true)} />
+      </section>
     </>
   );
 }

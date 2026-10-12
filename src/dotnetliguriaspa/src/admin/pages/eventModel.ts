@@ -1,4 +1,6 @@
 import { AdminWorkshop, clean, nameKey } from '../adminApi';
+import { dayKey } from '../../site/format';
+import { programme, sessionCount, sessionsLabel } from '../../site/event/programme';
 import type { VenueModel } from '../../models/VenueModel';
 
 // Event record as serialized by DotNetLiguriaCore (dates are ISO strings on the wire) and the pure rules of the
@@ -143,8 +145,12 @@ export const toStoredTime = (clockTime: string, existingValue: Date | string | u
   return `${datePart || '2000-01-01'}T${clockTime}:00.000Z`;
 };
 
-/** "dd/mm/yyyy, HH:MM" of a legacy track time, in UTC as the previous admin showed it. */
-export const legacyDateTime = new Intl.DateTimeFormat('it-IT', { timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+/**
+ * Whether a legacy track starts on the event day (calendar day in Italy). Some old records have day and month
+ * swapped (6 December instead of 12 June): the admin points them out without rewriting them.
+ */
+export const onEventDay = (track: Pick<LegacyTrack, 'startTime'>, workshop: Pick<EventRecord, 'eventDate'>) =>
+  dayKey(track.startTime) === dayKey(workshop.eventDate);
 
 /** "yyyy-mm-ddTHH:MM" (UTC) for a datetime-local input of a legacy track. */
 export const legacyInputValue = (value?: string | Date | null) => {
@@ -580,6 +586,58 @@ export const eventbriteStatusLabel = (workshop: EventRecord) => {
 
 export const registrationOf = (workshop: EventRecord) =>
   clean(workshop.bookingServiceUrl) || (workshop.externalRegistration ? clean(workshop.externalRegistrationLink) : '');
+
+export const isPastEvent = (workshop: EventRecord, now: Date = new Date()) => dayKey(workshop.eventDate) < dayKey(now);
+
+// ---------- Steps ----------
+
+export type StepId = 'panoramica' | 'agenda' | 'relatori' | 'materiali' | 'questionario' | 'pubblicazione';
+export type StepState = 'done' | 'todo' | 'optional';
+
+export interface StepDefinition {
+  id: StepId;
+  label: string;
+  description: string;
+  /** Empty is fine: the step is never flagged as missing. */
+  optional?: boolean;
+  /** The step has a primary action of its own, so "Avanti" steps back to secondary. */
+  hasPrimaryAction?: boolean;
+}
+
+/** The six steps of the event card, in order; the id is also the URL hash. */
+export const STEPS: StepDefinition[] = [
+  { id: 'panoramica', label: 'Informazioni', description: 'Descrizione, data e sede, locandina, iscrizione e note per chi partecipa.' },
+  { id: 'agenda', label: 'Agenda', description: 'Talk, track e orari della giornata.', hasPrimaryAction: true },
+  { id: 'relatori', label: 'Relatori', description: 'Chi interviene, con foto e scheda in anagrafica.' },
+  { id: 'materiali', label: 'Materiali e foto', description: "Slide, demo e foto da pubblicare dopo l'evento.", optional: true },
+  { id: 'questionario', label: 'Questionario', description: 'Link, QR code e questionari di feedback.', optional: true, hasPrimaryAction: true },
+  { id: 'pubblicazione', label: 'Pubblicazione', description: 'Controlli finali, visibilità sul sito ed Eventbrite.' },
+];
+
+export const STEP_STATE_LABEL: Record<StepState, string> = { done: 'completato', todo: 'da completare', optional: 'facoltativo' };
+
+export interface StepStatus { id: StepId; state: StepState; detail: string }
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** State of each step from the saved record: what is done, what is still to do, what is merely optional. */
+export function stepStatuses(workshop: EventRecord, speakerCount: number, now: Date = new Date()): StepStatus[] {
+  const sessions = sessionCount(programme(workshop));
+  const missing = [!clean(workshop.description), !clean(workshop.location?.name), !workshop.image, !(registrationOf(workshop) || isPastEvent(workshop, now))].filter(Boolean).length;
+  const files = (workshop.materials?.length ?? 0) + (workshop.photos?.length ?? 0);
+  return [
+    { id: 'panoramica', state: missing ? 'todo' : 'done', detail: missing ? count(missing, 'elemento da completare', 'elementi da completare') : 'Completo' },
+    { id: 'agenda', state: sessions ? 'done' : 'todo', detail: sessions ? sessionsLabel(sessions) : 'Nessuna sessione' },
+    { id: 'relatori', state: speakerCount ? 'done' : 'todo', detail: speakerCount ? count(speakerCount, 'relatore', 'relatori') : 'Nessun relatore' },
+    { id: 'materiali', state: files ? 'done' : 'optional', detail: files ? count(files, 'file', 'file') : 'Facoltativo' },
+    { id: 'questionario', state: workshop.feedbackEnabled ? 'done' : 'optional', detail: workshop.feedbackEnabled ? 'Feedback aperto' : 'Facoltativo' },
+    { id: 'pubblicazione', state: workshop.published !== false ? 'done' : 'todo', detail: workshop.published !== false ? 'Pubblicato' : 'In bozza' },
+  ];
+}
+
+/** The agenda step opens on the historic sessions when they are all the event has (the site shows them too). */
+export const hasOnlyLegacyProgramme = (workshop: EventRecord) =>
+  !(workshop.agendaItems?.length) && !(workshop.talks?.length) && (workshop.tracks?.length ?? 0) > 0;
 
 export interface EventSpeakerEntry {
   key: string;

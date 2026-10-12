@@ -37,15 +37,84 @@ describe('<EventDetailAdminPage /> header and tabs', () => {
     expect(screen.getByText('14:00–15:00')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Vedi sul sito/ })).toHaveAttribute('href', '/workshop/w1');
     expect(screen.getByRole('link', { name: 'Eventi' })).toHaveAttribute('href', '/admin/workshops/');
-    expect(screen.getByRole('tab', { name: 'Pubblicazione' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('link', { name: '6. Pubblicazione, da completare' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('heading', { level: 2, name: /Pubblicazione$/ })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pronto per il sito?' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: /^Agenda/ }));
+    await user.click(screen.getByRole('link', { name: '2. Agenda, completato' }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/w1#agenda');
     expect(screen.getByRole('heading', { name: 'Programma' })).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Panoramica' }));
+    await user.click(screen.getByRole('link', { name: /^1\. Informazioni/ }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/w1#panoramica');
     expect(card('Descrizione')).toBeInTheDocument();
+  });
+
+  test('numbers the steps with their state, keeps every step reachable and never flags the optional ones', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture({ description: '', tracks: [
+      { workshopTrackId: 'k1', title: 'Registrazione', startTime: '2024-03-15T08:30:00Z', endTime: '2024-03-15T09:00:00Z', speakersName: '' },
+      { workshopTrackId: 'k2', title: 'Keynote', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z', speakersName: 'Ada Lovelace' },
+    ] }));
+    renderAt('/admin/workshop/w1');
+    const nav = await screen.findByRole('navigation', { name: "Passaggi dell'evento" });
+    const names = within(nav).getAllByRole('link').map(link => link.getAttribute('aria-current') ? `${link.textContent}*` : link.textContent);
+    expect(within(nav).getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['/admin/workshop/w1#panoramica', '/admin/workshop/w1#agenda', '/admin/workshop/w1#relatori', '/admin/workshop/w1#materiali', '/admin/workshop/w1#questionario', '/admin/workshop/w1#pubblicazione']);
+    expect(names).toHaveLength(6);
+    expect(within(nav).getByRole('link', { name: '1. Informazioni, da completare' })).toHaveAttribute('aria-current', 'step');
+    expect(within(nav).getByRole('link', { name: '2. Agenda, completato' })).toHaveTextContent('1 sessione');
+    expect(within(nav).getByRole('link', { name: '3. Relatori, completato' })).toHaveTextContent('1 relatore');
+    expect(within(nav).getByRole('link', { name: '4. Materiali e foto, facoltativo' })).toHaveTextContent('Facoltativo');
+    expect(within(nav).getByRole('link', { name: '5. Questionario, facoltativo' })).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: '6. Pubblicazione, completato' })).not.toHaveAttribute('aria-current');
+    expect(within(nav).queryByText(/da fare/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /Informazioni$/ })).toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('link', { name: '5. Questionario, facoltativo' }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('#questionario');
+    expect(within(nav).getByRole('link', { name: '5. Questionario, facoltativo' })).toHaveAttribute('aria-current', 'step');
+    expect(within(nav).getByRole('link', { name: '1. Informazioni, da completare' })).not.toHaveAttribute('aria-current');
+  });
+
+  test('Avanti and Indietro walk the steps and move focus to the step heading', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1');
+    await screen.findByRole('heading', { level: 1, name: 'Test Workshop' });
+    expect(screen.queryByRole('button', { name: /^Indietro/ })).not.toBeInTheDocument();
+    const forward = screen.getByRole('button', { name: 'Avanti: Agenda' });
+    expect(forward).toHaveClass('bg-site-green');
+    await user.click(forward);
+    expect(screen.getByTestId('current-path')).toHaveTextContent('#agenda');
+    const agendaHeading = screen.getByRole('heading', { level: 2, name: /Agenda$/ });
+    expect(agendaHeading).toHaveFocus();
+    // The agenda has its own primary actions: "Avanti" steps back to a secondary button.
+    expect(screen.getByRole('button', { name: 'Avanti: Relatori' })).not.toHaveClass('bg-site-green');
+    await user.click(screen.getByRole('button', { name: /^Indietro/ }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('#panoramica');
+    expect(screen.getByRole('heading', { level: 2, name: /Informazioni$/ })).toHaveFocus();
+
+    await user.click(screen.getByRole('link', { name: /^6\. Pubblicazione/ }));
+    expect(screen.queryByRole('button', { name: /^Avanti/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Indietro: Questionario' })).toBeInTheDocument();
+  });
+
+  test('on phones shows a compact header with a progress bar and the steps in a menu, without the step row', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const user = userEvent.setup();
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1#agenda');
+    const nav = await screen.findByRole('navigation', { name: "Passaggi dell'evento" });
+    expect(nav).toHaveTextContent('Passo 2 di 6 · Agenda');
+    expect(within(nav).getByRole('progressbar', { name: 'Passo 2 di 6' })).toHaveAttribute('aria-valuenow', '2');
+    expect(within(nav).queryByRole('link')).not.toBeInTheDocument();
+    await user.click(within(nav).getByRole('button', { name: 'Tutti i passaggi' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(6);
+    expect(within(menu).getByRole('menuitem', { name: '2. Agenda, da completare, passo attuale' })).toHaveTextContent('Nessuna sessione · passo attuale');
+    expect(within(menu).getByRole('menuitem', { name: '4. Materiali e foto, facoltativo' })).toBeInTheDocument();
+    await user.click(within(menu).getByRole('menuitem', { name: /6\. Pubblicazione/ }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('#pubblicazione');
+    expect(screen.getByRole('navigation', { name: "Passaggi dell'evento" })).toHaveTextContent('Passo 6 di 6 · Pubblicazione');
   });
 
   test('publishes and features the event from the header menu with the whole record', async () => {
@@ -202,7 +271,8 @@ describe('<EventDetailAdminPage /> Relatori and Questionario', () => {
     ] }), {}, { photosFound: false });
     renderAt('/admin/workshop/w1#relatori');
     const list = await screen.findByRole('list', { name: "Relatori dell'evento" });
-    expect(screen.getByRole('tab', { name: /^Relatori/ })).toHaveTextContent('2');
+    expect(screen.getByRole('link', { name: '3. Relatori, completato' })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('link', { name: '3. Relatori, completato' })).toHaveTextContent('2 relatori');
     expect(within(list).getByRole('link', { name: /Ada Lovelace/ })).toHaveAttribute('href', '/admin/speakers/speaker-1');
     expect(within(list).getByText('2 sessioni in questo evento')).toBeInTheDocument();
     expect(within(list).getByText('Non in anagrafica')).toBeInTheDocument();
