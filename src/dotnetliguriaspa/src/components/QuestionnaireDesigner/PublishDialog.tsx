@@ -1,9 +1,9 @@
 import React, { FC } from 'react';
-import {
-  Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItemButton, ListItemIcon, ListItemText, Typography,
-} from '@mui/material';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import { Button } from 'react-aria-components';
+import { AdminIcon } from '../../admin/icons';
+import { btn, focusRing } from '../../admin/ui';
+import { ModalHeader, RecordModal } from '../../admin/pages/listUi';
+import { Callout } from './designerUi';
 import { allQuestions } from '../../questionnaire/rules';
 import type { Questionnaire, QuestionnaireValidationError } from '../../questionnaire/types';
 
@@ -12,12 +12,14 @@ export interface PublishDialogProps {
   questionnaire: Questionnaire;
   errors: QuestionnaireValidationError[];
   busy: boolean;
+  /** Failure of the last publish attempt, shown where the person is looking. */
+  error?: string | null;
   onClose: () => void;
   onPublish: () => void;
   onGoTo: (questionId: string | null) => void;
 }
 
-const PublishDialog: FC<PublishDialogProps> = ({ open, questionnaire, errors, busy, onClose, onPublish, onGoTo }) => {
+const PublishDialog: FC<PublishDialogProps> = ({ open, questionnaire, errors, busy, error, onClose, onPublish, onGoTo }) => {
   const questions = allQuestions(questionnaire);
   const describe = (e: QuestionnaireValidationError) => {
     if (!e.questionId) return 'Impostazioni del questionario';
@@ -27,37 +29,52 @@ const PublishDialog: FC<PublishDialogProps> = ({ open, questionnaire, errors, bu
   const answerable = questions.filter(q => q.type !== 'InfoText').length;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="publish-title">
-      <DialogTitle id="publish-title">Pubblica il questionario</DialogTitle>
-      <DialogContent dividers>
+    <RecordModal isOpen={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }} label="Pubblica il questionario">
+      <ModalHeader title="Pubblica il questionario" />
+      <div className="space-y-4 p-5 sm:p-6">
         {errors.length === 0 ? (
           <>
-            <Alert icon={<CheckCircleOutlinedIcon />} severity="success" sx={{ mb: 2 }}>Tutto pronto: {answerable} domande verificate.</Alert>
-            <Typography variant="body2" color="text.secondary">
+            <Callout tone="ok" role="status" icon={<AdminIcon name="check" />}>
+              <p className="font-bold">Tutto pronto: {answerable} {answerable === 1 ? 'domanda verificata' : 'domande verificate'}.</p>
+            </Callout>
+            <p className="leading-relaxed text-muted">
               Dopo la pubblicazione il questionario è raggiungibile dal link pubblico
               {questionnaire.opensAt ? ' a partire dalla data di apertura' : ''}. Con la prima risposta la struttura si blocca:
               potrai ancora correggere i testi, ma non aggiungere o rimuovere domande.
-            </Typography>
+            </p>
           </>
         ) : (
           <>
-            <Alert severity="warning" sx={{ mb: 1 }}>Correggi questi punti prima di pubblicare ({errors.length}).</Alert>
-            <List dense>
+            <Callout tone="warn" role="status" icon={<AdminIcon name="todo" />}>
+              <p className="font-bold">Correggi {errors.length === 1 ? 'questo punto' : 'questi punti'} prima di pubblicare ({errors.length}).</p>
+              <p className="text-sm">Scegli una voce per andare dove correggerla.</p>
+            </Callout>
+            <ul className="divide-y divide-line rounded-xl border border-line">
               {errors.map((e, i) => (
-                <ListItemButton key={`${e.questionId}-${e.field}-${i}`} onClick={() => onGoTo(e.questionId ?? null)}>
-                  <ListItemIcon sx={{ minWidth: 36 }}><WarningAmberIcon color="warning" fontSize="small" /></ListItemIcon>
-                  <ListItemText primary={e.message} secondary={describe(e)} />
-                </ListItemButton>
+                <li key={`${e.questionId}-${e.field}-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() => onGoTo(e.questionId ?? null)}
+                    className={`flex min-h-14 w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-cyan-50/60 ${focusRing}`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{e.message}</span>
+                      <span className="block text-sm text-muted">{describe(e)}</span>
+                    </span>
+                    <AdminIcon name="arrow" className="size-4 text-muted" />
+                  </button>
+                </li>
               ))}
-            </List>
+            </ul>
           </>
         )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Annulla</Button>
-        <Button variant="contained" disabled={errors.length > 0 || busy} onClick={onPublish}>{busy ? 'Pubblicazione…' : 'Pubblica'}</Button>
-      </DialogActions>
-    </Dialog>
+        {error && <Callout tone="danger" role="alert">{error}</Callout>}
+        <div className="flex flex-wrap justify-end gap-2 pt-2">
+          <Button slot="close" className={btn.ghost}>Annulla</Button>
+          <Button isDisabled={errors.length > 0 || busy} onPress={onPublish} className={btn.primary}>{busy ? 'Pubblicazione…' : 'Pubblica'}</Button>
+        </div>
+      </div>
+    </RecordModal>
   );
 };
 

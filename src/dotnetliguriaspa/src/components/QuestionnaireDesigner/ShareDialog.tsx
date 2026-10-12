@@ -1,10 +1,10 @@
 import React, { FC, useRef, useState } from 'react';
-import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, InputAdornment, Stack, TextField, Tooltip, Typography,
-} from '@mui/material';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DownloadIcon from '@mui/icons-material/Download';
+import { Button, Input, Label, TextField } from 'react-aria-components';
 import { QRCodeCanvas, QRCodeSVG } from 'qrcode.react';
+import { AdminIcon } from '../../admin/icons';
+import { btn } from '../../admin/ui';
+import { ExternalLink, ModalHeader, RecordModal, inputCls } from '../../admin/pages/listUi';
+import { Callout, Icon, labelCls } from './designerUi';
 import { publicQuestionnaireUrl } from '../../questionnaire/api';
 import type { Questionnaire } from '../../questionnaire/types';
 
@@ -28,19 +28,18 @@ const LinkField: FC<{ label: string; url: string }> = ({ label, url }) => {
     }
   };
   return (
-    <TextField size="small" fullWidth label={label} value={url}
-      slotProps={{
-        htmlInput: { readOnly: true },
-        input: {
-          endAdornment: (
-            <InputAdornment position="end">
-              <Tooltip title={copied ? 'Copiato!' : 'Copia'}>
-                <IconButton aria-label={`Copia ${label.toLowerCase()}`} onClick={copy} size="small"><ContentCopyIcon fontSize="small" /></IconButton>
-              </Tooltip>
-            </InputAdornment>
-          ),
-        },
-      }} />
+    <div>
+      <TextField isReadOnly value={url} className="block">
+        <Label className={labelCls}>{label}</Label>
+        <div className="mt-1.5 flex gap-2">
+          <Input onFocus={event => event.currentTarget.select()} className={`${inputCls} min-w-0 flex-1`} />
+          <Button aria-label={`Copia ${label.toLowerCase()}`} onPress={() => void copy()} className={btn.secondary}>
+            <Icon name="copy" />{copied ? 'Copiato' : 'Copia'}
+          </Button>
+        </div>
+      </TextField>
+      <p role="status" className="sr-only">{copied ? `${label} copiato negli appunti.` : ''}</p>
+    </div>
   );
 };
 
@@ -65,32 +64,32 @@ const ShareDialog: FC<{ open: boolean; questionnaire: Questionnaire; onClose: ()
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="share-title">
-      <DialogTitle id="share-title">Condividi il questionario</DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
-          {questionnaire.status !== 'Published' && (
-            <Alert severity="info">Il link funziona solo quando il questionario è pubblicato.</Alert>
-          )}
-          <LinkField label="Link pubblico" url={url} />
-          {workshopUrl && <LinkField label="Link dell'evento" url={workshopUrl} />}
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} sx={{ alignItems: 'center' }}>
-            <Box sx={{ p: 2, bgcolor: '#fff', border: 1, borderColor: 'divider', borderRadius: 2 }}>
-              <QRCodeCanvas ref={canvasRef} value={url} size={220} marginSize={2} level="M" title="QR code del questionario" />
-              <Box sx={{ display: 'none' }}><QRCodeSVG ref={svgRef} value={url} size={1024} marginSize={2} level="M" /></Box>
-            </Box>
-            <Stack spacing={1}>
-              <Typography variant="body2" color="text.secondary">
-                Proietta o stampa il QR code durante l'evento: i partecipanti aprono il questionario direttamente dallo smartphone.
-              </Typography>
-              <Button startIcon={<DownloadIcon />} variant="outlined" onClick={downloadPng}>Scarica PNG</Button>
-              <Button startIcon={<DownloadIcon />} variant="outlined" onClick={downloadSvg}>Scarica SVG (stampa)</Button>
-            </Stack>
-          </Stack>
-        </Stack>
-      </DialogContent>
-      <DialogActions><Button onClick={onClose}>Chiudi</Button></DialogActions>
-    </Dialog>
+    <RecordModal isOpen={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }} label="Condividi il questionario">
+      <ModalHeader title="Condividi il questionario" />
+      <div className="space-y-5 p-5 sm:p-6">
+        {questionnaire.status !== 'Published' && (
+          <Callout tone="info" icon={<AdminIcon name="todo" />}>Il link funziona solo quando il questionario è pubblicato.</Callout>
+        )}
+        <LinkField label="Link pubblico" url={url} />
+        {workshopUrl && <LinkField label="Link dell'evento" url={workshopUrl} />}
+        <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+          <div className="shrink-0 rounded-2xl border border-line bg-white p-3">
+            <QRCodeCanvas ref={canvasRef} value={url} size={200} marginSize={2} level="M" role="img" aria-label="QR code del questionario" className="size-[200px]" />
+            <div className="hidden" aria-hidden="true"><QRCodeSVG ref={svgRef} value={url} size={1024} marginSize={2} level="M" /></div>
+          </div>
+          <div className="min-w-0 space-y-3">
+            <p className="leading-relaxed text-muted">
+              Proietta o stampa il QR code durante l'evento: i partecipanti aprono il questionario direttamente dallo smartphone.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onPress={downloadPng} className={btn.secondary}><AdminIcon name="download" />Scarica PNG</Button>
+              <Button onPress={downloadSvg} className={btn.secondary}><AdminIcon name="download" />Scarica SVG (stampa)</Button>
+            </div>
+            {questionnaire.status === 'Published' && <ExternalLink href={url}>Apri il questionario</ExternalLink>}
+          </div>
+        </div>
+      </div>
+    </RecordModal>
   );
 };
 

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import {
-  Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Stack, TextField, Tooltip, Typography,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import ContentPasteIcon from '@mui/icons-material/ContentPaste';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
+import React, { useId, useState } from 'react';
+import { Button, Dialog, Modal, ModalOverlay } from 'react-aria-components';
+import { AdminIcon } from '../../admin/icons';
+import { btn } from '../../admin/ui';
+import { ModalHeader } from '../../admin/pages/listUi';
 import SortableList from './SortableList';
+import { FieldText, helpCls, errorCls, Icon, miniIcon } from './designerUi';
 import { parseOptionLines } from '../../questionnaire/factory';
 import { newId } from '../../questionnaire/rules';
 
@@ -14,14 +13,19 @@ export interface EditableItem { id: string; label: string; description?: string 
 export interface ItemListEditorProps<T extends EditableItem> {
   items: T[];
   noun: string;
+  /** Plural, lower case, for the group name ("opzioni"). */
+  nounPlural: string;
   /** Structure locked: labels can change, items cannot be added, removed or reordered. */
   locked?: boolean;
   minItems?: number;
   withDescription?: boolean;
+  /** Problem with the list as a whole; shown under it and linked to the group. */
+  error?: string | null;
   onChange: (items: T[], coalesceKey?: string) => void;
 }
 
-function ItemListEditor<T extends EditableItem>({ items, noun, locked, minItems = 0, withDescription, onChange }: ItemListEditorProps<T>) {
+function ItemListEditor<T extends EditableItem>({ items, noun, nounPlural, locked, minItems = 0, withDescription, error, onChange }: ItemListEditorProps<T>) {
+  const errorId = useId();
   const [focusId, setFocusId] = useState<string | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
@@ -46,70 +50,77 @@ function ItemListEditor<T extends EditableItem>({ items, noun, locked, minItems 
   const pasteCount = parseOptionLines(pasteText, items.map(i => i.label)).length;
 
   return (
-    <Stack spacing={1}>
+    <div role="group" aria-label={nounPlural} aria-describedby={error ? errorId : undefined} className="space-y-2">
       <SortableList
         items={items}
         disabled={locked}
         itemLabel={i => i.label || noun}
         onReorder={onChange}
-        renderItem={(item, index) => (
+        renderItem={(item, index, controls) => (
           <>
-            <Stack sx={{ flex: 1 }} spacing={0.5}>
-              <TextField
-                size="small"
-                fullWidth
+            <div className="min-w-0 flex-1 space-y-1">
+              <FieldText
+                aria-label={`${noun} ${index + 1}`}
                 placeholder={`${noun} ${index + 1}`}
                 value={item.label}
                 autoFocus={item.id === focusId}
-                onChange={e => update(item.id, { label: e.target.value }, 'label')}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !locked) { e.preventDefault(); insertAfter(index); }
+                maxLength={200}
+                isInvalid={!!error && !item.label.trim()}
+                onChange={label => update(item.id, { label }, 'label')}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && !locked) { event.preventDefault(); insertAfter(index); }
                 }}
-                slotProps={{ htmlInput: { 'aria-label': `${noun} ${index + 1}`, maxLength: 200 } }}
+                compact
               />
               {withDescription && (
-                <TextField
-                  size="small"
-                  fullWidth
+                <FieldText
+                  aria-label={`Descrizione ${noun.toLowerCase()} ${index + 1}`}
                   placeholder="Descrizione (es. speaker)"
                   value={item.description ?? ''}
-                  onChange={e => update(item.id, { description: e.target.value || null }, 'description')}
-                  slotProps={{ htmlInput: { 'aria-label': `Descrizione ${noun.toLowerCase()} ${index + 1}` } }}
+                  onChange={description => update(item.id, { description: description || null }, 'description')}
+                  compact
                 />
               )}
-            </Stack>
-            <Tooltip title={`Elimina ${noun.toLowerCase()}`}>
-              <span>
-                <IconButton size="small" aria-label={`Elimina ${noun.toLowerCase()} ${index + 1}`}
-                  disabled={locked || items.length <= minItems} onClick={() => remove(item.id)}>
-                  <DeleteOutlineIcon fontSize="small" />
-                </IconButton>
-              </span>
-            </Tooltip>
+            </div>
+            {controls.moveButtons}
+            <Button aria-label={`Elimina ${noun.toLowerCase()} ${index + 1}`} isDisabled={locked || items.length <= minItems} onPress={() => remove(item.id)} className={miniIcon}>
+              <AdminIcon name="trash" />
+            </Button>
           </>
         )}
       />
-      {!locked && (
-        <Stack direction="row" spacing={1}>
-          <Button size="small" startIcon={<AddIcon />} onClick={() => insertAfter(items.length - 1)}>Aggiungi</Button>
-          <Button size="small" startIcon={<ContentPasteIcon />} onClick={() => setPasteOpen(true)}>Incolla elenco</Button>
-        </Stack>
-      )}
-      <Dialog open={pasteOpen} onClose={() => setPasteOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Incolla un elenco</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Una voce per riga. Elenchi puntati e numerati vengono ripuliti, i duplicati ignorati.
-          </Typography>
-          <TextField autoFocus multiline minRows={6} fullWidth value={pasteText} onChange={e => setPasteText(e.target.value)}
-            slotProps={{ htmlInput: { 'aria-label': 'Elenco da incollare' } }} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPasteOpen(false)}>Annulla</Button>
-          <Button variant="contained" disabled={pasteCount === 0} onClick={paste}>Aggiungi {pasteCount || ''}</Button>
-        </DialogActions>
-      </Dialog>
-    </Stack>
+      {error && <p id={errorId} className={errorCls}>{error}</p>}
+      {locked
+        ? <p className={helpCls}>Il questionario ha già delle risposte: puoi correggere i testi, non aggiungere, togliere o riordinare.</p>
+        : (
+          <div className="flex flex-wrap gap-1">
+            <Button onPress={() => insertAfter(items.length - 1)} className={btn.ghost}><AdminIcon name="plus" />Aggiungi</Button>
+            <Button onPress={() => setPasteOpen(true)} className={btn.ghost}><Icon name="paste" />Incolla elenco</Button>
+          </div>
+        )}
+      <ModalOverlay isOpen={pasteOpen} onOpenChange={setPasteOpen} isDismissable className="fixed inset-0 z-[55] flex bg-[rgb(0_36_69/0.42)] sm:items-center sm:justify-center sm:p-6">
+        <Modal className="h-dvh w-full overflow-y-auto bg-white text-navy shadow-lift sm:h-auto sm:max-h-[90dvh] sm:max-w-lg sm:rounded-3xl">
+          <Dialog aria-label="Incolla un elenco" className="outline-none">
+            <ModalHeader title="Incolla un elenco" />
+            <div className="space-y-4 p-5 sm:p-6">
+              <FieldText
+                label="Elenco da incollare"
+                description="Una voce per riga. Elenchi puntati e numerati vengono ripuliti, i duplicati ignorati."
+                multiline
+                rows={7}
+                autoFocus
+                value={pasteText}
+                onChange={setPasteText}
+              />
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button slot="close" className={btn.ghost}>Annulla</Button>
+                <Button isDisabled={pasteCount === 0} onPress={paste} className={btn.primary}>Aggiungi {pasteCount || ''}</Button>
+              </div>
+            </div>
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </div>
   );
 }
 
