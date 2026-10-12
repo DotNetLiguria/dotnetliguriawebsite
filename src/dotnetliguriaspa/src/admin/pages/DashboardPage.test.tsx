@@ -69,6 +69,14 @@ describe('<DashboardPage />', () => {
     expect(within(recent).getByText('Bozza')).toBeInTheDocument();
   });
 
+  test('shows a blank poster when the upcoming event has no image', async () => {
+    mockApi({ '/Workshop/Get': [{ ...upcoming, image: '' }], '/Speaker/Get': [], '/Board/Get': [], '/Venue': [] });
+    render(<DashboardPage />, { route: '/admin' });
+
+    const next = await screen.findByRole('region', { name: 'Prossimo evento' });
+    expect(within(next).getByRole('img', { name: 'Immagine non disponibile' })).toBeInTheDocument();
+  });
+
   test('reports a failed load with a retry instead of an empty dashboard', async () => {
     const user = userEvent.setup();
     let calls = 0;

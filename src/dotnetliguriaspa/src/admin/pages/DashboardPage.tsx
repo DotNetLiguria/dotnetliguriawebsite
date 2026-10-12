@@ -7,6 +7,7 @@ import { AdminSpeaker, AdminVenue, AdminWorkshop, AdminLoad, clean, nameKey, use
 import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatDate, formatWeekday } from '../../site/format';
 import { programme, sessionCount, sessionsLabel } from '../../site/event/programme';
+import EventPoster from '../EventPoster';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -42,7 +43,7 @@ function EventHeader({ workshop, label }: { workshop: AdminWorkshop; label: Reac
   const poster = contentUrl(workshop.image);
   return (
     <div className="flex flex-wrap items-start gap-4 border-b border-line p-5 sm:p-6">
-      {poster && <img src={poster} alt="" className="hidden aspect-video w-36 rounded-xl object-cover sm:block" />}
+      <EventPoster src={poster} className="hidden aspect-video w-36 rounded-xl object-cover sm:block" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">{label}<span className="text-muted">{formatWeekday(workshop.eventDate)}</span></div>
         <h2 className="mt-1.5 text-xl font-bold leading-snug"><Link to={eventLink(workshop)} className={`rounded hover:underline ${linkFocus}`}>{clean(workshop.title)}</Link></h2>

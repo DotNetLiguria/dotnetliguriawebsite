@@ -8,6 +8,7 @@ import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatWeekday } from '../../site/format';
 import { programme, programmeSpan } from '../../site/event/programme';
 import type { VenueModel } from '../../models/VenueModel';
+import EventPoster from '../EventPoster';
 import { ExternalLink, RowMenu, Skeleton } from './listUi';
 import { isHttpUrl as isWebUrl, mapsHref, parseCoordinates } from './VenuesPage';
 import {
@@ -182,9 +183,8 @@ function PosterCard({ page, stamp, onUploaded }: { page: EventPage; stamp: numbe
   };
   return (
     <EditCard id="locandina" title="Locandina">
-      {poster ? (
-        <img src={stamp ? `${poster}?t=${stamp}` : poster} alt={`Locandina di ${clean(workshop.title)}`} className="mb-4 aspect-video w-full max-w-sm rounded-xl border border-line object-cover" />
-      ) : <p className="mb-4"><Missing>Nessuna locandina.</Missing> <span className="text-sm text-muted">Compare nelle liste e in cima alla scheda dell'evento.</span></p>}
+      <EventPoster src={poster ? (stamp ? `${poster}?t=${stamp}` : poster) : null} alt={`Locandina di ${clean(workshop.title)}`} className="mb-4 aspect-video w-full max-w-sm rounded-xl border border-line object-cover" />
+      {!poster && <p className="mb-4"><Missing>Nessuna locandina.</Missing> <span className="text-sm text-muted">Compare nelle liste e in cima alla scheda dell'evento.</span></p>}
       <Dropzone label="Trascina qui la locandina" hint="PNG, JPG, WebP o GIF in formato 16:9" accept={IMAGE_EXTENSIONS} busy={busy} buttonLabel="Scegli il file" onFiles={files => void upload(files)} />
     </EditCard>
   );
@@ -385,7 +385,7 @@ export default function EventDetailAdminPage() {
     <>
       <Link to="/admin/workshops/" className={`mb-2 inline-flex min-h-11 items-center gap-2 rounded-full font-semibold text-cyan-700 hover:underline ${linkFocus}`}><AdminIcon name="back" />Eventi</Link>
       <div className="flex flex-wrap items-start gap-5">
-        {poster && <img src={posterStamp ? `${poster}?t=${posterStamp}` : poster} alt="" className="aspect-video w-full max-w-56 rounded-2xl object-cover sm:w-56" />}
+        <EventPoster src={posterStamp && poster ? `${poster}?t=${posterStamp}` : poster} className="aspect-video w-full max-w-56 rounded-2xl object-cover sm:w-56" />
         <div className="min-w-64 flex-1">
           <div className="flex flex-wrap gap-2">
             {upcoming && <Badge kind="planned">In programma</Badge>}

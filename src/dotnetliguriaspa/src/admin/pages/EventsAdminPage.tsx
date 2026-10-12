@@ -7,6 +7,7 @@ import { AdminWorkshop, clean, nameKey, speakerNamesOf, useAdminLoad } from '../
 import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatDate, formatWeekday } from '../../site/format';
 import { programme, sessionCount } from '../../site/event/programme';
+import EventPoster from '../EventPoster';
 
 type SortKey = 'date' | 'title' | 'sessions';
 type Sort = { key: SortKey; direction: 'ascending' | 'descending' };
@@ -176,7 +177,7 @@ export default function EventsAdminPage() {
                       <tr key={row.w.workshopId} className="group relative transition-colors hover:bg-cyan-50/60">
                         <td className="py-3 pr-3 pl-5">
                           <div className="flex items-center gap-3">
-                            {poster ? <img src={poster} alt="" className="aspect-video w-20 shrink-0 rounded-lg object-cover" /> : <span className="aspect-video w-20 shrink-0 rounded-lg bg-[#eef3f7]" />}
+                            <EventPoster src={poster} className="aspect-video w-20 shrink-0 rounded-lg object-cover" />
                             <Link to={`/admin/workshop/${row.w.workshopId}`} className={`font-bold leading-snug after:absolute after:inset-0 hover:underline ${linkFocus}`}>{row.title}</Link>
                           </div>
                         </td>
@@ -197,7 +198,7 @@ export default function EventsAdminPage() {
                   return (
                     <li key={row.w.workshopId}>
                       <Link to={`/admin/workshop/${row.w.workshopId}`} className={`flex gap-3 p-4 ${linkFocus}`}>
-                        {poster && <img src={poster} alt="" className="aspect-video w-24 shrink-0 rounded-lg object-cover" />}
+                        <EventPoster src={poster} className="aspect-video w-24 shrink-0 rounded-lg object-cover" />
                         <span className="min-w-0">
                           <span className="block font-bold leading-snug">{row.title}</span>
                           <span className="block text-sm text-muted">{formatWeekday(row.w.eventDate)}{row.place ? ` · ${row.place}` : ''}</span>

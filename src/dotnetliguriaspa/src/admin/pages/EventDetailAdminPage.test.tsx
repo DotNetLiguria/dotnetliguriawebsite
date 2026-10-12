@@ -26,6 +26,23 @@ const localDay = (iso: string) => { const d = new Date(iso); return [d.getFullYe
 beforeEach(() => { adminToasts.clear(); resetPhotoCache(); });
 
 describe('<EventDetailAdminPage /> header and tabs', () => {
+  test('shows blank poster placeholders when the event has no image', async () => {
+    serveEvent(eventFixture({ image: '' }));
+    renderAt('/admin/workshop/w1');
+
+    await screen.findByRole('heading', { level: 1, name: 'Test Workshop' });
+    expect(screen.getAllByRole('img', { name: 'Immagine non disponibile' })).toHaveLength(2);
+  });
+
+  test('replaces a broken poster with the blank placeholder', async () => {
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1');
+
+    await screen.findByRole('heading', { level: 1, name: 'Test Workshop' });
+    fireEvent.error(screen.getByAltText('Locandina di Test Workshop'));
+    expect(screen.getByRole('img', { name: 'Immagine non disponibile' })).toBeInTheDocument();
+  });
+
   test('shows the event with its badges, the public link and the section from the hash', async () => {
     const user = userEvent.setup();
     serveEvent(eventFixture({ published: false, in_homepage: true, eventDate: '2099-06-12T10:00:00Z', agendaTracks: [{ workshopAgendaTrackId: 't1', name: 'Main', order: 0 }], talks: [{ workshopTalkId: 'k1', title: 'Keynote', sessionType: 'talk', trackId: 't1', speakers: [] }], agendaItems: [{ workshopAgendaItemId: 'i1', itemType: 'talk', talkId: 'k1', trackId: 't1', startTime: '2099-06-12T14:00:00Z', endTime: '2099-06-12T15:00:00Z' }] }));
