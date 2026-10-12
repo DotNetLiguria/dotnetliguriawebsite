@@ -45,7 +45,10 @@ const renderDesigner = () => render(
   { route: '/admin/questionnaires/q1/edit' },
 );
 
-describe('questionnaire designer accessibility', () => {
+// A full axe audit of the designer takes a few seconds on the slower CI runners (about 4 s on Windows).
+const AUDIT = { timeout: 15_000 };
+
+describe('questionnaire designer accessibility', AUDIT, () => {
   beforeEach(() => { vi.mocked(fetch).mockImplementation(async () => jsonResponse(questionnaire)); });
 
   test('three panes with a question selected', async () => {
@@ -99,7 +102,7 @@ describe('questionnaire designer accessibility', () => {
   });
 });
 
-describe('questionnaire results accessibility', () => {
+describe('questionnaire results accessibility', AUDIT, () => {
   const responses: QuestionnaireResponse[] = Array.from({ length: 3 }, (_, i) => ({
     responseId: `r${i}`, questionnaireId: 'q1', questionnaireVersion: 1, submittedAt: `2024-05-0${i + 1}T10:00:00Z`, consentGiven: true,
     source: i === 2 ? 'LegacySqlServer' : 'Web', respondent: { name: `Persona${i}`, surname: 'Test', email: `p${i}@example.org` }, answers: [{ questionId: 'rating', number: 4 }, { questionId: 'single', choices: ['a'] }],

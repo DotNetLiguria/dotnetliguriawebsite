@@ -32,9 +32,16 @@ function serve(venues: unknown | (() => Response), created: Response) {
   });
   return calls;
 }
-const fillBasics = async (user: ReturnType<typeof userEvent.setup>) => {
-  await user.type(screen.getByRole('textbox', { name: 'Titolo' }), 'Agenda Day');
-  await user.type(screen.getByRole('textbox', { name: 'Descrizione' }), 'Community event');
+type User = ReturnType<typeof userEvent.setup>;
+/** Replaces a field's value in one input event: typing every character re-renders the whole form and is slow on CI runners. */
+const fill = async (user: User, role: 'textbox' | 'spinbutton', name: string, value: string) => {
+  const field = screen.getByRole(role, { name });
+  await user.clear(field);
+  await user.paste(value);
+};
+const fillBasics = async (user: User) => {
+  await fill(user, 'textbox', 'Titolo', 'Agenda Day');
+  await fill(user, 'textbox', 'Descrizione', 'Community event');
   fireEvent.change(screen.getByLabelText('Data *'), { target: { value: '2027-06-21' } });
 };
 
@@ -55,21 +62,15 @@ describe('<EventCreatePage />', () => {
     expect(screen.getByRole('textbox', { name: 'Coordinate' })).toHaveValue('44.4,8.9');
     expect(screen.getByRole('textbox', { name: 'Link a Google Maps' })).toHaveValue('https://maps.google.com/?q=Community+Hall');
     expect(screen.getByRole('spinbutton', { name: 'Posti disponibili' })).toHaveValue(120);
-    await user.clear(screen.getByRole('textbox', { name: 'Nome della sede' }));
-    await user.type(screen.getByRole('textbox', { name: 'Nome della sede' }), 'Updated Hall');
-    await user.clear(screen.getByRole('textbox', { name: 'Indirizzo' }));
-    await user.type(screen.getByRole('textbox', { name: 'Indirizzo' }), '2 Main Street');
-    await user.clear(screen.getByRole('textbox', { name: 'Coordinate' }));
-    await user.type(screen.getByRole('textbox', { name: 'Coordinate' }), '44.5,9.0');
-    await user.clear(screen.getByRole('textbox', { name: 'Link a Google Maps' }));
-    await user.type(screen.getByRole('textbox', { name: 'Link a Google Maps' }), 'https://maps.google.com/?q=Updated+Hall');
-    await user.clear(screen.getByRole('spinbutton', { name: 'Posti disponibili' }));
-    await user.type(screen.getByRole('spinbutton', { name: 'Posti disponibili' }), '150');
+    await fill(user, 'textbox', 'Nome della sede', 'Updated Hall');
+    await fill(user, 'textbox', 'Indirizzo', '2 Main Street');
+    await fill(user, 'textbox', 'Coordinate', '44.5,9.0');
+    await fill(user, 'textbox', 'Link a Google Maps', 'https://maps.google.com/?q=Updated+Hall');
+    await fill(user, 'spinbutton', 'Posti disponibili', '150');
     await user.type(screen.getByRole('textbox', { name: 'Sale per questo evento' }), 'Auditorium{enter}Room B');
-    await user.type(screen.getByRole('textbox', { name: 'Link di prenotazione' }), 'https://booking.example.test/event/1');
-    await user.clear(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti iniziali su Eventbrite' }));
-    await user.type(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti iniziali su Eventbrite' }), '50');
-    await user.type(screen.getByRole('textbox', { name: 'Note per chi partecipa' }), 'Bring your laptop');
+    await fill(user, 'textbox', 'Link di prenotazione', 'https://booking.example.test/event/1');
+    await fill(user, 'spinbutton', 'Biglietti gratuiti iniziali su Eventbrite', '50');
+    await fill(user, 'textbox', 'Note per chi partecipa', 'Bring your laptop');
     await user.click(screen.getByRole('button', { name: "Crea evento e passa all'agenda" }));
 
     await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/00112233-4455-6677-8899-aabbccddeeff#agenda'));
@@ -119,8 +120,8 @@ describe('<EventCreatePage />', () => {
     renderPage();
     await waitFor(() => expect(screen.getByRole('radio', { name: 'Nuova sede' })).toBeChecked());
     await fillBasics(user);
-    await user.type(screen.getByRole('textbox', { name: 'Nome della sede' }), 'Sala Nuova');
-    await user.type(screen.getByRole('textbox', { name: 'Indirizzo' }), 'Via Roma 1, Genova');
+    await fill(user, 'textbox', 'Nome della sede', 'Sala Nuova');
+    await fill(user, 'textbox', 'Indirizzo', 'Via Roma 1, Genova');
     await user.click(screen.getByRole('switch', { name: 'Salva la sede per i prossimi eventi' }));
     await user.click(screen.getByRole('button', { name: "Crea evento e passa all'agenda" }));
     await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/00112233-4455-6677-8899-aabbccddeeff#agenda'));
