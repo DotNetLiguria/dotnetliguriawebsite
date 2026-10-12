@@ -6,8 +6,6 @@ import './site/site.css';
 import App from './App';
 import {BrowserRouter} from 'react-router-dom';
 import {OidcProvider} from "@axa-fr/react-oidc";
-import {ThemeProvider} from '@mui/material';
-import theme from './theme';
 import { getOidcPublicSettings } from './config/oidcConfig';
 import TokenRenewalMonitor from './components/TokenRenewalMonitor';
 import { dropFallbackMetadata } from './site/seo';
@@ -43,10 +41,8 @@ root.render(
     <React.StrictMode>
         <BrowserRouter>
             <OidcProvider configuration={ configuration }>
-                <ThemeProvider theme={theme}>
-                    <TokenRenewalMonitor />
-                    <App/>
-                </ThemeProvider>
+                <TokenRenewalMonitor />
+                <App/>
             </OidcProvider>
         </BrowserRouter>
     </React.StrictMode>

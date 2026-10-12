@@ -1,6 +1,6 @@
 /* Public site design system: "il sito attuale, ma moderno", with the logo colours leading.
    Colours come from the vector logo (src/assets/logo); every text pairing passes WCAG AA.
-   Visual rules live under the .site wrapper so the MUI admin keeps its own look during the migration. */
+   Public-page rules live under the .site wrapper; the admin (src/admin) uses the same tokens through utilities. */
 @import "@fontsource/titillium-web/400.css";
 @import "@fontsource/titillium-web/600.css";
 @import "@fontsource/titillium-web/700.css";

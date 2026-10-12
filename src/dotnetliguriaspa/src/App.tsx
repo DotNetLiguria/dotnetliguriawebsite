@@ -1,4 +1,3 @@
-import './App.css';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOidc } from "@axa-fr/react-oidc";
 import { Navigate, Route, Routes } from 'react-router-dom';
@@ -18,15 +17,14 @@ import EventDetailPage from "./site/event/EventDetailPage";
 import PrivacyPage from "./site/legal/PrivacyPage";
 import TermsPage from "./site/legal/TermsPage";
 import CookiePolicyPage from "./site/legal/CookiePolicyPage";
-import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
 import BoardPage from "./admin/pages/BoardPage";
-import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopDetail";
-import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopCreate";
+import EventDetailAdminPage from "./admin/pages/EventDetailAdminPage";
+import EventCreatePage from "./admin/pages/EventCreatePage";
 import MenuPage from "./admin/pages/MenuPage";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
 import LegacyRedirect from "./site/legacy/LegacyRedirect";
 
-// The questionnaire designer and results pull in dnd-kit, Recharts and the DataGrid: load them on demand.
+// The questionnaire designer and results pull in dnd-kit and Recharts: load them on demand.
 const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
 const QuestionnaireResults = lazy(() => import('./components/QuestionnaireResults/QuestionnaireResults'));
 const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</Suspense>;
@@ -58,8 +56,8 @@ function App() {
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />
                     <Route path='/admin/speakers/:id' element={<SpeakersPage />} />
                     <Route path='/admin/workshops/' element={<EventsAdminPage />} />
-                    <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
-                    <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
+                    <Route path='/admin/workshop/create' element={<EventCreatePage />} />
+                    <Route path='/admin/workshop/:id' element={<EventDetailAdminPage />} />
                     <Route path='/admin/events/' element={<Navigate to='/admin/workshops/' replace />} />
                     <Route path='/admin/venues/' element={<VenuesPage />} />
                     <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />
@@ -68,7 +66,7 @@ function App() {
                     <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
                     <Route path='/admin/topmenu/' element={<MenuPage />} />
                     <Route path='/admin/topmenu/:id' element={<MenuPage />} />
-                    <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
+                    <Route path='/admin/downloads' element={<Navigate to='/admin/import-export/' replace />} />
                     <Route path='/admin/import-export/' element={<BackupPage />} />
                     <Route path='/admin/*' element={<AdminNotFoundPage />} />
                 </Route>

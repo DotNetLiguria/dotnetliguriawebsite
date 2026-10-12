@@ -32,8 +32,8 @@ User group .NET con eventi dal vivo dal 2011 in sedi della Liguria (La Spezia, G
 
 - SPA React 19 + Vite in `src/dotnetliguriaspa`, servita da ASP.NET Core (.NET 10) con API su `/api` e asset storici su `/Contents`.
 - Route, payload delle API, callback OIDC e URL del service worker restano invariati (vincolo del repository).
-- Stack UI deciso il 2026-10-10: Tailwind CSS 4.3 e React Aria Components; MUI, Emotion e styled-components da rimuovere progressivamente. Prima le pagine pubbliche, poi l'admin.
-- Il gate di verifica richiede almeno 117 test Vitest.
+- Stack UI deciso il 2026-10-10: Tailwind CSS 4.3 e React Aria Components, su pagine pubbliche e admin; MUI, Emotion e styled-components rimossi il 2026-10-12.
+- Il gate di verifica richiede almeno 359 test Vitest.
 - Contenuti indispensabili: archivio dal 2011 con materiali, questionario da QR, chi siamo e board, canali della community.
 - Da decidere: piattaforma di iscrizione esterna; canali ufficiali attivi della community.
 - La riprogettazione della UI richiede l'approvazione dei maintainer (l'AGENTS.md della SPA oggi chiede di preservare la UI esistente).

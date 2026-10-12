@@ -1,7 +1,6 @@
 import React, { FC } from 'react';
-import {
-  Alert, Divider, FormControl, FormControlLabel, FormLabel, Radio, RadioGroup, Stack, Switch, TextField, Typography,
-} from '@mui/material';
+import { SwitchInput } from '../../admin/ui';
+import { Callout, DateTimeField, FieldText, groupHeading, RadioField } from './designerUi';
 import { useDesignerStore } from './designerStore';
 import type { Questionnaire } from '../../questionnaire/types';
 
@@ -23,58 +22,81 @@ const QuestionnaireSettings: FC<{ workshopTitle?: string | null; errors: Record<
   const locked = q.responseCount > 0;
 
   return (
-    <Stack spacing={2}>
-      <TextField size="small" label="Titolo" required value={q.title} error={!!errors.title} helperText={errors.title}
-        onChange={e => set({ title: e.target.value }, 'title')} slotProps={{ htmlInput: { maxLength: 200 } }} />
-      <TextField size="small" label="Descrizione" multiline minRows={2} value={q.description ?? ''}
-        onChange={e => set({ description: e.target.value || null }, 'description')} />
-      <TextField size="small" label="Messaggio introduttivo" multiline minRows={2} value={q.introText ?? ''}
-        helperText="Mostrato in evidenza sopra le domande." onChange={e => set({ introText: e.target.value || null }, 'intro')} />
-      <TextField size="small" label="Messaggio di ringraziamento" multiline minRows={2} value={q.thankYouText ?? ''}
-        placeholder="La tua risposta è stata registrata." onChange={e => set({ thankYouText: e.target.value || null }, 'thanks')} />
+    <div className="space-y-4">
+      <FieldText label="Titolo" isRequired maxLength={200} value={q.title} error={errors.title} onChange={title => set({ title }, 'title')} />
+      <FieldText label="Descrizione" multiline rows={3} value={q.description ?? ''} onChange={description => set({ description: description || null }, 'description')} />
+      <FieldText
+        label="Messaggio introduttivo"
+        multiline
+        rows={3}
+        value={q.introText ?? ''}
+        description="Mostrato in evidenza sopra le domande."
+        onChange={introText => set({ introText: introText || null }, 'intro')}
+      />
+      <FieldText
+        label="Messaggio di ringraziamento"
+        multiline
+        rows={3}
+        value={q.thankYouText ?? ''}
+        placeholder="La tua risposta è stata registrata."
+        onChange={thankYouText => set({ thankYouText: thankYouText || null }, 'thanks')}
+      />
       {q.workshopId && (
-        <Alert severity="info" sx={{ py: 0 }}>
+        <Callout tone="info">
           Collegato {workshopTitle ? `all'evento «${workshopTitle}»` : 'a un evento'}: è raggiungibile anche da /feedback/{q.workshopId}.
-        </Alert>
+        </Callout>
       )}
 
-      <Divider textAlign="left"><Typography variant="caption">Impaginazione</Typography></Divider>
-      <FormControl>
-        <FormLabel id="display-mode">Modalità di compilazione</FormLabel>
-        <RadioGroup row aria-labelledby="display-mode" value={q.displayMode} onChange={e => set({ displayMode: e.target.value as Questionnaire['displayMode'] })}>
-          <FormControlLabel value="SinglePage" control={<Radio />} label="Pagina unica" />
-          <FormControlLabel value="Stepper" control={<Radio />} label="Una sezione per pagina" />
-        </RadioGroup>
-      </FormControl>
+      <h3 className={groupHeading}>Impaginazione</h3>
+      <RadioField
+        label="Modalità di compilazione"
+        value={q.displayMode}
+        onChange={displayMode => set({ displayMode })}
+        options={[
+          { value: 'SinglePage', label: 'Pagina unica' },
+          { value: 'Stepper', label: 'Una sezione per pagina' },
+        ]}
+      />
 
-      <Divider textAlign="left"><Typography variant="caption">Rispondenti</Typography></Divider>
-      <FormControl disabled={locked}>
-        <RadioGroup aria-label="Modalità rispondenti" value={q.respondentMode}
-          onChange={e => {
-            const identified = e.target.value === 'Identified';
-            set({ respondentMode: identified ? 'Identified' : 'Anonymous', onePerEmail: identified && q.onePerEmail, consentText: identified ? q.consentText || DEFAULT_CONSENT_TEXT : q.consentText });
-          }}>
-          <FormControlLabel value="Anonymous" control={<Radio />} label="Anonimi" />
-          <FormControlLabel value="Identified" control={<Radio />} label="Identificati (nome, cognome, email)" />
-        </RadioGroup>
-      </FormControl>
+      <h3 className={groupHeading}>Rispondenti</h3>
+      <RadioField
+        label="Modalità rispondenti"
+        value={q.respondentMode}
+        isDisabled={locked}
+        description={locked ? 'Non si può cambiare: il questionario ha già delle risposte.' : undefined}
+        onChange={respondentMode => {
+          const identified = respondentMode === 'Identified';
+          set({ respondentMode, onePerEmail: identified && q.onePerEmail, consentText: identified ? q.consentText || DEFAULT_CONSENT_TEXT : q.consentText });
+        }}
+        options={[
+          { value: 'Anonymous', label: 'Anonimi' },
+          { value: 'Identified', label: 'Identificati', description: 'Nome, cognome ed email.' },
+        ]}
+      />
       {q.respondentMode === 'Identified' && (
         <>
-          <FormControlLabel label="Una sola risposta per indirizzo email"
-            control={<Switch checked={q.onePerEmail} onChange={e => set({ onePerEmail: e.target.checked })} />} />
-          <TextField size="small" label="Testo dell'informativa privacy (consenso obbligatorio)" multiline minRows={3}
-            value={q.consentText ?? ''} onChange={e => set({ consentText: e.target.value || null }, 'consent')}
-            helperText="Se vuoto, non viene richiesto il consenso." />
+          <SwitchInput isSelected={q.onePerEmail} onChange={onePerEmail => set({ onePerEmail })}>Una sola risposta per indirizzo email</SwitchInput>
+          <FieldText
+            label="Testo dell'informativa privacy (consenso obbligatorio)"
+            multiline
+            rows={4}
+            value={q.consentText ?? ''}
+            description="Se vuoto, non viene richiesto il consenso."
+            onChange={consentText => set({ consentText: consentText || null }, 'consent')}
+          />
         </>
       )}
 
-      <Divider textAlign="left"><Typography variant="caption">Periodo di apertura</Typography></Divider>
-      <TextField size="small" type="datetime-local" label="Apre il" value={toLocalInput(q.opensAt)}
-        onChange={e => set({ opensAt: fromLocalInput(e.target.value) })} slotProps={{ inputLabel: { shrink: true } }} />
-      <TextField size="small" type="datetime-local" label="Chiude il" value={toLocalInput(q.closesAt)} error={!!errors.closesAt}
-        helperText={errors.closesAt ?? 'Facoltativo: dopo questa data le risposte non sono più accettate.'}
-        onChange={e => set({ closesAt: fromLocalInput(e.target.value) })} slotProps={{ inputLabel: { shrink: true } }} />
-    </Stack>
+      <h3 className={groupHeading}>Periodo di apertura</h3>
+      <DateTimeField label="Apre il" value={toLocalInput(q.opensAt)} onChange={value => set({ opensAt: fromLocalInput(value) })} />
+      <DateTimeField
+        label="Chiude il"
+        value={toLocalInput(q.closesAt)}
+        error={errors.closesAt}
+        description={errors.closesAt ? undefined : 'Facoltativo: dopo questa data le risposte non sono più accettate.'}
+        onChange={value => set({ closesAt: fromLocalInput(value) })}
+      />
+    </div>
   );
 };
 

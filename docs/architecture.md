@@ -114,8 +114,8 @@ Application Insights package remains.
 `global.json` pins SDK 10.0.401 with stable latest-patch roll-forward; `.node-version`
 pins Node 24.21.0 (npm 11.19.0). The original timing baseline used Node 24.14.0;
 frontend timings are rechecked on the updated pin. Use `npm ci` and the
-checked-in package lock. React 19, current compatible MUI and Vite replace CRA;
-Vitest runs the frontend tests. Preserve the UI and routes during upgrades.
+checked-in package lock. React 19 and Vite replace CRA; the UI uses Tailwind CSS 4 and
+React Aria Components. Vitest runs the frontend tests. Preserve the UI and routes during upgrades.
 
 ### Upgrade Inventory
 
@@ -130,7 +130,7 @@ registries; manifests and the npm lock retain the exact selected versions.
 | Swagger | 6.5.0 | 10.3.0 | Retain existing API metadata integration |
 | React and types | 18 | 19.3.0 | Upgrade runtime, DOM and types together |
 | CRA/TypeScript | react-scripts 5 / TS 4.9 | Vite 8.3.4 / TS 6.0.3 | New HTML entry and public environment bridge |
-| MUI/Data Grid | 5 | Material 9.4.0 / Grid 9.15.0 | Grid, slots, pagination and selection API migration |
+| UI kit | MUI 5 / Data Grid | Tailwind CSS 4.3.3 / React Aria Components 1.22.1 | Redesign; MUI, Emotion and Data Grid removed |
 | Test runners | Legacy Jest/browser-only .NET checks | Vitest 5.0.3 / xUnit 2.9.3 | Offline units; live integration checks remain opt-in |
 | QR | Server-side decoding | qrcode.react 4.2.0 | Browser-side generation; native decoding removed |
 

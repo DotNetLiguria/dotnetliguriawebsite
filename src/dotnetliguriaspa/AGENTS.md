@@ -11,9 +11,10 @@ Read the root PRODUCT.md for audience, brand and tone before changing public pag
 Public pages live in `src/site` (plus the public questionnaire components) and use
 Tailwind CSS 4 with React Aria Components; design tokens are in `src/site/site.css`
 and the logos in `src/assets/logo` (for now the historic dotnetliguria.net logo; the
-vector set is ready for the new identity). Do not add MUI, Emotion or styled-components
-to public pages. The admin area keeps MUI until its own redesign; keep the two
-separated by the `.site` scope.
+vector set is ready for the new identity). The admin (`src/admin`: shell, kit in
+`ui.tsx`, pages) and the questionnaire designer/results use the same tokens through
+utilities; public-only rules stay under the `.site` scope. Do not add MUI, Emotion or
+styled-components.
 Public copy is Italian. Meet WCAG 2.2 AA mobile first: full keyboard and screen-reader
 use, visible focus, 44px touch targets and `prefers-reduced-motion`.
 Mark sections without backend data "Da completare" instead of inventing content.

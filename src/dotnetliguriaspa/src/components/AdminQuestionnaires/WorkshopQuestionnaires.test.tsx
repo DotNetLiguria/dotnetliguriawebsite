@@ -2,7 +2,6 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from '../../test-utils';
-import WorkshopQuestionnaires from './WorkshopQuestionnaires';
 import QuestionnaireResults from '../QuestionnaireResults/QuestionnaireResults';
 import { formatAnswer } from '../../questionnaire/format';
 import type { Question, Questionnaire, QuestionnaireStatistics } from '../../questionnaire/types';
@@ -53,24 +52,8 @@ const statistics: QuestionnaireStatistics = {
   ],
 };
 
-describe('<WorkshopQuestionnaires />', () => {
-  test('lists linked questionnaires and creates one from the workshop', async () => {
-    const user = userEvent.setup();
-    const calls = serve((_, method) => (method === 'POST' ? { ...questionnaire, questionnaireId: 'new2' } : [questionnaire]));
-    render(
-      <Routes>
-        <Route path="/admin/workshop/w1" element={<WorkshopQuestionnaires workshopId="w1" />} />
-        <Route path="/admin/questionnaires/:id/edit" element={<div>Editor aperto</div>} />
-      </Routes>,
-      { route: '/admin/workshop/w1' },
-    );
-    expect(await screen.findByRole('link', { name: 'Feedback Meetup' })).toHaveAttribute('href', '/admin/questionnaires/q1/edit');
-    expect(screen.getByRole('link', { name: '2 risposte' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Crea questionario di feedback' }));
-    expect(await screen.findByText('Editor aperto')).toBeInTheDocument();
-    expect(calls.some(c => c.url.endsWith('/Questionnaire/by-workshop/w1'))).toBe(true);
-  });
-});
+// The workshop's questionnaire panel now lives in the event card (src/admin/pages/eventPanels.tsx) and is
+// covered by EventDetailAdminPage.test.tsx; the results view and the answer formatter keep their tests here.
 
 describe('<QuestionnaireResults />', () => {
   const responses = [
@@ -95,9 +78,10 @@ describe('<QuestionnaireResults />', () => {
     expect(await screen.findByText('Risultati: Feedback Meetup')).toBeInTheDocument();
     expect(screen.getByText('Media 4,5')).toBeInTheDocument();
     expect(screen.getByLabelText('AI: 100%')).toBeInTheDocument();
+    expect(screen.getByText('2 (100%)')).toBeInTheDocument();
     expect(screen.getByText('Più demo dal vivo')).toBeInTheDocument();
 
-    await user.type(screen.getByRole('textbox', { name: 'Cerca nelle risposte testuali' }), 'pizza');
+    await user.type(screen.getByRole('searchbox', { name: 'Cerca nelle risposte testuali' }), 'pizza');
     expect(screen.queryByText('Più demo dal vivo')).not.toBeInTheDocument();
     expect(screen.getByText('Pizza migliore')).toBeInTheDocument();
   });
@@ -111,13 +95,13 @@ describe('<QuestionnaireResults />', () => {
 
     await user.click(await screen.findByRole('tab', { name: 'Risposte (2)' }));
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
-    expect(screen.getByText('Blazor Server (storico)')).toBeInTheDocument();
+    expect(screen.getAllByText('Blazor Server (storico)').length).toBeGreaterThan(0);
 
     await user.dblClick(screen.getByText('Ada Lovelace'));
     const detail = await screen.findByRole('dialog', { name: /Risposta del/ });
     expect(within(detail).getByText('AI, Altro: Rust')).toBeInTheDocument();
     await user.click(within(detail).getByRole('button', { name: 'Elimina risposta' }));
-    const confirm = await screen.findByRole('dialog', { name: 'Eliminare la risposta?' });
+    const confirm = await screen.findByRole('alertdialog', { name: 'Eliminare la risposta?' });
     await user.click(within(confirm).getByRole('button', { name: 'Elimina' }));
     await waitFor(() => expect(calls.some(c => c.method === 'DELETE' && c.url.endsWith('/Questionnaire/q1/responses/r1'))).toBe(true));
   });

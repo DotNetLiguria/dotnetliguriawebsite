@@ -1,25 +1,16 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Alert, Box, Button, Chip, CircularProgress, Divider, IconButton, Paper, Stack, Tab, Tabs, TextField, Tooltip, Typography, useMediaQuery, useTheme,
-} from '@mui/material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Button } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import {
   closestCenter, CollisionDetection, DndContext, DragEndEvent, DragOverlay, DragStartEvent, KeyboardSensor, PointerSensor, pointerWithin,
   useSensor, useSensors,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import UndoIcon from '@mui/icons-material/Undo';
-import RedoIcon from '@mui/icons-material/Redo';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
-import ShareIcon from '@mui/icons-material/Share';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import CloudDoneIcon from '@mui/icons-material/CloudDone';
-import CloudOffIcon from '@mui/icons-material/CloudOff';
-import SyncIcon from '@mui/icons-material/Sync';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import SettingsIcon from '@mui/icons-material/Settings';
+import { AdminIcon } from '../../admin/icons';
+import { LoadError, PageHeader, btn } from '../../admin/ui';
+import { RowMenu, Skeleton } from '../../admin/pages/listUi';
+import { notify } from '../../admin/toasts';
 import DesignerCanvas from './DesignerCanvas';
 import QuestionPalette from './QuestionPalette';
 import QuestionProperties from './QuestionProperties';
@@ -28,33 +19,34 @@ import PreviewDialog from './PreviewDialog';
 import PublishDialog from './PublishDialog';
 import ShareDialog from './ShareDialog';
 import { QuestionTypeIcon } from './QuestionTypeIcon';
+import { Callout, FieldText, Icon, IconButton, MEDIUM_QUERY, Sheet, StatusBadge, useMediaQuery, WIDE_QUERY } from './designerUi';
+import { dragAnnouncements, screenReaderInstructions } from './dragText';
 import { locateQuestion, useDesignerStore } from './designerStore';
 import { SaveStatus, useAutosave } from './useAutosave';
 import { createQuestionnaireAdminApi, QuestionnaireApiError } from '../../questionnaire/api';
 import { questionTypeLabel } from '../../questionnaire/factory';
-import type { Questionnaire, QuestionType } from '../../questionnaire/types';
+import type { Questionnaire, QuestionnaireValidationError, QuestionType } from '../../questionnaire/types';
 import { validateDefinition } from '../../questionnaire/validation';
 
-import { statusColors, statusLabels } from '../../questionnaire/status';
+const SAVE_TEXT: Record<SaveStatus['kind'], string> = {
+  saved: 'Salvato',
+  pending: 'Modifiche in corso…',
+  saving: 'Salvataggio…',
+  blocked: 'Non salvato',
+  error: 'Errore di salvataggio',
+  conflict: 'Conflitto',
+};
 
-const SaveIndicator: FC<{ status: SaveStatus; onRetry: () => void }> = ({ status, onRetry }) => {
-  const map = {
-    saved: { icon: <CloudDoneIcon fontSize="small" color="success" />, text: 'Salvato' },
-    pending: { icon: <SyncIcon fontSize="small" color="action" />, text: 'Modifiche in corso…' },
-    saving: { icon: <SyncIcon fontSize="small" color="primary" />, text: 'Salvataggio…' },
-    blocked: { icon: <CloudOffIcon fontSize="small" color="warning" />, text: 'Non salvato' },
-    error: { icon: <CloudOffIcon fontSize="small" color="error" />, text: 'Errore di salvataggio' },
-    conflict: { icon: <CloudOffIcon fontSize="small" color="error" />, text: 'Conflitto' },
-  }[status.kind];
-  const message = 'message' in status ? status.message : undefined;
+/** Quiet autosave state; only problems get a colour. */
+const SaveIndicator: FC<{ status: SaveStatus }> = ({ status }) => {
+  const problem = status.kind === 'error' || status.kind === 'conflict';
+  const tone = problem ? 'text-[#b42318]' : status.kind === 'blocked' ? 'text-[#8a4b00]' : 'text-muted';
+  const busy = status.kind === 'pending' || status.kind === 'saving';
   return (
-    <Tooltip title={message ?? ''}>
-      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }} role="status" aria-live="polite" aria-label={`Stato salvataggio: ${map.text}`}>
-        {map.icon}
-        <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>{map.text}</Typography>
-        {status.kind === 'error' && <Button size="small" onClick={onRetry}>Riprova</Button>}
-      </Stack>
-    </Tooltip>
+    <p role="status" className={`flex items-center gap-1.5 text-sm ${tone}`}>
+      {status.kind === 'saved' ? <AdminIcon name="check" className="size-4 text-basil-700" /> : busy ? <Icon name="sync" className="size-4" /> : <AdminIcon name="todo" className="size-4" />}
+      {SAVE_TEXT[status.kind]}
+    </p>
   );
 };
 
@@ -70,6 +62,22 @@ const collision: CollisionDetection = args => {
   return closestCenter(args);
 };
 
+/** What a draggable or droppable id stands for, for the screen-reader announcements. */
+function describeDragId(id: string | number) {
+  const key = String(id);
+  if (key.startsWith('palette:')) return `nuova domanda ${questionTypeLabel(key.slice('palette:'.length) as QuestionType)}`;
+  const questionnaire = useDesignerStore.getState().questionnaire;
+  if (key.startsWith('drop:')) {
+    const index = questionnaire?.sections.findIndex(s => `drop:${s.id}` === key) ?? -1;
+    return index >= 0 ? `fine della sezione ${index + 1}` : 'fine della sezione';
+  }
+  const location = questionnaire ? locateQuestion(questionnaire, key) : null;
+  return location ? `domanda «${location.question.title || questionTypeLabel(location.question.type)}»` : 'elemento';
+}
+
+const panel = 'rounded-2xl border border-line bg-white';
+const dragAccessibility = { announcements: dragAnnouncements(describeDragId), screenReaderInstructions };
+
 export interface QuestionnaireDesignerProps { autosaveDelayMs?: number }
 
 const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs }) => {
@@ -77,8 +85,8 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
   const navigate = useNavigate();
   const { fetch } = useOidcFetch();
   const api = useMemo(() => createQuestionnaireAdminApi(fetch), [fetch]);
-  const theme = useTheme();
-  const wide = useMediaQuery(theme.breakpoints.up('md'));
+  const wide = useMediaQuery(WIDE_QUERY);
+  const medium = useMediaQuery(MEDIUM_QUERY);
 
   const questionnaire = useDesignerStore(s => s.questionnaire);
   const selection = useDesignerStore(s => s.selection);
@@ -93,8 +101,11 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showIssues, setShowIssues] = useState(false);
-  const [mobileTab, setMobileTab] = useState(0);
+  // Without room for three panes the properties and the palette open as sheets over a single column.
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [dragType, setDragType] = useState<QuestionType | null>(null);
+  const [announcement, setAnnouncement] = useState('');
 
   const blockedReason = useCallback((q: Questionnaire) => {
     if (q.status === 'Published' && validateDefinition(q, true).length > 0) {
@@ -139,10 +150,10 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
 
   const definitionErrors = useMemo(() => (questionnaire ? validateDefinition(questionnaire, true) : []), [questionnaire]);
   const questionErrors = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, QuestionnaireValidationError[]>();
     if (!showIssues && questionnaire?.status !== 'Published') return map;
     for (const e of definitionErrors) {
-      if (e.questionId) map.set(e.questionId, [...(map.get(e.questionId) ?? []), e.message]);
+      if (e.questionId) map.set(e.questionId, [...(map.get(e.questionId) ?? []), e]);
     }
     return map;
   }, [definitionErrors, showIssues, questionnaire?.status]);
@@ -152,18 +163,26 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
 
   if (loadError) {
     return (
-      <Box sx={{ p: 3, flex: 1 }}>
-        <Alert severity="error" action={<Button onClick={() => navigate('/admin/questionnaires')}>Torna all'elenco</Button>}>{loadError}</Alert>
-      </Box>
+      <>
+        <PageHeader title="Questionario" back={{ to: '/admin/questionnaires', label: 'Questionari' }} />
+        <div className="mt-6"><LoadError message={loadError} onRetry={() => void reload()} /></div>
+      </>
     );
   }
   if (!questionnaire) {
-    return <Box sx={{ p: 6, flex: 1, display: 'flex', justifyContent: 'center' }}><CircularProgress aria-label="Caricamento" /></Box>;
+    return (
+      <>
+        <p role="status" className="sr-only">Caricamento del questionario…</p>
+        <Skeleton className="h-[32rem]" />
+      </>
+    );
   }
 
   const locked = questionnaire.responseCount > 0;
+  const status = questionnaire.status;
   const selectedQuestion = selection.kind === 'question' ? locateQuestion(questionnaire, selection.id)?.question : undefined;
   const selectedSection = selection.kind === 'section' ? questionnaire.sections.find(s => s.id === selection.id) : undefined;
+  const openProperties = wide ? undefined : () => setPropertiesOpen(true);
 
   const runAction = async (action: () => Promise<Questionnaire>) => {
     setActionError(null);
@@ -179,6 +198,19 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
       setBusy(false);
     }
   };
+
+  async function runDuplicate() {
+    setBusy(true);
+    try {
+      const copy = await api.duplicate(questionnaire!.questionnaireId);
+      notify('Questionario duplicato', { description: copy.title });
+      navigate(`/admin/questionnaires/${copy.questionnaireId}/edit`);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Duplicazione non riuscita.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const onDragStart = ({ active }: DragStartEvent) => {
     const data = active.data.current as { kind?: string; type?: QuestionType } | undefined;
@@ -201,6 +233,7 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
     if (!target) return;
     if (activeData.kind === 'palette' && activeData.type) {
       addQuestion(activeData.type, target);
+      setAnnouncement(`Aggiunta una domanda «${questionTypeLabel(activeData.type)}».`);
     } else if (activeData.kind === 'question' && active.id !== over.id) {
       moveQuestion(String(active.id), target.sectionId, target.index);
     }
@@ -208,128 +241,171 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
 
   const onAdd = (type: QuestionType) => {
     addQuestion(type);
-    if (!wide) setMobileTab(0);
+    setAnnouncement(`Aggiunta una domanda «${questionTypeLabel(type)}».`);
+    setPaletteOpen(false);
   };
 
-  const palette = <QuestionPalette disabled={locked} onAdd={onAdd} />;
-  const canvas = (
+  const propertiesTitle = selectedQuestion ? questionTypeLabel(selectedQuestion.type) : selectedSection ? 'Sezione' : 'Impostazioni questionario';
+  const backToSettings = selection.kind !== 'questionnaire' && (
+    <Button onPress={() => select({ kind: 'questionnaire' })} className={btn.ghost}><Icon name="sliders" />Impostazioni</Button>
+  );
+  const propertiesBody = selectedQuestion ? (
+    <QuestionProperties key={selectedQuestion.id} question={selectedQuestion} locked={locked} errors={questionErrors.get(selectedQuestion.id) ?? []} />
+  ) : selectedSection ? (
+    <div className="space-y-4">
+      <FieldText label="Titolo della sezione" value={selectedSection.title ?? ''} onChange={title => updateSection(selectedSection.id, { title }, `section:${selectedSection.id}:title`)} />
+      <FieldText
+        label="Descrizione"
+        multiline
+        rows={4}
+        value={selectedSection.description ?? ''}
+        description="Con l'impaginazione «una sezione per pagina» ogni sezione diventa un passo del questionario."
+        onChange={description => updateSection(selectedSection.id, { description: description || null }, `section:${selectedSection.id}:description`)}
+      />
+    </div>
+  ) : (
+    <QuestionnaireSettings errors={settingsErrors} />
+  );
+
+  // Between the phone menu and the three-pane layout the labels give way to icons (the names stay for assistive technology).
+  const label = (text: string) => <span className="max-xl:sr-only">{text}</span>;
+  const secondaryActions = medium ? (
     <>
-      {locked && (
-        <Alert severity="info" icon={<LockOutlinedIcon />} sx={{ mb: 2 }}
-          action={<Button color="inherit" size="small" onClick={() => runDuplicate()}>Duplica</Button>}>
-          Il questionario ha {questionnaire.responseCount} risposte: puoi correggere i testi, ma non aggiungere, rimuovere o
-          cambiare tipo alle domande. Per modificarne la struttura, duplicalo.
-        </Alert>
-      )}
-      <DesignerCanvas locked={locked} questionErrors={questionErrors} />
+      <Button onPress={() => setPreviewOpen(true)} className={btn.ghost}><Icon name="eye" />{label('Anteprima')}</Button>
+      <Button onPress={() => setShareOpen(true)} className={btn.ghost}><Icon name="share" />{label('Condividi')}</Button>
+      <Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/results`} className={btn.ghost}><Icon name="chart" />{label('Risultati')}</Link>
     </>
+  ) : (
+    <RowMenu label="Altre azioni" items={[
+      { id: 'add', label: 'Aggiungi domanda', icon: <AdminIcon name="plus" className="size-5 text-muted" />, isDisabled: locked, onAction: () => setPaletteOpen(true) },
+      { id: 'settings', label: 'Impostazioni', icon: <Icon name="sliders" className="size-5 text-muted" />, onAction: () => { select({ kind: 'questionnaire' }); setPropertiesOpen(true); } },
+      { id: 'preview', label: 'Anteprima', icon: <Icon name="eye" className="size-5 text-muted" />, onAction: () => setPreviewOpen(true) },
+      { id: 'share', label: 'Condividi', icon: <Icon name="share" className="size-5 text-muted" />, onAction: () => setShareOpen(true) },
+      { id: 'results', label: 'Risultati', icon: <Icon name="chart" className="size-5 text-muted" />, onAction: () => navigate(`/admin/questionnaires/${questionnaire.questionnaireId}/results`) },
+    ]} />
   );
-  const properties = (
-    <Box>
-      <Stack direction="row" spacing={1} sx={{ mb: 2, alignItems: 'center' }}>
-        {selectedQuestion ? <QuestionTypeIcon type={selectedQuestion.type} /> : <SettingsIcon fontSize="small" />}
-        <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 700 }}>
-          {selectedQuestion ? questionTypeLabel(selectedQuestion.type) : selectedSection ? 'Sezione' : 'Impostazioni questionario'}
-        </Typography>
-        {selection.kind !== 'questionnaire' && (
-          <Button size="small" onClick={() => select({ kind: 'questionnaire' })}>Impostazioni</Button>
-        )}
-      </Stack>
-      {selectedQuestion ? (
-        <QuestionProperties key={selectedQuestion.id} question={selectedQuestion} locked={locked}
-          errors={showIssues || questionnaire.status === 'Published' ? questionErrors.get(selectedQuestion.id) ?? [] : []} />
-      ) : selectedSection ? (
-        <Stack spacing={2}>
-          <TextField size="small" label="Titolo della sezione" value={selectedSection.title ?? ''}
-            onChange={e => updateSection(selectedSection.id, { title: e.target.value }, `section:${selectedSection.id}:title`)} />
-          <TextField size="small" label="Descrizione" multiline minRows={3} value={selectedSection.description ?? ''}
-            onChange={e => updateSection(selectedSection.id, { description: e.target.value || null }, `section:${selectedSection.id}:description`)} />
-          <Typography variant="caption" color="text.secondary">
-            Con l'impaginazione «una sezione per pagina» ogni sezione diventa un passo del questionario.
-          </Typography>
-        </Stack>
-      ) : (
-        <QuestionnaireSettings errors={settingsErrors} />
+
+  const canvas = (
+    <div className="space-y-4" onClick={event => { if (event.target === event.currentTarget) select({ kind: 'questionnaire' }); }}>
+      <h2 className="sr-only">Domande del questionario</h2>
+      {locked && (
+        <Callout
+          tone="info"
+          icon={<Icon name="lock" />}
+          action={<Button isDisabled={busy} onPress={() => void runDuplicate()} className={btn.secondary}>Duplica</Button>}
+        >
+          Il questionario ha {questionnaire.responseCount} {questionnaire.responseCount === 1 ? 'risposta' : 'risposte'}: puoi correggere i testi, ma non aggiungere, rimuovere o
+          cambiare tipo alle domande. Per modificarne la struttura, duplicalo.
+        </Callout>
       )}
-    </Box>
+      {!wide && (
+        <div className="flex flex-wrap gap-2">
+          <Button isDisabled={locked} onPress={() => setPaletteOpen(true)} className={btn.secondary}><AdminIcon name="plus" />Aggiungi domanda</Button>
+          <Button onPress={() => { select({ kind: 'questionnaire' }); setPropertiesOpen(true); }} className={btn.ghost}><Icon name="sliders" />Impostazioni</Button>
+        </div>
+      )}
+      <DesignerCanvas locked={locked} questionErrors={questionErrors} onOpenProperties={openProperties} announce={setAnnouncement} />
+    </div>
   );
 
-  async function runDuplicate() {
-    setBusy(true);
-    try {
-      const copy = await api.duplicate(questionnaire!.questionnaireId);
-      navigate(`/admin/questionnaires/${copy.questionnaireId}/edit`);
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Duplicazione non riuscita.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const status = questionnaire.status;
   return (
-    <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)' }}>
-      <Paper square elevation={0} sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-        <Stack direction="row" spacing={1} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-          <Tooltip title="Torna ai questionari">
-            <IconButton aria-label="Torna ai questionari" onClick={() => navigate('/admin/questionnaires')}><ArrowBackIcon /></IconButton>
-          </Tooltip>
-          <Typography variant="h6" noWrap sx={{ maxWidth: { xs: 160, md: 420 } }} title={questionnaire.title}>
-            {questionnaire.title || 'Questionario senza titolo'}
-          </Typography>
-          <Chip size="small" label={statusLabels[status]} color={statusColors[status]} />
-          <SaveIndicator status={saveStatus} onRetry={() => void saveNow()} />
-          <Box sx={{ flex: 1 }} />
-          <Tooltip title="Annulla (Ctrl+Z)"><span><IconButton aria-label="Annulla" disabled={!canUndo} onClick={undo}><UndoIcon /></IconButton></span></Tooltip>
-          <Tooltip title="Ripeti (Ctrl+Y)"><span><IconButton aria-label="Ripeti" disabled={!canRedo} onClick={redo}><RedoIcon /></IconButton></span></Tooltip>
-          <Divider orientation="vertical" flexItem />
-          <Button startIcon={<VisibilityOutlinedIcon />} onClick={() => setPreviewOpen(true)}>Anteprima</Button>
-          <Button startIcon={<ShareIcon />} onClick={() => setShareOpen(true)}>Condividi</Button>
-          <Button startIcon={<BarChartIcon />} onClick={() => navigate(`/admin/questionnaires/${questionnaire.questionnaireId}/results`)}>Risultati</Button>
-          {status === 'Draft' && (
-            <Button variant="contained" disabled={busy} onClick={() => { setShowIssues(true); setPublishOpen(true); }}>Pubblica</Button>
-          )}
-          {status === 'Published' && (
-            <Button variant="outlined" color="warning" disabled={busy} onClick={() => void runAction(() => api.close(questionnaire.questionnaireId))}>Chiudi</Button>
-          )}
-          {(status === 'Closed' || status === 'Archived') && (
-            <Button variant="outlined" disabled={busy} onClick={() => void runAction(() => api.reopen(questionnaire.questionnaireId))}>Riapri</Button>
-          )}
-        </Stack>
-        {saveStatus.kind === 'conflict' && (
-          <Alert severity="error" sx={{ mt: 1 }} action={<Button color="inherit" onClick={() => void reload()}>Ricarica</Button>}>
-            {saveStatus.message}
-          </Alert>
-        )}
-        {saveStatus.kind === 'blocked' && <Alert severity="warning" sx={{ mt: 1 }}>{saveStatus.message}</Alert>}
-        {actionError && <Alert severity="error" sx={{ mt: 1 }} onClose={() => setActionError(null)}>{actionError}</Alert>}
-      </Paper>
+    <div>
+      {/* lg: the shell scrolls inside <main>, whose top padding offsets sticky positions: -top-8 cancels its pt-8. */}
+      <div className="sticky top-16 z-20 lg:-top-8">
+        <div className={`${panel} flex flex-wrap items-center gap-x-3 gap-y-2 bg-white/95 px-3 py-2 backdrop-blur sm:px-4`}>
+          <div className="flex min-w-0 flex-1 basis-56 items-center gap-2">
+            <Link to="/admin/questionnaires" aria-label="Torna ai questionari" className={btn.icon}><AdminIcon name="back" /></Link>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="min-w-0 truncate text-xl font-bold leading-tight" title={questionnaire.title}>{questionnaire.title || 'Questionario senza titolo'}</h1>
+                <StatusBadge status={status} />
+              </div>
+              <SaveIndicator status={saveStatus} />
+            </div>
+          </div>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-x-1 gap-y-1">
+            <IconButton label="Annulla" icon={<Icon name="undo" />} isDisabled={!canUndo} onPress={undo} />
+            <IconButton label="Ripeti" icon={<Icon name="redo" />} isDisabled={!canRedo} onPress={redo} />
+            {secondaryActions}
+            {status === 'Draft' && (
+              <Button isDisabled={busy} onPress={() => { setShowIssues(true); setActionError(null); setPublishOpen(true); }} className={`${btn.primary} ml-1`}>Pubblica</Button>
+            )}
+            {status === 'Published' && (
+              <Button isDisabled={busy} onPress={() => void runAction(() => api.close(questionnaire.questionnaireId)).then(ok => ok && notify('Questionario chiuso', { description: questionnaire.title }))} className={`${btn.secondary} ml-1`}>Chiudi</Button>
+            )}
+            {(status === 'Closed' || status === 'Archived') && (
+              <Button isDisabled={busy} onPress={() => void runAction(() => api.reopen(questionnaire.questionnaireId)).then(ok => ok && notify('Questionario riaperto', { description: questionnaire.title }))} className={`${btn.secondary} ml-1`}>Riapri</Button>
+            )}
+          </div>
+        </div>
+      </div>
 
-      <DndContext sensors={sensors} collisionDetection={collision} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setDragType(null)}>
+      <div className="mt-3 space-y-3 empty:hidden">
+        {saveStatus.kind === 'conflict' && (
+          <Callout tone="danger" role="alert" action={<Button onPress={() => void reload()} className={btn.secondary}>Ricarica</Button>}>
+            {saveStatus.message}
+          </Callout>
+        )}
+        {saveStatus.kind === 'error' && (
+          <Callout tone="danger" role="alert" action={<Button onPress={() => void saveNow()} className={btn.secondary}>Riprova</Button>}>
+            {saveStatus.message}
+          </Callout>
+        )}
+        {saveStatus.kind === 'blocked' && <Callout tone="warn" role="status">{saveStatus.message}</Callout>}
+        {actionError && !publishOpen && (
+          <Callout tone="danger" role="alert" action={<Button onPress={() => setActionError(null)} className={btn.ghost}>Chiudi avviso</Button>}>{actionError}</Callout>
+        )}
+      </div>
+
+      <p role="status" className="sr-only">{announcement}</p>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collision}
+        accessibility={dragAccessibility}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setDragType(null)}
+      >
         {wide ? (
-          <Box sx={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr) 360px' }}>
-            <Box sx={{ overflowY: 'auto', p: 2, borderRight: 1, borderColor: 'divider' }}>{palette}</Box>
-            <Box sx={{ overflowY: 'auto', p: 3, bgcolor: 'grey.100' }} onClick={e => { if (e.target === e.currentTarget) select({ kind: 'questionnaire' }); }}>
-              <Box sx={{ maxWidth: 820, mx: 'auto' }}>{canvas}</Box>
-            </Box>
-            <Box sx={{ overflowY: 'auto', p: 2, borderLeft: 1, borderColor: 'divider' }} component="aside" aria-label="Proprietà">{properties}</Box>
-          </Box>
+          <div className="mt-4 grid grid-cols-[200px_minmax(0,1fr)_340px] items-start gap-5">
+            <div className={`${panel} sticky top-12 max-h-[calc(100dvh-10rem)] overflow-y-auto p-3`}>
+              <h2 className="mb-3 px-1 text-base font-bold">Aggiungi domanda</h2>
+              <QuestionPalette disabled={locked} onAdd={onAdd} />
+            </div>
+            {canvas}
+            <aside aria-label="Proprietà" className={`${panel} sticky top-12 max-h-[calc(100dvh-10rem)] overflow-y-auto p-4`}>
+              <div className="mb-4 flex items-center gap-2">
+                {selectedQuestion ? <span className="text-cyan-700"><QuestionTypeIcon type={selectedQuestion.type} /></span> : <span className="text-cyan-700"><Icon name="sliders" /></span>}
+                <h2 className="min-w-0 flex-1 text-lg font-bold">{propertiesTitle}</h2>
+                {backToSettings}
+              </div>
+              {propertiesBody}
+            </aside>
+          </div>
         ) : (
-          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <Tabs value={mobileTab} onChange={(_, v) => setMobileTab(v)} variant="fullWidth">
-              <Tab label="Struttura" />
-              <Tab label="Aggiungi" disabled={locked} />
-              <Tab label="Proprietà" />
-            </Tabs>
-            <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-              {mobileTab === 0 ? canvas : mobileTab === 1 ? palette : properties}
-            </Box>
-          </Box>
+          <div className="mt-4 mx-auto max-w-3xl">{canvas}</div>
         )}
         <DragOverlay dropAnimation={null}>
-          {dragType && <Chip color="primary" icon={<QuestionTypeIcon type={dragType} />} label={questionTypeLabel(dragType)} sx={{ boxShadow: 3 }} />}
+          {dragType && (
+            <span className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-2 font-bold text-white shadow-lift">
+              <QuestionTypeIcon type={dragType} />{questionTypeLabel(dragType)}
+            </span>
+          )}
         </DragOverlay>
       </DndContext>
+
+      {!wide && (
+        <>
+          <Sheet isOpen={propertiesOpen} onOpenChange={setPropertiesOpen} label={`Proprietà: ${propertiesTitle}`} title={propertiesTitle}>
+            {backToSettings && <div className="-mt-2 mb-4">{backToSettings}</div>}
+            {propertiesBody}
+          </Sheet>
+          <Sheet isOpen={paletteOpen} onOpenChange={setPaletteOpen} label="Aggiungi domanda" title="Aggiungi domanda">
+            <QuestionPalette disabled={locked} draggable={false} onAdd={onAdd} />
+          </Sheet>
+        </>
+      )}
 
       <PreviewDialog open={previewOpen} questionnaire={questionnaire} onClose={() => setPreviewOpen(false)} />
       <ShareDialog open={shareOpen} questionnaire={questionnaire} onClose={() => setShareOpen(false)} />
@@ -338,20 +414,22 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
         questionnaire={questionnaire}
         errors={definitionErrors}
         busy={busy}
+        error={actionError}
         onClose={() => setPublishOpen(false)}
         onGoTo={questionId => {
           setPublishOpen(false);
           select(questionId ? { kind: 'question', id: questionId } : { kind: 'questionnaire' });
-          if (!wide) setMobileTab(2);
+          if (!wide) setPropertiesOpen(true);
         }}
         onPublish={async () => {
           if (await runAction(() => api.publish(questionnaire.questionnaireId))) {
+            notify('Questionario pubblicato', { description: questionnaire.title });
             setPublishOpen(false);
             setShareOpen(true);
           }
         }}
       />
-    </Box>
+    </div>
   );
 };
 

@@ -1,19 +1,10 @@
-/* Admin look (MUI); the redesigned public site (.site) sets its own type. */
-*:not(.site, .site *) {
-  font-family: 'Titillium Web', Arial, sans-serif !important;
-}
-
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Keep the scrollbar gutter stable so pages do not shift sideways between short and long content. */
 html {
   overflow-y: scroll;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
 }

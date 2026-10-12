@@ -1,14 +1,11 @@
 import React, { FC } from 'react';
-import { Box, Chip, IconButton, Paper, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Button } from 'react-aria-components';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import CallSplitIcon from '@mui/icons-material/CallSplit';
+import { AdminIcon } from '../../admin/icons';
+import { Badge } from '../../admin/ui';
 import { QuestionTypeIcon } from './QuestionTypeIcon';
+import { FieldText, Icon, miniIcon, MoveButtons } from './designerUi';
 import QuestionField from '../QuestionnaireRunner/QuestionField';
 import { questionTypeLabel } from '../../questionnaire/factory';
 import type { Question } from '../../questionnaire/types';
@@ -27,72 +24,79 @@ export interface QuestionCardProps {
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (delta: -1 | 1) => void;
+  /** Where the properties are not beside the canvas: a button that opens them. */
+  onOpenProperties?: () => void;
 }
 
+const handleCls = 'inline-grid size-9 shrink-0 cursor-grab touch-none place-items-center rounded-full text-muted transition-colors hover:bg-cyan-50 hover:text-navy disabled:cursor-default disabled:opacity-35 pointer-coarse:size-11 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-cyan-700';
+
 const QuestionCard: FC<QuestionCardProps> = ({
-  question, sectionId, number, selected, locked, hasErrors, canMoveUp, canMoveDown, onSelect, onTitleChange, onDuplicate, onRemove, onMove,
+  question, sectionId, number, selected, locked, hasErrors, canMoveUp, canMoveDown, onSelect, onTitleChange, onDuplicate, onRemove, onMove, onOpenProperties,
 }) => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: question.id, data: { kind: 'question', sectionId }, disabled: locked });
   const label = question.title || questionTypeLabel(question.type);
+  const tone = selected ? 'border-navy ring-2 ring-navy/15' : hasErrors ? 'border-line border-l-[#b45309]' : 'border-line hover:border-cyan-200';
 
   return (
-    <Paper
-      ref={setNodeRef}
-      variant="outlined"
-      onClick={onSelect}
-      onFocusCapture={onSelect}
-      data-testid={`card-${question.id}`}
-      aria-current={selected ? 'true' : undefined}
-      sx={{
-        p: 1.5, borderRadius: 2, cursor: 'pointer', position: 'relative',
-        transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.4 : 1,
-        borderColor: selected ? 'primary.main' : hasErrors ? 'warning.main' : 'divider',
-        borderWidth: selected ? 2 : 1, borderLeftWidth: 4, borderLeftColor: selected ? 'primary.main' : hasErrors ? 'warning.main' : 'divider',
-        '&:hover': { borderColor: selected ? 'primary.main' : 'text.secondary' },
-      }}
-    >
-      <Stack direction="row" spacing={0.5} sx={{ mb: 0.5, alignItems: 'center' }}>
-        <IconButton size="small" ref={setActivatorNodeRef} disabled={locked} aria-label={`Trascina: ${label}`}
-          sx={{ cursor: locked ? 'default' : 'grab', touchAction: 'none' }} {...attributes} {...listeners}>
-          <DragIndicatorIcon fontSize="small" />
-        </IconButton>
-        <Chip size="small" variant="outlined" icon={<QuestionTypeIcon type={question.type} />} label={questionTypeLabel(question.type)} />
-        {question.visibleIf && (
-          <Tooltip title="Visibile solo se la condizione è soddisfatta">
-            <Chip size="small" color="secondary" variant="outlined" icon={<CallSplitIcon />} label="Condizionale" />
-          </Tooltip>
+    <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}>
+      <div
+        role="group"
+        aria-label={`${number ? `Domanda ${number}: ` : ''}${label}`}
+        data-testid={`card-${question.id}`}
+        data-selected={selected ? 'true' : undefined}
+        aria-current={selected ? 'true' : undefined}
+        onClick={onSelect}
+        onFocusCapture={onSelect}
+        className={`relative cursor-pointer rounded-xl border bg-white p-2.5 transition-colors sm:p-3 ${hasErrors && !selected ? 'border-l-4' : ''} ${tone}`}
+      >
+        <div className="flex flex-wrap items-center gap-x-0.5 gap-y-1">
+          <button type="button" ref={setActivatorNodeRef} disabled={locked} aria-label={`Trascina: ${label}`} className={handleCls} {...attributes} {...listeners}>
+            <Icon name="grip" />
+          </button>
+          <span className="inline-flex min-w-0 items-center gap-1.5 pr-2 text-sm font-semibold text-muted">
+            <QuestionTypeIcon type={question.type} className="size-4.5" />
+            <span className="truncate">{questionTypeLabel(question.type)}</span>
+          </span>
+          {question.visibleIf && (
+            <span className="inline-flex items-center gap-1 pr-2 text-sm text-muted">
+              <Icon name="branch" className="size-4" />Condizionale<span className="sr-only">: visibile solo se la condizione è soddisfatta</span>
+            </span>
+          )}
+          {hasErrors && <Badge kind="warn">Da completare</Badge>}
+          <span className="flex-1" />
+          <span className="flex items-center" onClick={event => event.stopPropagation()}>
+            <MoveButtons id={`q-${question.id}`} label={label} canUp={canMoveUp} canDown={canMoveDown} disabled={locked} onMove={onMove} />
+            <Button aria-label={`Duplica: ${label}`} isDisabled={locked} onPress={onDuplicate} className={miniIcon}><Icon name="copy" /></Button>
+            <Button aria-label={`Elimina: ${label}`} isDisabled={locked} onPress={onRemove} className={miniIcon}><AdminIcon name="trash" /></Button>
+            {onOpenProperties && (
+              <Button aria-label={`Proprietà: ${label}`} onPress={onOpenProperties} className={miniIcon}><Icon name="sliders" /></Button>
+            )}
+          </span>
+        </div>
+        {selected && (
+          <div className="mt-2" onClick={event => event.stopPropagation()}>
+            <FieldText
+              aria-label="Testo della domanda"
+              placeholder={question.type === 'InfoText' ? 'Titolo del blocco' : 'Scrivi la domanda…'}
+              value={question.title}
+              autoFocus={!question.title}
+              maxLength={500}
+              onChange={onTitleChange}
+              inputClassName="font-semibold"
+            />
+          </div>
         )}
-        {hasErrors && <Chip size="small" color="warning" label="Da completare" />}
-        <Box sx={{ flex: 1 }} />
-        <Tooltip title="Sposta su"><span><IconButton size="small" aria-label={`Sposta su: ${label}`} disabled={locked || !canMoveUp} onClick={e => { e.stopPropagation(); onMove(-1); }}><ArrowUpwardIcon fontSize="small" /></IconButton></span></Tooltip>
-        <Tooltip title="Sposta giù"><span><IconButton size="small" aria-label={`Sposta giù: ${label}`} disabled={locked || !canMoveDown} onClick={e => { e.stopPropagation(); onMove(1); }}><ArrowDownwardIcon fontSize="small" /></IconButton></span></Tooltip>
-        <Tooltip title="Duplica"><span><IconButton size="small" aria-label={`Duplica: ${label}`} disabled={locked} onClick={e => { e.stopPropagation(); onDuplicate(); }}><ContentCopyIcon fontSize="small" /></IconButton></span></Tooltip>
-        <Tooltip title="Elimina"><span><IconButton size="small" aria-label={`Elimina: ${label}`} disabled={locked} onClick={e => { e.stopPropagation(); onRemove(); }}><DeleteOutlinedIcon fontSize="small" /></IconButton></span></Tooltip>
-      </Stack>
-      {selected ? (
-        <TextField
-          fullWidth
-          size="small"
-          variant="standard"
-          placeholder={question.type === 'InfoText' ? 'Titolo del blocco' : 'Scrivi la domanda…'}
-          value={question.title}
-          autoFocus={!question.title}
-          onChange={e => onTitleChange(e.target.value)}
-          onClick={e => e.stopPropagation()}
-          slotProps={{ htmlInput: { 'aria-label': 'Testo della domanda', maxLength: 500 } }}
-          sx={{ mb: 1, '& input': { fontWeight: 600, fontSize: '1.05rem' } }}
-        />
-      ) : null}
-      <Box sx={{ pointerEvents: 'none', px: 1 }} aria-hidden>
-        {selected
-          ? <QuestionField question={{ ...question, title: '' }} disabled onChange={() => undefined} />
-          : <QuestionField question={{ ...question, title: question.title || '(senza titolo)' }} number={number} disabled onChange={() => undefined} />}
-      </Box>
-      {!selected && question.type !== 'InfoText' && !question.title && (
-        <Typography variant="caption" color="warning.main" sx={{ px: 1 }}>Aggiungi il testo della domanda</Typography>
-      )}
-    </Paper>
+        <div inert className="mt-2 px-1 opacity-90">
+          {selected
+            ? <QuestionField question={{ ...question, title: '' }} disabled onChange={() => undefined} />
+            : <QuestionField question={{ ...question, title: question.title || '(senza titolo)' }} number={number} disabled onChange={() => undefined} />}
+        </div>
+        {!selected && question.type !== 'InfoText' && !question.title && (
+          <p className="px-1 text-sm font-semibold text-[#8a4b00]">Aggiungi il testo della domanda</p>
+        )}
+      </div>
+    </li>
   );
 };
 
