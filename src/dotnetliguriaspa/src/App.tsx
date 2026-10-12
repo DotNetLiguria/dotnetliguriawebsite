@@ -1,4 +1,3 @@
-import './App.css';
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useOidc } from "@axa-fr/react-oidc";
 import { Navigate, Route, Routes } from 'react-router-dom';
