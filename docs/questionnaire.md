@@ -90,8 +90,9 @@ Its `QuestionarioTest` differs from A.1: `QuestionarioTestId`, `WorkshopId` and 
 - Respondents are anonymous or identified (name, surname, email, privacy consent) per
   questionnaire, optionally limited to one response per email.
 - QR codes are **generated** for the public link (PNG/SVG download); scanning is removed.
-- Engine: custom, all-MIT, on the existing SPA stack – MUI 9 + MUI X Data Grid, `@dnd-kit`
-  (sortable designer), Zustand (designer store + undo/redo), Recharts (results), `qrcode.react`.
+- Engine: custom, all-MIT, on the existing SPA stack – Tailwind CSS 4 + React Aria Components in the
+  admin style (`src/admin`), `@dnd-kit` (sortable designer), Zustand (designer store + undo/redo),
+  Recharts (results), `qrcode.react`.
   Validation is a pure TypeScript module mirroring the server validator (no Zod: the rule set is
   small, shared with the designer checklist, and avoids a second schema language).
 - Storage: MongoDB collections `Questionnaire` and `QuestionnaireResponse`.
@@ -178,7 +179,7 @@ or `roles`, or a claim with the configured name (`QuestionnaireAuthorization:Adm
 
 ### B.5 Public runner (`/q/:questionnaireId`, `/feedback/:workshopId`)
 
-- Mobile first (participants arrive from a QR code at the event); MUI controls with labels and
+- Mobile first (participants arrive from a QR code at the event); React Aria controls with labels and
   accessible errors.
 - Single page or stepper (one section per step) with progress bar.
 - Conditional visibility evaluated live; hidden answers are not submitted.
@@ -191,31 +192,40 @@ or `roles`, or a claim with the configured name (`QuestionnaireAuthorization:Adm
 
 The designer is the core of the admin experience:
 
-- **Three panes**: question-type palette (click to append or drag onto the canvas), canvas with
-  sections and question cards, properties panel for the selected question or the questionnaire.
-- **Canvas**: drag-and-drop and keyboard reordering of sections and questions (dnd-kit), inline
-  title editing, duplicate/delete, required toggle, type icons. On narrow screens the three panes
-  become tabs (canvas, palette, properties).
+- **Three panes** from 1360px: question-type palette (click to append or drag onto the canvas, sticky),
+  canvas with sections and question cards, properties panel for the selected question, section or the
+  questionnaire (sticky). Below that width it is a single column and the palette ("Aggiungi domanda")
+  and the properties open as sheets (full page on phones); every card has a "Proprietà" button.
+- **Canvas**: drag-and-drop of sections' questions (dnd-kit, Italian screen-reader instructions) with
+  "Sposta su" / "Sposta giù" buttons as the pointer and keyboard alternative (they also cross sections;
+  focus stays on the pressed button and the new position is announced), inline title editing,
+  duplicate/delete (focus moves to the neighbouring card), required toggle, type icons, "Da completare"
+  badge and field-level problems after a publish attempt.
 - **Properties**: type-specific settings; option/row editor with paste-many (one per line),
-  reorder and "Altro"; scale labels and range; visibility-rule builder limited to earlier questions.
+  reorder (drag handle or move buttons) and "Altro"; scale labels and range; visibility-rule builder
+  limited to earlier questions; problems of the definition check are linked to their fields.
 - **Questionnaire settings**: title, descriptions, intro/thank-you texts, respondent mode, consent
   text, one-per-email, display mode, opening window, linked workshop banner.
-- **Toolbar**: debounced autosave (1.2 s) with status indicator and conflict detection,
-  undo/redo (100 steps, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y), live preview using the real runner in desktop and mobile
-  frames, publish dialog with a validation checklist, share dialog (copy link, QR PNG/SVG download).
+- **Toolbar** (sticky): debounced autosave (1.2 s) with a quiet status text (`role="status"`), conflict
+  banner with "Ricarica", retry on errors, undo/redo (100 steps, Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y), live
+  preview using the real runner in desktop and mobile frames, publish dialog with a validation checklist,
+  share dialog (copy link, QR PNG/SVG download), close/reopen. "Pubblica" is the only primary action.
 - **Templates**: blank, workshop feedback (overall rating, usefulness, per-session matrix, topics,
   suggestions), duplicate existing.
 - **Locked banner** when responses exist; structural controls are disabled.
 
 ### B.7 Admin list and results
 
-- `/admin/questionnaires`: Data Grid (title, event, status, opening window, responses, last
+- `/admin/questionnaires`: table (title, event, status, opening window, responses, last
   modified) with create, edit, results, duplicate, archive and delete; legacy `/admin/feedbacks`
   redirects here.
 - Workshop detail: panel listing linked questionnaires and "Crea questionario di feedback".
-- `/admin/questionnaires/:id/results`: KPI cards, responses per day, per-question cards
-  (distribution + average for rating/scale/matrix rows, bars for choices, searchable text answers),
-  responses grid with detail dialog and delete, CSV export. Historical data uses the same views.
+- `/admin/questionnaires/:id/results`: header (title, period, response count, public link, CSV export),
+  summary numbers, responses per day, per-question cards (Recharts distribution + average for
+  rating/scale/matrix rows, bars for choices, searchable text answers; every chart has its numbers as a
+  table or text), and a responses table with search, origin filter, sortable columns, paging
+  (25/50/100; stacked cards with a sort menu on phones), detail dialog and delete. The selected tab is
+  kept in the address (`?vista=risposte`). Historical data uses the same views.
 - The three admin pages are lazy-loaded so public visitors do not download the designer.
 
 ### B.8 Migration of historical data

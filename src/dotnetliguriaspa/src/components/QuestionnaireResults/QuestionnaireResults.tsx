@@ -1,338 +1,208 @@
-import React, { FC, useEffect, useMemo, useState } from 'react';
-import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle,
-  IconButton, InputAdornment, LinearProgress, List, ListItem, ListItemText, Stack, Tab, Tabs, TextField, Tooltip, Typography,
-} from '@mui/material';
-import { DataGrid, GridActionsCellItem, GridColDef } from '@mui/x-data-grid';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as ChartTooltip, XAxis, YAxis } from 'recharts';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Button, Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import DownloadIcon from '@mui/icons-material/Download';
-import EditIcon from '@mui/icons-material/Edit';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import SearchIcon from '@mui/icons-material/Search';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
-import { createQuestionnaireAdminApi } from '../../questionnaire/api';
-import { formatAnswer, formatDate, formatDateTime } from '../../questionnaire/format';
+import { AdminIcon } from '../../admin/icons';
+import { EmptyState, LoadError, PageHeader, Panel, btn, focusRing } from '../../admin/ui';
+import { ExternalLink, SearchBox, Skeleton, plural } from '../../admin/pages/listUi';
+import { notify } from '../../admin/toasts';
+import { Icon, StatusBadge } from '../QuestionnaireDesigner/designerUi';
+import { ResponsesPerDay } from './ResultsCharts';
+import { QuestionResult } from './ResultsSummary';
+import ResponsesPanel from './ResponsesPanel';
+import { createQuestionnaireAdminApi, publicQuestionnaireUrl } from '../../questionnaire/api';
+import { formatDate, formatDateTime } from '../../questionnaire/format';
 import { allQuestions } from '../../questionnaire/rules';
-import { sourceLabels, statusColors, statusLabels } from '../../questionnaire/status';
-import type { Question, Questionnaire, QuestionnaireResponse, QuestionnaireStatistics, QuestionStatistics } from '../../questionnaire/types';
+import type { Questionnaire, QuestionnaireResponse, QuestionnaireStatistics } from '../../questionnaire/types';
 
-const TEXT_PAGE = 20;
+interface ResultsData {
+  questionnaire: Questionnaire;
+  stats: QuestionnaireStatistics;
+  responses: QuestionnaireResponse[];
+}
 
-const Kpi: FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
-  <Card variant="outlined" sx={{ flex: '1 1 180px' }}>
-    <CardContent>
-      <Typography variant="overline" color="text.secondary">{label}</Typography>
-      <Typography variant="h5">{value}</Typography>
-    </CardContent>
-  </Card>
-);
+const errorText = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
 
-const Distribution: FC<{ data: { value: number; count: number }[]; height?: number }> = ({ data, height = 180 }) => (
-  <Box sx={{ width: '100%', height }}>
-    <ResponsiveContainer>
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="value" />
-        <YAxis allowDecimals={false} />
-        <ChartTooltip formatter={v => [v, 'Risposte']} labelFormatter={l => `Valore ${l}`} />
-        <Bar dataKey="count" fill="#1976d2" radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  </Box>
-);
+const tabCls = `-mb-px inline-flex min-h-11 cursor-pointer items-center border-b-[3px] border-transparent px-4 font-bold text-muted transition-colors data-[hovered]:text-navy data-[selected]:border-navy data-[selected]:text-navy ${focusRing}`;
 
-const OptionBars: FC<{ options: QuestionStatistics['options']; answered: number }> = ({ options, answered }) => (
-  <Stack spacing={1}>
-    {options.map(o => {
-      const percent = answered > 0 ? Math.round((o.count / answered) * 100) : 0;
-      return (
-        <Box key={o.optionId}>
-          <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-            <Typography variant="body2">{o.label}</Typography>
-            <Typography variant="body2" color="text.secondary">{o.count} ({percent}%)</Typography>
-          </Stack>
-          <LinearProgress variant="determinate" value={percent} sx={{ height: 8, borderRadius: 4 }} aria-label={`${o.label}: ${percent}%`} />
-        </Box>
-      );
-    })}
-  </Stack>
-);
-
-const TextAnswers: FC<{ answers: QuestionStatistics['textAnswers']; filter: string }> = ({ answers, filter }) => {
-  const [limit, setLimit] = useState(TEXT_PAGE);
-  const needle = filter.trim().toLowerCase();
-  const visible = needle ? answers.filter(a => a.text.toLowerCase().includes(needle)) : answers;
-  if (visible.length === 0) return <Typography variant="body2" color="text.secondary">{needle ? 'Nessuna risposta corrisponde alla ricerca.' : 'Nessuna risposta.'}</Typography>;
-  return (
-    <>
-      <List dense sx={{ maxHeight: 320, overflowY: 'auto' }}>
-        {visible.slice(0, limit).map(a => (
-          <ListItem key={`${a.responseId}-${a.text}`} divider>
-            <ListItemText primary={a.text} secondary={formatDateTime(a.submittedAt)} sx={{ whiteSpace: 'pre-wrap' }} />
-          </ListItem>
-        ))}
-      </List>
-      {visible.length > limit && <Button size="small" onClick={() => setLimit(l => l + TEXT_PAGE)}>Mostra altre ({visible.length - limit})</Button>}
-    </>
-  );
+const periodOf = (questionnaire: Questionnaire) => {
+  const parts = [
+    questionnaire.opensAt ? `dal ${formatDateTime(questionnaire.opensAt)}` : null,
+    questionnaire.closesAt ? `al ${formatDateTime(questionnaire.closesAt)}` : null,
+  ].filter(Boolean);
+  return parts.length ? `Aperto ${parts.join(' ')}` : null;
 };
 
-const QuestionResult: FC<{ stats: QuestionStatistics; question?: Question; total: number; filter: string }> = ({ stats, question, total, filter }) => {
-  const choice = stats.type === 'SingleChoice' || stats.type === 'MultipleChoice' || stats.type === 'YesNo';
-  return (
-    <Card variant="outlined">
-      <CardContent>
-        <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'baseline' }}>
-          <Typography variant="subtitle1" sx={{ flex: 1, fontWeight: 600 }}>{stats.title || '(senza titolo)'}</Typography>
-          <Typography variant="body2" color="text.secondary">{stats.answeredCount} / {total} risposte</Typography>
-        </Stack>
-        {(stats.type === 'Rating' || stats.type === 'Scale') && (
-          <>
-            {stats.average != null && <Typography variant="h6">Media {stats.average.toLocaleString('it-IT')}</Typography>}
-            <Distribution data={stats.distribution} />
-          </>
-        )}
-        {stats.type === 'Number' && (
-          <Typography>
-            {stats.average != null ? `Media ${stats.average.toLocaleString('it-IT')} · min ${stats.min} · max ${stats.max}` : 'Nessuna risposta.'}
-          </Typography>
-        )}
-        {choice && <OptionBars options={stats.options} answered={stats.answeredCount} />}
-        {choice && stats.textAnswers.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{question?.settings.otherLabel ?? 'Altro'}: risposte libere</Typography>
-            <TextAnswers answers={stats.textAnswers} filter={filter} />
-          </Box>
-        )}
-        {stats.type === 'Matrix' && (
-          <Stack spacing={2}>
-            {stats.rows.map(row => (
-              <Box key={row.rowId}>
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
-                  <Typography sx={{ flex: 1 }}>{row.label}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {row.average != null ? `media ${row.average.toLocaleString('it-IT')} · ` : ''}{row.answeredCount} risposte
-                  </Typography>
-                </Stack>
-                <Distribution data={row.distribution} height={120} />
-              </Box>
-            ))}
-          </Stack>
-        )}
-        {['ShortText', 'LongText', 'Email', 'Date'].includes(stats.type) && <TextAnswers answers={stats.textAnswers} filter={filter} />}
-      </CardContent>
-    </Card>
-  );
-};
+const Stat: FC<{ label: string; children: React.ReactNode; large?: boolean }> = ({ label, children, large }) => (
+  <div>
+    <dt className="text-sm font-semibold text-muted">{label}</dt>
+    <dd className={`mt-0.5 font-bold tabular-nums ${large ? 'text-3xl' : 'text-xl'}`}>{children}</dd>
+  </div>
+);
 
 const QuestionnaireResults: FC = () => {
   const { id = '' } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const { fetch } = useOidcFetch();
   const api = useMemo(() => createQuestionnaireAdminApi(fetch), [fetch]);
-  const [questionnaire, setQuestionnaire] = useState<Questionnaire | null>(null);
-  const [stats, setStats] = useState<QuestionnaireStatistics | null>(null);
-  const [responses, setResponses] = useState<QuestionnaireResponse[]>([]);
+  const [data, setData] = useState<ResultsData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [version, setVersion] = useState(0);
   const [filter, setFilter] = useState('');
-  const [detail, setDetail] = useState<QuestionnaireResponse | null>(null);
-  const [toDelete, setToDelete] = useState<QuestionnaireResponse | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const reload = useCallback(() => setVersion(v => v + 1), []);
 
-  const load = async () => {
-    try {
-      const [q, s, r] = await Promise.all([api.get(id), api.statistics(id), api.responses(id)]);
-      setQuestionnaire(q);
-      setStats(s);
-      setResponses(r);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Impossibile caricare i risultati.');
-    }
+  // A load that is superseded (new id, refresh, unmount) never overwrites newer data.
+  useEffect(() => {
+    let alive = true;
+    setData(current => (current?.questionnaire.questionnaireId === id ? current : null));
+    setRefreshing(true);
+    Promise.all([api.get(id), api.statistics(id), api.responses(id)])
+      .then(([questionnaire, stats, responses]) => {
+        if (!alive) return;
+        setData({ questionnaire, stats, responses });
+        setError(null);
+      })
+      .catch((err: unknown) => { if (alive) setError(errorText(err, 'Impossibile caricare i risultati.')); })
+      .finally(() => { if (alive) setRefreshing(false); });
+    return () => { alive = false; };
+  }, [api, id, version]);
+
+  const questions = useMemo(() => new Map((data ? allQuestions(data.questionnaire) : []).map(q => [q.id, q])), [data]);
+  const tab = params.get('vista') === 'risposte' ? 'risposte' : 'riepilogo';
+  const setTab = (next: string) => {
+    const nextParams = new URLSearchParams(params);
+    if (next === 'risposte') nextParams.set('vista', 'risposte'); else nextParams.delete('vista');
+    setParams(nextParams, { replace: true });
   };
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, id]);
-
-  const questions = useMemo(() => new Map((questionnaire ? allQuestions(questionnaire) : []).map(q => [q.id, q])), [questionnaire]);
-
   const exportCsv = async () => {
-    setBusy(true);
+    setExporting(true);
     try {
       const blob = await api.exportCsv(id);
+      const filename = `${(data?.questionnaire.title || 'questionario').replace(/[^\w-]+/g, '_')}.csv`;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${(questionnaire?.title || 'questionario').replace(/[^\w-]+/g, '_')}.csv`;
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
+      notify('Esportazione pronta', { description: filename });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Esportazione non riuscita.');
+      notify('Esportazione non riuscita', { description: errorText(err, 'Riprova tra qualche istante.'), kind: 'error' });
     } finally {
-      setBusy(false);
+      setExporting(false);
     }
   };
 
   const deleteResponse = async (response: QuestionnaireResponse) => {
-    setBusy(true);
     try {
       await api.removeResponse(id, response.responseId);
-      await load();
+      notify('Risposta eliminata', { description: formatDateTime(response.submittedAt) });
+      reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eliminazione non riuscita.');
-    } finally {
-      setBusy(false);
+      notify('Eliminazione non riuscita', { description: errorText(err, 'Riprova tra qualche istante.'), kind: 'error' });
+      throw err;
     }
   };
 
-  if (error && !stats) {
+  const back = { to: '/admin/questionnaires', label: 'Questionari' };
+
+  if (!data) {
     return (
-      <Box sx={{ p: 3, flex: 1 }}>
-        <Alert severity="error" action={<Button onClick={() => navigate('/admin/questionnaires')}>Torna all'elenco</Button>}>{error}</Alert>
-      </Box>
+      <>
+        <PageHeader title="Risultati" back={back} />
+        <div className="mt-6">
+          {error ? <LoadError message={error} onRetry={reload} /> : (
+            <>
+              <p role="status" className="sr-only">Caricamento dei risultati…</p>
+              <Skeleton className="h-96" />
+            </>
+          )}
+        </div>
+      </>
     );
   }
-  if (!stats || !questionnaire) {
-    return <Box sx={{ p: 6, flex: 1, display: 'flex', justifyContent: 'center' }}><CircularProgress aria-label="Caricamento" /></Box>;
-  }
 
-  const identified = responses.some(r => r.respondent);
-  const columns: GridColDef<QuestionnaireResponse>[] = [
-    { field: 'submittedAt', headerName: 'Inviata', width: 160, type: 'dateTime', valueGetter: (_, r) => new Date(r.submittedAt) },
-    ...(identified ? [
-      { field: 'respondent', headerName: 'Partecipante', flex: 1, minWidth: 180, valueGetter: (_: unknown, r: QuestionnaireResponse) =>
-        [r.respondent?.name, r.respondent?.surname].filter(Boolean).join(' ') },
-      { field: 'email', headerName: 'Email', flex: 1, minWidth: 200, valueGetter: (_: unknown, r: QuestionnaireResponse) => r.respondent?.email ?? '' },
-    ] as GridColDef<QuestionnaireResponse>[] : []),
-    { field: 'answers', headerName: 'Risposte date', width: 130, type: 'number', valueGetter: (_, r) => r.answers.length },
-    { field: 'source', headerName: 'Origine', width: 190, valueGetter: (_, r) => sourceLabels[r.source] ?? r.source },
-    {
-      field: 'actions', type: 'actions', width: 100, getActions: ({ row }) => [
-        <GridActionsCellItem key="view" icon={<VisibilityIcon />} label="Dettaglio" onClick={() => setDetail(row)} />,
-        <GridActionsCellItem key="delete" icon={<DeleteOutlineIcon />} label="Elimina" disabled={busy} onClick={() => setToDelete(row)} />,
-      ],
-    },
-  ];
+  const { questionnaire, stats, responses } = data;
+  const period = periodOf(questionnaire);
 
   return (
-    <Box sx={{ flex: 1, minWidth: 0, p: 3 }}>
-      <Stack direction="row" spacing={1} useFlexGap sx={{ mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Tooltip title="Torna ai questionari">
-          <IconButton aria-label="Torna ai questionari" onClick={() => navigate('/admin/questionnaires')}><ArrowBackIcon /></IconButton>
-        </Tooltip>
-        <Typography variant="h5" component="h1" sx={{ flex: 1 }}>Risultati: {questionnaire.title}</Typography>
-        <Chip label={statusLabels[questionnaire.status]} color={statusColors[questionnaire.status]} />
-        <Button startIcon={<RefreshIcon />} onClick={() => void load()}>Aggiorna</Button>
-        <Button startIcon={<EditIcon />} onClick={() => navigate(`/admin/questionnaires/${id}/edit`)}>Modifica</Button>
-        <Button variant="contained" startIcon={<DownloadIcon />} disabled={busy || stats.responseCount === 0} onClick={() => void exportCsv()}>
-          Esporta CSV
-        </Button>
-      </Stack>
-      {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
-
-      <Stack direction="row" spacing={2} useFlexGap sx={{ mb: 3, flexWrap: 'wrap' }}>
-        <Kpi label="Risposte" value={stats.responseCount} />
-        <Kpi label="Prima risposta" value={formatDate(stats.firstResponseAt) || '—'} />
-        <Kpi label="Ultima risposta" value={formatDate(stats.lastResponseAt) || '—'} />
-        <Kpi label="Domande" value={stats.questions.length} />
-      </Stack>
-
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
-        <Tab label="Riepilogo" />
-        <Tab label={`Risposte (${responses.length})`} />
-      </Tabs>
-
-      {tab === 0 && (
-        stats.responseCount === 0 ? (
-          <Alert severity="info">Non ci sono ancora risposte. Condividi il link o il QR code dalla pagina di modifica.</Alert>
-        ) : (
-          <Stack spacing={2}>
-            {stats.responsesPerDay.length > 1 && (
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Risposte per giorno</Typography>
-                  <Box sx={{ width: '100%', height: 200 }}>
-                    <ResponsiveContainer>
-                      <BarChart data={stats.responsesPerDay} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="date" />
-                        <YAxis allowDecimals={false} />
-                        <ChartTooltip formatter={v => [v, 'Risposte']} />
-                        <Bar dataKey="count" fill="#2e7d32" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Box>
-                </CardContent>
-              </Card>
+    <>
+      <PageHeader
+        back={back}
+        title={`Risultati: ${questionnaire.title}`}
+        description={(
+          <>
+            {plural(stats.responseCount, 'risposta', 'risposte')}{period ? ` · ${period}` : ''}
+            {questionnaire.status !== 'Published' && <span className="ml-2 align-middle"><StatusBadge status={questionnaire.status} /></span>}
+          </>
+        )}
+        actions={(
+          <>
+            <Button isDisabled={refreshing} onPress={reload} className={btn.ghost}><Icon name="refresh" />{refreshing ? 'Aggiornamento…' : 'Aggiorna'}</Button>
+            <Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/edit`} className={btn.ghost}><AdminIcon name="pencil" />Modifica</Link>
+            {questionnaire.status === 'Published' && (
+              <ExternalLink href={publicQuestionnaireUrl(questionnaire.questionnaireId)} className={`${btn.secondary} gap-1.5`}>Apri il link pubblico</ExternalLink>
             )}
-            <TextField size="small" placeholder="Cerca nelle risposte testuali" value={filter} onChange={e => setFilter(e.target.value)}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }, htmlInput: { 'aria-label': 'Cerca nelle risposte testuali' } }}
-              sx={{ maxWidth: 420 }} />
-            {stats.questions.map(s => (
-              <QuestionResult key={s.questionId} stats={s} question={questions.get(s.questionId)} total={stats.responseCount} filter={filter} />
-            ))}
-          </Stack>
-        )
-      )}
+            <Button isDisabled={exporting || stats.responseCount === 0} onPress={() => void exportCsv()} className={btn.primary}>
+              <AdminIcon name="download" />{exporting ? 'Esportazione…' : 'Esporta CSV'}
+            </Button>
+          </>
+        )}
+      />
 
-      {tab === 1 && (
-        <DataGrid
-          rows={responses}
-          columns={columns}
-          getRowId={r => r.responseId}
-          autoHeight
-          disableRowSelectionOnClick
-          showToolbar
-          onRowDoubleClick={({ row }) => setDetail(row)}
-          initialState={{ sorting: { sortModel: [{ field: 'submittedAt', sort: 'desc' }] }, pagination: { paginationModel: { pageSize: 25 } } }}
-          pageSizeOptions={[25, 50, 100]}
-          localeText={{ noRowsLabel: 'Nessuna risposta.' }}
-        />
-      )}
+      {error && <div className="mt-5"><LoadError message={error} onRetry={reload} /></div>}
 
-      <Dialog open={!!detail} onClose={() => setDetail(null)} fullWidth maxWidth="md" aria-labelledby="response-detail-title">
-        <DialogTitle id="response-detail-title">Risposta del {formatDateTime(detail?.submittedAt)}</DialogTitle>
-        <DialogContent dividers>
-          {detail?.respondent && (
-            <Typography sx={{ mb: 2 }}>
-              {[detail.respondent.name, detail.respondent.surname].filter(Boolean).join(' ')} {detail.respondent.email && `· ${detail.respondent.email}`}
-            </Typography>
+      <Panel className="mt-6 p-5 sm:p-6" labelledBy="results-numbers">
+        <h2 id="results-numbers" className="sr-only">Numeri in sintesi</h2>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+          <Stat label="Risposte" large>{stats.responseCount}</Stat>
+          <Stat label="Prima risposta">{formatDate(stats.firstResponseAt) || '—'}</Stat>
+          <Stat label="Ultima risposta">{formatDate(stats.lastResponseAt) || '—'}</Stat>
+          <Stat label="Domande">{stats.questions.length}</Stat>
+        </dl>
+      </Panel>
+
+      <Tabs selectedKey={tab} onSelectionChange={key => setTab(String(key))} className="mt-6">
+        <TabList aria-label="Sezioni dei risultati" className="flex gap-1 border-b border-line">
+          <Tab id="riepilogo" className={tabCls}>Riepilogo</Tab>
+          <Tab id="risposte" className={tabCls}>Risposte ({responses.length})</Tab>
+        </TabList>
+
+        <TabPanel id="riepilogo" className="mt-5 outline-none">
+          {stats.responseCount === 0 ? (
+            <Panel>
+              <EmptyState
+                icon="clipboard"
+                title="Ancora nessuna risposta"
+                actions={<Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/edit`} className={btn.secondary}><Icon name="share" />Condividi dalla pagina di modifica</Link>}
+              >
+                <p>Condividi il link o il QR code: i risultati compaiono qui appena arriva la prima risposta.</p>
+              </EmptyState>
+            </Panel>
+          ) : (
+            <div className="space-y-4">
+              {stats.responsesPerDay.length > 1 && (
+                <Panel className="p-5 sm:p-6" labelledBy="results-per-day">
+                  <h3 id="results-per-day" className="text-lg font-bold">Risposte per giorno</h3>
+                  <div className="mt-3"><ResponsesPerDay data={stats.responsesPerDay} /></div>
+                </Panel>
+              )}
+              <SearchBox label="Cerca nelle risposte testuali" placeholder="Cerca nelle risposte testuali" value={filter} onChange={setFilter} />
+              {stats.questions.map(s => (
+                <QuestionResult key={s.questionId} stats={s} question={questions.get(s.questionId)} total={stats.responseCount} filter={filter} />
+              ))}
+            </div>
           )}
-          <List dense>
-            {detail && allQuestions(questionnaire).filter(q => q.type !== 'InfoText').map(q => {
-              const value = formatAnswer(q, detail.answers.find(a => a.questionId === q.id));
-              return (
-                <ListItem key={q.id} divider>
-                  <ListItemText primary={q.title || '(senza titolo)'} secondary={value || '—'} sx={{ whiteSpace: 'pre-wrap' }} />
-                </ListItem>
-              );
-            })}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button color="error" disabled={busy} onClick={() => { setToDelete(detail); setDetail(null); }}>Elimina risposta</Button>
-          <Button onClick={() => setDetail(null)}>Chiudi</Button>
-        </DialogActions>
-      </Dialog>
+        </TabPanel>
 
-      <Dialog open={!!toDelete} onClose={() => setToDelete(null)}>
-        <DialogTitle>Eliminare la risposta?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>La risposta del {formatDateTime(toDelete?.submittedAt)} verrà eliminata definitivamente.</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setToDelete(null)}>Annulla</Button>
-          <Button color="error" variant="contained" onClick={() => { const r = toDelete!; setToDelete(null); void deleteResponse(r); }}>Elimina</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+        <TabPanel id="risposte" className="mt-5 outline-none">
+          <ResponsesPanel questionnaire={questionnaire} responses={responses} onDelete={deleteResponse} />
+        </TabPanel>
+      </Tabs>
+    </>
   );
 };
 
