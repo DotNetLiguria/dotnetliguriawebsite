@@ -20,8 +20,8 @@ import TermsPage from "./site/legal/TermsPage";
 import CookiePolicyPage from "./site/legal/CookiePolicyPage";
 import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
 import BoardPage from "./admin/pages/BoardPage";
-import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopDetail";
-import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopCreate";
+import EventDetailAdminPage from "./admin/pages/EventDetailAdminPage";
+import EventCreatePage from "./admin/pages/EventCreatePage";
 import MenuPage from "./admin/pages/MenuPage";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
 import LegacyRedirect from "./site/legacy/LegacyRedirect";
@@ -58,8 +58,8 @@ function App() {
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />
                     <Route path='/admin/speakers/:id' element={<SpeakersPage />} />
                     <Route path='/admin/workshops/' element={<EventsAdminPage />} />
-                    <Route path='/admin/workshop/create' element={<AdminWorkshopCreate />} />
-                    <Route path='/admin/workshop/:id' element={<AdminWorkshopDetail pageName={"Workshop Detail"} />} />
+                    <Route path='/admin/workshop/create' element={<EventCreatePage />} />
+                    <Route path='/admin/workshop/:id' element={<EventDetailAdminPage />} />
                     <Route path='/admin/events/' element={<Navigate to='/admin/workshops/' replace />} />
                     <Route path='/admin/venues/' element={<VenuesPage />} />
                     <Route path='/admin/feedbacks' element={<Navigate to='/admin/questionnaires' replace />} />

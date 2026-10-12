@@ -2,7 +2,6 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render, screen, waitFor, within } from '../../test-utils';
-import WorkshopQuestionnaires from './WorkshopQuestionnaires';
 import QuestionnaireResults from '../QuestionnaireResults/QuestionnaireResults';
 import { formatAnswer } from '../../questionnaire/format';
 import type { Question, Questionnaire, QuestionnaireStatistics } from '../../questionnaire/types';
@@ -53,24 +52,8 @@ const statistics: QuestionnaireStatistics = {
   ],
 };
 
-describe('<WorkshopQuestionnaires />', () => {
-  test('lists linked questionnaires and creates one from the workshop', async () => {
-    const user = userEvent.setup();
-    const calls = serve((_, method) => (method === 'POST' ? { ...questionnaire, questionnaireId: 'new2' } : [questionnaire]));
-    render(
-      <Routes>
-        <Route path="/admin/workshop/w1" element={<WorkshopQuestionnaires workshopId="w1" />} />
-        <Route path="/admin/questionnaires/:id/edit" element={<div>Editor aperto</div>} />
-      </Routes>,
-      { route: '/admin/workshop/w1' },
-    );
-    expect(await screen.findByRole('link', { name: 'Feedback Meetup' })).toHaveAttribute('href', '/admin/questionnaires/q1/edit');
-    expect(screen.getByRole('link', { name: '2 risposte' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Crea questionario di feedback' }));
-    expect(await screen.findByText('Editor aperto')).toBeInTheDocument();
-    expect(calls.some(c => c.url.endsWith('/Questionnaire/by-workshop/w1'))).toBe(true);
-  });
-});
+// The workshop's questionnaire panel now lives in the event card (src/admin/pages/eventPanels.tsx) and is
+// covered by EventDetailAdminPage.test.tsx; the results view and the answer formatter keep their tests here.
 
 describe('<QuestionnaireResults />', () => {
   const responses = [
