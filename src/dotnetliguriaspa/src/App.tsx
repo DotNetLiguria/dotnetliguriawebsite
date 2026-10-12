@@ -24,7 +24,7 @@ import MenuPage from "./admin/pages/MenuPage";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
 import LegacyRedirect from "./site/legacy/LegacyRedirect";
 
-// The questionnaire designer and results pull in dnd-kit, Recharts and the DataGrid: load them on demand.
+// The questionnaire designer and results pull in dnd-kit and Recharts: load them on demand.
 const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
 const QuestionnaireResults = lazy(() => import('./components/QuestionnaireResults/QuestionnaireResults'));
 const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</Suspense>;
