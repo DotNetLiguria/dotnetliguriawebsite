@@ -18,7 +18,6 @@ import EventDetailPage from "./site/event/EventDetailPage";
 import PrivacyPage from "./site/legal/PrivacyPage";
 import TermsPage from "./site/legal/TermsPage";
 import CookiePolicyPage from "./site/legal/CookiePolicyPage";
-import AdminDownloads from "./components/AdminDownloads/AdminDownloads";
 import BoardPage from "./admin/pages/BoardPage";
 import AdminWorkshopDetail from "./components/AdminWorkshopDetail/AdminWorkshopDetail";
 import AdminWorkshopCreate from "./components/AdminWorkshopCreate/AdminWorkshopCreate";
@@ -68,7 +67,7 @@ function App() {
                     <Route path='/admin/questionnaires/:id/results' element={page(<QuestionnaireResults />)} />
                     <Route path='/admin/topmenu/' element={<MenuPage />} />
                     <Route path='/admin/topmenu/:id' element={<MenuPage />} />
-                    <Route path='/admin/downloads' element={<AdminDownloads pageName={"Downloads"} />} />
+                    <Route path='/admin/downloads' element={<Navigate to='/admin/import-export/' replace />} />
                     <Route path='/admin/import-export/' element={<BackupPage />} />
                     <Route path='/admin/*' element={<AdminNotFoundPage />} />
                 </Route>
