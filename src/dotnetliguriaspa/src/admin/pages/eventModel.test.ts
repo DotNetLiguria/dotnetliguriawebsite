@@ -92,9 +92,17 @@ describe('helpers', () => {
     expect(eventbriteIssues(eventFixture(), ready)).toEqual([]);
     expect(eventbriteIssues(eventFixture({ description: '' }), { ...ready, eventbriteSalesStart: '2024-03-14T18:00', eventbriteSalesEnd: '2024-03-01T09:00' })).toEqual(["Descrizione dell'evento", "Fine vendite successiva all'inizio"]);
     expect(eventbriteStatusLabel(eventFixture())).toBe('Non creato');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e' }))).toBe('Bozza');
     expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'synced' }))).toBe('Bozza sincronizzata');
     expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'update-pending' }))).toBe('Da sincronizzare');
     expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbritePublished: true }))).toBe('Pubblicato');
+    // Backend statuses recorded before an event id exists are shown with their meaning, raw when unknown.
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'creating-event' }))).toBe("Creazione dell'evento in corso");
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'event-created' }))).toBe('Evento creato, biglietto da creare');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'creating-ticket' }))).toBe('Creazione del biglietto in corso');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'reconciliation-required' }))).toMatch(/^Da riconciliare/);
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'failed' }))).toBe('Sincronizzazione fallita');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'something-new' }))).toBe('something-new');
   });
 });
 
@@ -141,6 +149,8 @@ describe('talk pool, schedule and registration', () => {
 
     const withLunch = addServiceInterval(draft({ items: filled.items }), 'track-1', { title: 'Pranzo', room: 'Sala B', gap: '5', scheduleStart: '09:00', eventDate: '2024-03-15T10:00:00Z' });
     expect(withLunch.items.at(-1)).toMatchObject({ itemType: 'service', title: 'Pranzo', roomName: 'Sala B', startTime: '2024-03-15T11:05:00.000Z', endTime: '2024-03-15T11:10:00.000Z', order: 3 });
+    // An empty title falls back to the stored default the public agenda recognises, as before.
+    expect(addServiceInterval(draft(), 'track-1', { title: '  ', room: '', gap: '5', scheduleStart: '09:00', eventDate: '2024-03-15T10:00:00Z' }).items[0]).toMatchObject({ title: 'Service interval', startTime: '2024-03-15T09:00:00.000Z', endTime: '2024-03-15T09:05:00.000Z' });
     const refilled = autoFillSchedule(withLunch, { start: '14:00', duration: '30', gap: '10' }, '2024-03-15T10:00:00Z');
     if ('error' in refilled) throw new Error(refilled.error);
     expect(refilled.items.map(item => [item.title ?? item.itemType, toClockTime(item.startTime)])).toEqual([['talk', '14:00'], ['Technical gap', '14:30'], ['talk', '14:40'], ['Pranzo', '15:10']]);

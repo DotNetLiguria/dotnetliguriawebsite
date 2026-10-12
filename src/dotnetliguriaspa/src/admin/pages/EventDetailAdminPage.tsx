@@ -33,6 +33,9 @@ export default function EventDetailAdminPage() {
   const api = useEventApi();
   const [load, setLoad] = useState<RecordLoad>({ state: 'loading' });
   const [workshop, setWorkshop] = useState<EventRecord | null>(null);
+  // The latest record, readable from callbacks that started earlier (saves build their body from it).
+  const workshopRef = useRef<EventRecord | null>(null);
+  const commit = useCallback((next: EventRecord | null) => { workshopRef.current = next; setWorkshop(next); }, []);
   const [draft, setDraft] = useState<Partial<EventFormValues>>({});
   const [saving, setSaving] = useState(false);
   const [posterStamp, setPosterStamp] = useState(0);
@@ -42,18 +45,18 @@ export default function EventDetailAdminPage() {
   const fetchWorkshop = useCallback(async () => {
     try {
       const data = await api<EventRecord>(`/Workshop/Get/${encodeURIComponent(id)}`);
-      setWorkshop({ ...data, workshopId: data.workshopId || id });
+      commit({ ...data, workshopId: data.workshopId || id });
       setLoad({ state: 'ready' });
     } catch (error) {
       setLoad({ state: 'error', message: errorText(error), status: error instanceof EventApiError ? error.status : undefined });
     }
-  }, [api, id]);
+  }, [api, commit, id]);
   useEffect(() => {
     setLoad({ state: 'loading' });
-    setWorkshop(null);
+    commit(null);
     setDraft({});
     void fetchWorkshop();
-  }, [fetchWorkshop]);
+  }, [commit, fetchWorkshop]);
 
   // Steps: the hash names the current one; everything up to the furthest step reached stays reachable.
   const step = stepFromLocation(location.hash, location.search);
@@ -73,17 +76,24 @@ export default function EventDetailAdminPage() {
     navigate({ pathname: location.pathname, hash: `#${next}` }, { replace: true });
   };
 
-  const save = useCallback(async (body: EventRecord, toast: { title: string; description?: string }) => {
+  // One whole-record PUT at a time, always built from the latest record.
+  const save = useCallback(async (build: (latest: EventRecord) => EventRecord, toast: { title: string; description?: string }) => {
+    const latest = workshopRef.current;
+    if (!latest) return false;
+    const body = build(latest);
+    setSaving(true);
     try {
       await api(`/Workshop/Update/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) });
-      setWorkshop(afterSave(body));
+      commit(afterSave(body));
       notify(toast.title, { description: toast.description });
       return true;
     } catch (error) {
       notify('Salvataggio non riuscito', { description: errorText(error), kind: 'error' });
       return false;
+    } finally {
+      setSaving(false);
     }
-  }, [api, id]);
+  }, [api, commit, id]);
 
   const values: EventFormValues | null = workshop ? { ...formValuesOf(workshop), ...draft } : null;
   const edit = useCallback((patch: Partial<EventFormValues>) => setDraft(current => ({ ...current, ...patch })), []);
@@ -91,16 +101,15 @@ export default function EventDetailAdminPage() {
 
   /** "Salva modifiche": one PUT with the latest record and the edited values of steps 1, 3 and 4. */
   const saveChanges = async () => {
-    if (!workshop || !values) return;
-    setSaving(true);
-    const ok = await save(buildFormUpdate(workshop, values), { title: 'Modifiche salvate', description: clean(values.title) });
+    if (saving) return;
+    const ok = await save(latest => buildFormUpdate(latest, { ...formValuesOf(latest), ...draft }), { title: 'Modifiche salvate', description: clean(values?.title) });
     if (ok) setDraft({});
-    setSaving(false);
   };
 
   const page: EventPage | null = workshop && values ? {
-    workshop, speakers, api, save, values, edit,
-    replace: setWorkshop,
+    workshop, speakers, api, save, saving, values, edit,
+    current: () => workshopRef.current ?? workshop,
+    replace: commit,
     reload: fetchWorkshop,
     reloadSpeakers,
   } : null;

@@ -16,8 +16,14 @@ export interface EventPage {
   workshop: EventRecord;
   speakers: EventSpeaker[];
   api: <T>(path: string, init?: RequestInit) => Promise<T>;
-  /** PUT the whole record; on success the page follows the body. Resolves to false (after a toast) on failure. */
-  save: (body: EventRecord, toast: { title: string; description?: string }) => Promise<boolean>;
+  /** The record as it is right now (also inside callbacks started earlier). */
+  current: () => EventRecord;
+  /**
+   * PUT the whole record, built from the latest record at send time; on success the page follows the body.
+   * Resolves to false (after a toast) on failure. One whole-record PUT at a time: `saving` is true meanwhile.
+   */
+  save: (build: (latest: EventRecord) => EventRecord, toast: { title: string; description?: string }) => Promise<boolean>;
+  saving: boolean;
   /** Replace the page record with one returned by the server. */
   replace: (workshop: EventRecord) => void;
   /** Read the record again from the server. */
@@ -183,6 +189,24 @@ export function SelectInput({ label, items, selectedKey, onSelectionChange, plac
         </ListBox>
       </Popover>
     </Select>
+  );
+}
+
+/** Number input with a visible label and a lower bound shown to the browser. */
+export function NumberInput({ label, value, onChange, min, description, className = 'block' }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  min?: number;
+  description?: string;
+  className?: string;
+}) {
+  return (
+    <TextField value={value} onChange={onChange} className={className}>
+      <Label className="text-sm font-semibold text-navy">{label}</Label>
+      <Input type="number" min={min} step={1} className={`mt-1.5 ${inputCls}`} />
+      {description && <Text slot="description" className="mt-1.5 block text-sm text-muted">{description}</Text>}
+    </TextField>
   );
 }
 

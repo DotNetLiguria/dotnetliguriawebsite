@@ -337,9 +337,11 @@ export const itemOrder = (first: AgendaItem, second: AgendaItem) =>
 export const trackItems = (state: AgendaState, trackId: string) =>
   state.items.filter(item => item.trackId === trackId).sort(itemOrder);
 
+// Stored titles the public agenda recognises (programme.ts): keep them as the previous admin wrote them.
 export const CHANGEOVER_TITLE = 'Technical gap';
 export const DEFAULT_TRACK_NAME = 'Track 1';
-export const DEFAULT_INTERVAL_TITLE = 'Pausa';
+export const DEFAULT_INTERVAL_TITLE = 'Service interval';
+export const SUGGESTED_INTERVAL_TITLE = 'Lunch';
 
 /** Seat booking link as the previous admin seeded it: the legacy registration link when no Eventbrite event exists. */
 export const bookingUrlOf = (workshop: EventRecord) =>
@@ -659,14 +661,23 @@ export function eventbriteIssues(workshop: EventRecord, state: AgendaDraftState)
   ].filter((issue): issue is string => Boolean(issue));
 }
 
+/** The backend's sync statuses (EventbriteIntegrationService) with their meaning. */
+const EVENTBRITE_STATUS: Record<string, string> = {
+  'creating-event': 'Creazione dell\'evento in corso',
+  'event-created': 'Evento creato, biglietto da creare',
+  'creating-ticket': 'Creazione del biglietto in corso',
+  synced: 'Bozza sincronizzata',
+  'update-pending': 'Da sincronizzare',
+  'reconciliation-required': 'Da riconciliare: esito incerto, controlla l\'account Eventbrite prima di riprovare',
+  failed: 'Sincronizzazione fallita',
+};
+
+/** Status as the backend stored it, as the previous admin showed it (raw when unknown), "Non creato" when none. */
 export const eventbriteStatusLabel = (workshop: EventRecord) => {
-  if (!workshop.eventbriteEventId) return 'Non creato';
   if (workshop.eventbritePublished) return 'Pubblicato';
-  switch (workshop.eventbriteSyncStatus) {
-    case 'synced': return 'Bozza sincronizzata';
-    case 'update-pending': return 'Da sincronizzare';
-    default: return workshop.eventbriteSyncStatus || 'Bozza';
-  }
+  const status = clean(workshop.eventbriteSyncStatus);
+  if (!status) return workshop.eventbriteEventId ? 'Bozza' : 'Non creato';
+  return EVENTBRITE_STATUS[status] ?? status;
 };
 
 /** Talk speaker entries built from directory records (what the module stores on each talk). */
