@@ -38,7 +38,7 @@ describe('<DashboardPage />', () => {
     const latest = screen.getByRole('region', { name: /Dopo l'evento/ });
     expect(within(latest).getByRole('link', { name: 'AI Generativa' })).toHaveAttribute('href', '/admin/workshop/w-past');
     expect(within(latest).getByText('1 sessione con 1 relatore')).toBeInTheDocument();
-    expect(within(latest).getByRole('link', { name: /Carica materiali/ })).toHaveAttribute('href', '/admin/workshop/w-past');
+    expect(within(latest).getByRole('link', { name: /Carica materiali/ })).toHaveAttribute('href', '/admin/workshop/w-past#materiali');
 
     const todo = screen.getByRole('region', { name: 'Da sistemare' });
     expect(await within(todo).findByRole('link', { name: /2 relatori senza foto/ })).toHaveAttribute('href', '/admin/speakers/?filtro=senza-foto');
@@ -58,7 +58,9 @@ describe('<DashboardPage />', () => {
     const next = await screen.findByRole('region', { name: 'Prossimo evento' });
     expect(within(next).getByRole('link', { name: 'Season of AI' })).toHaveAttribute('href', '/admin/workshop/w-next');
     expect(within(next).getByText(/Nessuna sessione/)).toBeInTheDocument();
-    expect(within(next).getByRole('link', { name: 'Aggiungi il link' })).toHaveAttribute('href', '/admin/workshop/w-next');
+    expect(within(next).getByRole('link', { name: 'Aggiungi il link' })).toHaveAttribute('href', '/admin/workshop/w-next#iscrizione');
+    expect(within(next).getByRole('link', { name: "Prepara l'agenda" })).toHaveAttribute('href', '/admin/workshop/w-next#agenda');
+    expect(within(next).getByRole('link', { name: 'Pubblica' })).toHaveAttribute('href', '/admin/workshop/w-next#pubblicazione');
     expect(within(next).getByRole('link', { name: 'Pubblica' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Nuovo evento/ })).toHaveAttribute('href', '/admin/workshop/create');
 

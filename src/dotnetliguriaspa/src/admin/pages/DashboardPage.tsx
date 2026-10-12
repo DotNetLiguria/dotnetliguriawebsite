@@ -56,18 +56,18 @@ function NextEvent({ workshop }: { workshop: AdminWorkshop }) {
   const entries = programme(workshop);
   const sessions = sessionCount(entries);
   const to = eventLink(workshop);
-  const fix = (label: string) => <Link to={to} className={btn.ghost}>{label}</Link>;
+  const fix = (label: string, step: string) => <Link to={`${to}#${step}`} className={btn.ghost}>{label}</Link>;
   return (
     <Panel labelledBy="next-event">
       <EventHeader workshop={workshop} label={<Badge kind="planned">In programma</Badge>} />
       <p id="next-event" className="sr-only">Prossimo evento</p>
       <ul className="divide-y divide-line px-5 sm:px-6">
-        <CheckRow done={!!clean(workshop.description)} title="Descrizione" detail={clean(workshop.description) ? 'Presente' : 'Manca: compare nella scheda e nella home.'} action={clean(workshop.description) ? undefined : fix('Scrivi')} />
-        <CheckRow done={!!clean(workshop.location?.name)} title="Data e sede" detail={clean(workshop.location?.name) ? `${formatDate(workshop.eventDate)} · ${clean(workshop.location?.name)}` : 'Manca la sede.'} action={clean(workshop.location?.name) ? undefined : fix('Scegli la sede')} />
-        <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? sessionsLabel(sessions) : 'Nessuna sessione: importa i talk da Sessionize o aggiungili.'} action={sessions ? undefined : fix("Prepara l'agenda")} />
-        <CheckRow done={!!workshop.image} title="Locandina" detail={workshop.image ? 'Caricata' : 'Manca la locandina.'} action={workshop.image ? undefined : fix('Carica')} />
-        <CheckRow done={!!registrationOf(workshop)} title="Iscrizione" detail={registrationOf(workshop) ? 'Link di prenotazione presente' : 'Manca il link di prenotazione.'} action={registrationOf(workshop) ? undefined : fix('Aggiungi il link')} />
-        <CheckRow done={workshop.published !== false} title="Pubblicazione" detail={workshop.published !== false ? 'Visibile sul sito' : 'In bozza: non è ancora sul sito.'} action={workshop.published !== false ? undefined : fix('Pubblica')} />
+        <CheckRow done={!!clean(workshop.description)} title="Descrizione" detail={clean(workshop.description) ? 'Presente' : 'Manca: compare nella scheda e nella home.'} action={clean(workshop.description) ? undefined : fix('Scrivi', 'informazioni')} />
+        <CheckRow done={!!clean(workshop.location?.name)} title="Data e sede" detail={clean(workshop.location?.name) ? `${formatDate(workshop.eventDate)} · ${clean(workshop.location?.name)}` : 'Manca la sede.'} action={clean(workshop.location?.name) ? undefined : fix('Scegli la sede', 'sede')} />
+        <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? sessionsLabel(sessions) : 'Nessuna sessione: importa i talk da Sessionize o aggiungili.'} action={sessions ? undefined : fix("Prepara l'agenda", 'agenda')} />
+        <CheckRow done={!!workshop.image} title="Locandina" detail={workshop.image ? 'Caricata' : 'Manca la locandina.'} action={workshop.image ? undefined : fix('Carica', 'locandina')} />
+        <CheckRow done={!!registrationOf(workshop)} title="Iscrizione" detail={registrationOf(workshop) ? 'Link di prenotazione presente' : 'Manca il link di prenotazione.'} action={registrationOf(workshop) ? undefined : fix('Aggiungi il link', 'iscrizione')} />
+        <CheckRow done={workshop.published === true} title="Pubblicazione" detail={workshop.published === true ? 'Visibile sul sito' : 'In bozza: non è ancora sul sito.'} action={workshop.published === true ? undefined : fix('Pubblica', 'pubblicazione')} />
       </ul>
     </Panel>
   );
@@ -86,8 +86,8 @@ function LatestEvent({ workshop }: { workshop: AdminWorkshop }) {
       <p id="latest-event" className="px-5 pt-3 text-muted sm:px-6">Dopo l'evento: cosa resta da fare.</p>
       <ul className="divide-y divide-line px-5 sm:px-6">
         <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? `${sessionsLabel(sessions)} con ${plural(speakers, 'relatore', 'relatori')}` : 'Nessuna sessione'} />
-        <CheckRow done={materials > 0} title="Slide e materiali" detail={materials ? plural(materials, 'file caricato', 'file caricati') : 'Nessun materiale caricato: chi ha partecipato li cerca qui.'} action={materials ? undefined : <Link to={to} className={btn.secondary}><AdminIcon name="upload" />Carica materiali</Link>} />
-        <CheckRow done={photos > 0} title="Foto dell'evento" detail={photos ? plural(photos, 'foto', 'foto') : 'Nessuna foto.'} action={photos ? undefined : <Link to={to} className={btn.ghost}>Carica foto</Link>} />
+        <CheckRow done={materials > 0} title="Slide e materiali" detail={materials ? plural(materials, 'file caricato', 'file caricati') : 'Nessun materiale caricato: chi ha partecipato li cerca qui.'} action={materials ? undefined : <Link to={`${to}#materiali`} className={btn.secondary}><AdminIcon name="upload" />Carica materiali</Link>} />
+        <CheckRow done={photos > 0} title="Foto dell'evento" detail={photos ? plural(photos, 'foto', 'foto') : 'Nessuna foto.'} action={photos ? undefined : <Link to={`${to}#foto`} className={btn.ghost}>Carica foto</Link>} />
         <CheckRow done={!!workshop.feedbackEnabled} title="Questionario di feedback" detail={workshop.feedbackEnabled ? 'Aperto' : "Non attivo: senza questionario non sappiamo com'è andata."} action={workshop.feedbackEnabled ? undefined : <Link to="/admin/questionnaires" className={btn.ghost}>Crea questionario</Link>} />
       </ul>
     </Panel>
@@ -118,9 +118,9 @@ export default function DashboardPage() {
       next: sorted.find(w => dayKey(w.eventDate) >= today) ?? null,
       latest: past[past.length - 1] ?? null,
       firstYear: sorted.length ? new Date(sorted[0].eventDate).getFullYear() : null,
-      withoutMaterials: past.filter(w => w.published !== false && !(w.materials?.length)).length,
+      withoutMaterials: past.filter(w => w.published === true && !(w.materials?.length)).length,
       recent: [...sorted].reverse().slice(0, 5),
-      drafts: sorted.filter(w => w.published === false).length,
+      drafts: sorted.filter(w => w.published !== true).length,
     };
   }, [workshops]);
 
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                   <li key={w.workshopId}>
                     <Link to={eventLink(w)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-cyan-50 ${linkFocus}`}>
                       <span className="min-w-0 flex-1"><span className="block truncate font-bold">{clean(w.title)}</span><span className="block text-sm text-muted">{formatDate(w.eventDate)}</span></span>
-                      {w.published === false && <Badge kind="warn">Bozza</Badge>}
+                      {w.published !== true && <Badge kind="warn">Bozza</Badge>}
                     </Link>
                   </li>
                 ))}
