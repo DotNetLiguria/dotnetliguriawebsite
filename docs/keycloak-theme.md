@@ -26,8 +26,15 @@ build and rollout.
 ## 1. Build on the development machine
 
 From the repository root, run the build script in Bash (for example, Git Bash,
-WSL, Linux, or macOS). It needs `zip` or a working JDK `jar` command; no network,
-Maven, or Node.js is required.
+WSL, Linux, or macOS). It needs `zip` or a working JDK `jar` command. On
+Ubuntu/WSL, install `zip` if neither is available:
+
+```bash
+sudo apt update
+sudo apt install zip
+```
+
+Then build the theme:
 
 ```bash
 bash keycloak/build-theme.sh
@@ -35,7 +42,8 @@ bash keycloak/build-theme.sh
 
 The script creates `keycloak/dist/dotnetliguria-login-theme.jar` and prints
 its SHA-256 checksum. This JAR contains the theme manifest and login theme
-files. Do not transfer the source folder or the whole repository for
+files. Once `zip` or a JDK is installed, building needs no network, Maven, or
+Node.js. Do not transfer the source folder or the whole repository for
 installation.
 
 ## 2. Test locally before handing it off

@@ -30,11 +30,11 @@ for required in \
   [ -f "$src/$required" ] || fail "missing $required in $src"
 done
 grep -q '"name": *"dotnetliguria"' "$src/META-INF/keycloak-themes.json" || fail 'keycloak-themes.json does not declare the theme "dotnetliguria"'
-grep -q '^parent=keycloak\.v2$' "$src/theme/dotnetliguria/login/theme.properties" || fail 'theme.properties: parent=keycloak.v2 expected'
+tr -d '\r' < "$src/theme/dotnetliguria/login/theme.properties" | grep -q '^parent=keycloak\.v2$' || fail 'theme.properties: parent=keycloak.v2 expected'
 
 have_zip() { command -v zip >/dev/null 2>&1; }
 have_jar() { jar --version >/dev/null 2>&1; }   # on macOS without a JDK "jar" exists but only prints an error
-have_zip || have_jar || fail 'neither "zip" nor a working JDK "jar" found in PATH'
+have_zip || have_jar || fail 'neither "zip" nor a working JDK "jar" found in PATH; on Ubuntu/WSL install zip with: sudo apt install zip'
 
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
