@@ -1,14 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, CheckboxGroup, DropZone, FileTrigger, Form, Input, Label, ListBox, ListBoxItem, Popover, Select, SelectValue, Text, TextField } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { AdminIcon } from '../icons';
-import { Panel, btn, focusRing } from '../ui';
+import { btn, focusRing } from '../ui';
 import { clean, nameKey } from '../adminApi';
 import { inputCls } from './listUi';
-import { EventRecord, EventSpeaker, problemDetail } from './eventModel';
+import { EventFormValues, EventRecord, EventSpeaker, problemDetail } from './eventModel';
 
-/** What every panel of the event page gets: the record, the directory of speakers and the ways to change them. */
+// Building blocks of the event screens: an API hook that keeps the server's error detail, dropzones, the
+// speaker picker, the unsaved-changes guard and a few icons the shared kit does not have.
+
+/** What every step of the wizard gets: the record, the speakers, the page draft and the ways to change them. */
 export interface EventPage {
   workshop: EventRecord;
   speakers: EventSpeaker[];
@@ -20,14 +23,10 @@ export interface EventPage {
   /** Read the record again from the server. */
   reload: () => Promise<void>;
   reloadSpeakers: () => void;
-  /** Flip one visibility flag, saving at once (optimistic, reverted on failure). */
-  toggleFlag: (flag: 'published' | 'in_homepage' | 'feedbackEnabled', value: boolean) => Promise<void>;
-  /** Address of a tab of this event, for links between panels. */
-  tabHref: (tab: string) => string;
+  /** The draft of steps 1, 3 and 4: the record's values with the edits on top, saved by "Salva modifiche". */
+  values: EventFormValues;
+  edit: (patch: Partial<EventFormValues>) => void;
 }
-
-// Building blocks of the event screens: an API hook that keeps the server's error detail, the read-only card
-// with its own pencil, dropzones, the speaker picker and a few icons the shared kit does not have.
 
 // ---------- API ----------
 
@@ -69,8 +68,6 @@ export function useEventApi() {
 const GLYPHS = {
   clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
   copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15h-.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5" /></>,
-  star: <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
-  link: <><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></>,
   ticket: <><path d="M3.5 8.5v-2a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v2a2.5 2.5 0 0 0 0 5v2a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-2a2.5 2.5 0 0 0 0-5z" /><path d="M14 6v12" strokeDasharray="2 2" /></>,
   refresh: <><path d="M20 12a8 8 0 1 1-2.3-5.7" /><path d="M20 4v5h-5" /></>,
 } as const;
@@ -83,52 +80,11 @@ export function EventIcon({ name, className = 'size-5' }: { name: keyof typeof G
   );
 }
 
-// ---------- Cards ----------
+// ---------- Forms and confirmations ----------
 
-/**
- * Read-only card with its own pencil: one card at a time goes into edit mode and renders `form`, which closes
- * itself after a successful save or on cancel; focus goes back to the pencil.
- */
-export function EditCard({ id, title, children, form, actions, className = '' }: {
-  id: string;
-  title: string;
-  children: React.ReactNode;
-  /** Edit mode; omitted when the card is not editable in place. */
-  form?: (close: () => void) => React.ReactNode;
-  /** Extra header controls shown next to the pencil in view mode. */
-  actions?: React.ReactNode;
-  className?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const pencil = useRef<HTMLButtonElement>(null);
-  const returnFocus = useRef(false);
-  useEffect(() => {
-    if (!editing && returnFocus.current) {
-      returnFocus.current = false;
-      pencil.current?.focus();
-    }
-  }, [editing]);
-  const close = () => { returnFocus.current = true; setEditing(false); };
-  const headingId = `card-${id}`;
-  return (
-    <Panel labelledBy={headingId} className={className}>
-      <div className="flex items-center justify-between gap-3 px-5 pt-4">
-        <h3 id={headingId} className="text-lg font-bold">{title}</h3>
-        {!editing && (
-          <span className="flex items-center gap-1">
-            {actions}
-            {form && <Button ref={pencil} onPress={() => setEditing(true)} aria-label={`Modifica: ${title}`} className={btn.icon}><AdminIcon name="pencil" /></Button>}
-          </span>
-        )}
-      </div>
-      <div className="px-5 pt-2 pb-5">{editing && form ? form(close) : children}</div>
-    </Panel>
-  );
-}
-
-/** The form of a card in edit mode: native validation, Annulla/Salva, stays open when the save fails. */
+/** A dialog form: native validation, Annulla/Salva, stays open when the save fails. */
 export function CardForm({ onSave, onCancel, children, saveLabel = 'Salva', className = 'space-y-4' }: {
-  /** Resolves to true when saved (the card closes) or false to stay in edit mode. */
+  /** Resolves to true when saved (the dialog closes) or false to stay in edit mode. */
   onSave: () => Promise<boolean> | boolean;
   onCancel: () => void;
   children: React.ReactNode;
@@ -156,20 +112,9 @@ export function CardForm({ onSave, onCancel, children, saveLabel = 'Salva', clas
   );
 }
 
-/** Definition list of a card in view mode. */
-export function Facts({ items }: { items: Array<[string, React.ReactNode]> }) {
-  return (
-    <dl className="grid gap-3">
-      {items.map(([label, value]) => (
-        <div key={label}><dt className="text-sm font-semibold text-muted">{label}</dt><dd className="mt-0.5">{value}</dd></div>
-      ))}
-    </dl>
-  );
-}
-
 export const Missing = ({ children }: { children: React.ReactNode }) => <span className="text-muted">{children}</span>;
 
-/** Explicit confirmation inside the card before a destructive action. */
+/** Explicit confirmation inside the panel before a destructive action. */
 export function InlineConfirm({ title, children, confirmLabel, busyLabel, busy = false, onConfirm, onCancel }: {
   title: string;
   children?: React.ReactNode;
@@ -191,17 +136,16 @@ export function InlineConfirm({ title, children, confirmLabel, busyLabel, busy =
   );
 }
 
-/** Row of the readiness checklists, like the dashboard's. */
-export function CheckRow({ done, title, detail, action }: { done: boolean; title: string; detail: React.ReactNode; action?: React.ReactNode }) {
+/** Title block of a step panel. */
+export function PanelTitle({ id, title, hint, actions }: { id?: string; title: string; hint?: React.ReactNode; actions?: React.ReactNode }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5">
-      <span className={`grid size-8 shrink-0 place-items-center rounded-full ${done ? 'bg-basil-50 text-basil-700' : 'bg-[#fff4e5] text-[#8a4b00]'}`}>
-        <AdminIcon name={done ? 'check' : 'todo'} />
-        <span className="sr-only">{done ? 'Fatto:' : 'Da fare:'}</span>
-      </span>
-      <span className="min-w-0 flex-1"><span className="block font-bold">{title}</span><span className="block text-muted">{detail}</span></span>
-      {action}
-    </li>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h3 id={id} className="text-lg font-bold">{title}</h3>
+        {hint && <p className="text-sm text-muted">{hint}</p>}
+      </div>
+      {actions}
+    </div>
   );
 }
 
@@ -210,20 +154,19 @@ export function CheckRow({ done, title, detail, action }: { done: boolean; title
 export interface SelectOption { id: string; label: string; description?: string }
 
 /** Styled single select with a visible label. */
-export function SelectInput({ label, items, selectedKey, onSelectionChange, placeholder = 'Scegli…', description, isRequired, isDisabled, className = 'block' }: {
+export function SelectInput({ label, items, selectedKey, onSelectionChange, placeholder = 'Scegli…', description, isDisabled, className = 'block' }: {
   label: string;
   items: SelectOption[];
   selectedKey: string | null;
   onSelectionChange: (key: string | null) => void;
   placeholder?: string;
   description?: string;
-  isRequired?: boolean;
   isDisabled?: boolean;
   className?: string;
 }) {
   return (
-    <Select selectedKey={selectedKey} onSelectionChange={key => onSelectionChange(key == null ? null : String(key))} placeholder={placeholder} isRequired={isRequired} isDisabled={isDisabled} className={className}>
-      <Label className="text-sm font-semibold text-navy">{label}{isRequired && <span className="text-[#b42318]" aria-hidden="true"> *</span>}</Label>
+    <Select selectedKey={selectedKey} onSelectionChange={key => onSelectionChange(key == null ? null : String(key))} placeholder={placeholder} isDisabled={isDisabled} className={className}>
+      <Label className="text-sm font-semibold text-navy">{label}</Label>
       <Button className={`mt-1.5 flex items-center justify-between gap-2 text-left ${inputCls} ${focusRing}`}>
         <SelectValue className="truncate data-[placeholder]:text-[#6b8399]" />
         <AdminIcon name="chevron" className="size-4 shrink-0 text-muted" />
@@ -300,28 +243,30 @@ const CheckMark = () => (
 );
 
 /**
- * Picks speakers from the directory: chips for the chosen ones, a search box and a checkbox list.
- * `extras` are names on the talk that are not in the directory (imported): shown, kept, not editable.
+ * Picks speakers from the directory: chips for the chosen ones, a search box and a checkbox list. With
+ * `collapsed` the list opens on request, so a long talk list stays readable. `extras` are names on the talk
+ * that are not in the directory (imported): shown, kept, not editable.
  */
-export function SpeakerPicker({ label = 'Relatori', speakers, selectedIds, onChange, extras = [], isRequired, errorMessage }: {
+export function SpeakerPicker({ label = 'Relatori', speakers, selectedIds, onChange, extras = [], collapsed = false, errorMessage }: {
   label?: string;
   speakers: EventSpeaker[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
   extras?: string[];
-  isRequired?: boolean;
+  collapsed?: boolean;
   errorMessage?: string | null;
 }) {
   const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(!collapsed);
   const q = nameKey(query);
   const sorted = useMemo(() => [...speakers].sort((a, b) => clean(a.name).localeCompare(clean(b.name), 'it')), [speakers]);
   const visible = sorted.filter(speaker => !q || nameKey(speaker.name).includes(q));
   const selected = selectedIds.map(id => speakers.find(speaker => speaker.workshopSpeakerId === id)).filter((s): s is EventSpeaker => !!s);
   const errorId = errorMessage ? `${label}-error` : undefined;
   return (
-    // The requirement is checked by the dialog (imported speakers outside the directory count too), not natively.
+    // The requirement is checked by the caller (imported speakers outside the directory count too), not natively.
     <CheckboxGroup value={selectedIds} onChange={onChange} isInvalid={!!errorMessage} aria-describedby={errorId} className="block">
-      <Label className="text-sm font-semibold text-navy">{label}{isRequired && <span className="text-[#b42318]" aria-hidden="true"> *</span>}</Label>
+      <Label className="text-sm font-semibold text-navy">{label}</Label>
       {(selected.length > 0 || extras.length > 0) && (
         <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Relatori scelti">
           {selected.map(speaker => (
@@ -335,27 +280,60 @@ export function SpeakerPicker({ label = 'Relatori', speakers, selectedIds, onCha
           ))}
         </ul>
       )}
-      <TextField aria-label="Cerca un relatore" value={query} onChange={setQuery} className="mt-2 block">
-        <Input placeholder="Cerca per nome" className={`${inputCls} min-h-10`} />
-      </TextField>
-      <div className="mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-line p-1">
-        {visible.length ? visible.map(speaker => (
-          <Checkbox key={speaker.workshopSpeakerId} value={speaker.workshopSpeakerId} className={checkboxCls}>
-            <CheckMark /><span className="font-semibold">{clean(speaker.name)}</span>
-          </Checkbox>
-        )) : <p className="px-2 py-3 text-sm text-muted">{speakers.length ? 'Nessun relatore corrisponde alla ricerca.' : 'Nessun relatore attivo in anagrafica.'}</p>}
-      </div>
+      {!open ? (
+        <Button onPress={() => setOpen(true)} className={`mt-2 ${btn.ghost}`}><AdminIcon name="plus" />{selected.length ? 'Cambia relatori' : 'Scegli relatori'}</Button>
+      ) : (
+        <>
+          <TextField aria-label="Cerca un relatore" value={query} onChange={setQuery} className="mt-2 block">
+            <Input placeholder="Cerca per nome" className={`${inputCls} min-h-10`} />
+          </TextField>
+          <div className="mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-line p-1">
+            {visible.length ? visible.map(speaker => (
+              <Checkbox key={speaker.workshopSpeakerId} value={speaker.workshopSpeakerId} className={checkboxCls}>
+                <CheckMark /><span className="font-semibold">{clean(speaker.name)}</span>
+              </Checkbox>
+            )) : <p className="px-2 py-3 text-sm text-muted">{speakers.length ? 'Nessun relatore corrisponde alla ricerca.' : 'Nessun relatore attivo in anagrafica.'}</p>}
+          </div>
+          {collapsed && <Button onPress={() => setOpen(false)} className={`mt-1 ${btn.ghost}`}>Chiudi l'elenco</Button>}
+        </>
+      )}
       {errorMessage && <p id={errorId} className="mt-1.5 text-sm font-semibold text-[#b42318]">{errorMessage}</p>}
     </CheckboxGroup>
   );
 }
 
-/** Switch row of the visibility panel: title, hint and the switch. */
-export function SwitchRow({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
-  return (
-    <li className="flex items-center gap-4 py-3.5">
-      <span className="min-w-0 flex-1"><span className="block font-bold">{title}</span><span className="block text-sm text-muted">{hint}</span></span>
-      {children}
-    </li>
-  );
+// ---------- Unsaved changes ----------
+
+/**
+ * While there are unsaved changes: the browser asks before closing or reloading, and a click on a link that
+ * leaves the page is held back so the caller can ask first. Links to the same page (the steps) pass through;
+ * `here` is the router's current pathname and search.
+ */
+export function useUnsavedGuard(dirty: boolean, onLeave: (href: string) => void, here: { pathname: string; search: string }) {
+  const { pathname, search } = here;
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = (event.target as Element | null)?.closest?.('a[href]');
+      if (!anchor || anchor.getAttribute('target') === '_blank') return;
+      const href = anchor.getAttribute('href') ?? '';
+      const url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === pathname && url.search === search) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onLeave(`${url.pathname}${url.search}${url.hash}`);
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, [dirty, onLeave, pathname, search]);
 }

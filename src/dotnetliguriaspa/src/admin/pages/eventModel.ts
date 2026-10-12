@@ -1,10 +1,10 @@
-import { AdminWorkshop, clean, nameKey } from '../adminApi';
+import { AdminWorkshop, clean } from '../adminApi';
 import { dayKey } from '../../site/format';
-import { programme, sessionCount, sessionsLabel } from '../../site/event/programme';
 import type { VenueModel } from '../../models/VenueModel';
 
 // Event record as serialized by DotNetLiguriaCore (dates are ISO strings on the wire) and the pure rules of the
-// event admin: the whole-record update bodies, the agenda builder and the readiness checks. No React here.
+// event wizard, ported from the previous admin (AdminWorkshopDetail, AdminWorkshopAgenda, workshopUpdate):
+// the whole-record update body, the talk pool / schedule / registration state and its validations. No React here.
 
 export interface EventTalkSpeaker {
   workshopSpeakerId?: string | null;
@@ -105,6 +105,9 @@ export interface EventSpeaker {
   sessionizeId?: string | null;
 }
 
+/** Published means exactly `true`: an unset flag is a draft, as the previous admin read it (`|| false`). */
+export const isPublished = (workshop: Pick<EventRecord, 'published'>) => workshop.published === true;
+
 // ---------- File kinds (WorkshopFileTypeEnum) ----------
 
 export const FILE_TYPE = { image: 1, photo: 2, material: 4 } as const;
@@ -159,17 +162,9 @@ export const legacyInputValue = (value?: string | Date | null) => {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 16);
 };
 
-export const parseRooms = (text: string) => text.split(/\r?\n|,/).map(room => room.trim()).filter(Boolean);
+/** Rooms are typed one per line, as in the previous admin. */
+export const parseRooms = (text: string) => text.split(/\r?\n/).map(room => room.trim()).filter(Boolean);
 export const roomsText = (rooms?: string[] | null) => (rooms ?? []).join('\n');
-
-export const isHttpUrl = (text: string) => {
-  try {
-    const url = new URL(text);
-    return url.protocol === 'https:' || url.protocol === 'http:';
-  } catch {
-    return false;
-  }
-};
 
 /** Detail of an ASP.NET ProblemDetails (or {message}) body, when the response carries one. */
 export function problemDetail(text: string): string | null {
@@ -185,7 +180,7 @@ export function problemDetail(text: string): string | null {
   return null;
 }
 
-// ---------- Whole-record update bodies ----------
+// ---------- Whole-record update (steps 1, 3 and 4, saved together at the end) ----------
 
 export interface EventCoreValues {
   published: boolean;
@@ -201,9 +196,9 @@ export interface EventCoreValues {
   maximumSpaces: string;
 }
 
-/** The current values of the record, to pass unchanged alongside the ones a card edits. */
+/** The current values of the record, to pass unchanged alongside the edited ones. */
 export const coreValuesOf = (workshop: EventRecord): EventCoreValues => ({
-  published: Boolean(workshop.published),
+  published: isPublished(workshop),
   inHomepage: Boolean(workshop.in_homepage),
   feedbackEnabled: Boolean(workshop.feedbackEnabled),
   title: workshop.title ?? '',
@@ -240,6 +235,26 @@ export function buildWorkshopUpdate<T extends EventRecord>(workshop: T, values: 
   } as T;
 }
 
+/** The wizard's draft: the record's own fields plus the additions kept on the same save. */
+export interface EventFormValues extends EventCoreValues {
+  tags: string;
+  blogHtml: string;
+  rooms: string;
+}
+
+export const formValuesOf = (workshop: EventRecord): EventFormValues => ({
+  ...coreValuesOf(workshop),
+  tags: workshop.tags ?? '',
+  blogHtml: workshop.blogHtml ?? '',
+  rooms: roomsText(workshop.location?.rooms),
+});
+
+/** "Salva modifiche": one whole-record body from the latest record and the edited values. */
+export function buildFormUpdate<T extends EventRecord>(workshop: T, values: EventFormValues): T {
+  const core = buildWorkshopUpdate(workshop, values);
+  return { ...core, tags: values.tags, blogHtml: values.blogHtml, location: { ...core.location, rooms: parseRooms(values.rooms) } };
+}
+
 /** Location copied from a saved venue (the snapshot stays editable on the event). */
 export const locationFromVenue = (venue: VenueModel): EventLocation => ({
   name: venue.name,
@@ -249,18 +264,6 @@ export const locationFromVenue = (venue: VenueModel): EventLocation => ({
   maximumSpaces: venue.maximumSpaces,
 });
 
-/** Seat booking link as the previous admin seeded it: the legacy registration link when no Eventbrite event exists. */
-export const bookingUrlOf = (workshop: EventRecord) =>
-  workshop.bookingServiceUrl ?? (workshop.eventbriteEventId ? '' : workshop.externalRegistrationLink ?? '');
-
-/** Registration fields saved together: the booking link also drives the legacy external-registration pair. */
-export const withBookingUrl = <T extends EventRecord>(workshop: T, bookingServiceUrl: string): T => ({
-  ...workshop,
-  bookingServiceUrl,
-  externalRegistration: Boolean(bookingServiceUrl),
-  externalRegistrationLink: bookingServiceUrl,
-});
-
 /** After a successful save: an Eventbrite event is now out of date until the next sync. */
 export const afterSave = <T extends EventRecord>(saved: T): T => ({
   ...saved,
@@ -268,13 +271,64 @@ export const afterSave = <T extends EventRecord>(saved: T): T => ({
   eventbriteLastError: saved.eventbriteEventId ? undefined : saved.eventbriteLastError,
 });
 
-// ---------- Agenda builder ----------
+// ---------- Steps (the previous wizard, same order) ----------
+
+export type StepId = 'pubblicazione' | 'locandina' | 'informazioni' | 'sede' | 'sessioni' | 'talk' | 'agenda' | 'iscrizione' | 'materiali' | 'foto';
+
+export interface StepDefinition {
+  id: StepId;
+  label: string;
+  description: string;
+  /** The step has a primary action of its own, so "Avanti" steps back to secondary. */
+  hasPrimaryAction?: boolean;
+}
+
+export const STEPS: StepDefinition[] = [
+  { id: 'pubblicazione', label: 'Pubblicazione', description: 'Visibilità sul sito, link del feedback e questionari collegati.' },
+  { id: 'locandina', label: 'Locandina', description: "L'immagine dell'evento: si carica subito." },
+  { id: 'informazioni', label: 'Informazioni', description: 'Titolo, data, descrizione, tag e contenuto esteso.' },
+  { id: 'sede', label: 'Sede', description: 'Dove si tiene l\'evento, anche copiando una sede salvata.' },
+  { id: 'sessioni', label: 'Sessioni', description: 'Il programma in formato storico: ogni sessione si salva subito.', hasPrimaryAction: true },
+  { id: 'talk', label: 'Elenco talk', description: 'I talk da collocare, importati da Sessionize o creati qui, e le track.', hasPrimaryAction: true },
+  { id: 'agenda', label: 'Agenda e orari', description: 'Gli orari di ogni track, riempiti in automatico e poi sistemati.', hasPrimaryAction: true },
+  { id: 'iscrizione', label: 'Iscrizione', description: 'Prenotazioni, note per chi partecipa ed Eventbrite.', hasPrimaryAction: true },
+  { id: 'materiali', label: 'Materiali', description: 'Slide e materiali: si caricano subito.' },
+  { id: 'foto', label: 'Foto', description: "Le foto dell'evento, poi «Salva modifiche» per i passi 1, 3 e 4." },
+];
+
+/** Hashes of the previous six-section card keep opening the right step. */
+const STEP_ALIASES: Record<string, StepId> = {
+  panoramica: 'informazioni', relatori: 'talk', questionario: 'pubblicazione', 'materiali-e-foto': 'materiali',
+};
+
+export const stepIndexOf = (id: StepId) => STEPS.findIndex(step => step.id === id);
+
+/** The step named by the URL (#agenda, ?tab=agenda, or an old alias), the first one otherwise. */
+export function stepFromLocation(hash: string, search: string): StepId {
+  const wanted = (hash.replace(/^#/, '') || new URLSearchParams(search).get('tab') || '').toLowerCase();
+  return STEPS.find(step => step.id === wanted)?.id ?? STEP_ALIASES[wanted] ?? STEPS[0].id;
+}
+
+// ---------- Talk pool, schedule and registration (the previous AdminWorkshopAgenda) ----------
 
 export interface AgendaState {
   talks: EventTalk[];
   tracks: AgendaTrack[];
   items: AgendaItem[];
 }
+
+export interface RegistrationState {
+  bookingServiceUrl: string;
+  eventbriteTicketCapacity: number;
+  eventbriteSalesStart: string;
+  eventbriteSalesEnd: string;
+  attendeeNotes: string;
+}
+
+export interface AgendaDraftState extends AgendaState, RegistrationState {}
+
+/** Which page of the module is saving: the checks differ, as they did. */
+export type AgendaPage = 'talks' | 'schedule' | 'registration';
 
 export const itemOrder = (first: AgendaItem, second: AgendaItem) =>
   (first.order ?? Number.MAX_SAFE_INTEGER) - (second.order ?? Number.MAX_SAFE_INTEGER) ||
@@ -287,35 +341,55 @@ export const CHANGEOVER_TITLE = 'Technical gap';
 export const DEFAULT_TRACK_NAME = 'Track 1';
 export const DEFAULT_INTERVAL_TITLE = 'Pausa';
 
-/** The agenda as the editor starts from it: one default track, talks and items attached to valid tracks, items numbered. */
-export function initAgenda(workshop: EventRecord): AgendaState & { scheduleStart: string } {
-  const initialTracks: AgendaTrack[] = workshop.agendaTracks?.length
+/** Seat booking link as the previous admin seeded it: the legacy registration link when no Eventbrite event exists. */
+export const bookingUrlOf = (workshop: EventRecord) =>
+  workshop.bookingServiceUrl ?? (workshop.eventbriteEventId ? '' : workshop.externalRegistrationLink ?? '');
+
+export const registrationOf = (workshop: EventRecord): RegistrationState => ({
+  bookingServiceUrl: bookingUrlOf(workshop),
+  eventbriteTicketCapacity: workshop.eventbriteTicketCapacity ?? 0,
+  eventbriteSalesStart: workshop.eventbriteSalesStart ?? '',
+  eventbriteSalesEnd: workshop.eventbriteSalesEnd ?? '',
+  attendeeNotes: workshop.attendeeNotes ?? '',
+});
+
+/** Talks as the module adopts them from the record: on a single track every talk goes there. */
+export const adoptTalks = (talks: EventTalk[] | null | undefined, tracks: AgendaTrack[]) =>
+  (talks ?? []).map(talk => ({
+    ...talk,
+    speakers: talk.speakers ?? [],
+    trackId: tracks.length === 1 ? tracks[0].workshopAgendaTrackId : talk.trackId ?? null,
+  }));
+
+/** The module as it starts from the record: one default track, talks and items attached to valid tracks, items numbered. */
+export function initAgenda(workshop: EventRecord): AgendaDraftState & { scheduleStart: string } {
+  const tracks: AgendaTrack[] = workshop.agendaTracks?.length
     ? workshop.agendaTracks.map(track => ({ ...track }))
     : [{ workshopAgendaTrackId: createId(), name: DEFAULT_TRACK_NAME, order: 0 }];
-  const trackIds = new Set(initialTracks.map(track => track.workshopAgendaTrackId));
-  const defaultTrackId = initialTracks[0].workshopAgendaTrackId;
+  const trackIds = new Set(tracks.map(track => track.workshopAgendaTrackId));
+  const defaultTrackId = tracks[0].workshopAgendaTrackId;
   const sourceItems = workshop.agendaItems ?? [];
   const talks = (workshop.talks ?? []).map(talk => {
     const agendaTrackId = sourceItems.find(item => item.talkId === talk.workshopTalkId)?.trackId;
     const assignedTrackId = talk.trackId && trackIds.has(talk.trackId)
       ? talk.trackId
       : agendaTrackId && trackIds.has(agendaTrackId) ? agendaTrackId : null;
-    return { ...talk, speakers: talk.speakers ?? [], trackId: initialTracks.length === 1 ? defaultTrackId : assignedTrackId };
+    return { ...talk, speakers: talk.speakers ?? [], trackId: tracks.length === 1 ? defaultTrackId : assignedTrackId };
   });
   const items = sourceItems
     .map(item => ({
       ...item,
-      trackId: initialTracks.length === 1
+      trackId: tracks.length === 1
         ? defaultTrackId
         : workshop.talks?.find(talk => talk.workshopTalkId === item.talkId)?.trackId ?? item.trackId,
     }))
     .sort(itemOrder)
     .map((item, order) => ({ ...item, order }));
-  return { talks, tracks: initialTracks, items, scheduleStart: items.length ? toClockTime(items[0].startTime) : '09:00' };
+  return { talks, tracks, items, ...registrationOf(workshop), scheduleStart: items.length ? toClockTime(items[0].startTime) : '09:00' };
 }
 
 /** Keeps `count` tracks (at least one), naming the new ones; talks and items of removed tracks fall back to the first. */
-export function setTrackCount(state: AgendaState, count: number): AgendaState {
+export function setTrackCount<S extends AgendaState>(state: S, count: number): S {
   const safeCount = Math.max(1, Math.trunc(count) || 1);
   const next = state.tracks.slice(0, safeCount);
   while (next.length < safeCount) next.push({ workshopAgendaTrackId: createId(), name: `Track ${next.length + 1}`, order: next.length });
@@ -323,13 +397,14 @@ export function setTrackCount(state: AgendaState, count: number): AgendaState {
   const validIds = new Set(tracks.map(track => track.workshopAgendaTrackId));
   const fallbackId = tracks[0].workshopAgendaTrackId;
   return {
+    ...state,
     tracks,
     talks: state.talks.map(talk => (validIds.has(talk.trackId ?? '') ? talk : { ...talk, trackId: fallbackId })),
     items: state.items.map(item => (validIds.has(item.trackId ?? '') ? item : { ...item, trackId: fallbackId })),
   };
 }
 
-export const renameTrack = (state: AgendaState, trackId: string, name: string): AgendaState => ({
+export const renameTrack = <S extends AgendaState>(state: S, trackId: string, name: string): S => ({
   ...state,
   tracks: state.tracks.map(track => (track.workshopAgendaTrackId === trackId ? { ...track, name } : track)),
 });
@@ -340,32 +415,31 @@ export const hasTrack = (state: AgendaState, trackId?: string | null) =>
 export const unscheduledTalks = (state: AgendaState) =>
   state.talks.filter(talk => !state.items.some(item => item.itemType === 'talk' && item.talkId === talk.workshopTalkId));
 
-export const upsertTalk = (state: AgendaState, talk: EventTalk): AgendaState => ({
+export const addTalk = <S extends AgendaState>(state: S, talk: EventTalk): S => ({ ...state, talks: [...state.talks, talk] });
+
+export const updateTalk = <S extends AgendaState>(state: S, talkId: string, patch: Partial<EventTalk>): S => ({
   ...state,
-  talks: state.talks.some(value => value.workshopTalkId === talk.workshopTalkId)
-    ? state.talks.map(value => (value.workshopTalkId === talk.workshopTalkId ? talk : value))
-    : [...state.talks, talk],
-  items: state.items.map(item => (item.talkId === talk.workshopTalkId ? { ...item, trackId: talk.trackId ?? null } : item)),
+  talks: state.talks.map(talk => (talk.workshopTalkId === talkId ? { ...talk, ...patch } : talk)),
 });
 
-export const removeTalk = (state: AgendaState, talkId: string): AgendaState => ({
+export const removeTalk = <S extends AgendaState>(state: S, talkId: string): S => ({
   ...state,
   talks: state.talks.filter(talk => talk.workshopTalkId !== talkId),
   items: state.items.filter(item => item.talkId !== talkId),
 });
 
-export const assignTalkTrack = (state: AgendaState, talkId: string, trackId: string | null): AgendaState => ({
+export const assignTalkTrack = <S extends AgendaState>(state: S, talkId: string, trackId: string | null): S => ({
   ...state,
   talks: state.talks.map(talk => (talk.workshopTalkId === talkId ? { ...talk, trackId } : talk)),
   items: state.items.map(item => (item.talkId === talkId ? { ...item, trackId } : item)),
 });
 
-export const updateItem = (state: AgendaState, itemId: string, update: Partial<AgendaItem>): AgendaState => ({
+export const updateItem = <S extends AgendaState>(state: S, itemId: string, update: Partial<AgendaItem>): S => ({
   ...state,
   items: state.items.map(item => (item.workshopAgendaItemId === itemId ? { ...item, ...update } : item)),
 });
 
-export const removeItem = (state: AgendaState, itemId: string): AgendaState => ({
+export const removeItem = <S extends AgendaState>(state: S, itemId: string): S => ({
   ...state,
   items: state.items.filter(item => item.workshopAgendaItemId !== itemId),
 });
@@ -462,7 +536,7 @@ export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eve
 }
 
 /** A service interval appended after the last item of the track (or at the schedule start). */
-export function addServiceInterval(state: AgendaState, trackId: string, options: { title: string; room: string; gap: string; scheduleStart: string; eventDate?: string | Date | null }): AgendaState {
+export function addServiceInterval<S extends AgendaState>(state: S, trackId: string, options: { title: string; room: string; gap: string; scheduleStart: string; eventDate?: string | Date | null }): S {
   const current = trackItems(state, trackId);
   const previousEnd = current.length > 0
     ? new Date(current[current.length - 1].endTime)
@@ -486,7 +560,7 @@ export function addServiceInterval(state: AgendaState, trackId: string, options:
 }
 
 /** Swaps the item with its neighbour in the track; the two keep their time slots, so the schedule stays continuous. */
-export function moveItem(state: AgendaState, trackId: string, itemId: string, direction: -1 | 1): AgendaState {
+export function moveItem<S extends AgendaState>(state: S, trackId: string, itemId: string, direction: -1 | 1): S {
   const current = trackItems(state, trackId);
   const index = current.findIndex(item => item.workshopAgendaItemId === itemId);
   const nextIndex = index + direction;
@@ -503,12 +577,17 @@ export function moveItem(state: AgendaState, trackId: string, itemId: string, di
 const speakerKey = (speaker: EventTalkSpeaker) =>
   speaker.workshopSpeakerId ?? speaker.sessionizeId ?? clean(speaker.name).toLocaleLowerCase();
 
-/** Why the agenda cannot be saved yet, in Italian, or null. */
-export function agendaProblem(state: AgendaState): string | null {
-  if (state.talks.some(talk => !hasTrack(state, talk.trackId)) ||
-    state.items.some(item => item.itemType === 'talk' && !hasTrack(state, item.trackId))) {
-    return 'Assegna ogni talk a una track prima di salvare l\'agenda.';
-  }
+export const salesWindowProblem = (start: string, end: string) =>
+  (start && end && start >= end ? 'La vendita dei biglietti deve finire dopo il suo inizio.' : null);
+
+/** Why the module cannot be saved from this page yet, in Italian, or null: the same checks as the previous save. */
+export function agendaProblem(state: AgendaDraftState, page: AgendaPage): string | null {
+  const windowProblem = salesWindowProblem(state.eventbriteSalesStart, state.eventbriteSalesEnd);
+  if (windowProblem) return windowProblem;
+  const unassigned = 'Assegna ogni talk a una track prima di salvare l\'agenda.';
+  if (page !== 'registration' && state.items.some(item => item.itemType === 'talk' && !hasTrack(state, item.trackId))) return unassigned;
+  if (state.talks.some(talk => !hasTrack(state, talk.trackId))) return unassigned;
+  if (page === 'registration') return null;
   for (const item of state.items) {
     const start = new Date(item.startTime).getTime();
     const end = new Date(item.endTime).getTime();
@@ -537,26 +616,34 @@ export function agendaProblem(state: AgendaState): string | null {
   return null;
 }
 
-/** PUT body of the agenda: the saved record plus talks, tracks and items. */
-export const agendaSaveBody = <T extends EventRecord>(workshop: T, state: AgendaState): T => ({
+/** PUT body of the module: the saved record plus registration fields, talks, tracks and items, as before. */
+export const agendaSaveBody = <T extends EventRecord>(workshop: T, state: AgendaDraftState): T => ({
   ...workshop,
+  bookingServiceUrl: state.bookingServiceUrl,
+  eventbriteTicketCapacity: state.eventbriteTicketCapacity,
+  eventbriteSalesStart: state.eventbriteSalesStart,
+  eventbriteSalesEnd: state.eventbriteSalesEnd,
+  externalRegistration: Boolean(state.bookingServiceUrl),
+  externalRegistrationLink: state.bookingServiceUrl,
+  attendeeNotes: state.attendeeNotes,
   talks: state.talks,
   agendaTracks: state.tracks,
   agendaItems: state.items,
 });
 
-/** Serialized view of the editable part of the agenda, to tell unsaved changes apart. */
-export const agendaSnapshot = (state: AgendaState) => JSON.stringify([state.talks, state.tracks, state.items]);
+/** Serialized view of the module, to tell unsaved changes apart. */
+export const agendaSnapshot = (state: AgendaDraftState) =>
+  JSON.stringify([state.talks, state.tracks, state.items, state.bookingServiceUrl, state.eventbriteTicketCapacity, state.eventbriteSalesStart, state.eventbriteSalesEnd, state.attendeeNotes]);
+
+/** The record fields the module starts from; when they change the module starts again from the record. */
+export const agendaKeyOf = (workshop: EventRecord) =>
+  JSON.stringify([workshop.workshopId, workshop.talks ?? [], workshop.agendaTracks ?? [], workshop.agendaItems ?? [], registrationOf(workshop), workshop.eventbriteEventId ?? null]);
 
 // ---------- Eventbrite ----------
 
-export const salesWindowProblem = (start: string, end: string) =>
-  (start && end && start >= end ? 'La vendita dei biglietti deve finire dopo il suo inizio.' : null);
-
-/** What Eventbrite needs before a draft can be created or updated, from the saved record. */
-export function eventbriteIssues(workshop: EventRecord): string[] {
-  const items = workshop.agendaItems ?? [];
-  const badTimes = items.some(item => !Number.isFinite(new Date(item.startTime).getTime()) ||
+/** What Eventbrite needs before a draft can be created or updated, from the record and the module's current values. */
+export function eventbriteIssues(workshop: EventRecord, state: AgendaDraftState): string[] {
+  const badTimes = state.items.some(item => !Number.isFinite(new Date(item.startTime).getTime()) ||
     !Number.isFinite(new Date(item.endTime).getTime()) || new Date(item.endTime) <= new Date(item.startTime));
   return [
     !clean(workshop.title) && 'Titolo dell\'evento',
@@ -564,11 +651,11 @@ export function eventbriteIssues(workshop: EventRecord): string[] {
     !workshop.eventDate && 'Data dell\'evento',
     !clean(workshop.location?.name) && 'Nome della sede',
     !clean(workshop.location?.address) && 'Indirizzo della sede',
-    (workshop.eventbriteTicketCapacity ?? 0) <= 0 && 'Un numero positivo di biglietti gratuiti',
-    (workshop.agendaTracks ?? []).length === 0 && 'Almeno una track in agenda',
-    items.length === 0 && 'Almeno una voce in agenda',
+    state.eventbriteTicketCapacity <= 0 && 'Un numero positivo di biglietti gratuiti',
+    state.tracks.length === 0 && 'Almeno una track in agenda',
+    state.items.length === 0 && 'Almeno una voce in agenda',
     badTimes && 'Orari validi per ogni voce dell\'agenda',
-    !!salesWindowProblem(workshop.eventbriteSalesStart ?? '', workshop.eventbriteSalesEnd ?? '') && 'Fine vendite successiva all\'inizio',
+    !!salesWindowProblem(state.eventbriteSalesStart, state.eventbriteSalesEnd) && 'Fine vendite successiva all\'inizio',
   ].filter((issue): issue is string => Boolean(issue));
 }
 
@@ -582,99 +669,6 @@ export const eventbriteStatusLabel = (workshop: EventRecord) => {
   }
 };
 
-// ---------- Readiness and speakers ----------
-
-export const registrationOf = (workshop: EventRecord) =>
-  clean(workshop.bookingServiceUrl) || (workshop.externalRegistration ? clean(workshop.externalRegistrationLink) : '');
-
-export const isPastEvent = (workshop: EventRecord, now: Date = new Date()) => dayKey(workshop.eventDate) < dayKey(now);
-
-// ---------- Steps ----------
-
-export type StepId = 'panoramica' | 'agenda' | 'relatori' | 'materiali' | 'questionario' | 'pubblicazione';
-export type StepState = 'done' | 'todo' | 'optional';
-
-export interface StepDefinition {
-  id: StepId;
-  label: string;
-  description: string;
-  /** Empty is fine: the step is never flagged as missing. */
-  optional?: boolean;
-  /** The step has a primary action of its own, so "Avanti" steps back to secondary. */
-  hasPrimaryAction?: boolean;
-}
-
-/** The six steps of the event card, in order; the id is also the URL hash. */
-export const STEPS: StepDefinition[] = [
-  { id: 'panoramica', label: 'Informazioni', description: 'Descrizione, data e sede, locandina, iscrizione e note per chi partecipa.' },
-  { id: 'agenda', label: 'Agenda', description: 'Talk, track e orari della giornata.', hasPrimaryAction: true },
-  { id: 'relatori', label: 'Relatori', description: 'Chi interviene, con foto e scheda in anagrafica.' },
-  { id: 'materiali', label: 'Materiali e foto', description: "Slide, demo e foto da pubblicare dopo l'evento.", optional: true },
-  { id: 'questionario', label: 'Questionario', description: 'Link, QR code e questionari di feedback.', optional: true, hasPrimaryAction: true },
-  { id: 'pubblicazione', label: 'Pubblicazione', description: 'Controlli finali, visibilità sul sito ed Eventbrite.' },
-];
-
-export const STEP_STATE_LABEL: Record<StepState, string> = { done: 'completato', todo: 'da completare', optional: 'facoltativo' };
-
-export interface StepStatus { id: StepId; state: StepState; detail: string }
-
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-/** State of each step from the saved record: what is done, what is still to do, what is merely optional. */
-export function stepStatuses(workshop: EventRecord, speakerCount: number, now: Date = new Date()): StepStatus[] {
-  const sessions = sessionCount(programme(workshop));
-  const missing = [!clean(workshop.description), !clean(workshop.location?.name), !workshop.image, !(registrationOf(workshop) || isPastEvent(workshop, now))].filter(Boolean).length;
-  const files = (workshop.materials?.length ?? 0) + (workshop.photos?.length ?? 0);
-  return [
-    { id: 'panoramica', state: missing ? 'todo' : 'done', detail: missing ? count(missing, 'elemento da completare', 'elementi da completare') : 'Completo' },
-    { id: 'agenda', state: sessions ? 'done' : 'todo', detail: sessions ? sessionsLabel(sessions) : 'Nessuna sessione' },
-    { id: 'relatori', state: speakerCount ? 'done' : 'todo', detail: speakerCount ? count(speakerCount, 'relatore', 'relatori') : 'Nessun relatore' },
-    { id: 'materiali', state: files ? 'done' : 'optional', detail: files ? count(files, 'file', 'file') : 'Facoltativo' },
-    { id: 'questionario', state: workshop.feedbackEnabled ? 'done' : 'optional', detail: workshop.feedbackEnabled ? 'Feedback aperto' : 'Facoltativo' },
-    { id: 'pubblicazione', state: workshop.published !== false ? 'done' : 'todo', detail: workshop.published !== false ? 'Pubblicato' : 'In bozza' },
-  ];
-}
-
-/** The agenda step opens on the historic sessions when they are all the event has (the site shows them too). */
-export const hasOnlyLegacyProgramme = (workshop: EventRecord) =>
-  !(workshop.agendaItems?.length) && !(workshop.talks?.length) && (workshop.tracks?.length ?? 0) > 0;
-
-export interface EventSpeakerEntry {
-  key: string;
-  name: string;
-  sessions: number;
-  speaker: EventSpeaker | null;
-}
-
-/** Speakers of the event (agenda talks, or legacy tracks), matched to the directory by id or by name. */
-export function eventSpeakers(workshop: EventRecord, directory: EventSpeaker[]): EventSpeakerEntry[] {
-  const byId = new Map(directory.map(speaker => [speaker.workshopSpeakerId, speaker]));
-  const byName = new Map(directory.map(speaker => [nameKey(speaker.name), speaker]));
-  const entries = new Map<string, EventSpeakerEntry>();
-  const add = (name: string, speaker: EventSpeaker | null) => {
-    const key = speaker?.workshopSpeakerId ?? nameKey(name);
-    if (!key) return;
-    const entry = entries.get(key);
-    if (entry) entry.sessions += 1;
-    else entries.set(key, { key, name: speaker ? clean(speaker.name) : clean(name), sessions: 1, speaker });
-  };
-  if (workshop.talks?.length) {
-    for (const talk of workshop.talks) {
-      for (const speaker of talk.speakers ?? []) {
-        const match = (speaker.workshopSpeakerId && byId.get(speaker.workshopSpeakerId)) || byName.get(nameKey(speaker.name)) || null;
-        add(clean(speaker.name), match);
-      }
-    }
-  } else {
-    for (const track of workshop.tracks ?? []) {
-      const ids = track.speakers ?? [];
-      if (ids.length) for (const id of ids) { const match = byId.get(id); if (match) add(match.name, match); }
-      else for (const name of clean(track.speakersName).split(/\s*,\s*/).filter(Boolean)) add(name, byName.get(nameKey(name)) ?? null);
-    }
-  }
-  return [...entries.values()];
-}
-
-/** Talk speaker entries built from directory records (what the agenda stores on each talk). */
+/** Talk speaker entries built from directory records (what the module stores on each talk). */
 export const talkSpeakersFrom = (speakers: EventSpeaker[]): EventTalkSpeaker[] =>
   speakers.map(speaker => ({ workshopSpeakerId: speaker.workshopSpeakerId, name: speaker.name, imageUrl: speaker.profileImageUrl ?? undefined, biography: speaker.description ?? undefined }));

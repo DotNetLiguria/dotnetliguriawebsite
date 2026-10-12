@@ -35,10 +35,14 @@ non-production account before production use.
 
 ## Admin workflow
 
-Open **Admin → Workshops → Edit workshop**. The wizard sequence is Publication,
-Workshop image, Workshop information, Location, Tracks, Talk pool, Agenda tracks and
-schedule, Registration details, Materials, and Photos. The Registration details
-panel is the final Eventbrite setup step after the schedule.
+Open **Eventi → the event** in the admin. The wizard sequence (Italian labels in the
+UI) is Pubblicazione, Locandina, Informazioni, Sede, Sessioni, Elenco talk, Agenda e
+orari, Iscrizione, Materiali, and Foto. The **Iscrizione** step is the Eventbrite
+setup step after the schedule; its buttons are "Salva iscrizione e agenda" (save
+registration and agenda), "Crea la bozza su Eventbrite" / "Sincronizza con
+Eventbrite" (create draft / sync), "Aggiorna le vendite" (refresh live ticket
+sales), "Salva capienza biglietti" (save ticket capacity) and "Pubblica su
+Eventbrite" (publish).
 
 1. Complete the workshop title, description, event date, venue/location, agenda
    track, and at least one scheduled agenda item. Give agenda items valid start and

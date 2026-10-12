@@ -2,58 +2,65 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Menu, MenuItem, MenuTrigger, Popover, ProgressBar } from 'react-aria-components';
 import { AdminIcon } from '../icons';
-import { btn, focusRing, linkFocus } from '../ui';
+import { btn, linkFocus } from '../ui';
 import { useIsDesktop } from './listKit';
-import { STEPS, STEP_STATE_LABEL, StepId, StepState, StepStatus } from './eventModel';
+import { STEPS, StepId, stepIndexOf } from './eventModel';
 
-// The event card is a non-linear stepper: six numbered steps, each reachable at any time, each showing whether
-// it is done, still to do or merely optional. Desktop draws them in a row with connectors; phones get a compact
-// header with a progress bar and the list of steps in a menu.
+// The ten steps of the event wizard, as the previous admin ordered them. Steps already reached (and every
+// earlier one) can be opened directly; the ones ahead open with "Avanti". Desktop draws the row with
+// connectors; phones get "Passo 3 di 10", a progress bar and the reachable steps in a menu.
 
 interface StepperProps {
   current: StepId;
-  statuses: StepStatus[];
+  /** Index of the furthest step reached in this visit. */
+  reached: number;
   hrefFor: (id: StepId) => string;
   onSelect: (id: StepId) => void;
 }
 
-const statusOf = (statuses: StepStatus[], id: StepId) => statuses.find(status => status.id === id) ?? { id, state: 'todo' as StepState, detail: '' };
-/** Accessible name of a step: "2. Agenda, completato" (the visible label is part of it). */
-const stepName = (index: number, label: string, state: StepState, current = false) =>
-  `${index + 1}. ${label}, ${STEP_STATE_LABEL[state]}${current ? ', passo attuale' : ''}`;
+type Mark = 'current' | 'reached' | 'ahead';
+const markOf = (index: number, currentIndex: number, reached: number): Mark =>
+  (index === currentIndex ? 'current' : index <= reached ? 'reached' : 'ahead');
+const MARK_LABEL: Record<Mark, string> = { current: 'passo attuale', reached: 'raggiunto', ahead: 'non ancora raggiunto' };
+const stepName = (index: number, label: string, mark: Mark) => `${index + 1}. ${label}, ${MARK_LABEL[mark]}`;
 
-function StepMarker({ index, state, current, className = 'size-8 text-sm' }: { index: number; state: StepState; current: boolean; className?: string }) {
-  const look = current
-    ? 'bg-navy text-white'
-    : state === 'done' ? 'bg-basil-50 text-basil-700'
-      : state === 'optional' ? 'border-2 border-dashed border-line-strong bg-white text-muted' : 'border-2 border-line-strong bg-white text-muted';
+function StepMarker({ index, mark, className = 'size-8 text-sm' }: { index: number; mark: Mark; className?: string }) {
+  const look = mark === 'current' ? 'bg-navy text-white' : mark === 'reached' ? 'bg-basil-50 text-basil-700' : 'border-2 border-line-strong bg-white text-muted';
   return (
     <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full font-bold tabular-nums ${look} ${className}`}>
-      {state === 'done' && !current ? <AdminIcon name="check" className="size-4" /> : index + 1}
+      {mark === 'reached' ? <AdminIcon name="check" className="size-4" /> : index + 1}
     </span>
   );
 }
 
-function DesktopStepper({ current, statuses, hrefFor }: StepperProps) {
+function DesktopStepper({ current, reached, hrefFor }: StepperProps) {
+  const currentIndex = stepIndexOf(current);
   return (
     <nav aria-label="Passaggi dell'evento" className="mt-6">
       <ol className="flex items-start">
         {STEPS.map((step, index) => {
-          const status = statusOf(statuses, step.id);
-          const isCurrent = step.id === current;
+          const mark = markOf(index, currentIndex, reached);
+          const body = (
+            <>
+              <StepMarker index={index} mark={mark} />
+              <span className={`text-xs leading-tight sm:text-sm ${mark === 'current' ? 'font-bold text-navy' : mark === 'reached' ? 'font-semibold text-navy/80' : 'font-semibold text-muted'}`}>{step.label}</span>
+            </>
+          );
           return (
             <li key={step.id} className="relative flex min-w-0 flex-1 flex-col items-center">
-              {index < STEPS.length - 1 && <span aria-hidden="true" className={`absolute top-4 left-1/2 h-0.5 w-full ${status.state === 'done' ? 'bg-basil-700/40' : 'bg-line'}`} />}
-              <Link
-                to={hrefFor(step.id)}
-                aria-current={isCurrent ? 'step' : undefined}
-                aria-label={stepName(index, step.label, status.state)}
-                className={`relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1.5 rounded-xl px-2 py-1 text-center transition-colors hover:bg-cyan-50/60 ${linkFocus}`}
-              >
-                <StepMarker index={index} state={status.state} current={isCurrent} />
-                <span className={`text-sm leading-tight ${isCurrent ? 'font-bold text-navy' : 'font-semibold text-muted'}`}>{step.label}</span>
-                <span className={`text-xs ${status.state === 'done' ? 'text-basil-700' : 'text-muted'}`}>{status.detail}</span>
-              </Link>
+              {index < STEPS.length - 1 && <span aria-hidden="true" className={`absolute top-4 left-1/2 h-0.5 w-full ${index < reached ? 'bg-basil-700/40' : 'bg-line'}`} />}
+              {mark === 'ahead' ? (
+                <span aria-label={stepName(index, step.label, mark)} className="relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1.5 px-1 py-1 text-center">{body}</span>
+              ) : (
+                <Link
+                  to={hrefFor(step.id)}
+                  aria-current={mark === 'current' ? 'step' : undefined}
+                  aria-label={stepName(index, step.label, mark)}
+                  className={`relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1.5 rounded-xl px-1 py-1 text-center transition-colors hover:bg-cyan-50/60 ${linkFocus}`}
+                >
+                  {body}
+                </Link>
+              )}
             </li>
           );
         })}
@@ -62,28 +69,25 @@ function DesktopStepper({ current, statuses, hrefFor }: StepperProps) {
   );
 }
 
-function PhoneStepper({ current, statuses, onSelect }: StepperProps) {
-  const index = STEPS.findIndex(step => step.id === current);
+function PhoneStepper({ current, reached, onSelect }: StepperProps) {
+  const index = stepIndexOf(current);
   const step = STEPS[index];
   const total = STEPS.length;
+  const reachable = STEPS.filter((_, i) => i <= reached);
   return (
     <nav aria-label="Passaggi dell'evento" className="mt-6 rounded-2xl border border-line bg-white p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="min-w-0 font-bold"><span className="text-muted">Passo {index + 1} di {total}</span> · {step.label}</p>
         <MenuTrigger>
-          <Button className={`${btn.ghost} shrink-0`}>Tutti i passaggi<AdminIcon name="chevron" className="size-4" /></Button>
+          <Button className={`${btn.ghost} shrink-0`}>Passaggi<AdminIcon name="chevron" className="size-4" /></Button>
           <Popover placement="bottom end" offset={4} className="min-w-72 rounded-xl border border-line bg-white p-1.5 shadow-lift outline-none">
-            <Menu aria-label="Passaggi dell'evento" onAction={key => onSelect(key as StepId)} className="outline-none">
-              {STEPS.map((item, i) => {
-                const status = statusOf(statuses, item.id);
-                const isCurrent = item.id === current;
+            <Menu aria-label="Passaggi raggiunti" onAction={key => onSelect(key as StepId)} className="outline-none">
+              {reachable.map((item, i) => {
+                const mark = markOf(i, index, reached);
                 return (
-                  <MenuItem key={item.id} id={item.id} textValue={stepName(i, item.label, status.state)} aria-label={stepName(i, item.label, status.state, isCurrent)} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-3 outline-none data-[focused]:bg-cyan-50 ${isCurrent ? 'bg-cyan-50/60' : ''}`}>
-                    <StepMarker index={i} state={status.state} current={isCurrent} className="size-7 text-xs" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">{item.label}</span>
-                      <span className="block text-sm text-muted">{status.detail}{isCurrent ? ' · passo attuale' : ''}</span>
-                    </span>
+                  <MenuItem key={item.id} id={item.id} textValue={stepName(i, item.label, mark)} aria-label={stepName(i, item.label, mark)} className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-3 outline-none data-[focused]:bg-cyan-50 ${mark === 'current' ? 'bg-cyan-50/60' : ''}`}>
+                    <StepMarker index={i} mark={mark} className="size-7 text-xs" />
+                    <span className="min-w-0 flex-1 font-semibold">{item.label}</span>
                   </MenuItem>
                 );
               })}
@@ -91,6 +95,7 @@ function PhoneStepper({ current, statuses, onSelect }: StepperProps) {
           </Popover>
         </MenuTrigger>
       </div>
+      {reached < total - 1 && <p className="mt-1 text-sm text-muted">I passi successivi si aprono con «Avanti».</p>}
       <ProgressBar aria-label={`Passo ${index + 1} di ${total}`} value={index + 1} maxValue={total} className="mt-3 block">
         {({ percentage }) => (
           <span className="block h-1.5 overflow-hidden rounded-full bg-[#eef3f7]">
@@ -102,15 +107,14 @@ function PhoneStepper({ current, statuses, onSelect }: StepperProps) {
   );
 }
 
-/** Numbered steps of the event card; every step is a link, so the hash and the browser history follow. */
 export function Stepper(props: StepperProps) {
   const desktop = useIsDesktop();
   return desktop ? <DesktopStepper {...props} /> : <PhoneStepper {...props} />;
 }
 
-/** Indietro / Avanti at the end of a step. "Avanti" is the step's primary action only when it has no other. */
-export function StepNav({ current, onMove }: { current: StepId; onMove: (id: StepId) => void }) {
-  const index = STEPS.findIndex(step => step.id === current);
+/** Indietro / Avanti at the end of a step; the last step saves instead, like the previous "Save changes". */
+export function StepNav({ current, busy, onMove, onSave }: { current: StepId; busy: boolean; onMove: (id: StepId) => void; onSave: () => void }) {
+  const index = stepIndexOf(current);
   const step = STEPS[index];
   const previous = STEPS[index - 1];
   const next = STEPS[index + 1];
@@ -118,15 +122,17 @@ export function StepNav({ current, onMove }: { current: StepId; onMove: (id: Ste
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
       <span>
         {previous && (
-          <Button onPress={() => onMove(previous.id)} className={`${btn.secondary} ${focusRing}`}>
+          <Button onPress={() => onMove(previous.id)} isDisabled={busy} className={btn.secondary}>
             <AdminIcon name="back" />Indietro<span className="sr-only">: {previous.label}</span>
           </Button>
         )}
       </span>
-      {next && (
+      {next ? (
         <Button onPress={() => onMove(next.id)} className={step.hasPrimaryAction ? btn.secondary : btn.primary}>
           Avanti: {next.label}<AdminIcon name="arrow" />
         </Button>
+      ) : (
+        <Button onPress={onSave} isDisabled={busy} className={btn.primary}><AdminIcon name="check" />{busy ? 'Salvataggio…' : 'Salva modifiche'}</Button>
       )}
     </div>
   );

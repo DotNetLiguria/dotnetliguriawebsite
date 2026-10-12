@@ -33,7 +33,7 @@ function StatusBadges({ row }: { row: Row }) {
     <span className="flex flex-wrap gap-1.5">
       {row.upcoming && <Badge kind="planned">In programma</Badge>}
       {row.w.in_homepage && <Badge kind="ok">In evidenza</Badge>}
-      {row.w.published === false && <Badge kind="warn">Bozza</Badge>}
+      {row.w.published !== true && <Badge kind="warn">Bozza</Badge>}
     </span>
   );
 }
@@ -100,7 +100,7 @@ export default function EventsAdminPage() {
 
   const q = nameKey(query);
   const visible = rows
-    .filter(r => (year === 'tutti' || yearOf(r.w.eventDate) === year) && (!q || r.search.includes(q)) && (!onlyDrafts || r.w.published === false) && (!onlyFeatured || r.w.in_homepage))
+    .filter(r => (year === 'tutti' || yearOf(r.w.eventDate) === year) && (!q || r.search.includes(q)) && (!onlyDrafts || r.w.published !== true) && (!onlyFeatured || r.w.in_homepage))
     .sort((a, b) => {
       const d = sort.direction === 'ascending' ? 1 : -1;
       if (sort.key === 'title') return a.title.localeCompare(b.title, 'it') * d;
@@ -110,7 +110,7 @@ export default function EventsAdminPage() {
   const onSort = (key: SortKey) => setSort(s => (s.key === key ? { key, direction: s.direction === 'ascending' ? 'descending' : 'ascending' } : { key, direction: key === 'title' ? 'ascending' : 'descending' }));
   const reset = () => { setQuery(''); setYear('tutti'); setOnlyDrafts(false); setOnlyFeatured(false); };
   const page = visible.slice(0, shown);
-  const drafts = rows.filter(r => r.w.published === false).length;
+  const drafts = rows.filter(r => r.w.published !== true).length;
 
   return (
     <>

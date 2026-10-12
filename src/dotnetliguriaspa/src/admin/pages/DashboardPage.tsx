@@ -67,7 +67,7 @@ function NextEvent({ workshop }: { workshop: AdminWorkshop }) {
         <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? sessionsLabel(sessions) : 'Nessuna sessione: importa i talk da Sessionize o aggiungili.'} action={sessions ? undefined : fix("Prepara l'agenda")} />
         <CheckRow done={!!workshop.image} title="Locandina" detail={workshop.image ? 'Caricata' : 'Manca la locandina.'} action={workshop.image ? undefined : fix('Carica')} />
         <CheckRow done={!!registrationOf(workshop)} title="Iscrizione" detail={registrationOf(workshop) ? 'Link di prenotazione presente' : 'Manca il link di prenotazione.'} action={registrationOf(workshop) ? undefined : fix('Aggiungi il link')} />
-        <CheckRow done={workshop.published !== false} title="Pubblicazione" detail={workshop.published !== false ? 'Visibile sul sito' : 'In bozza: non è ancora sul sito.'} action={workshop.published !== false ? undefined : fix('Pubblica')} />
+        <CheckRow done={workshop.published === true} title="Pubblicazione" detail={workshop.published === true ? 'Visibile sul sito' : 'In bozza: non è ancora sul sito.'} action={workshop.published === true ? undefined : fix('Pubblica')} />
       </ul>
     </Panel>
   );
@@ -118,9 +118,9 @@ export default function DashboardPage() {
       next: sorted.find(w => dayKey(w.eventDate) >= today) ?? null,
       latest: past[past.length - 1] ?? null,
       firstYear: sorted.length ? new Date(sorted[0].eventDate).getFullYear() : null,
-      withoutMaterials: past.filter(w => w.published !== false && !(w.materials?.length)).length,
+      withoutMaterials: past.filter(w => w.published === true && !(w.materials?.length)).length,
       recent: [...sorted].reverse().slice(0, 5),
-      drafts: sorted.filter(w => w.published === false).length,
+      drafts: sorted.filter(w => w.published !== true).length,
     };
   }, [workshops]);
 
@@ -205,7 +205,7 @@ export default function DashboardPage() {
                   <li key={w.workshopId}>
                     <Link to={eventLink(w)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-cyan-50 ${linkFocus}`}>
                       <span className="min-w-0 flex-1"><span className="block truncate font-bold">{clean(w.title)}</span><span className="block text-sm text-muted">{formatDate(w.eventDate)}</span></span>
-                      {w.published === false && <Badge kind="warn">Bozza</Badge>}
+                      {w.published !== true && <Badge kind="warn">Bozza</Badge>}
                     </Link>
                   </li>
                 ))}
