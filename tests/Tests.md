@@ -25,7 +25,9 @@ solution, reject retired runtime dependencies and check the Aspire resource mode
 (website, SPA and MongoDB only). The four old feedback-statistics tests were removed
 with the obsolete endpoints; replacement questionnaire-statistics tests remain.
 
-Timing ceilings retain the earlier warmed Windows baseline (SDK 10.0.401).
+Timing ceilings retain the earlier warmed Windows baseline (SDK 10.0.401); since
+2026-10-12 Vitest runs on two workers (`vite.config.ts`), which keeps the grown
+frontend suite under the same ceiling on CI runners.
 Elapsed time includes process/runner startup; restore/build and live integration
 checks are excluded. The checked-in source of truth is
 [timing-budgets.json](../scripts/timing-budgets.json). Update counts when adding or
