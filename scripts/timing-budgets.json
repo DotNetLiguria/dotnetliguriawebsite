@@ -10,6 +10,6 @@
   "suites": {
     "repository": { "minimumTests": 25, "medianSeconds": 4.719, "maximumSeconds": 5.209, "ceilingSeconds": 20 },
     "backend": { "minimumTests": 97, "medianSeconds": 4.063, "maximumSeconds": 4.448, "ceilingSeconds": 15 },
-    "frontend": { "minimumTests": 353, "medianSeconds": 17.107, "maximumSeconds": 18.575, "ceilingSeconds": 60 }
+    "frontend": { "minimumTests": 359, "medianSeconds": 17.107, "maximumSeconds": 18.575, "ceilingSeconds": 60 }
   }
 }

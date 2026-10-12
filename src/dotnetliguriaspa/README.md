@@ -47,7 +47,7 @@ npm run test:unit
 npm run build
 ```
 
-Vitest runs 353 isolated behavior/configuration tests with mocked authentication/network and
+Vitest runs 359 isolated behavior/configuration tests with mocked authentication/network and
 reset state; `npm test` is a single run, not CRA watch mode.
 Use `npm run test:unit -- --watch` for watch mode. The shared root verification script enforces discovery
 counts and a measured process-time ceiling. See [test procedures](../../tests/Tests.md).
