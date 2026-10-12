@@ -113,7 +113,7 @@ export function EditCard({ id, title, children, form, actions, className = '' }:
   return (
     <Panel labelledBy={headingId} className={className}>
       <div className="flex items-center justify-between gap-3 px-5 pt-4">
-        <h2 id={headingId} className="text-lg font-bold">{title}</h2>
+        <h3 id={headingId} className="text-lg font-bold">{title}</h3>
         {!editing && (
           <span className="flex items-center gap-1">
             {actions}
@@ -349,10 +349,6 @@ export function SpeakerPicker({ label = 'Relatori', speakers, selectedIds, onCha
     </CheckboxGroup>
   );
 }
-
-// ---------- Tabs ----------
-
-export const tabCls = `min-h-12 shrink-0 cursor-pointer border-b-2 border-transparent px-3 font-semibold whitespace-nowrap text-muted transition-colors data-[hovered]:text-navy data-[selected]:border-cyan-700 data-[selected]:text-navy ${focusRing}`;
 
 /** Switch row of the visibility panel: title, hint and the switch. */
 export function SwitchRow({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {

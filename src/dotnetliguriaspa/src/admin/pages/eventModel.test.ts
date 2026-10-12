@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { eventFixture, speakersFixture } from './eventFixtures';
 import {
   AgendaState, addServiceInterval, agendaProblem, agendaSaveBody, autoFillSchedule, buildWorkshopUpdate, coreValuesOf, dateInputValue,
-  eventSpeakers, eventbriteIssues, eventbriteStatusLabel, hasAllowedExtension, initAgenda, moveItem, parseRooms, problemDetail,
-  setTrackCount, toClockTime, toStoredTime, unscheduledTalks, withBookingUrl, afterSave,
+  eventSpeakers, eventbriteIssues, eventbriteStatusLabel, hasAllowedExtension, hasOnlyLegacyProgramme, initAgenda, moveItem, onEventDay,
+  parseRooms, problemDetail, setTrackCount, stepStatuses, toClockTime, toStoredTime, unscheduledTalks, withBookingUrl, afterSave,
 } from './eventModel';
 
 const twoTalks: AgendaState = {
@@ -86,6 +86,35 @@ describe('helpers', () => {
     expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'synced' }))).toBe('Bozza sincronizzata');
     expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'update-pending' }))).toBe('Da sincronizzare');
     expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbritePublished: true }))).toBe('Pubblicato');
+  });
+});
+
+describe('steps', () => {
+  const legacyTrack = { workshopTrackId: 'k1', title: 'Keynote', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z', speakersName: 'Ada' };
+
+  it('tells done, to do and optional steps apart from the saved record', () => {
+    const complete = stepStatuses(eventFixture({ tracks: [legacyTrack], materials: [{ workshopFileId: 'f1' }], feedbackEnabled: true }), 1);
+    expect(complete.map(step => [step.id, step.state, step.detail])).toEqual([
+      ['panoramica', 'done', 'Completo'], ['agenda', 'done', '1 sessione'], ['relatori', 'done', '1 relatore'],
+      ['materiali', 'done', '1 file'], ['questionario', 'done', 'Feedback aperto'], ['pubblicazione', 'done', 'Pubblicato'],
+    ]);
+    const fresh = stepStatuses(eventFixture({ description: '', image: '', published: false, eventDate: '2099-06-12T10:00:00Z' }), 0, new Date('2026-10-12T10:00:00Z'));
+    expect(fresh.map(step => [step.id, step.state, step.detail])).toEqual([
+      ['panoramica', 'todo', '3 elementi da completare'], ['agenda', 'todo', 'Nessuna sessione'], ['relatori', 'todo', 'Nessun relatore'],
+      ['materiali', 'optional', 'Facoltativo'], ['questionario', 'optional', 'Facoltativo'], ['pubblicazione', 'todo', 'In bozza'],
+    ]);
+    // A past event no longer needs a booking link.
+    expect(stepStatuses(eventFixture({ bookingServiceUrl: '' }), 0, new Date('2026-10-12T10:00:00Z'))[0].state).toBe('done');
+    expect(stepStatuses(eventFixture({ bookingServiceUrl: '', eventDate: '2099-06-12T10:00:00Z' }), 0, new Date('2026-10-12T10:00:00Z'))[0].detail).toBe('1 elemento da completare');
+  });
+
+  it('recognises events that only have the historic programme and tracks stored on another day', () => {
+    expect(hasOnlyLegacyProgramme(eventFixture({ tracks: [legacyTrack] }))).toBe(true);
+    expect(hasOnlyLegacyProgramme(eventFixture())).toBe(false);
+    expect(hasOnlyLegacyProgramme(eventFixture({ tracks: [legacyTrack], talks: [{ workshopTalkId: 't', title: 'x', sessionType: 'talk', speakers: [] }] }))).toBe(false);
+    expect(onEventDay(legacyTrack, eventFixture())).toBe(true);
+    expect(onEventDay({ startTime: '2024-12-03T09:00:00Z' }, eventFixture())).toBe(false);
+    expect(onEventDay(legacyTrack, { eventDate: '2024-03-15T00:00:00+01:00' })).toBe(true);
   });
 });
 

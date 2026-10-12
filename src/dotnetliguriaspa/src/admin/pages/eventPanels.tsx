@@ -159,6 +159,7 @@ export function FilesPanel({ page }: { page: EventPage }) {
     if (saved) {
       setMaterialTitle('');
       await fetchFiles();
+      await page.reload();
     }
     const problems = [...rejected.map(name => `${name}: formato non ammesso`), ...failed];
     if (saved && !problems.length) notify(kind === 'material' ? plural(saved, 'file caricato', 'file caricati') : plural(saved, 'foto caricata', 'foto caricate'));
@@ -172,6 +173,7 @@ export function FilesPanel({ page }: { page: EventPage }) {
       await api(`/workshopfile/${encodeURIComponent(file.workshopFileId)}`, { method: 'DELETE' });
       setLoad(current => (current.state === 'ready' ? { state: 'ready', data: current.data.filter(item => item.workshopFileId !== file.workshopFileId) } : current));
       notify('File eliminato', { description: clean(file.title) || clean(file.fileName) });
+      await page.reload();
     } catch (error) {
       notify('Eliminazione non riuscita', { description: errorText(error), kind: 'error' });
     } finally {
@@ -186,7 +188,7 @@ export function FilesPanel({ page }: { page: EventPage }) {
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <Panel labelledBy="materials-title">
         <div className="p-5">
-          <h2 id="materials-title" className="text-lg font-bold">Slide e materiali</h2>
+          <h3 id="materials-title" className="text-lg font-bold">Slide e materiali</h3>
           <p className="text-sm text-muted">{materials.length ? plural(materials.length, 'file', 'file') : 'Ancora nessun file: chi ha partecipato li cerca qui.'}</p>
           <div className="mt-4 space-y-3">
             <TextInput label="Titolo del materiale" value={materialTitle} onChange={setMaterialTitle} placeholder="Per esempio: slide del talk su Blazor" description="Facoltativo: se vuoto, usa il nome del file." />
@@ -201,7 +203,7 @@ export function FilesPanel({ page }: { page: EventPage }) {
       </Panel>
       <Panel labelledBy="photos-title">
         <div className="p-5">
-          <h2 id="photos-title" className="text-lg font-bold">Foto dell'evento</h2>
+          <h3 id="photos-title" className="text-lg font-bold">Foto dell'evento</h3>
           <p className="text-sm text-muted">{photos.length ? plural(photos.length, 'foto', 'foto') : 'Ancora nessuna foto.'}</p>
           <div className="mt-4">
             <Dropzone label="Trascina qui le foto" hint="JPG, PNG, WebP o GIF" accept={IMAGE_EXTENSIONS} multiple busy={busy === 'photo'} onFiles={files => void upload('photo', files)} />
@@ -263,7 +265,7 @@ export function QuestionnairePanel({ page }: { page: EventPage }) {
   return (
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <Panel labelledBy="feedback-title" className="p-5">
-        <h2 id="feedback-title" className="text-lg font-bold">Link e QR code del feedback</h2>
+        <h3 id="feedback-title" className="text-lg font-bold">Link e QR code del feedback</h3>
         <p className="text-sm text-muted">Chi partecipa lo apre dal QR code in sala o dal link sulla pagina dell'evento; le risposte arrivano nel questionario collegato.</p>
         <div className="mt-4 flex flex-wrap items-start gap-5">
           <div className="rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={160} level="H" title={`QR code del feedback di ${clean(workshop.title)}`} /></div>
@@ -276,7 +278,7 @@ export function QuestionnairePanel({ page }: { page: EventPage }) {
       </Panel>
       <Panel labelledBy="questionnaires-title">
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <h2 id="questionnaires-title" className="text-lg font-bold">Questionari collegati</h2>
+          <h3 id="questionnaires-title" className="text-lg font-bold">Questionari collegati</h3>
           <Button onPress={() => void create()} isDisabled={busy} className={btn.primary}><AdminIcon name="plus" />{busy ? 'Creazione…' : 'Crea questionario di feedback'}</Button>
         </div>
         {error && <div className="px-5 pb-4"><Notice tone="danger" title="Questionari non disponibili">{error}</Notice></div>}
@@ -429,7 +431,7 @@ export function PublishPanel({ page }: { page: EventPage }) {
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
       <Panel labelledBy="ready-title">
-        <h2 id="ready-title" className="px-5 pt-4 text-lg font-bold">Pronto per il sito?</h2>
+        <h3 id="ready-title" className="px-5 pt-4 text-lg font-bold">Pronto per il sito?</h3>
         <ul className="divide-y divide-line px-5">
           <CheckRow done={!!clean(workshop.description)} title="Descrizione" detail={clean(workshop.description) ? 'Presente' : 'Manca la descrizione: compare nella scheda e nella home.'} action={clean(workshop.description) ? undefined : fix('panoramica', 'Scrivi')} />
           <CheckRow done={!!place} title="Data e sede" detail={place ? `${formatDate(workshop.eventDate)} · ${place}` : 'Manca la sede.'} action={place ? undefined : fix('panoramica', 'Scegli la sede')} />
@@ -439,7 +441,7 @@ export function PublishPanel({ page }: { page: EventPage }) {
         </ul>
       </Panel>
       <Panel labelledBy="visibility-title">
-        <h2 id="visibility-title" className="px-5 pt-4 text-lg font-bold">Visibilità</h2>
+        <h3 id="visibility-title" className="px-5 pt-4 text-lg font-bold">Visibilità</h3>
         <ul className="divide-y divide-line px-5 pb-2">
           <SwitchRow title="Pubblicato" hint="Visibile nell'archivio e sulla sua pagina.">
             <SwitchInput isSelected={workshop.published !== false} onChange={value => void page.toggleFlag('published', value)}><span className="sr-only">Pubblicato</span></SwitchInput>

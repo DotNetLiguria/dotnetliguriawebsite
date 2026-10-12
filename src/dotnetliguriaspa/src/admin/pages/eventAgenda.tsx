@@ -1,17 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Form, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { AdminIcon } from '../icons';
-import { EmptyState, Panel, TextAreaInput, TextInput, btn } from '../ui';
+import { Badge, EmptyState, Panel, TextAreaInput, TextInput, btn } from '../ui';
 import { clean } from '../adminApi';
 import { notify } from '../toasts';
+import { formatDate } from '../../site/format';
 import { MoveButtons, restoreMoveFocus } from './listKit';
 import { ModalHeader, Notice, RecordModal, pill } from './listUi';
 import { CardForm, EventIcon, EventPage, InlineConfirm, InlineField, SelectInput, SpeakerPicker, errorText } from './eventKit';
 import {
   AgendaState, EventRecord, EventSpeaker, EventTalk, LegacyTrack, ScheduleParams, addServiceInterval, agendaProblem, agendaSaveBody,
-  agendaSnapshot, assignTalkTrack, autoFillSchedule, createId, hasTrack, initAgenda, legacyDateTime, legacyInputValue, moveItem,
-  removeItem, removeTalk, renameTrack, setTrackCount, talkSpeakersFrom, toClockTime, toStoredTime, trackItems, unscheduledTalks,
-  updateItem, upsertTalk,
+  agendaSnapshot, assignTalkTrack, autoFillSchedule, createId, hasOnlyLegacyProgramme, hasTrack, initAgenda, legacyInputValue, moveItem,
+  onEventDay, removeItem, removeTalk, renameTrack, setTrackCount, talkSpeakersFrom, toClockTime, toStoredTime, trackItems,
+  unscheduledTalks, updateItem, upsertTalk,
 } from './eventModel';
 
 // Agenda builder: talks (imported from Sessionize or created here), parallel tracks, and the schedule of each
@@ -246,6 +247,9 @@ export function AgendaPanel({ page, draft }: { page: EventPage; draft: AgendaDra
   const [importing, setImporting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  // Events from before the agenda builder open on their historic sessions; the builder waits behind one action.
+  const [builderRequested, setBuilderRequested] = useState(false);
+  const legacyFirst = hasOnlyLegacyProgramme(workshop) && !builderRequested;
   // After a move the rows are re-ordered: focus goes back to the button that was used once React has rendered.
   const refocus = useRef<{ id: string; delta: -1 | 1 } | null>(null);
   useEffect(() => {
@@ -322,13 +326,25 @@ export function AgendaPanel({ page, draft }: { page: EventPage; draft: AgendaDra
   const openTalk = (talk: EventTalk | null) => setTalkDialog({ talk });
   const talkOf = (talkId?: string | null) => state.talks.find(talk => talk.workshopTalkId === talkId);
 
+  if (legacyFirst) {
+    return (
+      <>
+        <LegacyTracksPanel page={page} />
+        <Panel className="mt-5 flex flex-wrap items-center justify-between gap-4 p-5">
+          <p className="max-w-[60ch] text-muted">Il sito mostra queste sessioni storiche finché l'evento non ha un'agenda nuova: con talk, track e orari la sostituisce.</p>
+          <Button onPress={() => setBuilderRequested(true)} className={btn.secondary}><AdminIcon name="plus" />Crea un'agenda nuova</Button>
+        </Panel>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="grid items-start gap-5 2xl:grid-cols-[minmax(0,1fr)_20rem]">
         <Panel labelledBy="agenda-title">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
             <div>
-              <h2 id="agenda-title" className="text-lg font-bold">Programma</h2>
+              <h3 id="agenda-title" className="text-lg font-bold">Programma</h3>
               <p className="text-sm text-muted">{state.tracks.length === 1 ? 'Una track' : `${state.tracks.length} track parallele`} · orari sul giorno dell'evento</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -407,7 +423,7 @@ export function AgendaPanel({ page, draft }: { page: EventPage; draft: AgendaDra
 
         <Panel labelledBy="pool-title">
           <div className="px-5 pt-4">
-            <h2 id="pool-title" className="text-lg font-bold">Talk da collocare</h2>
+            <h3 id="pool-title" className="text-lg font-bold">Talk da collocare</h3>
             <p className="text-sm text-muted">Talk importati o creati che non sono ancora in scaletta.</p>
           </div>
           {pending.length ? (
@@ -438,7 +454,7 @@ export function AgendaPanel({ page, draft }: { page: EventPage; draft: AgendaDra
           )}
           {unassigned.length > 0 && state.tracks.length > 1 && <div className="px-5 pb-4"><Notice tone="warn" title="Talk senza track">Scegli la track di ogni talk: gli orari si riempiono da soli.</Notice></div>}
           <Form onSubmit={importTalks} className="space-y-3 border-t border-line p-5" aria-label="Importa da Sessionize">
-            <h3 className="font-bold">Importa da Sessionize</h3>
+            <h4 className="font-bold">Importa da Sessionize</h4>
             <TextInput label="ID evento Sessionize" isRequired value={sessionizeId} onChange={setSessionizeId} placeholder="Per esempio: 2k3abc9x" description="Le sessioni accettate arrivano con relatori e abstract; i relatori nuovi finiscono in anagrafica." />
             {dirty && <p className="text-sm font-semibold text-[#8a4b00]">Salva l'agenda prima di importare: l'importazione ricarica la scaletta.</p>}
             <Button type="submit" isDisabled={importing || dirty || !sessionizeId.trim()} className={btn.secondary}><AdminIcon name="download" />{importing ? 'Importazione…' : 'Importa talk'}</Button>
@@ -446,7 +462,7 @@ export function AgendaPanel({ page, draft }: { page: EventPage; draft: AgendaDra
         </Panel>
       </div>
 
-      {(workshop.tracks?.length ?? 0) > 0 && <LegacyTracksPanel page={page} />}
+      {(workshop.tracks?.length ?? 0) > 0 && <LegacyTracksPanel page={page} className="mt-5" />}
 
       {talkDialog && (
         <TalkDialog
@@ -516,7 +532,7 @@ function TrackDialog({ track, speakers, onSave, onClose }: { track: LegacyTrack 
   );
 }
 
-export function LegacyTracksPanel({ page }: { page: EventPage }) {
+export function LegacyTracksPanel({ page, className = '' }: { page: EventPage; className?: string }) {
   const { workshop, speakers } = page;
   const [dialog, setDialog] = useState<{ track: LegacyTrack | null } | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -547,17 +563,18 @@ export function LegacyTracksPanel({ page }: { page: EventPage }) {
   };
 
   return (
-    <Panel labelledBy="legacy-title" className="mt-5">
+    <Panel labelledBy="legacy-title" className={className}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
         <div>
-          <h2 id="legacy-title" className="text-lg font-bold">Sessioni in formato storico</h2>
-          <p className="text-sm text-muted">Programma degli eventi precedenti all'agenda; il sito lo mostra finché l'agenda qui sopra è vuota.</p>
+          <h3 id="legacy-title" className="text-lg font-bold">Sessioni in formato storico</h3>
+          <p className="text-sm text-muted">Programma degli eventi precedenti all'agenda; il sito lo mostra finché non esiste un'agenda nuova.</p>
         </div>
         <Button onPress={() => setDialog({ track: null })} className={btn.secondary}><AdminIcon name="plus" />Aggiungi sessione</Button>
       </div>
       <ul className="divide-y divide-line">
         {tracks.map(track => {
           const title = clean(track.title) || 'Sessione senza titolo';
+          const sameDay = onEventDay(track, workshop);
           return (
             <li key={track.workshopTrackId} className="px-5 py-3">
               {confirmId === track.workshopTrackId ? (
@@ -566,9 +583,15 @@ export function LegacyTracksPanel({ page }: { page: EventPage }) {
                 </InlineConfirm>
               ) : (
                 <div className="flex flex-wrap items-start gap-3">
-                  <span className="w-44 shrink-0 text-sm font-semibold text-cyan-700 tabular-nums">{legacyDateTime.format(new Date(track.startTime))}–{toClockTime(track.endTime)}</span>
+                  <span className="w-44 shrink-0 pt-0.5 text-sm font-semibold text-cyan-700 tabular-nums">
+                    {!sameDay && <span className="block">{formatDate(track.startTime)}</span>}
+                    {toClockTime(track.startTime)}–{toClockTime(track.endTime)}
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-bold leading-snug">{title}</span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold leading-snug">{title}</span>
+                      {!sameDay && <Badge kind="warn">Data diversa dall'evento</Badge>}
+                    </span>
                     <span className="block text-sm text-muted">{[clean(track.speakersName), track.level ? `Livello ${track.level}` : null].filter(Boolean).join(' · ')}</span>
                     {clean(track.abstract) && <span className="mt-1 block max-w-[65ch] text-sm">{clean(track.abstract)}</span>}
                   </span>
