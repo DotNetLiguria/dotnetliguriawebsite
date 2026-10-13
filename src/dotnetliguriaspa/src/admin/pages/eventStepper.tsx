@@ -95,7 +95,6 @@ function PhoneStepper({ current, reached, onSelect }: StepperProps) {
           </Popover>
         </MenuTrigger>
       </div>
-      {reached < total - 1 && <p className="mt-1 text-sm text-muted">I passi successivi si aprono con «Avanti».</p>}
       <ProgressBar aria-label={`Passo ${index + 1} di ${total}`} value={index + 1} maxValue={total} className="mt-3 block">
         {({ percentage }) => (
           <span className="block h-1.5 overflow-hidden rounded-full bg-[#eef3f7]">
@@ -112,25 +111,18 @@ export function Stepper(props: StepperProps) {
   return desktop ? <DesktopStepper {...props} /> : <PhoneStepper {...props} />;
 }
 
-/** Indietro / Avanti at the end of a step; the last step saves instead, like the previous "Save changes". */
+/** Indietro / Avanti like the previous Previous / Next; the last step saves ("Save changes"). */
 export function StepNav({ current, busy, onMove, onSave }: { current: StepId; busy: boolean; onMove: (id: StepId) => void; onSave: () => void }) {
   const index = stepIndexOf(current);
-  const step = STEPS[index];
   const previous = STEPS[index - 1];
   const next = STEPS[index + 1];
   return (
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-      <span>
-        {previous && (
-          <Button onPress={() => onMove(previous.id)} isDisabled={busy} className={btn.secondary}>
-            <AdminIcon name="back" />Indietro<span className="sr-only">: {previous.label}</span>
-          </Button>
-        )}
-      </span>
+      <Button onPress={() => previous && onMove(previous.id)} isDisabled={!previous} className={btn.secondary}>
+        <AdminIcon name="back" />Indietro{previous && <span className="sr-only">: {previous.label}</span>}
+      </Button>
       {next ? (
-        <Button onPress={() => onMove(next.id)} className={step.hasPrimaryAction ? btn.secondary : btn.primary}>
-          Avanti: {next.label}<AdminIcon name="arrow" />
-        </Button>
+        <Button onPress={() => onMove(next.id)} className={btn.primary}>Avanti<span className="sr-only">: {next.label}</span><AdminIcon name="arrow" /></Button>
       ) : (
         <Button onPress={onSave} isDisabled={busy} className={btn.primary}><AdminIcon name="check" />{busy ? 'Salvataggio…' : 'Salva modifiche'}</Button>
       )}

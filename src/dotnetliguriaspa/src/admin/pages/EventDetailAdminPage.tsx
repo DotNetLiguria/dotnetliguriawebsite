@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Button } from 'react-aria-components';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, btn, linkFocus } from '../ui';
 import { clean, useAdminLoad } from '../adminApi';
@@ -9,20 +8,17 @@ import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatWeekday } from '../../site/format';
 import { programme, programmeSpan } from '../../site/event/programme';
 import EventPoster from '../EventPoster';
-import { ConfirmDialog, Notice, Skeleton } from './listUi';
-import { EventApiError, EventPage, EventIcon, errorText, useEventApi, useUnsavedGuard } from './eventKit';
-import {
-  EventFormValues, EventRecord, EventSpeaker, STEPS, StepId, afterSave, buildFormUpdate, formValuesOf, isPublished, stepFromLocation,
-  stepIndexOf, toClockTime,
-} from './eventModel';
+import { Skeleton } from './listUi';
+import { EventApiError, EventIcon, EventPage, errorText, useEventApi } from './eventKit';
+import { EventCoreValues, EventRecord, EventSpeaker, STEPS, StepId, afterSave, buildWorkshopUpdate, coreValuesOf, isPublished, stepFromLocation, stepIndexOf, toClockTime } from './eventModel';
 import { StepNav, Stepper } from './eventStepper';
-import { RegistrationStep, ScheduleStep, SessionsStep, TalkListStep, useAgendaDraft } from './eventAgenda';
-import { InfoStep, MaterialsStep, PhotosStep, PosterStep, PublicationStep, VenueStep } from './eventPanels';
+import { AgendaModule, TracksStep } from './eventAgenda';
+import { ImageStep, InfoStep, LocationStep, MaterialsStep, PhotosStep, PublicationStep } from './eventPanels';
 
-// Event wizard: /admin/workshop/:id, the ten steps of the previous admin in the same order, the step in the
-// URL hash (#agenda, #iscrizione…). Steps 1, 3 and 4 edit one draft that "Salva modifiche" (last step) sends
-// as a whole-record PUT built from the latest record; talks, schedule and registration keep their own saves;
-// legacy sessions and uploads save at once.
+// Event wizard: /admin/workshop/:id, the ten steps of the previous AdminWorkshopDetail in the same order, the
+// step in the URL hash. Steps 1, 3 and 4 edit the fields the previous page tracked as dirty; "Salva modifiche"
+// on the last step sends one whole-record PUT built from the latest record (buildWorkshopUpdate). The talk pool,
+// schedule and registration module stays mounted for the whole wizard, as before.
 
 type RecordLoad = { state: 'loading' } | { state: 'ready' } | { state: 'error'; message: string; status?: number };
 
@@ -33,12 +29,13 @@ export default function EventDetailAdminPage() {
   const api = useEventApi();
   const [load, setLoad] = useState<RecordLoad>({ state: 'loading' });
   const [workshop, setWorkshop] = useState<EventRecord | null>(null);
-  // The latest record, readable from callbacks that started earlier (saves build their body from it).
   const workshopRef = useRef<EventRecord | null>(null);
   const commit = useCallback((next: EventRecord | null) => { workshopRef.current = next; setWorkshop(next); }, []);
-  const [draft, setDraft] = useState<Partial<EventFormValues>>({});
+  /** handleRelatedWorkshopSaved: a record coming back after a change is pending for Eventbrite until synced. */
+  const replace = useCallback((next: EventRecord) => commit(afterSave({ ...next, workshopId: next.workshopId || id })), [commit, id]);
+  const [draft, setDraft] = useState<Partial<EventCoreValues>>({});
   const [saving, setSaving] = useState(false);
-  const [posterStamp, setPosterStamp] = useState(0);
+  const [imageStamp, setImageStamp] = useState(0);
   const [speakersLoad, reloadSpeakers] = useAdminLoad<EventSpeaker[]>('/Speaker/Get?onlyActive=true');
   const speakers = useMemo(() => (speakersLoad.state === 'ready' ? speakersLoad.data : []), [speakersLoad]);
 
@@ -57,6 +54,12 @@ export default function EventDetailAdminPage() {
     setDraft({});
     void fetchWorkshop();
   }, [commit, fetchWorkshop]);
+  // Reading the record again after a change: a failure is ignored, as before.
+  const refresh = useCallback(async () => {
+    try {
+      replace(await api<EventRecord>(`/Workshop/Get/${encodeURIComponent(id)}`));
+    } catch { /* keep the record we have */ }
+  }, [api, id, replace]);
 
   // Steps: the hash names the current one; everything up to the furthest step reached stays reachable.
   const step = stepFromLocation(location.hash, location.search);
@@ -84,90 +87,81 @@ export default function EventDetailAdminPage() {
     setSaving(true);
     try {
       await api(`/Workshop/Update/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) });
-      commit(afterSave(body));
+      replace(body);
       notify(toast.title, { description: toast.description });
       return true;
     } catch (error) {
-      notify('Salvataggio non riuscito', { description: errorText(error), kind: 'error' });
+      notify(errorText(error), { kind: 'error' });
       return false;
     } finally {
       setSaving(false);
     }
-  }, [api, commit, id]);
+  }, [api, id, replace]);
 
-  const values: EventFormValues | null = workshop ? { ...formValuesOf(workshop), ...draft } : null;
-  const edit = useCallback((patch: Partial<EventFormValues>) => setDraft(current => ({ ...current, ...patch })), []);
-  const draftDirty = Object.keys(draft).length > 0;
+  const values: EventCoreValues | null = workshop ? { ...coreValuesOf(workshop), ...draft } : null;
+  const edit = useCallback((patch: Partial<EventCoreValues>) => setDraft(current => ({ ...current, ...patch })), []);
 
-  /** "Salva modifiche": one PUT with the latest record and the edited values of steps 1, 3 and 4. */
+  /** "Salva modifiche": the dirty fields over the latest record, one PUT (the previous handleSaveWorkshop). */
   const saveChanges = async () => {
     if (saving) return;
-    const ok = await save(latest => buildFormUpdate(latest, { ...formValuesOf(latest), ...draft }), { title: 'Modifiche salvate', description: clean(values?.title) });
+    const ok = await save(latest => buildWorkshopUpdate(latest, { ...coreValuesOf(latest), ...draft }), { title: 'Evento aggiornato' });
     if (ok) setDraft({});
   };
 
   const page: EventPage | null = workshop && values ? {
-    workshop, speakers, api, save, saving, values, edit,
+    workshop, speakers, api, save, saving, values, edit, replace, refresh, reloadSpeakers,
     current: () => workshopRef.current ?? workshop,
-    replace: commit,
-    reload: fetchWorkshop,
-    reloadSpeakers,
+    commitRecord: commit,
   } : null;
-  const agenda = useAgendaDraft(workshop);
-  const dirty = draftDirty || !!agenda?.dirty;
-
-  // Leaving with unsaved changes: the browser asks on reload/close; in-app links are held for a confirmation.
-  const [leaveTo, setLeaveTo] = useState<string | null>(null);
-  useUnsavedGuard(dirty, setLeaveTo, location);
 
   if (load.state === 'error') {
     return (
       <>
         <Link to="/admin/workshops/" className={`mb-2 inline-flex min-h-11 items-center gap-2 rounded-full font-semibold text-cyan-700 hover:underline ${linkFocus}`}><AdminIcon name="back" />Eventi</Link>
         {load.status === 404
-          ? <EmptyState icon="calendar" title="Evento non trovato" actions={<Link to="/admin/workshops/" className={btn.secondary}>Tutti gli eventi</Link>}><p>La scheda non esiste più o il link non è corretto.</p></EmptyState>
-          : <LoadError message={`L'evento non è disponibile (${load.message}).`} onRetry={() => { setLoad({ state: 'loading' }); void fetchWorkshop(); }} />}
+          ? <EmptyState icon="calendar" title="Evento non trovato" actions={<Link to="/admin/workshops/" className={btn.secondary}>Tutti gli eventi</Link>} />
+          : <LoadError message={`Errore nel caricamento dei dettagli dell'evento (${load.message}).`} onRetry={() => { setLoad({ state: 'loading' }); void fetchWorkshop(); }} />}
       </>
     );
   }
-  if (!page || !workshop || !agenda) {
+  if (!page || !workshop) {
     return (
       <>
         <Link to="/admin/workshops/" className={`mb-2 inline-flex min-h-11 items-center gap-2 rounded-full font-semibold text-cyan-700 hover:underline ${linkFocus}`}><AdminIcon name="back" />Eventi</Link>
-        <p role="status" className="sr-only">Caricamento dell'evento…</p>
+        <p role="status" className="sr-only">Caricamento…</p>
         <Skeleton className="mt-2 h-40" />
         <Skeleton className="mt-5 h-96" />
       </>
     );
   }
 
-  const title = clean(workshop.title) || 'Evento senza titolo';
+  const title = clean(workshop.title);
   const span = programmeSpan(programme(workshop));
   const upcoming = dayKey(workshop.eventDate) >= dayKey(new Date().toISOString());
   const poster = contentUrl(workshop.image);
   const place = clean(workshop.location?.name);
   const definition = STEPS[stepIndex];
+  const modulePage = step === 'talk-pool' ? 'talks' : step === 'agenda' ? 'schedule' : step === 'iscrizione' ? 'registration' : null;
 
-  const content = () => {
+  const content = (): React.ReactNode => {
     switch (step) {
-      case 'locandina': return <PosterStep page={page} stamp={posterStamp} onUploaded={() => setPosterStamp(Date.now())} />;
+      case 'immagine': return <ImageStep page={page} stamp={imageStamp} onUploaded={() => setImageStamp(Date.now())} />;
       case 'informazioni': return <InfoStep page={page} />;
-      case 'sede': return <VenueStep page={page} />;
-      case 'sessioni': return <SessionsStep page={page} />;
-      case 'talk': return <TalkListStep page={page} draft={agenda} />;
-      case 'agenda': return <ScheduleStep page={page} draft={agenda} />;
-      case 'iscrizione': return <RegistrationStep page={page} draft={agenda} />;
+      case 'sede': return <LocationStep page={page} />;
+      case 'tracks': return <TracksStep page={page} />;
       case 'materiali': return <MaterialsStep page={page} />;
       case 'foto': return <PhotosStep page={page} />;
+      case 'talk-pool': case 'agenda': case 'iscrizione': return null;
       default: return <PublicationStep page={page} />;
     }
   };
+  const body = content();
 
   return (
     <>
       <Link to="/admin/workshops/" className={`mb-2 inline-flex min-h-11 items-center gap-2 rounded-full font-semibold text-cyan-700 hover:underline ${linkFocus}`}><AdminIcon name="back" />Eventi</Link>
       <div className="flex flex-wrap items-start gap-5">
-        <EventPoster src={posterStamp && poster ? `${poster}?t=${posterStamp}` : poster} className="aspect-video w-full max-w-56 rounded-2xl object-cover sm:w-56" />
+        <EventPoster src={imageStamp && poster ? `${poster}?t=${imageStamp}` : poster} className="aspect-video w-full max-w-56 rounded-2xl object-cover sm:w-56" />
         <div className="min-w-64 flex-1">
           <div className="flex flex-wrap gap-2">
             {upcoming && <Badge kind="planned">In programma</Badge>}
@@ -188,37 +182,17 @@ export default function EventDetailAdminPage() {
 
       <Stepper current={step} reached={reached} hrefFor={hrefFor} onSelect={next => goTo(next)} />
 
-      {dirty && (
-        <div className="mt-5">
-          <Notice tone="warn" title="Modifiche non salvate">
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2">
-              {draftDirty && <span>Pubblicazione, informazioni e sede si salvano con «Salva modifiche».</span>}
-              {agenda.dirty && <span>Elenco talk, agenda e iscrizione si salvano dal loro passo.</span>}
-              {draftDirty && <Button onPress={() => void saveChanges()} isDisabled={saving} className={btn.secondary}>{saving ? 'Salvataggio…' : 'Salva modifiche'}</Button>}
-              {agenda.dirty && step !== 'talk' && step !== 'agenda' && step !== 'iscrizione' && <Button onPress={() => goTo('agenda', true)} className={btn.ghost}>Vai all'agenda</Button>}
-            </div>
-          </Notice>
-        </div>
-      )}
-
       <section aria-labelledby="step-heading" className="mt-6">
         <h2 id="step-heading" ref={headingRef} tabIndex={-1} className="text-2xl font-bold leading-tight outline-none">
           <span className="text-muted">{stepIndex + 1}.</span> {definition.label}
         </h2>
-        <p className="mt-1 max-w-[65ch] text-muted">{definition.description}</p>
-        <div className="mt-5">{content()}</div>
+        {body && <div className="mt-5">{body}</div>}
+        {/* The module keeps its inputs across the steps: mounted always, shown on steps 6 to 8. */}
+        <div hidden={modulePage === null} className="mt-5">
+          <AgendaModule page={page} activePage={modulePage} />
+        </div>
         <StepNav current={step} busy={saving} onMove={next => goTo(next, true)} onSave={() => void saveChanges()} />
       </section>
-
-      <ConfirmDialog
-        isOpen={leaveTo !== null}
-        onOpenChange={open => { if (!open) setLeaveTo(null); }}
-        title="Modifiche non salvate"
-        confirmLabel="Esci senza salvare"
-        onConfirm={() => { const target = leaveTo; setLeaveTo(null); setDraft({}); if (target) navigate(target); }}
-      >
-        <p>Se esci ora, le modifiche non salvate di questo evento vanno perse.</p>
-      </ConfirmDialog>
     </>
   );
 }
