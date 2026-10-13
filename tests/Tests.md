@@ -16,7 +16,7 @@ and elapsed timings are written under `.artifacts/test-results`.
 | --- | ---: | ---: |
 | RepositoryRules.Tests | 25 | 20 |
 | DotNetLiguriaCore.Tests | 97 | 15 |
-| Vitest | 384 | 60 |
+| Vitest | 414 | 60 |
 
 The backend suite covers authentication, BSON/JSON compatibility, questionnaire
 validation, APIs, statistics, CSV export and historical migration mappings.
@@ -26,8 +26,8 @@ solution, reject retired runtime dependencies and check the Aspire resource mode
 with the obsolete endpoints; replacement questionnaire-statistics tests remain.
 
 Timing ceilings retain the earlier warmed Windows baseline (SDK 10.0.401); since
-2026-10-12 Vitest runs on two workers (`vite.config.ts`), which keeps the grown
-frontend suite under the same ceiling on CI runners.
+2026-10-12 Vitest runs on several workers (`vite.config.ts`, now four, one per CI
+vCPU), which keeps the grown frontend suite under the same ceiling on CI runners.
 Elapsed time includes process/runner startup; restore/build and live integration
 checks are excluded. The checked-in source of truth is
 [timing-budgets.json](../scripts/timing-budgets.json). Update counts when adding or

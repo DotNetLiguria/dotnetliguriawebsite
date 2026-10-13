@@ -503,11 +503,11 @@ export function TracksStep({ page }: { page: EventPage }) {
         <DisclosureGroup className="mt-4 space-y-2">
           {tracks.map(track => (
             confirmId === track.workshopTrackId ? (
-              <div key={track.workshopTrackId} className="rounded-xl border border-line border-l-4 border-l-basil-700 p-4">
+              <div key={track.workshopTrackId} className="rounded-xl border border-line p-4">
                 <InlineConfirm title="Vuoi davvero eliminare questa track?" confirmLabel="OK" busy={busy} onConfirm={() => void deleteTrack(track.workshopTrackId)} onCancel={() => setConfirmId(null)} />
               </div>
             ) : (
-              <Disclosure key={track.workshopTrackId} id={track.workshopTrackId} className="group rounded-xl border border-line border-l-4 border-l-basil-700">
+              <Disclosure key={track.workshopTrackId} id={track.workshopTrackId} className="group rounded-xl border border-line">
                 <div className="relative flex min-h-14 items-center gap-1 py-1 pr-2 pl-4">
                   <Heading level={3} className="min-w-0 flex-1 text-lg font-bold">
                     <Button slot="trigger" className="w-full cursor-pointer py-2 text-left outline-none after:absolute after:inset-0 after:rounded-[10px] data-[focus-visible]:after:outline-3 data-[focus-visible]:after:outline-offset-2 data-[focus-visible]:after:outline-cyan-700">{track.title}</Button>

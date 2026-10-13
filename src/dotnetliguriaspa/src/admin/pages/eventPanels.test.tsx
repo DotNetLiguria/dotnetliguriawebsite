@@ -30,7 +30,8 @@ describe('Materiali', () => {
     const api = serveEvent(eventFixture(), {}, { files });
     renderAt('#materiali');
     const materials = await screen.findByRole('region', { name: 'Materiali' });
-    expect(within(materials).getByText('Slide Blazor')).toBeInTheDocument();
+    // The file list arrives after the step renders.
+    expect(await within(materials).findByText('Slide Blazor')).toBeInTheDocument();
     expect(within(materials).getByText('a1.pdf')).toBeInTheDocument();
     expect(within(materials).getByText('Tipo file: 4')).toBeInTheDocument();
     expect(within(materials).queryByText('Sala piena')).not.toBeInTheDocument();
@@ -57,7 +58,7 @@ describe('Materiali', () => {
     await waitFor(() => expect(api.to('/workshopfile/w1', 'GET')).toHaveLength(2));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Aggiungi materiale' })).not.toBeInTheDocument());
 
-    await user.click(within(materials).getByRole('button', { name: 'Elimina: Slide Blazor' }));
+    await user.click(await within(materials).findByRole('button', { name: 'Elimina: Slide Blazor' }));
     expect(within(materials).getByRole('alert')).toHaveTextContent('Vuoi davvero eliminare questo materiale?');
     expect(api.to('/workshopfile/f1', 'DELETE')).toHaveLength(0);
     await user.click(within(materials).getByRole('button', { name: 'OK' }));
@@ -83,7 +84,7 @@ describe('Materiali', () => {
     await user.click(screen.getByRole('button', { name: 'Annulla' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-    await user.click(within(materials).getByRole('button', { name: 'Elimina: Slide Blazor' }));
+    await user.click(await within(materials).findByRole('button', { name: 'Elimina: Slide Blazor' }));
     await user.click(within(materials).getByRole('button', { name: 'OK' }));
     expect(await screen.findByText("Errore nell'eliminazione del materiale")).toBeInTheDocument();
     expect(screen.queryByText('Locked')).not.toBeInTheDocument();
@@ -106,7 +107,7 @@ describe('Foto', () => {
     const api = serveEvent(eventFixture(), {}, { files });
     renderAt('#foto');
     const photos = await screen.findByRole('region', { name: 'Foto' });
-    expect(within(photos).getByRole('img', { name: 'Sala piena' })).toHaveAttribute('src', contentUrl('/workshops/w001/photos/p1.jpg'));
+    expect(await within(photos).findByRole('img', { name: 'Sala piena' })).toHaveAttribute('src', contentUrl('/workshops/w001/photos/p1.jpg'));
     expect(within(photos).queryByText('Slide Blazor')).not.toBeInTheDocument();
 
     await user.click(within(photos).getByRole('button', { name: 'Aggiungi' }));

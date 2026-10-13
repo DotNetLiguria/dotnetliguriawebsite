@@ -39,9 +39,9 @@ export default defineConfig(({ mode }) => {
   },
   test: {
     pool: 'vmThreads',
-    // Two workers keep the timed gate (scripts/timing-budgets.json) well under its ceiling on the
-    // 4-vCPU CI runners now that the admin pages are covered; each file still gets its own context.
-    maxWorkers: 2,
+    // One worker per vCPU of the GitHub runners (4) keeps the timed gate (scripts/timing-budgets.json) well
+    // under its ceiling now that the admin pages are covered; each file still gets its own context.
+    maxWorkers: 4,
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/setupTests.js'],
