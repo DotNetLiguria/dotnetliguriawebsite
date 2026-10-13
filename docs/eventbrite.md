@@ -41,7 +41,7 @@ Talk pool, Track e orari dell'agenda, Dettagli di iscrizione, Materiali, and Fot
 The **Dettagli di iscrizione** step is the Eventbrite setup step after the schedule;
 its buttons are "Salva iscrizione e agenda" (save registration and agenda), "Crea
 bozza Eventbrite" / "Sincronizza/Aggiorna Eventbrite" (create draft / sync),
-"Aggiorna le vendite dei biglietti" (refresh live ticket sales), "Salva capienza
+"Aggiorna le vendite live dei biglietti" (refresh live ticket sales), "Salva capienza
 biglietti" (save ticket capacity) and "Pubblica su Eventbrite" (publish).
 
 1. Complete the workshop title, description, event date, venue/location, agenda

@@ -20,9 +20,9 @@ const renderAt = (route: string) => render(
   </>,
   { route },
 );
-const loaded = () => screen.findByRole('heading', { level: 1, name: 'Test Workshop' });
-const stepHeading = () => screen.getByRole('heading', { level: 2, name: /^\d+\. / });
+const loaded = () => screen.findByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop' });
 const steps = () => screen.getByRole('navigation', { name: "Passaggi dell'evento" });
+const currentStep = () => within(steps()).getByRole('link', { current: 'step' });
 const localDay = (iso: string) => { const d = new Date(iso); return [d.getFullYear(), d.getMonth() + 1, d.getDate()]; };
 /** Presses Avanti until the last step, where "Salva modifiche" lives. */
 const goToLastStep = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -35,51 +35,67 @@ beforeEach(() => adminToasts.clear());
 
 describe('<EventDetailAdminPage /> wizard', () => {
   test.each([
-    ['', '1. Pubblicazione'], ['#pubblicazione', '1. Pubblicazione'], ['#immagine', "2. Immagine dell'evento"], ['#sede', '4. Sede'],
-    ['#tracks', '5. Tracks'], ['#talk-pool', '6. Talk pool'], ['#agenda', "7. Track e orari dell'agenda"], ['#iscrizione', '8. Dettagli di iscrizione'], ['#foto', '10. Foto'],
+    ['', '1. Pubblicazione', 'Impostazioni di pubblicazione'], ['#pubblicazione', '1. Pubblicazione', 'Impostazioni di pubblicazione'],
+    ['#immagine', "2. Immagine dell'evento", "Immagine dell'evento"], ['#sede', '4. Sede', 'Informazioni sulla sede'], ['#tracks', '5. Tracks', 'Tracks'],
+    ['#talk-pool', '6. Talk pool', 'Talk pool'], ['#agenda', "7. Track e orari dell'agenda", 'Orari della track'],
+    ['#iscrizione', '8. Dettagli di iscrizione', 'Iscrizione e dettagli dei partecipanti'], ['#foto', '10. Foto', 'Foto'],
     // Hashes used by earlier versions of the card.
-    ['#panoramica', "3. Informazioni sull'evento"], ['#relatori', '6. Talk pool'], ['#materiali', '9. Materiali'], ['#questionario', '1. Pubblicazione'], ['?tab=agenda', "7. Track e orari dell'agenda"],
-    ['#locandina', "2. Immagine dell'evento"], ['#sessioni', '5. Tracks'], ['#talk', '6. Talk pool'],
-  ])('opens the step named by the address %s', async (suffix, heading) => {
+    ['#panoramica', "3. Informazioni sull'evento", 'Informazioni'], ['#relatori', '6. Talk pool', 'Talk pool'], ['#materiali', '9. Materiali', 'Materiali'],
+    ['#questionario', '1. Pubblicazione', 'Impostazioni di pubblicazione'], ['?tab=agenda', "7. Track e orari dell'agenda", 'Orari della track'],
+    ['#locandina', "2. Immagine dell'evento", "Immagine dell'evento"], ['#sessioni', '5. Tracks', 'Tracks'], ['#talk', '6. Talk pool', 'Talk pool'],
+  ])('opens the step named by the address %s, its panel title as the heading', async (suffix, step, title) => {
     serveEvent(eventFixture());
     renderAt(`/admin/workshop/w1${suffix}`);
     await loaded();
-    expect(stepHeading()).toHaveTextContent(heading);
+    expect(currentStep()).toHaveAccessibleName(`${step}, passo attuale`);
+    expect(screen.getAllByRole('heading', { level: 2 })[0]).toHaveTextContent(title);
+    expect(screen.queryByRole('heading', { level: 2, name: /^\d+\. / })).not.toBeInTheDocument();
   });
 
-  test('shows the event header with its badges and the public link, without one-click publishing', async () => {
-    serveEvent(eventFixture({ published: undefined, in_homepage: true, eventDate: '2099-06-12T10:00:00Z', agendaTracks: [{ workshopAgendaTrackId: 't1', name: 'Main', order: 0 }], talks: [{ workshopTalkId: 'k1', title: 'Keynote', sessionType: 'talk', trackId: 't1', speakers: [] }], agendaItems: [{ workshopAgendaItemId: 'i1', itemType: 'talk', talkId: 'k1', trackId: 't1', startTime: '2099-06-12T14:00:00Z', endTime: '2099-06-12T15:00:00Z' }] }));
+  test('shows the previous header only: the back link and "Modifica evento - {title}"', async () => {
+    serveEvent(eventFixture({ published: undefined, in_homepage: true, eventDate: '2099-06-12T10:00:00Z' }));
     renderAt('/admin/workshop/w1');
     await loaded();
-    expect(screen.getByText('In programma')).toBeInTheDocument();
-    expect(screen.getByText('In evidenza')).toBeInTheDocument();
-    expect(screen.getByText('Bozza')).toBeInTheDocument();
-    expect(screen.getByText('14:00–15:00')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Vedi sul sito/ })).toHaveAttribute('href', '/workshop/w1');
     expect(screen.getByRole('link', { name: 'Eventi' })).toHaveAttribute('href', '/admin/workshops/');
+    for (const added of ['In programma', 'In evidenza', 'Bozza', 'Vedi sul sito']) expect(screen.queryByText(added)).not.toBeInTheDocument();
+    // No poster: the only picture on the first step is the feedback QR code.
+    expect(document.querySelector('img')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Immagine non disponibile' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Altre azioni' })).not.toBeInTheDocument();
+    expect(steps()).toHaveClass('sticky');
     expect(within(steps()).getAllByRole('listitem')).toHaveLength(10);
     expect(within(steps()).getAllByRole('listitem').map(item => item.textContent)).toEqual([
       '1Pubblicazione', "2Immagine dell'evento", "3Informazioni sull'evento", '4Sede', '5Tracks', '6Talk pool', "7Track e orari dell'agenda", '8Dettagli di iscrizione', '9Materiali', '10Foto',
     ]);
   });
 
-  test('shows blank poster placeholders when the event has no image', async () => {
+  test('shows "Immagine attuale" only when the event has an image', async () => {
     serveEvent(eventFixture({ image: '' }));
-    renderAt('/admin/workshop/w1#immagine');
+    const { unmount } = renderAt('/admin/workshop/w1#immagine');
     await loaded();
-    expect(screen.getAllByRole('img', { name: 'Immagine non disponibile' })).toHaveLength(2);
-  });
+    expect(screen.queryByText('Immagine attuale')).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText("Carica l'immagine di copertina dell'evento")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Scegli il file immagine…' })).toHaveAccessibleDescription("Carica l'immagine di copertina dell'evento");
+    expect(screen.queryByText(/Trascina/)).not.toBeInTheDocument();
+    unmount();
 
-  test('replaces a broken poster with the blank placeholder', async () => {
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#immagine');
     await loaded();
-    fireEvent.error(screen.getByAltText('Locandina di Test Workshop'));
+    expect(screen.getByText('Immagine attuale')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Test Workshop' })).toHaveAttribute('src', expect.stringMatching(/\/Contents\/workshops\/w001\/workshop\.png$/));
+  });
+
+  test('replaces a broken current image with the blank placeholder', async () => {
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1#immagine');
+    await loaded();
+    fireEvent.error(screen.getByAltText('Test Workshop'));
     expect(screen.getByRole('img', { name: 'Immagine non disponibile' })).toBeInTheDocument();
   });
 
-  test('reaches steps with Avanti, keeps reached steps clickable and later ones not, and moves focus to the heading', async () => {
+  test('reaches steps with Avanti, keeps reached steps clickable and later ones not, and moves focus to the step panel title', async () => {
     const user = userEvent.setup();
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#informazioni');
@@ -93,19 +109,33 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.getByRole('button', { name: 'Avanti: Sede' })).toHaveClass('bg-site-green');
     await user.click(screen.getByRole('button', { name: 'Avanti: Sede' }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('#sede');
-    expect(screen.getByRole('heading', { level: 2, name: '4. Sede' })).toHaveFocus();
+    expect(screen.getByRole('heading', { level: 2, name: 'Informazioni sulla sede' })).toHaveFocus();
     expect(within(steps()).getByRole('link', { name: "3. Informazioni sull'evento, raggiunto" })).toBeInTheDocument();
     expect(within(steps()).queryByRole('link', { name: /5\. Tracks/ })).not.toBeInTheDocument();
 
     await user.click(within(steps()).getByRole('link', { name: '1. Pubblicazione, raggiunto' }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('#pubblicazione');
+    expect(screen.getByRole('heading', { level: 2, name: 'Impostazioni di pubblicazione' })).toHaveFocus();
     expect(within(steps()).getByRole('link', { name: '4. Sede, raggiunto' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Indietro' })).toBeDisabled();
 
     await user.click(within(steps()).getByRole('link', { name: '4. Sede, raggiunto' }));
     await user.click(screen.getByRole('button', { name: "Indietro: Informazioni sull'evento" }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('#informazioni');
-    expect(screen.getByRole('heading', { level: 2, name: "3. Informazioni sull'evento" })).toHaveFocus();
+    expect(screen.getByRole('heading', { level: 2, name: 'Informazioni' })).toHaveFocus();
+  });
+
+  test('moves the focus to the visible panel title of the talk pool, schedule and registration steps', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1#tracks');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Avanti: Talk pool' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Talk pool' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: "Avanti: Track e orari dell'agenda" }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Orari della track' })).toHaveFocus();
+    await user.click(screen.getByRole('button', { name: 'Avanti: Dettagli di iscrizione' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Iscrizione e dettagli dei partecipanti' })).toHaveFocus();
   });
 
   test('offers Avanti on every step but the last, where "Salva modifiche" is the only save of the wizard', async () => {
@@ -145,7 +175,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
 
     await goToLastStep(user);
-    expect(stepHeading()).toHaveTextContent('10. Foto');
+    expect(currentStep()).toHaveAccessibleName('10. Foto, passo attuale');
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
     await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
     await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
@@ -153,9 +183,8 @@ describe('<EventDetailAdminPage /> wizard', () => {
     // Fields the wizard does not edit (tags, extended HTML, rooms) travel unchanged, as before.
     expect(body).toMatchObject({ published: false, in_homepage: false, feedbackEnabled: false, title: 'Test Workshop aggiornato', description: 'Workshop description', tags: 'dotnet', blogHtml: '<p>keep</p>', location: { name: 'Genova', address: 'Via Nuova 2', coordinates: '44.4056,8.9463', maximumSpaces: 150, rooms: ['Aula 1'] } });
     expect(localDay(body.eventDate)).toEqual([2024, 3, 15]);
-    expect(await screen.findByText('Evento aggiornato')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Test Workshop aggiornato' })).toBeInTheDocument();
-    expect(screen.getByText('Bozza')).toBeInTheDocument();
+    expect(await screen.findByText('Evento aggiornato correttamente')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop aggiornato' })).toBeInTheDocument();
   });
 
   test('keeps the draft and shows the server detail when Salva modifiche fails', async () => {
@@ -171,6 +200,20 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.getByRole('textbox', { name: 'Titolo' })).toHaveValue('Test Workshop bis');
   });
 
+  test('words a failed Salva modifiche without a JSON detail as before and keeps Indietro off while it runs', async () => {
+    const user = userEvent.setup();
+    let release: (() => void) | null = null;
+    serveEvent(eventFixture(), { '/Workshop/Update/': () => new Promise<Response>(resolve => { release = () => resolve(new Response('<html>Bad gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } })); }) });
+    renderAt('/admin/workshop/w1#foto');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
+    expect(screen.getByRole('button', { name: 'Indietro: Materiali' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Salvataggio…' })).toBeDisabled();
+    release!();
+    expect(await screen.findByText("Impossibile salvare l'evento (HTTP 502)")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Indietro: Materiali' })).toBeEnabled();
+  });
+
   test('copies a saved venue into the Sede step and keeps the fields editable', async () => {
     const user = userEvent.setup();
     const api = serveEvent(eventFixture());
@@ -182,14 +225,29 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.getByRole('textbox', { name: 'Indirizzo' })).toHaveValue('1 Main Street');
     expect(screen.getByRole('textbox', { name: 'Coordinate' })).toHaveValue('44.4,8.9');
     expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveValue('https://maps.google.com/?q=Community+Hall');
+    expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveAttribute('type', 'url');
     expect(screen.getByRole('spinbutton', { name: 'Posti massimi' })).toHaveValue(120);
     await user.clear(screen.getByRole('textbox', { name: 'Nome' }));
     await user.type(screen.getByRole('textbox', { name: 'Nome' }), 'Updated Hall');
+    // The chosen venue stays selected while moving between steps, as before.
+    await user.click(screen.getByRole('button', { name: "Indietro: Informazioni sull'evento" }));
+    await user.click(screen.getByRole('button', { name: 'Avanti: Sede' }));
+    expect(screen.getByRole('button', { name: /Copia dalla sede$/ })).toHaveTextContent('Community Hall');
     await goToLastStep(user);
     await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
     await waitFor(() => expect(api.lastUpdate()).toBeDefined());
     expect(api.lastUpdate()!.location).toEqual({ name: 'Updated Hall', address: '1 Main Street', coordinates: '44.4,8.9', googleMapsUrl: 'https://maps.google.com/?q=Community+Hall', maximumSpaces: 120 });
     expect(api.lastUpdate()!.title).toBe('Test Workshop');
+  });
+
+  test('reports failed venue and speaker loads as before and leaves "Copia dalla sede" empty', async () => {
+    serveEvent(eventFixture(), { '/Venue': () => new Response(null, { status: 500 }), '/Speaker/Get': () => new Response(null, { status: 503 }) });
+    renderAt('/admin/workshop/w1#sede');
+    await loaded();
+    expect(await screen.findByText('Impossibile caricare le sedi (HTTP 500)')).toBeInTheDocument();
+    expect(await screen.findByText('Impossibile caricare i relatori (HTTP 503)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Copia dalla sede/ })).toBeDisabled();
+    expect(screen.getByText('Nessuna sede disponibile da copiare.')).toBeInTheDocument();
   });
 
   test('does not block the save of a legacy event with incomplete address or coordinates', async () => {
@@ -233,7 +291,9 @@ describe('<EventDetailAdminPage /> wizard', () => {
     await user.click(screen.getByRole('switch', { name: 'Mostra in homepage' }));
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
     expect(screen.getByText('http://localhost:3000/feedback/w1')).toBeInTheDocument();
-    expect(screen.getByTitle('QR code del feedback di Test Workshop')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'QR code del feedback' }).nextElementSibling!.querySelector('svg')).toHaveAttribute('height', '150');
+    expect(screen.queryByTitle(/QR code/)).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Questionari collegati' })).toBeInTheDocument();
 
     expect(await screen.findByRole('link', { name: 'Feedback Meetup' })).toHaveAttribute('href', '/admin/questionnaires/q1/edit');
     expect(screen.getByRole('link', { name: '2 risposte' })).toHaveAttribute('href', '/admin/questionnaires/q1/results');
@@ -246,19 +306,32 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(api.to('/Questionnaire', 'POST')[0].body).toEqual({ template: 'workshopFeedback', workshopId: 'w1' });
   });
 
-  test('step 2 uploads the image at once as multipart data and reloads the event', async () => {
+  test('step 2 uploads the image at once as multipart data, reloads the event and names the uploaded file', async () => {
     const api = serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#immagine');
     await loaded();
     const input = screen.getByRole('region', { name: "Immagine dell'evento" }).querySelector('input[type="file"]') as HTMLInputElement;
+    expect(input).toHaveAttribute('accept', 'image/*');
     fireEvent.change(input, { target: { files: [new File(['img'], 'poster.png', { type: 'image/png' })] } });
     await waitFor(() => expect(api.to('/workshopfile/uploadworkshopimage', 'POST')).toHaveLength(1));
     const form = api.to('/workshopfile/uploadworkshopimage')[0].form!;
     expect(form.get('workshopId')).toBe('w1');
     expect((form.get('file') as File).name).toBe('poster.png');
-    expect(await screen.findByText("Immagine dell'evento caricata")).toBeInTheDocument();
+    expect(await screen.findByText("Immagine dell'evento caricata correttamente")).toBeInTheDocument();
     expect(api.to('/Workshop/Get/').length).toBeGreaterThanOrEqual(2);
-    expect((screen.getByAltText('Locandina di Test Workshop') as HTMLImageElement).src).toMatch(/\/Contents\/workshops\/w001\/workshop\.png\?t=\d+/);
+    expect((screen.getByAltText('Test Workshop') as HTMLImageElement).src).toMatch(/\/Contents\/workshops\/w001\/workshop\.png\?t=\d+/);
+    expect(screen.getByRole('button', { name: 'poster.png' })).toBeInTheDocument();
+  });
+
+  test('step 2 reports a failed upload with the previous fixed message', async () => {
+    serveEvent(eventFixture(), { '/workshopfile/uploadworkshopimage': () => jsonResponse({ detail: 'Too large' }, 413) });
+    renderAt('/admin/workshop/w1#immagine');
+    await loaded();
+    const input = screen.getByRole('region', { name: "Immagine dell'evento" }).querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(['img'], 'poster.png', { type: 'image/png' })] } });
+    expect(await screen.findByText("Errore nel caricamento dell'immagine dell'evento")).toBeInTheDocument();
+    expect(screen.queryByText('Too large')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Scegli il file immagine…' })).toBeInTheDocument();
   });
 
   test('keeps the wizard when the reload after an upload fails, as before', async () => {
@@ -269,24 +342,41 @@ describe('<EventDetailAdminPage /> wizard', () => {
     const input = screen.getByRole('region', { name: "Immagine dell'evento" }).querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [new File(['img'], 'poster.png', { type: 'image/png' })] } });
     await waitFor(() => expect(api.to('/workshopfile/uploadworkshopimage', 'POST')).toHaveLength(1));
-    expect(await screen.findByText("Immagine dell'evento caricata")).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Test Workshop' })).toBeInTheDocument();
+    expect(await screen.findByText("Immagine dell'evento caricata correttamente")).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop' })).toBeInTheDocument();
+    expect((screen.getByAltText('Test Workshop') as HTMLImageElement).src).not.toMatch(/\?t=/);
     expect(screen.queryByRole('button', { name: 'Riprova' })).not.toBeInTheDocument();
   });
 
-  test('reports a failed load with a retry and a missing event as not found', async () => {
-    const user = userEvent.setup();
-    let attempts = 0;
-    serveEvent(eventFixture(), { '/Workshop/Get/': () => (++attempts === 1 ? jsonResponse({ detail: 'Mongo down' }, 500) : jsonResponse(eventFixture())) });
+  test.each([
+    ['a server error', () => jsonResponse({ detail: 'Mongo down' }, 500)],
+    ['a missing event', () => new Response(null, { status: 404 })],
+  ])('reports %s as before: the error message and "Evento non trovato", nothing else', async (_label, answer) => {
+    serveEvent(eventFixture(), { '/Workshop/Get/': answer });
     renderAt('/admin/workshop/w1');
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent("Errore nel caricamento dei dettagli dell'evento (Mongo down).");
-    await user.click(within(alert).getByRole('button', { name: 'Riprova' }));
-    expect(await loaded()).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Evento non trovato' })).toBeInTheDocument();
+    expect(await screen.findByText("Errore nel caricamento dei dettagli dell'evento")).toBeInTheDocument();
+    expect(screen.queryByText(/Mongo down/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Riprova' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tutti gli eventi' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: "Passaggi dell'evento" })).not.toBeInTheDocument();
+  });
 
-    serveEvent(eventFixture(), { '/Workshop/Get/': () => new Response(null, { status: 404 }) });
-    renderAt('/admin/workshop/missing');
-    expect(await screen.findByRole('heading', { name: 'Evento non trovato' })).toBeInTheDocument();
+  test('offers "Torna su" once the page has scrolled past 300px, as before', async () => {
+    const user = userEvent.setup();
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1');
+    await loaded();
+    expect(screen.queryByRole('button', { name: 'Torna su' })).not.toBeInTheDocument();
+    Object.defineProperty(window, 'scrollY', { value: 450, configurable: true });
+    fireEvent.scroll(window);
+    await user.click(await screen.findByRole('button', { name: 'Torna su' }));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
+    Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+    fireEvent.scroll(window);
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Torna su' })).not.toBeInTheDocument());
   });
 
   test('on phones shows the compact header with a progress bar and only the reachable steps in a menu', async () => {

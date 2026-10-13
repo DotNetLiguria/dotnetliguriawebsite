@@ -1,5 +1,4 @@
 import { AdminWorkshop, clean } from '../adminApi';
-import { dayKey } from '../../site/format';
 import type { VenueModel } from '../../models/VenueModel';
 
 // Event record as serialized by DotNetLiguriaCore (dates are ISO strings on the wire) and the pure rules of the
@@ -111,13 +110,6 @@ export const isPublished = (workshop: Pick<EventRecord, 'published'>) => worksho
 // ---------- File kinds (WorkshopFileTypeEnum) ----------
 
 export const FILE_TYPE = { image: 1, photo: 2, material: 4 } as const;
-export const MATERIAL_EXTENSIONS = ['.pdf', '.docx', '.pptx', '.xlsx'];
-export const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-
-export const hasAllowedExtension = (fileName: string, allowed: string[]) => {
-  const dot = fileName.lastIndexOf('.');
-  return dot >= 0 && allowed.includes(fileName.slice(dot).toLowerCase());
-};
 
 // ---------- Small helpers ----------
 
@@ -142,18 +134,14 @@ export const toClockTime = (value?: Date | string | null) => {
   return `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 };
 
-/** Stored value for a "HH:MM" clock time: on the day of the existing value, else on the event day. */
-export const toStoredTime = (clockTime: string, existingValue: Date | string | undefined | null, eventDate: Date | string | undefined | null) => {
-  const datePart = existingValue ? dateInputValue(existingValue) : eventDate ? dateInputValue(eventDate) : '2000-01-01';
-  return `${datePart || '2000-01-01'}T${clockTime}:00.000Z`;
-};
-
 /**
- * Whether a legacy track starts on the event day (calendar day in Italy). Some old records have day and month
- * swapped (6 December instead of 12 June): the admin points them out without rewriting them.
+ * Stored value for a "HH:MM" clock time: on the day of the existing value, else on the event day. A cleared
+ * input ('') gives a value that is not a date, so the save refuses it until a time is set again.
  */
-export const onEventDay = (track: Pick<LegacyTrack, 'startTime'>, workshop: Pick<EventRecord, 'eventDate'>) =>
-  dayKey(track.startTime) === dayKey(workshop.eventDate);
+export const toStoredTime = (clockTime: string, existingValue: Date | string | undefined | null, eventDate: Date | string | undefined | null) => {
+  const datePart = dateInputValue(existingValue) || dateInputValue(eventDate) || '2000-01-01';
+  return `${datePart}T${clockTime}:00.000Z`;
+};
 
 /** "yyyy-mm-ddTHH:MM" (UTC) for a datetime-local input of a legacy track. */
 export const legacyInputValue = (value?: string | Date | null) => {
@@ -164,20 +152,67 @@ export const legacyInputValue = (value?: string | Date | null) => {
 
 /** Rooms are typed one per line, as in the previous admin. */
 export const parseRooms = (text: string) => text.split(/\r?\n/).map(room => room.trim()).filter(Boolean);
-export const roomsText = (rooms?: string[] | null) => (rooms ?? []).join('\n');
 
-/** Detail of an ASP.NET ProblemDetails (or {message}) body, when the response carries one. */
-export function problemDetail(text: string): string | null {
+// ---------- Failed calls, worded as the previous admin did ----------
+
+/** A failed API call: its status and its body, so each action can word the failure the way it did before. */
+export class EventApiError extends Error {
+  readonly status: number;
+  readonly contentType: string;
+  readonly body: string;
+
+  constructor(status: number, contentType = '', body = '') {
+    super(`HTTP ${status}`);
+    this.name = 'EventApiError';
+    this.status = status;
+    this.contentType = contentType;
+    this.body = body;
+  }
+}
+
+const jsonObject = (text: string): Record<string, unknown> | null => {
   try {
-    const problem: unknown = JSON.parse(text);
-    if (typeof problem === 'object' && problem !== null) {
-      for (const key of ['detail', 'message', 'title'] as const) {
-        const value = (problem as Record<string, unknown>)[key];
-        if (typeof value === 'string' && value.trim()) return value;
+    const value: unknown = JSON.parse(text);
+    return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+};
+
+/** The previous loads of venues and speakers: "<fallback> (HTTP n)"; any other error says itself. */
+export function statusMessage(error: unknown, fallback: string, otherwise = fallback): string {
+  if (error instanceof EventApiError) return `${fallback} (HTTP ${error.status})`;
+  return error instanceof Error ? error.message : otherwise;
+}
+
+/**
+ * The previous detail page's getResponseErrorMessage: a JSON body's detail, message or title, else
+ * "<fallback> (HTTP n)"; any other error says itself.
+ */
+export function problemMessage(error: unknown, fallback: string, otherwise = fallback): string {
+  if (error instanceof EventApiError) {
+    if (error.contentType.toLowerCase().includes('json')) {
+      const problem = jsonObject(error.body);
+      for (const key of ['detail', 'message', 'title']) {
+        const value = problem?.[key];
+        if (typeof value === 'string') return value;
       }
     }
-  } catch { /* not JSON */ }
-  return null;
+    return `${fallback} (HTTP ${error.status})`;
+  }
+  return error instanceof Error ? error.message : otherwise;
+}
+
+/**
+ * The previous agenda and creation pages' reportError: the body's ProblemDetails detail, else the body as it
+ * came, else "<fallback> (HTTP n)"; any other error says itself.
+ */
+export function detailMessage(error: unknown, fallback: string, otherwise = fallback): string {
+  if (error instanceof EventApiError) {
+    const detail = jsonObject(error.body)?.detail;
+    return (typeof detail === 'string' ? detail : error.body) || `${fallback} (HTTP ${error.status})`;
+  }
+  return error instanceof Error ? error.message : otherwise;
 }
 
 // ---------- Whole-record update (steps 1, 3 and 4, saved together at the end) ----------
@@ -395,8 +430,6 @@ export const hasTrack = (state: AgendaState, trackId?: string | null) =>
 
 export const unscheduledTalks = (state: AgendaState) =>
   state.talks.filter(talk => !state.items.some(item => item.itemType === 'talk' && item.talkId === talk.workshopTalkId));
-
-export const addTalk = <S extends AgendaState>(state: S, talk: EventTalk): S => ({ ...state, talks: [...state.talks, talk] });
 
 export const updateTalk = <S extends AgendaState>(state: S, talkId: string, patch: Partial<EventTalk>): S => ({
   ...state,

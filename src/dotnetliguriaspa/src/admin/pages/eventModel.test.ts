@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { eventFixture } from './eventFixtures';
 import {
-  AgendaDraftState, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, autoFillSchedule, buildWorkshopUpdate,
-  coreValuesOf, dateInputValue, eventbriteIssues, eventbriteStatusLabel, hasAllowedExtension, initAgenda, isPublished, moveItem, onEventDay,
-  parseRooms, problemDetail, registrationOf, setTrackCount, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave,
+  AgendaDraftState, EventApiError, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, autoFillSchedule, buildWorkshopUpdate,
+  coreValuesOf, dateInputValue, detailMessage, eventbriteIssues, eventbriteStatusLabel, initAgenda, isPublished, moveItem,
+  parseRooms, problemMessage, registrationOf, setTrackCount, statusMessage, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave,
 } from './eventModel';
 
 const draft = (overrides: Partial<AgendaDraftState> = {}): AgendaDraftState => ({
@@ -65,14 +65,34 @@ describe('helpers', () => {
     expect(toClockTime('2024-03-15T09:05:00.000Z')).toBe('09:05');
     expect(toStoredTime('10:30', undefined, '2024-03-15T10:00:00Z')).toBe('2024-03-15T10:30:00.000Z');
     expect(toStoredTime('10:30', '2024-03-16T08:00:00Z', '2024-03-15T10:00:00Z')).toBe('2024-03-16T10:30:00.000Z');
-    expect(hasAllowedExtension('slides.PDF', ['.pdf'])).toBe(true);
-    expect(hasAllowedExtension('virus.exe', ['.pdf'])).toBe(false);
-    expect(problemDetail(JSON.stringify({ title: 'T', detail: 'Workshop counter unavailable' }))).toBe('Workshop counter unavailable');
-    expect(problemDetail(JSON.stringify({ message: 'Sessione scaduta' }))).toBe('Sessione scaduta');
-    expect(problemDetail('<html>')).toBeNull();
-    expect(onEventDay({ startTime: '2024-03-15T09:00:00Z' }, eventFixture())).toBe(true);
-    expect(onEventDay({ startTime: '2024-12-03T09:00:00Z' }, eventFixture())).toBe(false);
-    expect(onEventDay({ startTime: '2024-03-15T09:00:00Z' }, { eventDate: '2024-03-15T00:00:00+01:00' })).toBe(true);
+    // A cleared time input is stored as it is: not a date, so the save check refuses it, as before.
+    expect(Number.isNaN(new Date(toStoredTime('', '2024-03-16T08:00:00Z', null)).getTime())).toBe(true);
+    expect(toClockTime(toStoredTime('', '2024-03-16T08:00:00Z', null))).toBe('');
+    // Set again, the time goes back on the event day.
+    expect(toStoredTime('11:05', toStoredTime('', '2024-03-16T08:00:00Z', null), '2024-03-15T10:00:00Z')).toBe('2024-03-15T11:05:00.000Z');
+  });
+
+  it('words a failed call the way each previous action did', () => {
+    const json = (status: number, body: unknown) => new EventApiError(status, 'application/problem+json; charset=utf-8', JSON.stringify(body));
+    const text = (status: number, body: string) => new EventApiError(status, 'text/plain', body);
+    // Loads of venues and speakers: status only.
+    expect(statusMessage(json(503, { detail: 'down' }), 'Impossibile caricare le sedi')).toBe('Impossibile caricare le sedi (HTTP 503)');
+    expect(statusMessage(new TypeError('Failed to fetch'), 'Impossibile caricare le sedi')).toBe('Failed to fetch');
+    expect(statusMessage('boom', 'Impossibile caricare le sedi', 'Errore nel caricamento delle sedi')).toBe('Errore nel caricamento delle sedi');
+    // getResponseErrorMessage ("Salva modifiche"): a JSON detail, message or title wins; otherwise the fallback with the status.
+    expect(problemMessage(json(400, { title: 'T', detail: 'Workshop counter unavailable' }), "Impossibile salvare l'evento")).toBe('Workshop counter unavailable');
+    expect(problemMessage(json(400, { message: 'Sessione scaduta' }), "Impossibile salvare l'evento")).toBe('Sessione scaduta');
+    expect(problemMessage(json(400, { title: 'Bad Request' }), "Impossibile salvare l'evento")).toBe('Bad Request');
+    expect(problemMessage(json(500, {}), "Impossibile salvare l'evento")).toBe("Impossibile salvare l'evento (HTTP 500)");
+    expect(problemMessage(text(502, '<html>Bad gateway</html>'), "Impossibile salvare l'evento")).toBe("Impossibile salvare l'evento (HTTP 502)");
+    expect(problemMessage(new EventApiError(500, 'application/json', 'not json'), "Impossibile salvare l'evento")).toBe("Impossibile salvare l'evento (HTTP 500)");
+    expect(problemMessage(null, "Impossibile salvare l'evento", "Errore nell'aggiornamento dell'evento")).toBe("Errore nell'aggiornamento dell'evento");
+    // reportError (agenda, Eventbrite, Sessionize, creation): the detail, else the body as it came, else the fallback with the status.
+    expect(detailMessage(json(502, { title: 'Eventbrite synchronization failed', detail: 'Eventbrite rejected the venue' }), 'Sincronizzazione Eventbrite non riuscita')).toBe('Eventbrite rejected the venue');
+    expect(detailMessage(text(400, 'Sessionize ID non valido'), 'Importazione da Sessionize non riuscita')).toBe('Sessionize ID non valido');
+    expect(detailMessage(json(400, { title: 'Bad Request' }), "Impossibile salvare l'agenda dell'evento")).toBe('{"title":"Bad Request"}');
+    expect(detailMessage(new EventApiError(500), "Impossibile salvare l'agenda dell'evento")).toBe("Impossibile salvare l'agenda dell'evento (HTTP 500)");
+    expect(detailMessage(new Error('offline'), "Impossibile creare l'evento")).toBe('offline');
   });
 
   it('maps the URL to a step, including the hashes of earlier versions of the card', () => {

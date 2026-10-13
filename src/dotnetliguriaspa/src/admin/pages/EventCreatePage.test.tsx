@@ -13,6 +13,7 @@ const renderPage = () => render(
     <Routes>
       <Route path="/admin/workshop/create" element={<EventCreatePage />} />
       <Route path="/admin/workshop/:id" element={<div>Scheda evento</div>} />
+      <Route path="/admin/workshops/" element={<div>Elenco eventi</div>} />
     </Routes>
     <AdminToastRegion />
     <CurrentPath />
@@ -72,13 +73,21 @@ describe('<EventCreatePage />', () => {
     await user.clear(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' }));
     await user.type(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' }), '50');
     await user.type(screen.getByRole('textbox', { name: 'Sale per questo evento' }), 'Auditorium{enter}Room B');
-    await user.type(screen.getByRole('textbox', { name: 'URL del servizio di prenotazione e cancellazione del posto' }), 'https://booking.example.test/event/1');
+    const booking = screen.getByRole('textbox', { name: 'URL del servizio di prenotazione e cancellazione del posto' });
+    expect(booking).toHaveAttribute('type', 'url');
+    expect(booking).toHaveAttribute('placeholder', 'https://...');
+    expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveAttribute('type', 'url');
+    expect(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' })).toHaveAttribute('min', '0');
+    await user.type(booking, 'https://booking.example.test/event/1');
     await user.type(screen.getByRole('textbox', { name: 'Note per i partecipanti' }), 'Bring your laptop');
     await user.click(create());
 
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/00112233-4455-6677-8899-aabbccddeeff'));
     expect(screen.getByText('Scheda evento')).toBeInTheDocument();
+    // As before: the new event opens without a confirmation message.
+    expect(screen.queryByText('Evento creato')).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     const request = calls[1];
     expect(request.method).toBe('POST');
     expect(request.body).toMatchObject({
@@ -114,6 +123,24 @@ describe('<EventCreatePage />', () => {
     expect(create()).toBeEnabled();
   });
 
+  test('words a failed creation without a body as before and keeps Annulla off while it runs', async () => {
+    const user = userEvent.setup();
+    let release: (() => void) | null = null;
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/Workshop/Post')) return new Promise<Response>(resolve => { release = () => resolve(new Response(null, { status: 500 })); });
+      return jsonResponse(venuesFixture);
+    });
+    renderPage();
+    await fillBasics(user);
+    await pickVenue(user);
+    await user.click(create());
+    expect(screen.getByRole('button', { name: 'Annulla' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Creazione…' })).toBeDisabled();
+    release!();
+    expect(await screen.findByText("Impossibile creare l'evento (HTTP 500)")).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Annulla' })).toBeEnabled();
+  });
+
   test('does not navigate to an undefined workshop when the create response omits its ID', async () => {
     const user = userEvent.setup();
     serve(venuesFixture, jsonResponse({}, 201));
@@ -125,12 +152,12 @@ describe('<EventCreatePage />', () => {
     expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/create');
   });
 
-  test('without saved venues points to the venues page and refuses the submit with the single message', async () => {
+  test('without saved venues names "Venues / Sale eventi" as plain text and refuses the submit with the single message', async () => {
     const user = userEvent.setup();
     const calls = serve([], jsonResponse({}, 201));
     renderPage();
-    expect(await screen.findByText(/Aggiungi una sede in/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Sedi' })).toHaveAttribute('href', '/admin/venues/');
+    expect(await screen.findByText('Aggiungi una sede in Venues / Sale eventi prima di creare un evento.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Sedi|Venues/ })).not.toBeInTheDocument();
     expect(venueSelect()).toBeDisabled();
     expect(create()).toBeEnabled();
     await fillBasics(user);
@@ -167,11 +194,13 @@ describe('<EventCreatePage />', () => {
     expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/create');
   });
 
-  test('reports a failed venue list and keeps the form usable', async () => {
+  test('reports a failed venue list as before, keeps the form usable and goes back with Annulla', async () => {
+    const user = userEvent.setup();
     serve(() => new Response(null, { status: 500 }), jsonResponse({}, 201));
     renderPage();
-    expect(await screen.findByText(/Impossibile caricare le sedi/)).toBeInTheDocument();
+    expect(await screen.findByText('Impossibile caricare le sedi (HTTP 500)')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Titolo' })).toBeEnabled();
-    expect(screen.getByRole('link', { name: 'Annulla' })).toHaveAttribute('href', '/admin/workshops/');
+    await user.click(screen.getByRole('button', { name: 'Annulla' }));
+    expect(await screen.findByText('Elenco eventi')).toBeInTheDocument();
   });
 });

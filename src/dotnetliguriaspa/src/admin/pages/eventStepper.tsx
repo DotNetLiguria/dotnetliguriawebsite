@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Menu, MenuItem, MenuTrigger, Popover, ProgressBar } from 'react-aria-components';
 import { AdminIcon } from '../icons';
-import { btn, linkFocus } from '../ui';
+import { btn, focusRing, linkFocus } from '../ui';
 import { useIsDesktop } from './listKit';
 import { STEPS, StepId, stepIndexOf } from './eventModel';
 
-// The ten steps of the event wizard, as the previous admin ordered them. Steps already reached (and every
-// earlier one) can be opened directly; the ones ahead open with "Avanti". Desktop draws the row with
-// connectors; phones get "Passo 3 di 10", a progress bar and the reachable steps in a menu.
+// The ten steps of the event wizard, as the previous admin ordered them, in a bar that stays at the top while
+// the page scrolls (as before). Steps already reached (and every earlier one) can be opened directly; the ones
+// ahead open with "Avanti". Desktop draws the row with connectors; phones get "Passo 3 di 10", a progress bar
+// and the reachable steps in a menu.
+
+/** Sticky like the previous stepper: below the admin's top bar on phones, at the top of the content area on desktop. */
+const sticky = 'sticky top-[74px] z-20 lg:top-2.5';
 
 interface StepperProps {
   current: StepId;
@@ -36,7 +40,7 @@ function StepMarker({ index, mark, className = 'size-8 text-sm' }: { index: numb
 function DesktopStepper({ current, reached, hrefFor }: StepperProps) {
   const currentIndex = stepIndexOf(current);
   return (
-    <nav aria-label="Passaggi dell'evento" className="mt-6">
+    <nav aria-label="Passaggi dell'evento" className={`${sticky} mt-6 rounded-2xl border border-line bg-white px-2 py-3`}>
       <ol className="flex items-start">
         {STEPS.map((step, index) => {
           const mark = markOf(index, currentIndex, reached);
@@ -75,7 +79,7 @@ function PhoneStepper({ current, reached, onSelect }: StepperProps) {
   const total = STEPS.length;
   const reachable = STEPS.filter((_, i) => i <= reached);
   return (
-    <nav aria-label="Passaggi dell'evento" className="mt-6 rounded-2xl border border-line bg-white p-4">
+    <nav aria-label="Passaggi dell'evento" className={`${sticky} mt-6 rounded-2xl border border-line bg-white p-4`}>
       <div className="flex items-center justify-between gap-3">
         <p className="min-w-0 font-bold"><span className="text-muted">Passo {index + 1} di {total}</span> · {step.label}</p>
         <MenuTrigger>
@@ -111,14 +115,17 @@ export function Stepper(props: StepperProps) {
   return desktop ? <DesktopStepper {...props} /> : <PhoneStepper {...props} />;
 }
 
-/** Indietro / Avanti like the previous Previous / Next; the last step saves ("Save changes"). */
+/**
+ * Indietro / Avanti like the previous Previous / Next; the last step saves ("Save changes"). While that save
+ * runs, Indietro is disabled too, as Previous was.
+ */
 export function StepNav({ current, busy, onMove, onSave }: { current: StepId; busy: boolean; onMove: (id: StepId) => void; onSave: () => void }) {
   const index = stepIndexOf(current);
   const previous = STEPS[index - 1];
   const next = STEPS[index + 1];
   return (
     <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-      <Button onPress={() => previous && onMove(previous.id)} isDisabled={!previous} className={btn.secondary}>
+      <Button onPress={() => previous && onMove(previous.id)} isDisabled={!previous || busy} className={btn.secondary}>
         <AdminIcon name="back" />Indietro{previous && <span className="sr-only">: {previous.label}</span>}
       </Button>
       {next ? (
@@ -127,5 +134,36 @@ export function StepNav({ current, busy, onMove, onSave }: { current: StepId; bu
         <Button onPress={onSave} isDisabled={busy} className={btn.primary}><AdminIcon name="check" />{busy ? 'Salvataggio…' : 'Salva modifiche'}</Button>
       )}
     </div>
+  );
+}
+
+/**
+ * The previous "back to top" button: it appears once the page has scrolled more than 300px and brings it back
+ * to the top (the window on phones, the content area of the admin from the lg breakpoint).
+ */
+export function ScrollTopButton({ onTop }: { onTop?: () => void }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const area = document.getElementById('contenuto-admin');
+    const update = () => setShown(window.scrollY > 300 || (area?.scrollTop ?? 0) > 300);
+    window.addEventListener('scroll', update);
+    area?.addEventListener('scroll', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      area?.removeEventListener('scroll', update);
+    };
+  }, []);
+  if (!shown) return null;
+  const toTop = () => {
+    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const behavior: ScrollBehavior = reduced ? 'auto' : 'smooth';
+    window.scrollTo({ top: 0, behavior });
+    document.getElementById('contenuto-admin')?.scrollTo({ top: 0, behavior });
+    onTop?.();
+  };
+  return (
+    <Button onPress={toTop} aria-label="Torna su" className={`fixed right-4 bottom-20 z-30 grid size-12 cursor-pointer place-items-center rounded-full bg-navy text-white shadow-lift transition-colors data-[hovered]:bg-cyan-700 lg:right-6 lg:bottom-6 ${focusRing}`}>
+      <AdminIcon name="chevron" className="size-6 rotate-180" />
+    </Button>
   );
 }

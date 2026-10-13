@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { QRCodeSVG } from 'qrcode.react';
 import { AdminIcon } from '../icons';
 import { Badge, Panel, SwitchInput, TextAreaInput, TextInput, btn, linkFocus } from '../ui';
-import { clean, useAdminLoad } from '../adminApi';
+import { clean } from '../adminApi';
 import { notify } from '../toasts';
 import { contentUrl } from '../../site/siteApi';
 import { createQuestionnaireAdminApi, FetchLike } from '../../questionnaire/api';
@@ -13,8 +13,8 @@ import { statusLabels } from '../../questionnaire/status';
 import type { Questionnaire, QuestionnaireStatus } from '../../questionnaire/types';
 import type { VenueModel } from '../../models/VenueModel';
 import EventPoster from '../EventPoster';
-import { Notice } from './listUi';
-import { Caption, Dropzone, EventPage, FilePicker, InlineConfirm, PanelTitle, SelectInput, errorText } from './eventKit';
+import { ModalHeader, Notice, RecordModal } from './listUi';
+import { Caption, EventPage, FilePicker, InlineConfirm, PanelTitle, SelectInput } from './eventKit';
 import { EventFile, FILE_TYPE, locationFromVenue } from './eventModel';
 
 // Steps 1 (Pubblicazione), 2 (Immagine dell'evento), 3 (Informazioni sull'evento), 4 (Sede), 9 (Materiali)
@@ -54,7 +54,7 @@ function WorkshopQuestionnaires({ workshopId }: { workshopId: string }) {
 
   return (
     <div className="mt-6 w-full">
-      <h4 className="font-bold">Questionari collegati</h4>
+      <h3 className="font-bold">Questionari collegati</h3>
       {error && <div className="mt-2"><Notice tone="danger" title={error} /></div>}
       {items && items.length === 0 && !error && <p className="mt-1 text-sm text-muted">Nessun questionario: il link di feedback mostrerà un messaggio finché non ne pubblichi uno.</p>}
       {items && items.length > 0 && (
@@ -87,8 +87,8 @@ export function PublicationStep({ page }: { page: EventPage }) {
         </div>
       </div>
       <div className="flex flex-col items-center text-center">
-        <h3 className="text-lg font-bold">QR code del feedback</h3>
-        <div className="mt-3 rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={150} level="H" title={`QR code del feedback di ${clean(workshop.title)}`} /></div>
+        <h2 className="text-lg font-bold">QR code del feedback</h2>
+        <div className="mt-3 rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={150} level="H" /></div>
         <p className="mt-2 break-all text-sm text-muted">{feedbackUrl}</p>
         <WorkshopQuestionnaires workshopId={workshop.workshopId} />
       </div>
@@ -98,36 +98,38 @@ export function PublicationStep({ page }: { page: EventPage }) {
 
 // ---------- 2. Immagine dell'evento ----------
 
+/** The current image (only when there is one) and the file button that uploads at once, as before. */
 export function ImageStep({ page, stamp, onUploaded }: { page: EventPage; stamp: number; onUploaded: () => void }) {
   const { workshop } = page;
-  const [busy, setBusy] = useState(false);
+  const [uploaded, setUploaded] = useState<File | null>(null);
+  const captionId = useId();
   const poster = contentUrl(workshop.image);
-  const upload = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    setBusy(true);
+  const upload = async (file: File) => {
     try {
       const form = new FormData();
       form.append('file', file);
       form.append('workshopId', workshop.workshopId);
       await page.api('/workshopfile/uploadworkshopimage', { method: 'POST', body: form });
-      await page.refresh();
-      onUploaded();
-      notify("Immagine dell'evento caricata");
-    } catch (error) {
-      notify("Errore nel caricamento dell'immagine dell'evento", { description: errorText(error), kind: 'error' });
-    } finally {
-      setBusy(false);
+      if (await page.refresh()) onUploaded();
+      notify("Immagine dell'evento caricata correttamente");
+      setUploaded(file);
+    } catch {
+      notify("Errore nel caricamento dell'immagine dell'evento", { kind: 'error' });
     }
   };
   return (
     <Panel labelledBy="image-title" className="space-y-4 p-5 sm:p-6">
       <PanelTitle id="image-title" title="Immagine dell'evento" />
+      {workshop.image && (
+        <div>
+          <Caption>Immagine attuale</Caption>
+          <EventPoster src={poster && stamp ? `${poster}?t=${stamp}` : poster} alt={clean(workshop.title)} className="mt-1 aspect-video w-full max-w-md rounded-xl border border-line object-cover" />
+        </div>
+      )}
       <div>
-        <Caption>Immagine attuale</Caption>
-        <EventPoster src={poster ? (stamp ? `${poster}?t=${stamp}` : poster) : null} alt={`Locandina di ${clean(workshop.title)}`} className="mt-1 aspect-video w-full max-w-md rounded-xl border border-line object-cover" />
+        <Caption id={captionId}>Carica l'immagine di copertina dell'evento</Caption>
+        <div className="mt-1"><FilePicker label="Scegli il file immagine…" file={uploaded} accept={['image/*']} describedBy={captionId} onSelect={file => void upload(file)} /></div>
       </div>
-      <Dropzone label="Carica l'immagine di copertina dell'evento" accept={['image/*']} busy={busy} buttonLabel="Scegli il file immagine…" onFiles={files => void upload(files)} />
     </Panel>
   );
 }
@@ -148,18 +150,13 @@ export function InfoStep({ page }: { page: EventPage }) {
 
 // ---------- 4. Sede ----------
 
-export function LocationStep({ page }: { page: EventPage }) {
+/** The venues load with the page and the chosen one stays selected across the steps, as before. */
+export function LocationStep({ page, venues, venueId, onVenue }: { page: EventPage; venues: VenueModel[]; venueId: string | null; onVenue: (venueId: string) => void }) {
   const { values, edit } = page;
-  const [venuesLoad] = useAdminLoad<VenueModel[]>('/Venue');
-  const venues = venuesLoad.state === 'ready' ? venuesLoad.data : [];
-  const [venueId, setVenueId] = useState<string | null>(null);
-  useEffect(() => {
-    if (venuesLoad.state === 'error') notify(`Impossibile caricare le sedi (${venuesLoad.message})`, { kind: 'error' });
-  }, [venuesLoad]);
   const copyVenue = (id: string | null) => {
     const venue = venues.find(item => item.venueId === id);
     if (!venue) return;
-    setVenueId(id);
+    onVenue(venue.venueId);
     const location = locationFromVenue(venue);
     edit({ locationName: location.name ?? '', address: location.address ?? '', coordinates: location.coordinates ?? '', googleMapsUrl: location.googleMapsUrl ?? '', maximumSpaces: String(location.maximumSpaces ?? 0) });
   };
@@ -168,12 +165,12 @@ export function LocationStep({ page }: { page: EventPage }) {
       <PanelTitle id="location-title" title="Informazioni sulla sede" />
       <div>
         <SelectInput label="Copia dalla sede" items={venues.map(venue => ({ id: venue.venueId, label: clean(venue.name) }))} selectedKey={venueId} onSelectionChange={copyVenue} placeholder="" isDisabled={venues.length === 0} />
-        {venuesLoad.state !== 'loading' && venues.length === 0 && <p className="mt-1.5 text-sm text-muted">Nessuna sede disponibile da copiare.</p>}
+        {venues.length === 0 && <p className="mt-1.5 text-sm text-muted">Nessuna sede disponibile da copiare.</p>}
       </div>
       <TextInput label="Nome" isRequired value={values.locationName} onChange={locationName => edit({ locationName })} placeholder="Nome della sede" />
       <TextInput label="Coordinate" value={values.coordinates} onChange={coordinates => edit({ coordinates })} placeholder="Latitudine, longitudine" />
       <TextInput label="Indirizzo" isRequired value={values.address} onChange={address => edit({ address })} />
-      <TextInput label="URL di Google Maps" value={values.googleMapsUrl} onChange={googleMapsUrl => edit({ googleMapsUrl })} placeholder="https://maps.google.com/..." />
+      <TextInput label="URL di Google Maps" type="url" value={values.googleMapsUrl} onChange={googleMapsUrl => edit({ googleMapsUrl })} placeholder="https://maps.google.com/..." />
       <TextInput label="Posti massimi" type="number" value={values.maximumSpaces} onChange={maximumSpaces => edit({ maximumSpaces })} />
     </Panel>
   );
@@ -181,13 +178,25 @@ export function LocationStep({ page }: { page: EventPage }) {
 
 // ---------- 9. Materiali and 10. Foto ----------
 
-type FileKind = 'Materiale' | 'Foto';
-const uploadedText: Record<FileKind, string> = { Materiale: 'Materiale caricato', Foto: 'Foto caricata' };
-const deletedText: Record<FileKind, string> = { Materiale: 'Materiale eliminato', Foto: 'Foto eliminata' };
+const FILE_TEXT = {
+  material: {
+    dialog: 'Aggiungi materiale', placeholder: 'Titolo del materiale', confirm: 'Vuoi davvero eliminare questo materiale?',
+    uploaded: 'Materiale caricato correttamente', uploadFailed: 'Errore nel caricamento del materiale',
+    deleted: 'Materiale eliminato correttamente', deleteFailed: "Errore nell'eliminazione del materiale",
+  },
+  photo: {
+    dialog: 'Aggiungi foto', placeholder: 'Titolo della foto', confirm: 'Vuoi davvero eliminare questa foto?',
+    uploaded: 'Foto caricata correttamente', uploadFailed: 'Errore nel caricamento della foto',
+    deleted: 'Foto eliminata correttamente', deleteFailed: "Errore nell'eliminazione della foto",
+  },
+} as const;
+type FileKind = keyof typeof FILE_TEXT;
 
 /** Files of the event from the file endpoint (materials are type 4, photos type 2), with upload and delete. */
-function useEventFiles(page: EventPage, fileType: number, kind: FileKind) {
+function useEventFiles(page: EventPage, kind: FileKind) {
   const { workshop, api } = page;
+  const fileType = kind === 'material' ? FILE_TYPE.material : FILE_TYPE.photo;
+  const text = FILE_TEXT[kind];
   const [files, setFiles] = useState<EventFile[]>([]);
   const [busy, setBusy] = useState(false);
   const fetchFiles = useCallback(async () => {
@@ -208,10 +217,10 @@ function useEventFiles(page: EventPage, fileType: number, kind: FileKind) {
       form.append('title', title);
       await api('/workshopfile/Upload', { method: 'POST', body: form });
       await fetchFiles();
-      notify(uploadedText[kind]);
+      notify(text.uploaded);
       return true;
-    } catch (error) {
-      notify(`Errore nel caricamento: ${kind.toLowerCase()}`, { description: errorText(error), kind: 'error' });
+    } catch {
+      notify(text.uploadFailed, { kind: 'error' });
       return false;
     } finally {
       setBusy(false);
@@ -223,10 +232,10 @@ function useEventFiles(page: EventPage, fileType: number, kind: FileKind) {
     try {
       await api(`/workshopfile/${encodeURIComponent(file.workshopFileId)}`, { method: 'DELETE' });
       setFiles(current => current.filter(item => item.workshopFileId !== file.workshopFileId));
-      notify(deletedText[kind]);
+      notify(text.deleted);
       return true;
-    } catch (error) {
-      notify(`Errore nell'eliminazione: ${kind.toLowerCase()}`, { description: errorText(error), kind: 'error' });
+    } catch {
+      notify(text.deleteFailed, { kind: 'error' });
       return false;
     } finally {
       setBusy(false);
@@ -236,43 +245,49 @@ function useEventFiles(page: EventPage, fileType: number, kind: FileKind) {
   return { files, busy, upload, remove };
 }
 
-/** The previous "Add" dialog, inline: a title and a file, both required, then the upload. */
-function UploadForm({ title, accept, busy, onUpload }: { title: string; accept?: string[]; busy: boolean; onUpload: (file: File, title: string) => Promise<boolean> }) {
+/** The previous "Add" button and dialog (full page on phones): a title and a file, both required, then Carica. */
+function AddFileDialog({ kind, accept, busy, onUpload }: { kind: FileKind; accept?: string[]; busy: boolean; onUpload: (file: File, title: string) => Promise<boolean> }) {
+  const text = FILE_TEXT[kind];
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const reset = () => { setOpen(false); setName(''); setFile(null); };
-  if (!open) return <Button onPress={() => setOpen(true)} className={btn.primary}><AdminIcon name="plus" />Aggiungi</Button>;
+  const captionId = useId();
+  const close = () => { setOpen(false); setTitle(''); setFile(null); };
   return (
-    <div className="w-full space-y-3 rounded-xl border border-line p-4" role="group" aria-label={title}>
-      <h4 className="font-bold">{title}</h4>
-      <TextInput label="Titolo" isRequired value={name} onChange={setName} />
-      <div>
-        <Caption>File *</Caption>
-        <div className="mt-1"><FilePicker label="Scegli file…" file={file} accept={accept} onSelect={setFile} /></div>
-      </div>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button onPress={reset} className={btn.ghost}>Annulla</Button>
-        <Button onPress={() => { if (file) void onUpload(file, name).then(ok => { if (ok) reset(); }); }} isDisabled={!name || !file || busy} className={btn.primary}>{busy ? 'Caricamento…' : 'Carica'}</Button>
-      </div>
-    </div>
+    <>
+      <Button onPress={() => setOpen(true)} className={btn.primary}><AdminIcon name="plus" />Aggiungi</Button>
+      <RecordModal isOpen={open} onOpenChange={value => { if (!value) close(); }} label={text.dialog}>
+        <ModalHeader title={text.dialog} />
+        <div className="space-y-4 p-5 sm:p-6">
+          <TextInput label="Titolo" isRequired autoFocus value={title} onChange={setTitle} placeholder={text.placeholder} />
+          <div>
+            <Caption id={captionId}>File *</Caption>
+            <div className="mt-1"><FilePicker label="Scegli file…" file={file} accept={accept} describedBy={captionId} onSelect={setFile} /></div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button onPress={close} className={btn.ghost}>Annulla</Button>
+            <Button onPress={() => { if (file) void onUpload(file, title).then(ok => { if (ok) close(); }); }} isDisabled={!title || !file || busy} className={btn.primary}>{busy ? 'Caricamento…' : 'Carica'}</Button>
+          </div>
+        </div>
+      </RecordModal>
+    </>
   );
 }
 
 const fileLabel = (file: EventFile) => clean(file.title) || clean(file.fileName);
 
 export function MaterialsStep({ page }: { page: EventPage }) {
-  const { files, busy, upload, remove } = useEventFiles(page, FILE_TYPE.material, 'Materiale');
+  const { files, busy, upload, remove } = useEventFiles(page, 'material');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
     <Panel labelledBy="materials-title" className="p-5 sm:p-6">
-      <PanelTitle id="materials-title" title="Materiali" actions={<UploadForm title="Aggiungi materiale" busy={busy} onUpload={upload} />} />
+      <PanelTitle id="materials-title" title="Materiali" actions={<AddFileDialog kind="material" busy={busy} onUpload={upload} />} />
       {files.length > 0 ? (
         <ul className="mt-4 space-y-3">
           {files.map(file => (
             <li key={file.workshopFileId} className="rounded-xl bg-[#f3f7fa] p-4">
               {confirmId === file.workshopFileId ? (
-                <InlineConfirm title="Vuoi davvero eliminare questo materiale?" confirmLabel="OK" busy={busy} onConfirm={() => void remove(file).then(() => setConfirmId(null))} onCancel={() => setConfirmId(null)} />
+                <InlineConfirm title={FILE_TEXT.material.confirm} confirmLabel="OK" busy={busy} onConfirm={() => void remove(file).then(() => setConfirmId(null))} onCancel={() => setConfirmId(null)} />
               ) : (
                 <div className="flex items-center gap-4">
                   <AdminIcon name="file" className="size-10 shrink-0 text-cyan-700" />
@@ -292,35 +307,41 @@ export function MaterialsStep({ page }: { page: EventPage }) {
   );
 }
 
+/** A photo, or the previous "Image not found" placeholder when it is missing or does not load. */
+function PhotoImage({ src, title }: { src: string | null; title: string }) {
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  if (!src || src === failedSource) {
+    return <div role="img" aria-label="Immagine non trovata" className="grid h-48 w-full place-items-center bg-[#dddddd] font-mono text-[#666666]">Immagine non trovata</div>;
+  }
+  return <img src={src} alt={title} loading="lazy" onError={() => setFailedSource(src)} className="h-48 w-full object-cover" />;
+}
+
 export function PhotosStep({ page }: { page: EventPage }) {
-  const { files, busy, upload, remove } = useEventFiles(page, FILE_TYPE.photo, 'Foto');
+  const { files, busy, upload, remove } = useEventFiles(page, 'photo');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
     <Panel labelledBy="photos-title" className="p-5 sm:p-6">
-      <PanelTitle id="photos-title" title="Foto" actions={<UploadForm title="Aggiungi foto" accept={['image/*']} busy={busy} onUpload={upload} />} />
+      <PanelTitle id="photos-title" title="Foto" actions={<AddFileDialog kind="photo" accept={['image/*']} busy={busy} onUpload={upload} />} />
       {files.length > 0 ? (
         <ul className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
-          {files.map(file => {
-            const src = contentUrl(file.fullPath);
-            return (
-              <li key={file.workshopFileId} className="overflow-hidden rounded-xl bg-[#f3f7fa]">
-                {confirmId === file.workshopFileId ? (
-                  <div className="p-3"><InlineConfirm title="Vuoi davvero eliminare questa foto?" confirmLabel="OK" busy={busy} onConfirm={() => void remove(file).then(() => setConfirmId(null))} onCancel={() => setConfirmId(null)} /></div>
-                ) : (
-                  <>
-                    {src && <img src={src} alt={clean(file.title)} loading="lazy" className="h-48 w-full object-cover" />}
-                    <div className="flex items-center gap-2 p-3">
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-bold">{file.title}</span>
-                        <span className="block truncate text-xs text-muted">{file.fileName}</span>
-                      </span>
-                      <Button onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
-                    </div>
-                  </>
-                )}
-              </li>
-            );
-          })}
+          {files.map(file => (
+            <li key={file.workshopFileId} className="overflow-hidden rounded-xl bg-[#f3f7fa]">
+              {confirmId === file.workshopFileId ? (
+                <div className="p-3"><InlineConfirm title={FILE_TEXT.photo.confirm} confirmLabel="OK" busy={busy} onConfirm={() => void remove(file).then(() => setConfirmId(null))} onCancel={() => setConfirmId(null)} /></div>
+              ) : (
+                <>
+                  <PhotoImage src={contentUrl(file.fullPath)} title={clean(file.title)} />
+                  <div className="flex items-center gap-2 p-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{file.title}</span>
+                      <span className="block truncate text-xs text-muted">{file.fileName}</span>
+                    </span>
+                    <Button onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
         </ul>
       ) : <p className="py-8 text-center text-muted">Nessuna foto disponibile.</p>}
     </Panel>

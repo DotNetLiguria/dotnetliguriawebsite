@@ -1,36 +1,37 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Button, Checkbox, CheckboxGroup, DropZone, FileTrigger, Form, Input, Label, ListBox, ListBoxItem, Popover, Select, SelectValue, Text, TextField } from 'react-aria-components';
+import React, { useCallback, useState } from 'react';
+import { Button, Checkbox, CheckboxGroup, FileTrigger, Form, Input, Label, ListBox, ListBoxItem, Popover, Select, SelectValue, Text, TextField } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { AdminIcon } from '../icons';
 import { btn, focusRing } from '../ui';
 import { clean, nameKey } from '../adminApi';
 import { inputCls } from './listUi';
-import { EventCoreValues, EventRecord, EventSpeaker, problemDetail } from './eventModel';
+import { EventApiError, EventCoreValues, EventRecord, EventSpeaker } from './eventModel';
 
-// Building blocks of the event screens: an API hook that keeps the server's error detail, dropzones, file
-// pickers, the speaker picker and a few icons the shared kit does not have.
+// Building blocks of the event screens: an API hook that keeps the failed response for the wording of each
+// action, file pickers, the speaker picker and a few icons the shared kit does not have.
 
 /** What every step of the wizard gets: the record, the speakers, the page draft and the ways to change them. */
 export interface EventPage {
   workshop: EventRecord;
   speakers: EventSpeaker[];
+  setSpeakers: (speakers: EventSpeaker[]) => void;
   api: <T>(path: string, init?: RequestInit) => Promise<T>;
   /** The record as it is right now (also inside callbacks started earlier). */
   current: () => EventRecord;
   /**
-   * PUT the whole record, built from the latest record at send time; on success the page follows the body.
-   * Resolves to false (after a toast) on failure. One whole-record PUT at a time: `saving` is true meanwhile.
+   * PUT the whole record, built from the latest record at send time; on success the page follows the body and
+   * shows `success`. Resolves to false (after the `failure` toast) on failure. One whole-record PUT at a time:
+   * `saving` is true meanwhile.
    */
-  save: (build: (latest: EventRecord) => EventRecord, toast: { title: string; description?: string }) => Promise<boolean>;
+  save: (build: (latest: EventRecord) => EventRecord, messages: { success: string; failure: (error: unknown) => string }) => Promise<boolean>;
   saving: boolean;
   /** Replace the page record with one returned by the server (handleRelatedWorkshopSaved). */
   replace: (workshop: EventRecord) => void;
   /** Replace the page record as given, without the saved-record normalisation. */
   commitRecord: (workshop: EventRecord) => void;
-  /** Read the record again from the server; a failure is ignored, as before. */
-  refresh: () => Promise<void>;
-  reloadSpeakers: () => void;
+  /** Read the record again from the server; resolves to false when that fails (ignored, as before). */
+  refresh: () => Promise<boolean>;
   /** The draft of steps 1, 3 and 4: the record's values with the edits on top, saved by "Salva modifiche". */
   values: EventCoreValues;
   edit: (patch: Partial<EventCoreValues>) => void;
@@ -38,22 +39,9 @@ export interface EventPage {
 
 // ---------- API ----------
 
-export class EventApiError extends Error {
-  readonly status: number;
-
-  constructor(status: number, detail?: string | null) {
-    super(detail || `Errore HTTP: ${status}`);
-    this.name = 'EventApiError';
-    this.status = status;
-  }
-}
-
-export const errorText = (error: unknown) => (error instanceof Error ? error.message : 'Errore di rete');
-
 /**
- * fetch for the event admin: the signed-in user's token, JSON in and out, FormData passed through as-is, and
- * the ProblemDetails `detail` of a failed call kept as the error message (Eventbrite and Sessionize explain
- * themselves that way).
+ * fetch for the event admin: the signed-in user's token, JSON in and out, FormData passed through as-is. A
+ * failed call throws an EventApiError with the status and the body, worded by each action (eventModel).
  */
 export function useEventApi() {
   const { fetch } = useOidcFetch();
@@ -62,9 +50,9 @@ export function useEventApi() {
     if (init.body && !(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
     if (!response.ok) {
-      let detail: string | null = null;
-      try { detail = problemDetail(await response.text()); } catch { /* no body */ }
-      throw new EventApiError(response.status, detail);
+      let body = '';
+      try { body = await response.text(); } catch { /* no body */ }
+      throw new EventApiError(response.status, response.headers.get('Content-Type') ?? '', body);
     }
     const text = response.status === 204 ? '' : await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
@@ -142,18 +130,18 @@ export function InlineConfirm({ title, confirmLabel, busyLabel, busy = false, on
   );
 }
 
-/** Title block of a step panel. */
+/** Title of a step panel: the step's heading, focused when the step is opened from the wizard. */
 export function PanelTitle({ id, title, actions }: { id?: string; title: string; actions?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h3 id={id} className="text-lg font-bold">{title}</h3>
+      <h2 id={id} tabIndex={-1} className="text-lg font-bold outline-none">{title}</h2>
       {actions}
     </div>
   );
 }
 
 /** Caption above a field, as the previous forms had. */
-export const Caption = ({ children }: { children: React.ReactNode }) => <p className="text-sm font-semibold text-muted">{children}</p>;
+export const Caption = ({ id, children }: { id?: string; children: React.ReactNode }) => <p id={id} className="text-sm font-semibold text-muted">{children}</p>;
 
 // ---------- Inputs ----------
 
@@ -213,37 +201,11 @@ export function NumberInput({ label, value, onChange, min, description, classNam
 
 // ---------- Files ----------
 
-/** Drag-and-drop area with a file button; choosing a file is the action. */
-export function Dropzone({ label, accept, busy = false, buttonLabel, onFiles }: {
-  label: string;
-  /** Extensions (".pdf") or MIME types accepted by the file dialog. */
-  accept: string[];
-  busy?: boolean;
-  buttonLabel: string;
-  onFiles: (files: File[]) => void;
-}) {
+/** "Choose file…" button that shows the chosen file's name, as the previous admin did. */
+export function FilePicker({ label, file, accept, describedBy, onSelect }: { label: string; file: File | null; accept?: string[]; describedBy?: string; onSelect: (file: File) => void }) {
   return (
-    <DropZone
-      onDrop={async event => {
-        const files = await Promise.all(event.items.flatMap(item => (item.kind === 'file' ? [item.getFile()] : [])));
-        if (files.length) onFiles(files.slice(0, 1));
-      }}
-      className={`flex flex-col items-center rounded-2xl border-2 border-dashed border-line bg-[#f3f7fa] px-6 py-8 text-center transition-colors data-[drop-target]:border-cyan-700 data-[drop-target]:bg-cyan-50 ${focusRing}`}
-    >
-      <AdminIcon name="upload" className="size-7 text-cyan-700" />
-      <Text slot="label" className="mt-2 font-semibold">{label}</Text>
-      <FileTrigger acceptedFileTypes={accept} onSelect={files => { if (files?.length) onFiles([...files]); }}>
-        <Button isDisabled={busy} className={`mt-3 ${btn.secondary}`}>{busy ? 'Caricamento…' : buttonLabel}</Button>
-      </FileTrigger>
-    </DropZone>
-  );
-}
-
-/** "Choose file…" button that shows the chosen file's name, as the previous dialogs did. */
-export function FilePicker({ label, file, accept, onSelect }: { label: string; file: File | null; accept?: string[]; onSelect: (file: File | null) => void }) {
-  return (
-    <FileTrigger acceptedFileTypes={accept} onSelect={files => onSelect(files?.[0] ?? null)}>
-      <Button className={`${btn.secondary} w-full justify-start`}>{file ? file.name : label}</Button>
+    <FileTrigger acceptedFileTypes={accept} onSelect={files => { const chosen = files?.[0]; if (chosen) onSelect(chosen); }}>
+      <Button aria-describedby={describedBy} className={`${btn.secondary} w-full justify-start`}>{file ? file.name : label}</Button>
     </FileTrigger>
   );
 }
@@ -260,36 +222,32 @@ const CheckMark = () => (
 /**
  * Picks speakers from the directory (the previous multi-select autocomplete): chips for the chosen ones, a
  * search box and a checkbox list. With `collapsed` the list opens on request, so a long talk list stays
- * readable. `extras` are names on the talk that are not in the directory (imported): shown, kept, not editable.
+ * readable.
  */
-export function SpeakerPicker({ label, placeholder = 'Seleziona i relatori', speakers, selectedIds, onChange, extras = [], collapsed = false }: {
+export function SpeakerPicker({ label, placeholder = 'Seleziona i relatori', speakers, selectedIds, onChange, collapsed = false }: {
   label: string;
   placeholder?: string;
   speakers: EventSpeaker[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
-  extras?: string[];
   collapsed?: boolean;
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(!collapsed);
   const q = nameKey(query);
-  const sorted = useMemo(() => [...speakers].sort((a, b) => clean(a.name).localeCompare(clean(b.name), 'it')), [speakers]);
-  const visible = sorted.filter(speaker => !q || nameKey(speaker.name).includes(q));
+  // In the order the API returns them, as the previous autocomplete listed them.
+  const visible = speakers.filter(speaker => !q || nameKey(speaker.name).includes(q));
   const selected = selectedIds.map(id => speakers.find(speaker => speaker.workshopSpeakerId === id)).filter((s): s is EventSpeaker => !!s);
   return (
     <CheckboxGroup value={selectedIds} onChange={onChange} className="block">
       <Label className="text-sm font-semibold text-navy">{label}</Label>
-      {(selected.length > 0 || extras.length > 0) && (
+      {selected.length > 0 && (
         <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={`${label}: selezionati`}>
           {selected.map(speaker => (
             <li key={speaker.workshopSpeakerId} className="inline-flex items-center gap-1 rounded-full bg-cyan-50 py-0.5 pr-1 pl-3 text-sm font-bold text-cyan-700">
               {clean(speaker.name)}
               <Button aria-label={`Rimuovi ${clean(speaker.name)}`} onPress={() => onChange(selectedIds.filter(id => id !== speaker.workshopSpeakerId))} className={`grid size-7 cursor-pointer place-items-center rounded-full data-[hovered]:bg-white ${focusRing}`}><AdminIcon name="x" className="size-3.5" /></Button>
             </li>
-          ))}
-          {extras.map(name => (
-            <li key={name} className="inline-flex items-center rounded-full bg-[#eef3f7] px-3 py-0.5 text-sm font-bold text-muted">{name}</li>
           ))}
         </ul>
       )}

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { fireEvent, jsonResponse, render, screen, waitFor, within } from '../../test-utils';
 import { AdminToastRegion, adminToasts } from '../toasts';
 import EventDetailAdminPage from './EventDetailAdminPage';
-import { eventFixture, serveEvent } from './eventFixtures';
+import { eventFixture, serveEvent, speakersFixture } from './eventFixtures';
 
 // Steps 5-8 of the wizard: the previous AdminWorkshopAgenda tests, with the same payload and call-order
 // assertions, the module's lifecycle (re-init on record change, inputs kept across its pages) and the tracks step.
@@ -16,12 +16,12 @@ const renderAt = (hash: string) => render(
   </>,
   { route: `/admin/workshop/w1${hash}` },
 );
-const loaded = () => screen.findByRole('heading', { level: 1, name: 'Test Workshop' });
+const loaded = () => screen.findByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop' });
 const registration = () => screen.getByRole('region', { name: 'Iscrizione e dettagli dei partecipanti' });
 const schedule = () => screen.getByRole('region', { name: 'Orari della track' });
 const createForm = () => screen.getByRole('group', { name: 'Crea un talk' });
 const poolList = () => screen.getByRole('list', { name: 'Talk nel pool' });
-const rowOf = (title: string) => screen.getByRole('heading', { level: 5, name: title }).closest('li') as HTMLElement;
+const rowOf = (title: string) => screen.getByRole('heading', { level: 4, name: title }).closest('li') as HTMLElement;
 const valuesOf = (inputs: HTMLElement[]) => inputs.map(input => (input as HTMLInputElement).value);
 const starts = () => valuesOf(within(schedule()).getAllByLabelText('Ora di inizio'));
 const ends = () => valuesOf(within(schedule()).getAllByLabelText('Ora di fine'));
@@ -112,8 +112,8 @@ describe('talk pool, schedule and registration pages', () => {
     expect(screen.queryByRole('button', { name: 'Salva capienza biglietti' })).not.toBeInTheDocument();
     const capacity = screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite disponibili' });
     expect(capacity).toHaveAttribute('min', '10');
-    await user.click(screen.getByRole('button', { name: 'Aggiorna le vendite dei biglietti' }));
-    expect(await screen.findByText(/venduti: 12, in sospeso: 2, capienza totale: 40, rimanenti: 26\./)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Aggiorna le vendite live dei biglietti' }));
+    expect(await screen.findByText(/^Biglietti Eventbrite — venduti: 12, in sospeso: 2, capienza totale: 40, rimanenti: 26\. Aggiornato /)).toBeInTheDocument();
     expect(await screen.findByText('Vendite live dei biglietti Eventbrite aggiornate.')).toBeInTheDocument();
     expect(api.to('/Eventbrite/TicketSales/w1', 'GET')).toHaveLength(1);
     expect(capacity).toHaveAttribute('min', '14');
@@ -277,6 +277,37 @@ describe('talk pool, schedule and registration pages', () => {
     expect(screen.getByRole('button', { name: 'Crea bozza Eventbrite' })).toBeEnabled();
   });
 
+  test('words a failed agenda save as the previous reportError: the body as it came, else the fallback with the status', async () => {
+    const user = userEvent.setup();
+    let answer = () => new Response('', { status: 500 });
+    serveEvent(eventFixture(), { '/Workshop/Update/': () => answer() });
+    renderAt('#iscrizione');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Salva iscrizione e agenda' }));
+    expect(await screen.findByText("Impossibile salvare l'agenda dell'evento (HTTP 500)")).toBeInTheDocument();
+    answer = () => new Response('Workshop locked by another editor', { status: 409, headers: { 'Content-Type': 'text/plain' } });
+    await user.click(screen.getByRole('button', { name: 'Salva iscrizione e agenda' }));
+    expect(await screen.findByText('Workshop locked by another editor')).toBeInTheDocument();
+  });
+
+  test('words failed Eventbrite calls with their own fallbacks', async () => {
+    const user = userEvent.setup();
+    serveEvent({ ...ready(), eventbriteEventId: 'event-1', eventbriteTicketCapacity: 50, eventbriteSyncedTicketCapacity: 40 }, {
+      '/Eventbrite/TicketSales/': () => new Response(null, { status: 502 }),
+      '/Eventbrite/SetTicketCapacity/': () => new Response(null, { status: 400 }),
+      '/Eventbrite/Publish/': () => new Response(null, { status: 503 }),
+    });
+    renderAt('#iscrizione');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: 'Aggiorna le vendite live dei biglietti' }));
+    expect(await screen.findByText('Impossibile aggiornare le vendite dei biglietti Eventbrite (HTTP 502)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Salva capienza biglietti' }));
+    expect(await screen.findByText('Impossibile aggiornare la disponibilità dei biglietti Eventbrite (HTTP 400)')).toBeInTheDocument();
+    await user.click(within(registration()).getByRole('button', { name: 'Pubblica su Eventbrite' }));
+    await user.click(within(registration()).getByRole('button', { name: 'OK' }));
+    expect(await screen.findByText('Pubblicazione su Eventbrite non riuscita (HTTP 503)')).toBeInTheDocument();
+  });
+
   test('auto-fills every single-track talk with time-only editable slots and technical gaps', async () => {
     const user = userEvent.setup();
     const api = serveEvent(twoTalks());
@@ -329,10 +360,19 @@ describe('talk pool, schedule and registration pages', () => {
 
     // A select is named by its value, then its label.
     await user.click(within(poolList()).getByRole('button', { name: /Track$/ }));
-    await user.click(await screen.findByRole('option', { name: 'Room B' }));
+    expect((await screen.findAllByRole('option')).map(option => option.textContent)).toEqual(['Seleziona una track', 'Room A', 'Room B']);
+    await user.click(screen.getByRole('option', { name: 'Room B' }));
     await user.click(screen.getByRole('button', { name: 'Salva talk pool' }));
     await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
     expect(api.lastUpdate()!.talks![0].trackId).toBe('track-2');
+
+    // "Seleziona una track" leaves the talk without a track again, so the next save is refused, as before.
+    await user.click(within(poolList()).getByRole('button', { name: /Track$/ }));
+    await user.click(await screen.findByRole('option', { name: 'Seleziona una track' }));
+    expect(within(poolList()).getByRole('button', { name: /Track$/ })).not.toHaveTextContent('Room B');
+    await user.click(screen.getByRole('button', { name: 'Salva talk pool' }));
+    expect(await screen.findAllByText("Assegna ogni talk a una track prima di salvare l'agenda.")).toHaveLength(2);
+    expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1);
   });
 
   test('moves through one schedule page per track and shows only that track sessions', async () => {
@@ -368,7 +408,7 @@ describe('talk pool, schedule and registration pages', () => {
       ],
     }));
     renderAt('#agenda');
-    await screen.findByRole('heading', { level: 5, name: 'Lunch' });
+    await screen.findByRole('heading', { level: 4, name: 'Lunch' });
     const lunch = rowOf('Lunch');
     expect(within(lunch).getByRole('group', { name: 'Titolo e controlli della voce' })).toBeInTheDocument();
     const times = within(lunch).getByRole('group', { name: 'Orari della voce' });
@@ -381,7 +421,7 @@ describe('talk pool, schedule and registration pages', () => {
     expect(screen.getByRole('button', { name: 'Sposta in basso: Lunch' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Sposta in basso: Opening' }));
-    expect(within(schedule()).getAllByRole('heading', { level: 5 }).map(heading => heading.textContent)).toEqual(['Lunch', 'Opening']);
+    expect(within(schedule()).getAllByRole('heading', { level: 4 }).map(heading => heading.textContent)).toEqual(['Lunch', 'Opening']);
     expect(starts()).toEqual(['11:00', '12:00']);
     expect(screen.getByRole('button', { name: 'Sposta in alto: Opening' })).toHaveFocus();
     fireEvent.change(within(rowOf('Opening')).getByLabelText('Ora di fine'), { target: { value: '13:30' } });
@@ -455,11 +495,30 @@ describe('talk pool, schedule and registration pages', () => {
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
   });
 
+  test('keeps a cleared time as it is, so the agenda cannot be saved until it is set again, as before', async () => {
+    const user = userEvent.setup();
+    const api = serveEvent(twoTalks());
+    renderAt('#agenda');
+    await screen.findByText('First talk');
+    fireEvent.change(within(rowOf('Second talk')).getByLabelText('Ora di fine'), { target: { value: '' } });
+    expect(within(rowOf('Second talk')).getByLabelText('Ora di fine')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Salva agenda' }));
+    expect(await screen.findByText("Ogni voce dell'agenda deve avere un orario di fine valido successivo all'inizio.")).toBeInTheDocument();
+    expect(api.to('/Workshop/Update/')).toHaveLength(0);
+    fireEvent.change(within(rowOf('Second talk')).getByLabelText('Ora di fine'), { target: { value: '11:05' } });
+    await user.click(screen.getByRole('button', { name: 'Salva agenda' }));
+    await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
+  });
+
   test('sends only the Sessionize ID to the importer; imported talks replace the list while unsaved tracks stay', async () => {
     const user = userEvent.setup();
-    const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', sessionizeId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [{ sessionizeId: 'sp-1', name: 'Grace Hopper' }] }] });
+    const grace = { workshopSpeakerId: 'speaker-3', sessionizeId: 'sp-1', name: 'Grace Hopper', isActive: true };
+    const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', sessionizeId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-3', sessionizeId: 'sp-1', name: 'Grace Hopper' }] }] });
+    let imports = 0;
     const api = serveEvent(eventFixture({ talks: [{ workshopTalkId: 'local-1', title: 'Local talk', sessionType: 'talk', speakers: [] }] }), {
-      '/Workshop/ImportSessionize/': () => { api.store.record = imported; return jsonResponse({ importedTalks: 1, importedSpeakers: 1 }); },
+      '/Workshop/ImportSessionize/': () => { imports += 1; api.store.record = imported; return jsonResponse({ importedTalks: 1, importedSpeakers: 1 }); },
+      // The importer adds the matching speaker records: the speakers are read again afterwards.
+      '/Speaker/Get': () => jsonResponse(imports ? [...speakersFixture, grace] : speakersFixture),
     });
     renderAt('#talk-pool');
     await loaded();
@@ -480,9 +539,9 @@ describe('talk pool, schedule and registration pages', () => {
     expect(await screen.findByText('Talk importati da Sessionize e schede dei relatori corrispondenti aggiornate.')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Imported talk')).toBeVisible();
     expect(screen.queryByDisplayValue('Local talk')).not.toBeInTheDocument();
-    expect(screen.getByText('Grace Hopper')).toBeVisible();
+    expect(within(poolList()).getByRole('button', { name: 'Rimuovi Grace Hopper' })).toBeVisible();
     expect(screen.getByRole('textbox', { name: 'Nome track 2' })).toHaveValue('Room B');
-    expect(api.to('/Speaker/Get').length).toBeGreaterThanOrEqual(2);
+    expect(api.to('/Speaker/Get')).toHaveLength(2);
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
 
     // The imported talks are part of the record now: the final whole-record save keeps them.
@@ -492,6 +551,50 @@ describe('talk pool, schedule and registration pages', () => {
     await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
     await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
     expect(api.lastUpdate()!.talks!.map(talk => talk.title)).toEqual(['Imported talk']);
+  });
+
+  test('reports a failed speaker reload after the import with the previous message, keeping the imported talks', async () => {
+    const user = userEvent.setup();
+    let speakerCalls = 0;
+    const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [] }] });
+    const api = serveEvent(eventFixture(), {
+      '/Workshop/ImportSessionize/': () => { api.store.record = imported; return jsonResponse({}); },
+      '/Speaker/Get': () => (++speakerCalls === 1 ? jsonResponse([]) : new Response(null, { status: 500 })),
+    });
+    renderAt('#talk-pool');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /Importa da$/ }));
+    await user.click(await screen.findByRole('option', { name: 'Sessionize' }));
+    await user.type(screen.getByRole('textbox', { name: 'ID Sessionize' }), 'event123');
+    await user.click(screen.getByRole('button', { name: 'Importa talk' }));
+    expect(await screen.findByText('Impossibile ricaricare i relatori importati (HTTP 500)')).toBeInTheDocument();
+    expect(screen.queryByText(/Talk importati da Sessionize/)).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Imported talk')).toBeVisible();
+  });
+
+  test('words a refused Sessionize import with the server detail, else its fallback', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture(), { '/Workshop/ImportSessionize/': () => new Response(null, { status: 502 }) });
+    renderAt('#talk-pool');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /Importa da$/ }));
+    await user.click(await screen.findByRole('option', { name: 'Sessionize' }));
+    await user.type(screen.getByRole('textbox', { name: 'ID Sessionize' }), 'event123');
+    await user.click(screen.getByRole('button', { name: 'Importa talk' }));
+    expect(await screen.findByText('Importazione da Sessionize non riuscita (HTTP 502)')).toBeInTheDocument();
+  });
+
+  test('lists the directory speakers in the order the API returns them, as the previous autocomplete', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture(), {}, { speakers: [
+      { workshopSpeakerId: 's-z', name: 'Zoe Zanetti', isActive: true },
+      { workshopSpeakerId: 's-a', name: 'Anna Bianchi', isActive: true },
+      { workshopSpeakerId: 's-m', name: 'Marco Rossi', isActive: true },
+    ] });
+    renderAt('#talk-pool');
+    await loaded();
+    await user.click(within(createForm()).getByRole('button', { name: 'Seleziona uno o più relatori' }));
+    expect(within(createForm()).getAllByRole('checkbox').map(box => box.closest('label')?.textContent)).toEqual(['Zoe Zanetti', 'Anna Bianchi', 'Marco Rossi']);
   });
 
   test('creates a talk using a speaker selected from the admin speaker directory', async () => {
@@ -541,9 +644,10 @@ describe('talk pool, schedule and registration pages', () => {
     expect(within(listbox).getAllByRole('option').map(option => option.textContent)).toEqual(['Talk', 'Panel', 'Introduzione', 'Servizio', 'Altro']);
   });
 
-  test('matches a talk speaker to the directory by id or, without an id, by name', async () => {
-    serveEvent(eventFixture({ talks: [
-      { workshopTalkId: 'talk-1', title: 'By id', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-2', name: 'Someone renamed' }] },
+  test('matches a talk speaker to the directory by id or, without an id, by name, and shows only those, as before', async () => {
+    const user = userEvent.setup();
+    const api = serveEvent(eventFixture({ talks: [
+      { workshopTalkId: 'talk-1', title: 'By id', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-2', name: 'Someone renamed' }, { workshopSpeakerId: 'gone', name: 'Not in the directory' }] },
       { workshopTalkId: 'talk-2', title: 'By name', sessionType: 'talk', speakers: [{ name: 'Ada Lovelace' }] },
     ] }));
     renderAt('#talk-pool');
@@ -551,6 +655,12 @@ describe('talk pool, schedule and registration pages', () => {
     const list = poolList();
     expect(within(list).getByRole('button', { name: 'Rimuovi Alan Turing' })).toBeInTheDocument();
     expect(within(list).getByRole('button', { name: 'Rimuovi Ada Lovelace' })).toBeInTheDocument();
+    expect(within(list).queryByText('Not in the directory')).not.toBeInTheDocument();
+    // Choosing speakers replaces the talk's list with the chosen directory speakers.
+    await user.click(within(list).getByRole('button', { name: 'Rimuovi Alan Turing' }));
+    await user.click(screen.getByRole('button', { name: 'Salva talk pool' }));
+    await waitFor(() => expect(api.lastUpdate()).toBeDefined());
+    expect(api.lastUpdate()!.talks![0].speakers).toEqual([]);
   });
 
   test('edits and removes talks inline in the pool', async () => {
@@ -577,19 +687,30 @@ describe('tracks step', () => {
     { workshopTrackId: 'k3', title: 'Keynote', startTime: '2024-12-03T09:00:00Z', endTime: '2024-12-03T10:00:00Z', level: 1, speakers: [], speakersName: 'Grace Hopper' },
   ];
 
-  test('lists the tracks with their stored UTC times, level, speakers and abstract, and offers Aggiungi', async () => {
+  test('lists the tracks as the previous accordion: summary rows, one open at a time with stored UTC times, level, speakers and abstract', async () => {
+    const user = userEvent.setup();
     serveEvent(eventFixture({ tracks }));
     renderAt('#tracks');
     const panel = await screen.findByRole('region', { name: 'Tracks' });
-    const rows = within(panel).getAllByRole('listitem');
-    expect(rows.map(row => within(row).getByRole('heading', { level: 4 }).textContent)).toEqual(['Registrazione', 'Intro a Blazor', 'Keynote']);
-    expect(within(rows[1]).getByText('15/03/2024, 09:00')).toBeInTheDocument();
-    expect(within(rows[1]).getByText('15/03/2024, 10:00')).toBeInTheDocument();
-    expect(within(rows[1]).getByText('Livello').nextElementSibling).toHaveTextContent('2');
-    expect(within(rows[1]).getByText('Relatori').nextElementSibling).toHaveTextContent('Ada Lovelace');
-    expect(within(rows[1]).getByText('Abstract').nextElementSibling).toHaveTextContent('Componenti.');
-    expect(within(rows[0]).queryByText('Relatori')).not.toBeInTheDocument();
-    expect(within(rows[2]).getByText('03/12/2024, 09:00')).toBeInTheDocument();
+    const triggers = within(panel).getAllByRole('heading', { level: 3 }).map(heading => within(heading).getByRole('button'));
+    expect(triggers.map(trigger => trigger.textContent)).toEqual(['Registrazione', 'Intro a Blazor', 'Keynote']);
+    expect(triggers.every(trigger => trigger.getAttribute('aria-expanded') === 'false')).toBe(true);
+    within(panel).getAllByText('Livello').forEach(term => expect(term).not.toBeVisible());
+    const rowOfTrack = (title: string) => within(panel).getByRole('button', { name: title }).closest('.group') as HTMLElement;
+
+    await user.click(triggers[1]);
+    expect(triggers[1]).toHaveAttribute('aria-expanded', 'true');
+    const second = rowOfTrack('Intro a Blazor');
+    expect(within(second).getByText('15/03/2024, 09:00')).toBeVisible();
+    expect(within(second).getByText('15/03/2024, 10:00')).toBeVisible();
+    expect(within(second).getByText('Livello').nextElementSibling).toHaveTextContent('2');
+    expect(within(second).getByText('Relatori').nextElementSibling).toHaveTextContent('Ada Lovelace');
+    expect(within(second).getByText('Abstract').nextElementSibling).toHaveTextContent('Componenti.');
+    expect(within(rowOfTrack('Registrazione')).queryByText('Relatori')).not.toBeInTheDocument();
+
+    await user.click(triggers[2]);
+    expect(triggers[1]).toHaveAttribute('aria-expanded', 'false');
+    expect(within(rowOfTrack('Keynote')).getByText('03/12/2024, 09:00')).toBeVisible();
     expect(screen.queryByText("Data diversa dall'evento")).not.toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'Aggiungi' })).toBeEnabled();
 
@@ -619,7 +740,7 @@ describe('tracks step', () => {
     expect(added).toHaveLength(3);
     expect(added[2]).toMatchObject({ workshopTrackId: '00000000-0000-0000-0000-000000000000', title: 'Chiusura', startTime: '2024-03-15T11:00:00.000Z', endTime: '2024-03-15T11:30:00.000Z', level: 0, speakers: ['speaker-2'], speakersName: 'Alan Turing', image: '' });
     expect(api.lastUpdate()!.title).toBe('Test Workshop');
-    expect(await screen.findByText('Track aggiunta')).toBeInTheDocument();
+    expect(await screen.findByText('Track aggiunta correttamente')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     const putIndex = api.calls.findIndex(call => call.url.includes('/Workshop/Update/'));
     expect(api.calls.slice(putIndex).some(call => call.url.includes('/Workshop/Get/w1') && call.method === 'GET')).toBe(true);
@@ -631,12 +752,34 @@ describe('tracks step', () => {
     await user.type(within(dialog).getByRole('textbox', { name: 'Titolo' }), ' WebAssembly');
     await user.click(within(dialog).getByRole('button', { name: 'Salva track' }));
     await waitFor(() => expect(api.lastUpdate()!.tracks!.find(track => track.workshopTrackId === 'k2')).toMatchObject({ title: 'Intro a Blazor WebAssembly', speakers: ['speaker-1'], level: 2 }));
-    expect(await screen.findByText('Track aggiornata')).toBeInTheDocument();
+    expect(await screen.findByText('Track aggiornata correttamente')).toBeInTheDocument();
 
     await user.click(within(panel).getByRole('button', { name: 'Elimina: Registrazione' }));
     expect(within(panel).getByRole('alert')).toHaveTextContent('Vuoi davvero eliminare questa track?');
     await user.click(within(panel).getByRole('button', { name: 'OK' }));
     await waitFor(() => expect(api.lastUpdate()!.tracks!.map(track => track.workshopTrackId)).toEqual(['k2', '00000000-0000-0000-0000-000000000000']));
-    expect(await screen.findByText('Track eliminata')).toBeInTheDocument();
+    expect(await screen.findByText('Track eliminata correttamente')).toBeInTheDocument();
+  });
+
+  test('reports a failed track save with the previous fixed message, whatever the server says', async () => {
+    const user = userEvent.setup();
+    serveEvent(eventFixture({ tracks: tracks.slice(0, 1) }), { '/Workshop/Update/': () => jsonResponse({ detail: 'Mongo down' }, 500) });
+    renderAt('#tracks');
+    const panel = await screen.findByRole('region', { name: 'Tracks' });
+    await user.click(within(panel).getByRole('button', { name: 'Aggiungi' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Aggiungi nuova track' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Titolo' }), 'Chiusura');
+    fireEvent.change(within(dialog).getByLabelText('Ora di inizio *'), { target: { value: '2024-03-15T11:00' } });
+    fireEvent.change(within(dialog).getByLabelText('Ora di fine *'), { target: { value: '2024-03-15T11:30' } });
+    await user.click(within(dialog).getByRole('button', { name: 'Salva track' }));
+    expect(await screen.findByText("Errore nell'aggiunta della track")).toBeInTheDocument();
+    expect(screen.queryByText('Mongo down')).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Annulla' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(within(panel).getByRole('button', { name: 'Modifica: Registrazione' }));
+    dialog = await screen.findByRole('dialog', { name: 'Modifica track' });
+    await user.click(within(dialog).getByRole('button', { name: 'Salva track' }));
+    expect(await screen.findByText("Errore nell'aggiornamento della track")).toBeInTheDocument();
   });
 });

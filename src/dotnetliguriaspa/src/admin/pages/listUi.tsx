@@ -152,6 +152,7 @@ export function ConfirmDialog({ isOpen, onOpenChange, title, children, confirmLa
 }
 
 const noticeTone = {
+  info: 'bg-cyan-50 text-cyan-700',
   ok: 'bg-basil-50 text-basil-700',
   warn: 'bg-[#fff4e5] text-[#8a4b00]',
   danger: 'bg-[#fdecea] text-[#912018]',
