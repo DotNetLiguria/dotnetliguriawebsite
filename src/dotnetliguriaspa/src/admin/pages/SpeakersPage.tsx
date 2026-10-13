@@ -12,7 +12,9 @@ interface Talk { title: string; workshopId: string; event: string; date: string 
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const pill = `inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-4 font-semibold text-navy transition-colors data-[hovered]:border-cyan-200 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white ${focusRing}`;
-const errorText = (error: unknown) => (error instanceof AdminApiError ? error.message : 'Errore di rete');
+const errorText = (error: unknown) => error instanceof AdminApiError
+  ? error.status === 409 ? 'Esiste già un relatore con questo nome.' : error.message
+  : 'Errore di rete';
 
 function talksBySpeaker(workshops: AdminWorkshop[]) {
   const map = new Map<string, Talk[]>();
@@ -198,6 +200,7 @@ export default function SpeakersPage() {
   const { id } = useParams<{ id?: string }>();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const api = useAdminFetch();
   const [speakersLoad, reloadSpeakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get');
   const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
   const speakers = speakersLoad.state === 'ready' ? speakersLoad.data : null;
@@ -212,6 +215,7 @@ export default function SpeakersPage() {
     for (const s of speakers ?? []) map.set(nameKey(s.name), [...(map.get(nameKey(s.name)) ?? []), s]);
     return map;
   }, [speakers]);
+  const duplicateCount = useMemo(() => [...groups.values()].filter(group => group.length > 1).length, [groups]);
   const sorted = useMemo(() => [...(speakers ?? [])].sort((a, b) =>
     (sortBy === 'talk' ? (talks.get(nameKey(b.name))?.length ?? 0) - (talks.get(nameKey(a.name))?.length ?? 0) : 0)
     || clean(a.name).localeCompare(clean(b.name), 'it')), [speakers, talks, sortBy]);
@@ -222,13 +226,28 @@ export default function SpeakersPage() {
   const listSearch = params.toString() ? `?${params.toString()}` : '';
   const close = () => navigate(`/admin/speakers/${listSearch}`);
   const selected = id && id !== 'new' ? speakers?.find(s => s.workshopSpeakerId === id) : undefined;
+  const reconcileDuplicates = async () => {
+    if (!window.confirm(`Unire i ${duplicateCount} gruppi di doppioni? I talk saranno collegati alla scheda risultante.`)) return;
+    try {
+      const result = await api<{ removedSpeakers: number }>('/Speaker/ReconcileDuplicates', { method: 'POST' });
+      notify('Doppioni uniti', { description: `${result?.removedSpeakers ?? 0} schede rimosse.` });
+      reloadSpeakers();
+    } catch (error) {
+      notify('Unione non riuscita', { description: errorText(error), kind: 'error' });
+    }
+  };
 
   return (
     <>
       <PageHeader
         title="Relatori"
         description={speakers ? `${plural(speakers.length, 'relatore', 'relatori')}${photos ? `, ${speakers.length - missing.length} con foto` : ''}.` : undefined}
-        actions={<Link to={`/admin/speakers/new${listSearch}`} className={btn.primary}><AdminIcon name="plus" />Nuovo relatore</Link>}
+        actions={
+          <>
+            {duplicateCount > 0 && <Button onPress={() => void reconcileDuplicates()} className={btn.secondary}><AdminIcon name="users" />Unisci doppioni</Button>}
+            <Link to={`/admin/speakers/new${listSearch}`} className={btn.primary}><AdminIcon name="plus" />Nuovo relatore</Link>
+          </>
+        }
       />
       <div className="mt-6 flex flex-wrap items-center gap-2.5" role="search">
         <SearchField aria-label="Cerca un relatore" value={query} onChange={setQuery} className="relative w-full sm:w-80">

@@ -93,9 +93,8 @@ describe('talk pool, schedule and registration pages', () => {
     await loaded();
     const link = screen.getByRole('textbox', { name: 'URL di prenotazione e cancellazione del posto' });
     expect(link).toHaveValue('https://old.example.test/signup');
-    await user.clear(link);
-    await user.type(link, 'https://booking.example.test/event/1');
-    await user.type(screen.getByRole('textbox', { name: 'Note per i partecipanti' }), 'Bring your laptop');
+    fireEvent.change(link, { target: { value: 'https://booking.example.test/event/1' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note per i partecipanti' }), { target: { value: 'Bring your laptop' } });
     await user.click(screen.getByRole('button', { name: 'Salva iscrizione e agenda' }));
     await waitFor(() => expect(api.lastUpdate()).toMatchObject({ bookingServiceUrl: 'https://booking.example.test/event/1', externalRegistration: true, externalRegistrationLink: 'https://booking.example.test/event/1', attendeeNotes: 'Bring your laptop' }));
   });
@@ -510,12 +509,13 @@ describe('talk pool, schedule and registration pages', () => {
     await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
   });
 
-  test('sends only the Sessionize ID to the importer; imported talks replace the list while unsaved tracks stay', async () => {
+  test('previews and imports Sessionize talks; imported talks replace the list while unsaved tracks stay', async () => {
     const user = userEvent.setup({ delay: null });
     const grace = { workshopSpeakerId: 'speaker-3', sessionizeId: 'sp-1', name: 'Grace Hopper', isActive: true };
     const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', sessionizeId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-3', sessionizeId: 'sp-1', name: 'Grace Hopper' }] }] });
     let imports = 0;
     const api = serveEvent(eventFixture({ talks: [{ workshopTalkId: 'local-1', title: 'Local talk', sessionType: 'talk', speakers: [] }] }), {
+      '/Workshop/PreviewSessionize/': () => jsonResponse([]),
       '/Workshop/ImportSessionize/': () => { imports += 1; api.store.record = imported; return jsonResponse({ importedTalks: 1, importedSpeakers: 1 }); },
       // The importer adds the matching speaker records: the speakers are read again afterwards.
       '/Speaker/Get': () => jsonResponse(imports ? [...speakersFixture, grace] : speakersFixture),
@@ -524,17 +524,17 @@ describe('talk pool, schedule and registration pages', () => {
     await loaded();
     expect(screen.getByDisplayValue('Local talk')).toBeInTheDocument();
     setTrackCount(2);
-    await user.clear(screen.getByRole('textbox', { name: 'Nome track 2' }));
-    await user.type(screen.getByRole('textbox', { name: 'Nome track 2' }), 'Room B');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nome track 2' }), { target: { value: 'Room B' } });
     expect(screen.queryByRole('button', { name: 'Importa talk' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Importa da$/ }));
     await user.click(await screen.findByRole('option', { name: 'Sessionize' }));
     expect(screen.getByRole('button', { name: 'Importa talk' })).toBeDisabled();
-    await user.type(screen.getByRole('textbox', { name: 'ID Sessionize' }), 'event123');
+    fireEvent.change(screen.getByRole('textbox', { name: 'ID Sessionize' }), { target: { value: 'event123' } });
     await user.click(screen.getByRole('button', { name: 'Importa talk' }));
 
+    await waitFor(() => expect(api.to('/Workshop/PreviewSessionize/w1', 'POST')).toHaveLength(1));
     await waitFor(() => expect(api.to('/Workshop/ImportSessionize/w1', 'POST')).toHaveLength(1));
-    expect(api.to('/Workshop/ImportSessionize/w1')[0].body).toEqual({ sessionizeId: 'event123' });
+    expect(api.to('/Workshop/ImportSessionize/w1')[0].body).toEqual({ sessionizeId: 'event123', speakerOverwriteDecisions: {} });
     await waitFor(() => expect(api.to('/Workshop/Get/').length).toBeGreaterThanOrEqual(2));
     expect(await screen.findByText('Talk importati da Sessionize e schede dei relatori corrispondenti aggiornate.')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Imported talk')).toBeVisible();
@@ -551,6 +551,34 @@ describe('talk pool, schedule and registration pages', () => {
     await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
     await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
     expect(api.lastUpdate()!.talks!.map(talk => talk.title)).toEqual(['Imported talk']);
+  }, 10000);
+
+  test('asks separately about each speaker collision and sends the selected decisions', async () => {
+    const user = userEvent.setup({ delay: null });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(true).mockReturnValueOnce(false);
+    const api = serveEvent(eventFixture(), {
+      '/Workshop/PreviewSessionize/': () => jsonResponse([
+        { sessionizeId: 'session-a', importedName: 'Ada Lovelace', existingName: 'Ada Lovelace' },
+        { sessionizeId: 'session-b', importedName: 'Grace Hopper', existingName: 'Grace Hopper' },
+      ]),
+      '/Workshop/ImportSessionize/': () => jsonResponse({ importedTalks: 1, importedSpeakers: 2 }),
+    });
+    renderAt('#talk-pool');
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /Importa da$/ }));
+    await user.click(await screen.findByRole('option', { name: 'Sessionize' }));
+    await user.type(screen.getByRole('textbox', { name: 'ID Sessionize' }), 'event123');
+    await user.click(screen.getByRole('button', { name: 'Importa talk' }));
+
+    await waitFor(() => expect(api.to('/Workshop/ImportSessionize/w1', 'POST')).toHaveLength(1));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(confirm.mock.calls[0][0]).toContain('Ada Lovelace');
+    expect(confirm.mock.calls[1][0]).toContain('Grace Hopper');
+    expect(api.to('/Workshop/ImportSessionize/w1')[0].body).toEqual({
+      sessionizeId: 'event123',
+      speakerOverwriteDecisions: { 'session-a': true, 'session-b': false },
+    });
+    confirm.mockRestore();
   });
 
   test('reports a failed speaker reload after the import with the previous message, keeping the imported talks', async () => {
@@ -558,6 +586,7 @@ describe('talk pool, schedule and registration pages', () => {
     let speakerCalls = 0;
     const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [] }] });
     const api = serveEvent(eventFixture(), {
+      '/Workshop/PreviewSessionize/': () => jsonResponse([]),
       '/Workshop/ImportSessionize/': () => { api.store.record = imported; return jsonResponse({}); },
       '/Speaker/Get': () => (++speakerCalls === 1 ? jsonResponse([]) : new Response(null, { status: 500 })),
     });
@@ -574,7 +603,10 @@ describe('talk pool, schedule and registration pages', () => {
 
   test('words a refused Sessionize import with the server detail, else its fallback', async () => {
     const user = userEvent.setup({ delay: null });
-    serveEvent(eventFixture(), { '/Workshop/ImportSessionize/': () => new Response(null, { status: 502 }) });
+    serveEvent(eventFixture(), {
+      '/Workshop/PreviewSessionize/': () => jsonResponse([]),
+      '/Workshop/ImportSessionize/': () => new Response(null, { status: 502 }),
+    });
     renderAt('#talk-pool');
     await loaded();
     await user.click(screen.getByRole('button', { name: /Importa da$/ }));

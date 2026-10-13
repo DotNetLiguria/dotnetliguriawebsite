@@ -1,7 +1,7 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { jsonResponse, mockApi, render, screen, waitFor, within } from '../../test-utils';
+import { fireEvent, jsonResponse, mockApi, render, screen, waitFor, within } from '../../test-utils';
 import { contentUrl } from '../../site/siteApi';
 import { AdminToastRegion, adminToasts } from '../toasts';
 import BoardPage from './BoardPage';
@@ -29,6 +29,19 @@ function serve(initial: Member[] = [gambaro, rialdi, baroni], options: { failUpd
       writes.push({ id, method: init?.method, body });
       if (options.failUpdates) return new Response(null, { status: 500 });
       db[db.findIndex(member => member.boardId === id)] = body;
+      return new Response(null, { status: 204 });
+    },
+    '/Board/Post': (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Member;
+      const created = { ...body, boardId: 'b-new' };
+      writes.push({ id: 'b-new', method: init?.method, body: created });
+      db.push(created);
+      return jsonResponse(created, 201);
+    },
+    '/Board/Delete/': (url: string, init?: RequestInit) => {
+      const id = url.split('/Board/Delete/')[1];
+      writes.push({ id, method: init?.method, body: db.find(member => member.boardId === id) ?? { boardId: id } });
+      db.splice(db.findIndex(member => member.boardId === id), 1);
       return new Response(null, { status: 204 });
     },
     '/Board/Get': () => jsonResponse(db),
@@ -140,13 +153,11 @@ describe('<BoardPage />', () => {
     await user.click(within(card).getByRole('button', { name: 'Modifica' }));
 
     const role = within(card).getByRole('textbox', { name: 'Ruolo' });
-    await user.clear(role);
-    await user.type(role, 'Presidente onorario');
-    await user.clear(within(card).getByRole('textbox', { name: 'Email' }));
-    await user.type(within(card).getByRole('textbox', { name: 'GitHub' }), 'https://github.com/raffaeler');
-    await user.type(within(card).getByRole('textbox', { name: 'Presentazione breve' }), ' Docente e speaker.');
-    await user.clear(within(card).getByRole('spinbutton', { name: /Ordine/ }));
-    await user.type(within(card).getByRole('spinbutton', { name: /Ordine/ }), '5');
+    fireEvent.change(role, { target: { value: 'Presidente onorario' } });
+    fireEvent.change(within(card).getByRole('textbox', { name: 'Email' }), { target: { value: '' } });
+    fireEvent.change(within(card).getByRole('textbox', { name: 'GitHub' }), { target: { value: 'https://github.com/raffaeler' } });
+    fireEvent.change(within(card).getByRole('textbox', { name: 'Presentazione breve' }), { target: { value: 'Sviluppa software dal 1987. Docente e speaker.' } });
+    fireEvent.change(within(card).getByRole('spinbutton', { name: /Ordine/ }), { target: { value: '5' } });
     await user.click(within(card).getByRole('switch', { name: 'Visibile sul sito' }));
     await user.click(within(card).getByRole('button', { name: 'Salva' }));
 
@@ -159,10 +170,42 @@ describe('<BoardPage />', () => {
       shortBio: 'Sviluppa software dal 1987. Docente e speaker.', order: 5, isActive: false,
       lInkedinUrl: null, twitterUrl: null, faceboookUrl: null, instagramUrl: null,
     });
+
     expect(await screen.findByText('Membro aggiornato')).toBeInTheDocument();
     // Back to the read view, showing what the server now holds.
     expect(await within(card).findByRole('button', { name: 'Modifica' })).toBeInTheDocument();
     expect(within(card).getByText('Nascosto dal sito')).toBeInTheDocument();
+  });
+
+  test('creates a board member from the dashboard and reloads the database list', async () => {
+    const user = userEvent.setup({ delay: null });
+    const { writes } = serve([]);
+    renderAt('/admin/board/new');
+    const dialog = await screen.findByRole('dialog', { name: 'Nuovo membro del board' });
+    await user.type(within(dialog).getByRole('textbox', { name: /Nome/ }), 'Grace Hopper');
+    await user.click(within(dialog).getByRole('button', { name: 'Salva' }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({ id: 'b-new', method: 'POST', body: { name: 'Grace Hopper', isActive: true } });
+    expect(await screen.findByText('Membro creato')).toBeInTheDocument();
+    await user.click(within(await screen.findByRole('dialog', { name: 'Grace Hopper' })).getByRole('button', { name: 'Chiudi la scheda' }));
+    await waitFor(() => expect(rowNames()).toEqual(['Grace Hopper']));
+  });
+
+  test('deletes a board member only after confirmation', async () => {
+    const user = userEvent.setup({ delay: null });
+    const { writes } = serve();
+    renderAt('/admin/board/b-rialdi');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    await user.click(within(dialog).getByRole('button', { name: /Elimina/ }));
+    expect(within(dialog).getByText('Eliminare Raffaele Rialdi?')).toBeInTheDocument();
+    expect(writes).toHaveLength(0);
+    await user.click(within(dialog).getByRole('button', { name: 'Elimina' }));
+
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({ id: 'b-rialdi', method: 'DELETE' });
+    expect(await screen.findByText('Membro eliminato')).toBeInTheDocument();
+    await waitFor(() => expect(rowNames()).toEqual(['Alessandro Gambaro', 'Alberto Baroni']));
   });
 
   test('opens straight in the form from the row action and refuses a missing name, a bad link and a bad order', async () => {

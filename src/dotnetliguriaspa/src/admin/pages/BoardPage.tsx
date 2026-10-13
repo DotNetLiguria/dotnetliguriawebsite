@@ -20,20 +20,25 @@ type Draft = {
   order: string; isActive: boolean;
 } & Record<LinkKey, string>;
 
-const draftOf = (member: AdminBoardMember): Draft => ({
-  name: clean(member.name), description: clean(member.description), email: clean(member.email),
-  shortBio: member.shortBio ?? '', fullBio: member.fullBio ?? '', profileImageUrl: clean(member.profileImageUrl),
-  order: String(member.order ?? 0), isActive: isVisible(member),
-  blogHtml: clean(member.blogHtml), lInkedinUrl: clean(member.lInkedinUrl), gitHubUrl: clean(member.gitHubUrl),
-  twitterUrl: clean(member.twitterUrl), faceboookUrl: clean(member.faceboookUrl), instagramUrl: clean(member.instagramUrl),
+const draftOf = (member?: AdminBoardMember): Draft => ({
+  name: clean(member?.name), description: clean(member?.description), email: clean(member?.email),
+  shortBio: member?.shortBio ?? '', fullBio: member?.fullBio ?? '', profileImageUrl: clean(member?.profileImageUrl),
+  order: String(member?.order ?? 0), isActive: member ? isVisible(member) : true,
+  blogHtml: clean(member?.blogHtml), lInkedinUrl: clean(member?.lInkedinUrl), gitHubUrl: clean(member?.gitHubUrl),
+  twitterUrl: clean(member?.twitterUrl), faceboookUrl: clean(member?.faceboookUrl), instagramUrl: clean(member?.instagramUrl),
 });
 
 const orderError = (value: string) => (/^\d+$/.test(value.trim()) ? null : 'Indica un numero intero, zero o maggiore.');
 
 /** One form, one save: the whole record goes back, with the fields the form does not show left as they were. */
-function BoardForm({ member, onCancel, onSaved }: { member: AdminBoardMember; onCancel: () => void; onSaved: () => void }) {
+function BoardForm({ member, initialOrder = 0, onCancel, onSaved }: {
+  member?: AdminBoardMember;
+  initialOrder?: number;
+  onCancel: () => void;
+  onSaved: (id: string) => void;
+}) {
   const api = useAdminFetch();
-  const [draft, setDraft] = useState<Draft>(() => draftOf(member));
+  const [draft, setDraft] = useState<Draft>(() => ({ ...draftOf(member), order: String(member?.order ?? initialOrder) }));
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
 
@@ -41,16 +46,22 @@ function BoardForm({ member, onCancel, onSaved }: { member: AdminBoardMember; on
     event.preventDefault();
     setSaving(true);
     const body = {
-      ...member,
+      ...(member ?? {}),
       name: clean(draft.name), description: orNull(draft.description), email: orNull(draft.email),
       shortBio: paragraphs(draft.shortBio), fullBio: paragraphs(draft.fullBio), profileImageUrl: orNull(draft.profileImageUrl),
       order: Number(draft.order), isActive: draft.isActive,
       ...Object.fromEntries(LINKS.map(link => [link.key, orNull(draft[link.key])])),
     };
     try {
-      await api(`/Board/Update/${member.boardId}`, { method: 'PUT', body: JSON.stringify(body) });
-      notify('Membro aggiornato', { description: body.name });
-      onSaved();
+      if (member) {
+        await api(`/Board/Update/${member.boardId}`, { method: 'PUT', body: JSON.stringify(body) });
+        notify('Membro aggiornato', { description: body.name });
+        onSaved(member.boardId);
+      } else {
+        const created = await api<AdminBoardMember>('/Board/Post', { method: 'POST', body: JSON.stringify(body) });
+        notify('Membro creato', { description: body.name });
+        onSaved(created?.boardId ?? '');
+      }
     } catch (error) {
       notify('Salvataggio non riuscito', { description: errorText(error), kind: 'error' });
     } finally {
@@ -98,14 +109,18 @@ function Detail({ title, children }: { title: string; children: React.ReactNode 
 
 const none = (text: string) => <span className="text-muted">{text}</span>;
 
-function BoardCard({ member, position, count, initialMode, onChanged }: {
+function BoardCard({ member, position, count, initialMode, onChanged, onDeleted }: {
   member: AdminBoardMember;
   position: number;
   count: number;
   initialMode: 'view' | 'edit';
   onChanged: () => void;
+  onDeleted: () => void;
 }) {
+  const api = useAdminFetch();
   const [mode, setMode] = useState(initialMode);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const name = nameOf(member);
   const role = roleOf(member);
   const photo = boardPhoto(member.profileImageUrl);
@@ -162,7 +177,34 @@ function BoardCard({ member, position, count, initialMode, onChanged }: {
               <div><dt className="font-semibold text-muted">Email</dt><dd className="break-all">{clean(member.email) || '—'}</dd></div>
               <div><dt className="font-semibold text-muted">Posizione nel team</dt><dd>{position} di {count} (ordine {member.order ?? 0})</dd></div>
             </dl>
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+            {confirmDelete && (
+              <div role="alert" className="rounded-xl border border-[#b42318] p-4">
+                <p className="font-bold text-[#b42318]">Eliminare {name}?</p>
+                <p className="text-sm text-muted">Il membro viene rimosso dal database e dalla sezione Team del sito.</p>
+                <div className="mt-3 flex flex-wrap justify-end gap-2">
+                  <Button onPress={() => setConfirmDelete(false)} className={btn.ghost} autoFocus>Annulla</Button>
+                  <Button
+                    onPress={async () => {
+                      setDeleting(true);
+                      try {
+                        await api(`/Board/Delete/${member.boardId}`, { method: 'DELETE' });
+                        notify('Membro eliminato', { description: name });
+                        onDeleted();
+                      } catch (error) {
+                        notify('Eliminazione non riuscita', { description: errorText(error), kind: 'error' });
+                        setDeleting(false);
+                      }
+                    }}
+                    isDisabled={deleting}
+                    className={btn.danger}
+                  >
+                    {deleting ? 'Eliminazione…' : 'Elimina'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
+              <Button onPress={() => setConfirmDelete(true)} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
               <Button onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
             </div>
           </>
@@ -331,7 +373,12 @@ export default function BoardPage() {
       <PageHeader
         title="Board"
         description={members ? `${plural(members.length, 'membro', 'membri')}. L'ordine dell'elenco è quello della sezione Team del sito.` : undefined}
-        actions={<a href="/#team" target="_blank" rel="noopener noreferrer" className={btn.secondary}>Vedi il team sul sito<span className="sr-only"> (si apre in una nuova scheda)</span><AdminIcon name="external" /></a>}
+        actions={
+          <>
+            <Link to="/admin/board/new" className={btn.primary}><AdminIcon name="plus" />Nuovo membro</Link>
+            <a href="/#team" target="_blank" rel="noopener noreferrer" className={btn.secondary}>Vedi il team sul sito<span className="sr-only"> (si apre in una nuova scheda)</span><AdminIcon name="external" /></a>
+          </>
+        }
       />
       <p role="status" aria-live="polite" className="sr-only">{announcement}</p>
 
@@ -352,8 +399,22 @@ export default function BoardPage() {
         </Panel>
       )}
 
-      <RecordDialog isOpen={!!id} onClose={close} label={selected ? nameOf(selected) : 'Scheda del membro'}>
-        {selected ? (
+      <RecordDialog isOpen={!!id} onClose={close} label={id === 'new' ? 'Nuovo membro del board' : selected ? nameOf(selected) : 'Scheda del membro'}>
+        {id === 'new' ? (
+          <>
+            <div className="flex items-center justify-between border-b border-line p-5 sm:p-6">
+              <Heading slot="title" className="text-2xl font-bold">Nuovo membro del board</Heading>
+              <Button slot="close" aria-label="Chiudi" className={btn.icon}><AdminIcon name="x" /></Button>
+            </div>
+            <div className="p-5 sm:p-6">
+              <BoardForm
+                initialOrder={(members ?? []).reduce((order, member) => Math.max(order, member.order ?? 0), 0) + 1}
+                onCancel={close}
+                onSaved={newId => { reload(); navigate(newId ? `/admin/board/${newId}` : '/admin/board/'); }}
+              />
+            </div>
+          </>
+        ) : selected ? (
           <BoardCard
             key={`${selected.boardId}-${params.get('azione') ?? ''}`}
             member={selected}
@@ -361,6 +422,7 @@ export default function BoardPage() {
             count={members?.length ?? 0}
             initialMode={params.get('azione') === 'modifica' ? 'edit' : 'view'}
             onChanged={reload}
+            onDeleted={() => { reload(); close(); }}
           />
         ) : <MissingCard listState={load.state} icon="users" title="Membro non trovato" />}
       </RecordDialog>

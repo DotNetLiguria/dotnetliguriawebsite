@@ -109,7 +109,21 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
     setBusy(true);
     try {
       const workshopPath = encodeURIComponent(workshop.workshopId);
-      await worded(api(`/Workshop/ImportSessionize/${workshopPath}`, { method: 'POST', body: JSON.stringify({ sessionizeId: sessionizeId.trim() }) }), 'Importazione da Sessionize non riuscita');
+      const request = { sessionizeId: sessionizeId.trim() };
+      const collisions = await worded(api<{ sessionizeId: string; importedName: string; existingName: string }[]>(
+        `/Workshop/PreviewSessionize/${workshopPath}`,
+        { method: 'POST', body: JSON.stringify(request) },
+      ), 'Anteprima Sessionize non riuscita') ?? [];
+      const speakerOverwriteDecisions: Record<string, boolean> = {};
+      for (const collision of collisions) {
+        speakerOverwriteDecisions[collision.sessionizeId] = window.confirm(
+          `Il relatore "${collision.importedName}" esiste già come "${collision.existingName}". OK: sovrascrivi con i dati di Sessionize. Annulla: mantieni i dati locali.`,
+        );
+      }
+      await worded(api(`/Workshop/ImportSessionize/${workshopPath}`, {
+        method: 'POST',
+        body: JSON.stringify({ ...request, speakerOverwriteDecisions }),
+      }), 'Importazione da Sessionize non riuscita');
       const refreshed = await worded(api<EventRecord>(`/Workshop/Get/${workshopPath}`), 'Impossibile ricaricare i talk importati');
       // The imported talks replace the local ones; unsaved tracks and items stay. The page record follows the
       // server's talks too, so the final "Salva modifiche" cannot revert the import.

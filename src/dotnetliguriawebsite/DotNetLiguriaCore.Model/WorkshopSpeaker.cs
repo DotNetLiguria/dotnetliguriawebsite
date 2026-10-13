@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using System.Text.Json.Serialization;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace DotNetLiguriaCore.Model
 {
@@ -13,5 +14,8 @@ namespace DotNetLiguriaCore.Model
         public bool IsActive { get; set; }
         public string? Description { get; set; }
         public string? Email { get; set; }
+        [BsonElement("NormalizedName")]
+        [JsonIgnore]
+        public string NormalizedName { get; set; } = string.Empty;
     }
 }

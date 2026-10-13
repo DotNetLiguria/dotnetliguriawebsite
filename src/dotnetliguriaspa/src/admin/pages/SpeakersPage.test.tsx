@@ -51,6 +51,31 @@ describe('<SpeakersPage />', () => {
     expect(rowNames()).toEqual(['Giampaolo Tucci']);
   });
 
+  test('reconciles duplicate records only after confirmation and reloads the list', async () => {
+    const user = userEvent.setup({ delay: null });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    let reconciled = false;
+    let reconcileCalls = 0;
+    mockApi({
+      '/Speaker/ReconcileDuplicates': () => { reconcileCalls += 1; reconciled = true; return jsonResponse({ removedSpeakers: 1 }); },
+      '/Speaker/Get': () => reconciled ? jsonResponse(speakers.filter(speaker => speaker.workshopSpeakerId !== 's-dup2')) : jsonResponse(speakers),
+      '/Workshop/Get': workshops,
+      '/Contents/': contents,
+    });
+    renderAt('/admin/speakers/');
+    await screen.findByText('4 relatori, 1 con foto.');
+
+    await user.click(screen.getByRole('button', { name: 'Unisci doppioni' }));
+    expect(reconcileCalls).toBe(0);
+    await user.click(screen.getByRole('button', { name: 'Unisci doppioni' }));
+    await waitFor(() => expect(reconcileCalls).toBe(1));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText('1 schede rimosse.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('3 relatori, 1 con foto.')).toBeInTheDocument());
+    expect(screen.queryByText('Doppione?')).not.toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
   test('opens the speaker card as a dialog from its address and saves edits', async () => {
     const user = userEvent.setup({ delay: null });
     const saved: unknown[] = [];

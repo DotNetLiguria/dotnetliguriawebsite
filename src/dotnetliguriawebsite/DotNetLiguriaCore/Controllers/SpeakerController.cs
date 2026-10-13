@@ -72,7 +72,15 @@ namespace DotNetLiguriaCore.Controllers
         [HttpPost]
         public async Task<IActionResult> Post(WorkshopSpeaker newWorkshopSpeaker)
         {
-            await _speakerService.CreateAsync(newWorkshopSpeaker);
+            if (string.IsNullOrWhiteSpace(newWorkshopSpeaker.Name))
+            {
+                return BadRequest("A speaker name is required.");
+            }
+
+            if (!await _speakerService.CreateAsync(newWorkshopSpeaker))
+            {
+                return Conflict(new { message = "A speaker with this full name already exists." });
+            }
 
             return CreatedAtAction(nameof(Get), new { id = newWorkshopSpeaker.WorkshopSpeakerId }, newWorkshopSpeaker);
         }
@@ -90,7 +98,15 @@ namespace DotNetLiguriaCore.Controllers
 
             updatedWorkshopSpeacker.WorkshopSpeakerId = speacker.WorkshopSpeakerId;
 
-            await _speakerService.UpdateAsync(id, updatedWorkshopSpeacker);
+            if (string.IsNullOrWhiteSpace(updatedWorkshopSpeacker.Name))
+            {
+                return BadRequest("A speaker name is required.");
+            }
+
+            if (!await _speakerService.UpdateAsync(id, updatedWorkshopSpeacker))
+            {
+                return Conflict(new { message = "A speaker with this full name already exists." });
+            }
 
             return NoContent();
         }
@@ -109,6 +125,14 @@ namespace DotNetLiguriaCore.Controllers
             await _speakerService.RemoveAsync(id);
 
             return NoContent();
+        }
+
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
+        [HttpPost]
+        public async Task<IActionResult> ReconcileDuplicates()
+        {
+            var removed = await _speakerService.ReconcileDuplicatesAsync();
+            return Ok(new { removedSpeakers = removed });
         }
 
     }

@@ -125,6 +125,48 @@ namespace DotNetLiguriaCore.Controllers
 
         [HttpPost("{id}")]
         [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
+        public async Task<IActionResult> PreviewSessionize(Guid id, SessionizeImportRequest request, CancellationToken cancellationToken)
+        {
+            var workshop = await _workshopService.GetAsync(id);
+            if (workshop is null)
+            {
+                return NotFound();
+            }
+
+            SessionizeImportData import;
+            try
+            {
+                import = await _sessionizeImportService.ImportAsync(request.SessionizeId, cancellationToken);
+            }
+            catch (ArgumentException exception)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Sessionize URL",
+                    Detail = exception.Message,
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+            catch (HttpRequestException)
+            {
+                return Problem(
+                    detail: "Sessionize could not be reached or returned an unsuccessful response.",
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Sessionize import failed");
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return Problem(
+                    detail: "Sessionize returned data that could not be read.",
+                    statusCode: StatusCodes.Status502BadGateway,
+                    title: "Sessionize import failed");
+            }
+
+            return Ok(await _speakerService.GetSessionizeCollisionsAsync(import.Speakers));
+        }
+
+        [HttpPost("{id}")]
+        [Authorize(Policy = WebDevAdminAuthorizationOptions.PolicyName)]
         public async Task<IActionResult> ImportSessionize(Guid id, SessionizeImportRequest request, CancellationToken cancellationToken)
         {
             var workshop = await _workshopService.GetAsync(id);
@@ -162,7 +204,25 @@ namespace DotNetLiguriaCore.Controllers
                     title: "Sessionize import failed");
             }
 
-            var importedSpeakers = await _speakerService.UpsertSessionizeAsync(import.Speakers);
+            var collisions = await _speakerService.GetSessionizeCollisionsAsync(import.Speakers);
+            var overwriteDecisions = request.SpeakerOverwriteDecisions ?? [];
+            if (collisions.Any(collision =>
+                !overwriteDecisions.ContainsKey(collision.SessionizeId)))
+            {
+                return Conflict(collisions);
+            }
+
+            List<WorkshopSpeaker> importedSpeakers;
+            try
+            {
+                importedSpeakers = await _speakerService.UpsertSessionizeAsync(
+                    import.Speakers,
+                    overwriteDecisions);
+            }
+            catch (UnresolvedSpeakerCollisionException)
+            {
+                return Conflict(await _speakerService.GetSessionizeCollisionsAsync(import.Speakers));
+            }
             var speakersBySessionizeId = new Dictionary<string, WorkshopSpeaker>(StringComparer.Ordinal);
             foreach (var importedSpeaker in importedSpeakers)
             {
@@ -176,6 +236,9 @@ namespace DotNetLiguriaCore.Controllers
                 if (speaker.SessionizeId is not null && speakersBySessionizeId.TryGetValue(speaker.SessionizeId, out var savedSpeaker))
                 {
                     speaker.WorkshopSpeakerId = savedSpeaker.WorkshopSpeakerId;
+                    speaker.Name = savedSpeaker.Name;
+                    speaker.ImageUrl = savedSpeaker.ProfileImageUrl;
+                    speaker.Biography = savedSpeaker.Description;
                 }
             }
 

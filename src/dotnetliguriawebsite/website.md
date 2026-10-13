@@ -70,14 +70,24 @@ capacity updates below the currently observed sold and pending tickets. Image up
 is not supported; see the linked guide for secret configuration, mappings, recovery,
 and all operational details.
 
-To import proposals for an existing workshop, POST
-`/api/Workshop/ImportSessionize/{workshopId}` with JSON `{ "url":
-"https://sessionize.com/api/v2/{id}/view/All" }`. Imports use Sessionize IDs to
-overwrite matching talks and speaker profiles, preserve talk IDs for existing
-agenda references, and retain manual/unmatched talks and speakers. The endpoint
-accepts only HTTPS Sessionize `view/All` URLs. The workshop-number counter is
-created from the highest existing `FolderName` when it is missing and reserved
-atomically; no manual counter setup is required for workshop creation.
+The admin dashboard manages board members and speakers from MongoDB; the initial
+board roster is a `DataMigration` bootstrap seed only. Admins can add, edit, and
+remove board members. Speaker records use normalized full names for uniqueness
+while keeping their GUIDs for existing talk references. The speaker dashboard can
+reconcile same-name records, merge their populated fields, repoint talk references,
+and create the unique-name index.
+
+For Sessionize imports, the admin first POSTs `/api/Workshop/PreviewSessionize/{workshopId}`
+with `{ "sessionizeId": "{id}" }`. The dashboard asks separately for each speaker
+name collision, then POSTs `/api/Workshop/ImportSessionize/{workshopId}` with the
+same ID and a `speakerOverwriteDecisions` map keyed by Sessionize speaker ID. A
+`true` entry overwrites imported speaker fields; `false` keeps local fields and
+links the Sessionize ID. Fields Sessionize does not provide, including email, are
+preserved. Imports preserve talk IDs for existing agenda references and retain
+manual/unmatched talks and speakers. The Sessionize ID must be alphanumeric; the
+server requests the HTTPS Sessionize `view/All` endpoint. The workshop-number
+counter is created from the highest existing `FolderName` when it is missing and
+reserved atomically; no manual counter setup is required for workshop creation.
 
 CommonWeb's environment-file loader is used in DEBUG builds. Keep environment files
 out of source control and free of secrets; Release configuration must be supplied

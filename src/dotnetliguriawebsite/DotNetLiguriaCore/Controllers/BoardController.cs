@@ -83,6 +83,11 @@ namespace DotNetLiguriaCore.Controllers
         [HttpPost]
         public async Task<IActionResult> Post(Board newBoard)
         {
+            if (string.IsNullOrWhiteSpace(newBoard.Name))
+            {
+                return BadRequest("A board member name is required.");
+            }
+
             newBoard.BoardId = Guid.NewGuid();
             await _boardService.CreateAsync(newBoard);
             return CreatedAtAction(nameof(Get), new { id = newBoard.BoardId }, newBoard);
@@ -97,6 +102,11 @@ namespace DotNetLiguriaCore.Controllers
             if (board is null)
             {
                 return NotFound();
+            }
+
+            if (string.IsNullOrWhiteSpace(updateBoard.Name))
+            {
+                return BadRequest("A board member name is required.");
             }
 
             updateBoard.BoardId = board.BoardId;
