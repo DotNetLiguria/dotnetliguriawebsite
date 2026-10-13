@@ -38,7 +38,7 @@ beforeEach(() => resetPhotoCache());
 
 describe('<SpeakersPage />', () => {
   test('lists speakers by number of talks and flags missing photos and duplicates', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({ '/Speaker/Get': speakers, '/Workshop/Get': workshops, '/Contents/': contents });
     renderAt('/admin/speakers/');
     expect(await screen.findByText('4 relatori, 1 con foto.')).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe('<SpeakersPage />', () => {
   });
 
   test('opens the speaker card as a dialog from its address and saves edits', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const saved: unknown[] = [];
     mockApi({
       '/Speaker/Update/s-tucci': (_url: string, init?: RequestInit) => { saved.push(JSON.parse(String(init?.body))); return new Response(null, { status: 204 }); },
@@ -75,7 +75,7 @@ describe('<SpeakersPage />', () => {
   });
 
   test('sorts by name on request and toggles the active state with one click', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const saved: unknown[] = [];
     mockApi({
       '/Speaker/Update/s-merlin': (_url: string, init?: RequestInit) => { saved.push(JSON.parse(String(init?.body))); return new Response(null, { status: 204 }); },
@@ -96,7 +96,7 @@ describe('<SpeakersPage />', () => {
   });
 
   test('keeps the card status in sync after the Attivo field is changed from the edit form', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let saved = false;
     mockApi({
       '/Speaker/Update/s-tucci': () => { saved = true; return new Response(null, { status: 204 }); },
@@ -114,7 +114,7 @@ describe('<SpeakersPage />', () => {
   });
 
   test('requires a name for a new speaker and creates it', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const created: unknown[] = [];
     mockApi({
       '/Speaker/Post': (_url: string, init?: RequestInit) => { created.push(JSON.parse(String(init?.body))); return jsonResponse({ workshopSpeakerId: 's-new', name: 'Grace Hopper' }, 201); },
@@ -132,7 +132,7 @@ describe('<SpeakersPage />', () => {
   });
 
   test('deletes after an explicit confirmation and reports failures', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let attempts = 0;
     mockApi({
       '/Speaker/Delete/s-dup2': () => (++attempts === 1 ? new Response(null, { status: 404 }) : new Response(null, { status: 204 })),

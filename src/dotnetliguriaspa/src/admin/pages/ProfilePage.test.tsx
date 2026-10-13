@@ -5,7 +5,7 @@ import ProfilePage from './ProfilePage';
 
 describe('<ProfilePage />', () => {
   test('keeps every profile field, says saving is not wired yet and links the Keycloak account', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ProfilePage />, { route: '/admin/profile/' });
 
     expect(screen.getByRole('heading', { level: 1, name: 'Profilo' })).toBeInTheDocument();

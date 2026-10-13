@@ -15,7 +15,7 @@ const alertsText = async () => (await screen.findAllByRole('alert')).map(alert =
 
 describe('<BackupPage />', () => {
   test('lists the backups kept on the server and creates a new one', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let list = [snapshot, safety];
     const exportCalls: string[] = [];
     mockApi({
@@ -45,7 +45,7 @@ describe('<BackupPage />', () => {
   });
 
   test('requires an explicit confirmation before importing and reports the safety backup', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const bodies: unknown[] = [];
     mockApi({
       '/Backup/snapshots': [snapshot],
@@ -77,7 +77,7 @@ describe('<BackupPage />', () => {
   });
 
   test('shows the authorization error from the server and retries', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let calls = 0;
     mockApi({ '/Backup/snapshots': () => (++calls === 1 ? new Response('', { status: 403 }) : jsonResponse([])) });
     renderPage();
@@ -88,7 +88,7 @@ describe('<BackupPage />', () => {
   });
 
   test('reports the problem returned by the server when an import is refused', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({
       '/Backup/snapshots': [snapshot],
       '/Backup/import': () => new Response(JSON.stringify({ title: 'Backup non valido', detail: 'Il backup selezionato non è integro o non è supportato. Nessun dato è stato sostituito.' }), { status: 400, headers: { 'Content-Type': 'application/problem+json' } }),

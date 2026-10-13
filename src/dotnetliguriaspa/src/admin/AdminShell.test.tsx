@@ -51,7 +51,7 @@ describe('<AdminShell />', () => {
   });
 
   test('opens the quick search with Ctrl+K and jumps to a speaker', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     signedIn();
     mockApi({
       '/Workshop/Get': [{ workshopId: 'w1', title: 'AI Generativa', eventDate: '2025-06-12T00:00:00+02:00', location: { name: 'Confindustria' } }],
@@ -70,7 +70,7 @@ describe('<AdminShell />', () => {
   });
 
   test('signs out from the profile menu', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const logout = signedIn();
     localStorage.setItem('profileStore', '{}');
     renderShell('/admin');
@@ -82,7 +82,7 @@ describe('<AdminShell />', () => {
   });
 
   test('on phones offers the other sections from the Altro sheet', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     signedIn();
     renderShell('/admin/board/');
     const tabs = screen.getByRole('navigation', { name: 'Sezioni principali' });

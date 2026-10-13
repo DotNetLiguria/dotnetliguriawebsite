@@ -66,7 +66,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('saves an initial Eventbrite ticket quantity separately from venue spaces', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture({ location: { name: 'Community Hall', coordinates: '', address: '1 Main Street', maximumSpaces: 120 } }));
     renderAt('#iscrizione');
     await loaded();
@@ -87,7 +87,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('saves the booking link with the legacy registration pair and the attendee notes', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture({ externalRegistration: true, externalRegistrationLink: 'https://old.example.test/signup' }));
     renderAt('#iscrizione');
     await loaded();
@@ -101,7 +101,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('refreshes Eventbrite inventory, displays aggregate counts only and raises the capacity floor to sold plus pending', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture({ eventbriteEventId: 'event-1', eventbriteEventUrl: 'https://www.eventbrite.it/e/1', eventbriteTicketCapacity: 10, eventbriteSyncedTicketCapacity: 10, eventbriteSyncStatus: 'synced', agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main', order: 0 }], agendaItems: [{ workshopAgendaItemId: 'item-1', itemType: 'service', trackId: 'track-1', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z' }] }), {
       '/Eventbrite/TicketSales/': { totalCapacity: 40, sold: 12, pending: 2, remaining: 26, refreshedAt: '2026-10-11T10:00:00Z' },
     });
@@ -128,7 +128,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('marks an Eventbrite event as update-pending and clears its last error after every local save, as before', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent({ ...ready(), eventbriteEventId: 'event-1', eventbriteSyncStatus: 'synced', eventbriteLastError: 'old failure' });
     renderAt('#iscrizione');
     await loaded();
@@ -146,7 +146,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('starts again from the record whenever it changes, dropping unsaved inputs, as before', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture());
     renderAt('#iscrizione');
     await loaded();
@@ -165,7 +165,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('keeps the module inputs while moving between its three pages', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture());
     renderAt('#iscrizione');
     await loaded();
@@ -180,7 +180,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('runs one whole-record PUT at a time and builds the next one from the latest record', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let release: (() => void) | null = null;
     const pending = new Promise<Response>(resolve => { release = () => resolve(new Response(null, { status: 204 })); });
     let puts = 0;
@@ -207,7 +207,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('saves local agenda before explicitly syncing Eventbrite', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const record = ready();
     const api = serveEvent(record, { '/Eventbrite/Sync/': () => jsonResponse({ ...record, eventbriteEventId: 'event-1', eventbriteSyncStatus: 'synced' }) });
     renderAt('#iscrizione');
@@ -227,7 +227,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('does not call Eventbrite when the local save is refused, and keeps the sync button off while inputs are missing', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(ready());
     renderAt('#iscrizione');
     await loaded();
@@ -243,7 +243,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('saves a higher ticket capacity locally through the dedicated endpoint and publishes after confirmation', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const record = { ...ready(), eventbriteEventId: 'event-1', eventbriteTicketCapacity: 50, eventbriteSyncedTicketCapacity: 40, eventbriteSyncStatus: 'synced' };
     const api = serveEvent(record, {
       '/Eventbrite/SetTicketCapacity/': () => jsonResponse({ ...record, eventbriteSyncStatus: 'update-pending' }),
@@ -268,7 +268,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('shows the server detail when an Eventbrite action fails', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(ready(), { '/Eventbrite/Sync/': () => jsonResponse({ title: 'Eventbrite synchronization failed', detail: 'Eventbrite rejected the venue' }, 502) });
     renderAt('#iscrizione');
     await loaded();
@@ -278,7 +278,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('words a failed agenda save as the previous reportError: the body as it came, else the fallback with the status', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let answer = () => new Response('', { status: 500 });
     serveEvent(eventFixture(), { '/Workshop/Update/': () => answer() });
     renderAt('#iscrizione');
@@ -291,7 +291,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('words failed Eventbrite calls with their own fallbacks', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent({ ...ready(), eventbriteEventId: 'event-1', eventbriteTicketCapacity: 50, eventbriteSyncedTicketCapacity: 40 }, {
       '/Eventbrite/TicketSales/': () => new Response(null, { status: 502 }),
       '/Eventbrite/SetTicketCapacity/': () => new Response(null, { status: 400 }),
@@ -309,7 +309,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('auto-fills every single-track talk with time-only editable slots and technical gaps', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(twoTalks());
     renderAt('#agenda');
     expect(await screen.findByText('First talk')).toBeVisible();
@@ -331,7 +331,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('fills the schedule only when the schedule page is shown, never from the talk pool', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(twoTalks());
     renderAt('#talk-pool');
     await loaded();
@@ -347,7 +347,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('requires a track for each talk when multiple tracks are available', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture({
       agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Room A', order: 0 }, { workshopAgendaTrackId: 'track-2', name: 'Room B', order: 1 }],
       talks: [{ workshopTalkId: 'talk-1', title: 'Unassigned talk', sessionType: 'talk', speakers: [] }],
@@ -376,7 +376,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('moves through one schedule page per track and shows only that track sessions', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture({
       agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Room A', order: 0 }, { workshopAgendaTrackId: 'track-2', name: 'Room B', order: 1 }],
       talks: [
@@ -398,7 +398,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('groups each schedule item into title-and-controls and times, with move buttons as the keyboard alternative', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture({
       agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main stage', order: 0 }],
       talks: [{ workshopTalkId: 'talk-1', title: 'Opening', trackId: 'track-1', sessionType: 'talk', speakers: [] }],
@@ -439,7 +439,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('clamps the schedule page when the track count is lowered, clears the new talk track and collapses to one track when the field is cleared', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture({
       agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Room A', order: 0 }, { workshopAgendaTrackId: 'track-2', name: 'Room B', order: 1 }, { workshopAgendaTrackId: 'track-3', name: 'Room C', order: 2 }],
     }));
@@ -477,7 +477,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('refills the schedule from new parameters and refuses to save overlapping items', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(twoTalks());
     renderAt('#agenda');
     await screen.findByText('First talk');
@@ -496,7 +496,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('keeps a cleared time as it is, so the agenda cannot be saved until it is set again, as before', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(twoTalks());
     renderAt('#agenda');
     await screen.findByText('First talk');
@@ -511,7 +511,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('sends only the Sessionize ID to the importer; imported talks replace the list while unsaved tracks stay', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const grace = { workshopSpeakerId: 'speaker-3', sessionizeId: 'sp-1', name: 'Grace Hopper', isActive: true };
     const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', sessionizeId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-3', sessionizeId: 'sp-1', name: 'Grace Hopper' }] }] });
     let imports = 0;
@@ -554,7 +554,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('reports a failed speaker reload after the import with the previous message, keeping the imported talks', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let speakerCalls = 0;
     const imported = eventFixture({ talks: [{ workshopTalkId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [] }] });
     const api = serveEvent(eventFixture(), {
@@ -573,7 +573,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('words a refused Sessionize import with the server detail, else its fallback', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture(), { '/Workshop/ImportSessionize/': () => new Response(null, { status: 502 }) });
     renderAt('#talk-pool');
     await loaded();
@@ -585,7 +585,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('lists the directory speakers in the order the API returns them, as the previous autocomplete', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture(), {}, { speakers: [
       { workshopSpeakerId: 's-z', name: 'Zoe Zanetti', isActive: true },
       { workshopSpeakerId: 's-a', name: 'Anna Bianchi', isActive: true },
@@ -598,7 +598,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('creates a talk using a speaker selected from the admin speaker directory', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture());
     renderAt('#talk-pool');
     await loaded();
@@ -630,7 +630,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('offers Talk, Panel, Introduzione and Altro for a new talk, and Servizio too in the pool', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(twoTalks());
     renderAt('#talk-pool');
     await loaded();
@@ -645,7 +645,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('matches a talk speaker to the directory by id or, without an id, by name, and shows only those, as before', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture({ talks: [
       { workshopTalkId: 'talk-1', title: 'By id', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-2', name: 'Someone renamed' }, { workshopSpeakerId: 'gone', name: 'Not in the directory' }] },
       { workshopTalkId: 'talk-2', title: 'By name', sessionType: 'talk', speakers: [{ name: 'Ada Lovelace' }] },
@@ -664,7 +664,7 @@ describe('talk pool, schedule and registration pages', () => {
   });
 
   test('edits and removes talks inline in the pool', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(twoTalks());
     renderAt('#talk-pool');
     await loaded();
@@ -688,7 +688,7 @@ describe('tracks step', () => {
   ];
 
   test('lists the tracks as the previous accordion: summary rows, one open at a time with stored UTC times, level, speakers and abstract', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture({ tracks }));
     renderAt('#tracks');
     const panel = await screen.findByRole('region', { name: 'Tracks' });
@@ -720,7 +720,7 @@ describe('tracks step', () => {
   });
 
   test('adds, edits and deletes a track: whole-record PUT then a reload, as before', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture({ tracks: tracks.slice(0, 2) }));
     renderAt('#tracks');
     const panel = await screen.findByRole('region', { name: 'Tracks' });
@@ -762,7 +762,7 @@ describe('tracks step', () => {
   });
 
   test('reports a failed track save with the previous fixed message, whatever the server says', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture({ tracks: tracks.slice(0, 1) }), { '/Workshop/Update/': () => jsonResponse({ detail: 'Mongo down' }, 500) });
     renderAt('#tracks');
     const panel = await screen.findByRole('region', { name: 'Tracks' });

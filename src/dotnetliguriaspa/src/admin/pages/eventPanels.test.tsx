@@ -26,7 +26,7 @@ beforeEach(() => adminToasts.clear());
 
 describe('Materiali', () => {
   test('lists the materials, uploads one with a title through the Aggiungi dialog and deletes after confirmation', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture(), {}, { files });
     renderAt('#materiali');
     const materials = await screen.findByRole('region', { name: 'Materiali' });
@@ -70,7 +70,7 @@ describe('Materiali', () => {
   });
 
   test('closes the dialog with Annulla and reports a failed delete with the previous fixed message', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serveEvent(eventFixture(), { '/workshopfile/f1': () => jsonResponse({ detail: 'Locked' }, 409) }, { files });
     renderAt('#materiali');
     const materials = await screen.findByRole('region', { name: 'Materiali' });
@@ -103,7 +103,7 @@ describe('Materiali', () => {
 
 describe('Foto', () => {
   test('shows the photos from /Contents, uploads them as photos with a title and lets a delete be cancelled', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture(), {}, { files });
     renderAt('#foto');
     const photos = await screen.findByRole('region', { name: 'Foto' });
@@ -140,7 +140,7 @@ describe('Foto', () => {
   });
 
   test('ends the wizard with "Salva modifiche", which sends the whole record even when nothing changed, as before', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const api = serveEvent(eventFixture(), {}, { files });
     renderAt('#foto');
     await screen.findByRole('region', { name: 'Foto' });

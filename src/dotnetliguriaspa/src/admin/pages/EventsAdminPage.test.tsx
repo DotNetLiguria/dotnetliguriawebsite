@@ -36,7 +36,7 @@ describe('<EventsAdminPage />', () => {
   });
 
   test('searches by title, venue or speaker and filters by year, drafts and featured', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({ '/Workshop/Get?onlyPublished=false': LIST });
     render(<EventsAdminPage />, { route: '/admin/workshops/' });
     await screen.findByRole('table');
@@ -63,7 +63,7 @@ describe('<EventsAdminPage />', () => {
   });
 
   test('sorts by title and by sessions with accessible sort state', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({ '/Workshop/Get?onlyPublished=false': LIST });
     render(<EventsAdminPage />, { route: '/admin/workshops/' });
     await screen.findByRole('table');
@@ -76,7 +76,7 @@ describe('<EventsAdminPage />', () => {
   });
 
   test('handles a long archive: year select instead of pills, 25 rows at a time, no routine badges', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const archive = Array.from({ length: 40 }, (_, i) => event(`e${i}`, `Evento ${i}`, `${2011 + Math.floor(i / 2.6)}-0${(i % 9) + 1}-10T00:00:00+02:00`));
     mockApi({ '/Workshop/Get?onlyPublished=false': archive });
     render(<EventsAdminPage />, { route: '/admin/workshops/' });
@@ -95,7 +95,7 @@ describe('<EventsAdminPage />', () => {
   });
 
   test('reports a failed load with a retry', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let calls = 0;
     mockApi({ '/Workshop/Get?onlyPublished=false': () => (++calls === 1 ? jsonResponse({}, 500) : jsonResponse(LIST)) });
     render(<EventsAdminPage />, { route: '/admin/workshops/' });

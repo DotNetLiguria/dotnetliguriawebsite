@@ -66,7 +66,7 @@ beforeEach(() => {
 
 describe('public pages pass axe', () => {
   test('home with featured event, archive and team', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({ '/TopMenu': menu, '/Workshop/GetInHomePage/HomePage': workshop, '/Workshop/Get?onlyPublished=true': [workshop], '/Board/Get?onlyActive=true': board });
     render(<HomePage />);
     await screen.findByRole('region', { name: 'AI Generativa' });
@@ -90,7 +90,7 @@ describe('public pages pass axe', () => {
   });
 
   test('questionnaire with every question type, after a failed submission', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({ '/TopMenu': menu, '/PublicQuestionnaire/q1': { questionnaireId: 'q1', title: 'Feedback evento', availability: 'Open', questionnaire } });
     render(<Routes><Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} /></Routes>, { route: '/q/q1' });
     await screen.findByRole('heading', { level: 1, name: 'Feedback evento' });

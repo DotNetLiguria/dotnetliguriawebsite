@@ -50,7 +50,7 @@ beforeEach(() => adminToasts.clear());
 
 describe('<EventCreatePage />', () => {
   test('creates an event with a copied venue snapshot, event rooms, booking and attendee details', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve(venuesFixture, jsonResponse({ workshopId: '00112233-4455-6677-8899-aabbccddeeff' }, 201));
     renderPage();
     await fillBasics(user);
@@ -112,7 +112,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('shows the API error detail when workshop creation fails', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(venuesFixture, new Response(JSON.stringify({ detail: 'Workshop counter unavailable' }), { status: 503, headers: { 'Content-Type': 'application/problem+json' } }));
     renderPage();
     await fillBasics(user);
@@ -124,7 +124,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('words a failed creation without a body as before and keeps Annulla off while it runs', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let release: (() => void) | null = null;
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/Workshop/Post')) return new Promise<Response>(resolve => { release = () => resolve(new Response(null, { status: 500 })); });
@@ -142,7 +142,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('does not navigate to an undefined workshop when the create response omits its ID', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(venuesFixture, jsonResponse({}, 201));
     renderPage();
     await fillBasics(user);
@@ -153,7 +153,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('without saved venues names "Venues / Sale eventi" as plain text and refuses the submit with the single message', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve([], jsonResponse({}, 201));
     renderPage();
     expect(await screen.findByText('Aggiungi una sede in Venues / Sale eventi prima di creare un evento.')).toBeInTheDocument();
@@ -183,7 +183,7 @@ describe('<EventCreatePage />', () => {
       await user.clear(screen.getByRole('textbox', { name: 'Indirizzo' }));
     }],
   ])('does not post without %s and shows the single message, as before', async (_label, prepare) => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve(venuesFixture, jsonResponse({ workshopId: '00112233-4455-6677-8899-aabbccddeeff' }, 201));
     renderPage();
     await waitFor(() => expect(venueSelect()).toBeEnabled());
@@ -195,7 +195,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('reports a failed venue list as before, keeps the form usable and goes back with Annulla', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(() => new Response(null, { status: 500 }), jsonResponse({}, 201));
     renderPage();
     expect(await screen.findByText('Impossibile caricare le sedi (HTTP 500)')).toBeInTheDocument();
