@@ -41,6 +41,15 @@ describe('<AdminShell />', () => {
     expect(within(again).getByRole('link', { name: 'Panoramica' })).not.toHaveAttribute('aria-current');
   });
 
+  test('positions the content and the sidebar scrollers, so absolutely placed children stay inside them', () => {
+    signedIn();
+    renderShell('/admin');
+    const main = screen.getByRole('main');
+    expect(main).toHaveAttribute('id', 'contenuto-admin');
+    expect(main).toHaveClass('relative');
+    expect(screen.getByRole('navigation', { name: 'Sezioni' })).toHaveClass('relative');
+  });
+
   test('opens the quick search with Ctrl+K and jumps to a speaker', async () => {
     const user = userEvent.setup();
     signedIn();

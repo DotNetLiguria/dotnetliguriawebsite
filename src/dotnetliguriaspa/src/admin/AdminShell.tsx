@@ -172,7 +172,7 @@ export default function AdminShell() {
       <div className="lg:grid lg:h-dvh lg:grid-cols-[248px_minmax(0,1fr)]">
         <aside className="hidden border-r border-line bg-white lg:flex lg:min-h-0 lg:flex-col" aria-label="Area amministrazione">
           <Link to="/admin" aria-label="DotNetLiguria, panoramica dell'amministrazione" className={`mx-5 mt-4 mb-2 inline-flex self-start rounded-lg ${linkFocus}`}><Logo className="h-12" /></Link>
-          <nav aria-label="Sezioni" className="flex-1 overflow-y-auto px-3 pb-4">
+          <nav aria-label="Sezioni" className="relative flex-1 overflow-y-auto px-3 pb-4">
             {NAV.map(group => (
               <div key={group.group ?? 'main'} className="mt-4">
                 {group.group && <p className="px-3 pb-1 text-sm font-semibold text-muted">{group.group}</p>}
@@ -198,7 +198,7 @@ export default function AdminShell() {
               <AdminIcon name="external" />Vedi il sito<span className="sr-only"> (si apre in una nuova scheda)</span>
             </a>
           </header>
-          <main id="contenuto-admin" tabIndex={-1} className="flex-1 px-4 pt-6 pb-28 outline-none lg:overflow-y-auto lg:px-8 lg:pt-8 lg:pb-12">
+          <main id="contenuto-admin" tabIndex={-1} className="relative flex-1 px-4 pt-6 pb-28 outline-none lg:overflow-y-auto lg:px-8 lg:pt-8 lg:pb-12">
             <div className="mx-auto max-w-[1200px]"><Outlet /></div>
           </main>
         </div>

@@ -235,26 +235,6 @@ export function buildWorkshopUpdate<T extends EventRecord>(workshop: T, values: 
   } as T;
 }
 
-/** The wizard's draft: the record's own fields plus the additions kept on the same save. */
-export interface EventFormValues extends EventCoreValues {
-  tags: string;
-  blogHtml: string;
-  rooms: string;
-}
-
-export const formValuesOf = (workshop: EventRecord): EventFormValues => ({
-  ...coreValuesOf(workshop),
-  tags: workshop.tags ?? '',
-  blogHtml: workshop.blogHtml ?? '',
-  rooms: roomsText(workshop.location?.rooms),
-});
-
-/** "Salva modifiche": one whole-record body from the latest record and the edited values. */
-export function buildFormUpdate<T extends EventRecord>(workshop: T, values: EventFormValues): T {
-  const core = buildWorkshopUpdate(workshop, values);
-  return { ...core, tags: values.tags, blogHtml: values.blogHtml, location: { ...core.location, rooms: parseRooms(values.rooms) } };
-}
-
 /** Location copied from a saved venue (the snapshot stays editable on the event). */
 export const locationFromVenue = (venue: VenueModel): EventLocation => ({
   name: venue.name,
@@ -273,32 +253,31 @@ export const afterSave = <T extends EventRecord>(saved: T): T => ({
 
 // ---------- Steps (the previous wizard, same order) ----------
 
-export type StepId = 'pubblicazione' | 'locandina' | 'informazioni' | 'sede' | 'sessioni' | 'talk' | 'agenda' | 'iscrizione' | 'materiali' | 'foto';
+export type StepId = 'pubblicazione' | 'immagine' | 'informazioni' | 'sede' | 'tracks' | 'talk-pool' | 'agenda' | 'iscrizione' | 'materiali' | 'foto';
 
 export interface StepDefinition {
   id: StepId;
   label: string;
-  description: string;
-  /** The step has a primary action of its own, so "Avanti" steps back to secondary. */
-  hasPrimaryAction?: boolean;
 }
 
+/** The previous wizard's steps (workshopSteps), same order, names translated literally. */
 export const STEPS: StepDefinition[] = [
-  { id: 'pubblicazione', label: 'Pubblicazione', description: 'Visibilità sul sito, link del feedback e questionari collegati.' },
-  { id: 'locandina', label: 'Locandina', description: "L'immagine dell'evento: si carica subito." },
-  { id: 'informazioni', label: 'Informazioni', description: 'Titolo, data, descrizione, tag e contenuto esteso.' },
-  { id: 'sede', label: 'Sede', description: 'Dove si tiene l\'evento, anche copiando una sede salvata.' },
-  { id: 'sessioni', label: 'Sessioni', description: 'Il programma in formato storico: ogni sessione si salva subito.', hasPrimaryAction: true },
-  { id: 'talk', label: 'Elenco talk', description: 'I talk da collocare, importati da Sessionize o creati qui, e le track.', hasPrimaryAction: true },
-  { id: 'agenda', label: 'Agenda e orari', description: 'Gli orari di ogni track, riempiti in automatico e poi sistemati.', hasPrimaryAction: true },
-  { id: 'iscrizione', label: 'Iscrizione', description: 'Prenotazioni, note per chi partecipa ed Eventbrite.', hasPrimaryAction: true },
-  { id: 'materiali', label: 'Materiali', description: 'Slide e materiali: si caricano subito.' },
-  { id: 'foto', label: 'Foto', description: "Le foto dell'evento, poi «Salva modifiche» per i passi 1, 3 e 4." },
+  { id: 'pubblicazione', label: 'Pubblicazione' },
+  { id: 'immagine', label: "Immagine dell'evento" },
+  { id: 'informazioni', label: "Informazioni sull'evento" },
+  { id: 'sede', label: 'Sede' },
+  { id: 'tracks', label: 'Tracks' },
+  { id: 'talk-pool', label: 'Talk pool' },
+  { id: 'agenda', label: "Track e orari dell'agenda" },
+  { id: 'iscrizione', label: 'Dettagli di iscrizione' },
+  { id: 'materiali', label: 'Materiali' },
+  { id: 'foto', label: 'Foto' },
 ];
 
-/** Hashes of the previous six-section card keep opening the right step. */
+/** Hashes used by earlier versions of the card keep opening the right step. */
 const STEP_ALIASES: Record<string, StepId> = {
-  panoramica: 'informazioni', relatori: 'talk', questionario: 'pubblicazione', 'materiali-e-foto': 'materiali',
+  panoramica: 'informazioni', relatori: 'talk-pool', questionario: 'pubblicazione', 'materiali-e-foto': 'materiali',
+  locandina: 'immagine', sessioni: 'tracks', talk: 'talk-pool',
 };
 
 export const stepIndexOf = (id: StepId) => STEPS.findIndex(step => step.id === id);
@@ -464,10 +443,10 @@ export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eve
   const [startHour, startMinute] = params.start.split(':').map(Number);
   if (!Number.isFinite(startHour) || !Number.isFinite(startMinute) ||
     !Number.isInteger(duration) || duration < 1 || !Number.isInteger(gap) || gap < 1) {
-    return { error: 'Indica un orario di inizio valido e durate positive per talk e pause.' };
+    return { error: 'Inserisci un orario di inizio valido e durate positive per sessioni e pause.' };
   }
   if (state.talks.some(talk => !hasTrack(state, talk.trackId))) {
-    return { error: 'Assegna ogni talk a una track prima di riempire gli orari.' };
+    return { error: 'Assegna ogni talk a una track prima di generare gli orari.' };
   }
 
   const nextItems: AgendaItem[] = [];
@@ -580,7 +559,7 @@ const speakerKey = (speaker: EventTalkSpeaker) =>
   speaker.workshopSpeakerId ?? speaker.sessionizeId ?? clean(speaker.name).toLocaleLowerCase();
 
 export const salesWindowProblem = (start: string, end: string) =>
-  (start && end && start >= end ? 'La vendita dei biglietti deve finire dopo il suo inizio.' : null);
+  (start && end && start >= end ? "La vendita dei biglietti Eventbrite deve finire dopo l'inizio." : null);
 
 /** Why the module cannot be saved from this page yet, in Italian, or null: the same checks as the previous save. */
 export function agendaProblem(state: AgendaDraftState, page: AgendaPage): string | null {
@@ -594,7 +573,7 @@ export function agendaProblem(state: AgendaDraftState, page: AgendaPage): string
     const start = new Date(item.startTime).getTime();
     const end = new Date(item.endTime).getTime();
     if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-      return 'Ogni voce dell\'agenda deve finire dopo il suo inizio.';
+      return 'Ogni voce dell\'agenda deve avere un orario di fine valido successivo all\'inizio.';
     }
   }
   const talkOf = (item: AgendaItem) => state.talks.find(talk => talk.workshopTalkId === item.talkId);
@@ -611,7 +590,7 @@ export function agendaProblem(state: AgendaDraftState, page: AgendaPage): string
       const firstSpeakers = new Set((talkOf(first)?.speakers ?? []).map(speakerKey));
       const sharesSpeaker = (talkOf(second)?.speakers ?? []).some(speaker => firstSpeakers.has(speakerKey(speaker)));
       if (sharesTrack || eventWide || sharesRoom || sharesSpeaker) {
-        return 'Le voci dell\'agenda non possono sovrapporsi nella stessa track o sala, con una pausa comune, né impegnare due volte lo stesso relatore.';
+        return 'Le voci dell\'agenda non possono sovrapporsi nella stessa track, sala o pausa comune, né programmare due volte lo stesso relatore.';
       }
     }
   }
@@ -633,14 +612,6 @@ export const agendaSaveBody = <T extends EventRecord>(workshop: T, state: Agenda
   agendaItems: state.items,
 });
 
-/** Serialized view of the module, to tell unsaved changes apart. */
-export const agendaSnapshot = (state: AgendaDraftState) =>
-  JSON.stringify([state.talks, state.tracks, state.items, state.bookingServiceUrl, state.eventbriteTicketCapacity, state.eventbriteSalesStart, state.eventbriteSalesEnd, state.attendeeNotes]);
-
-/** The record fields the module starts from; when they change the module starts again from the record. */
-export const agendaKeyOf = (workshop: EventRecord) =>
-  JSON.stringify([workshop.workshopId, workshop.talks ?? [], workshop.agendaTracks ?? [], workshop.agendaItems ?? [], registrationOf(workshop), workshop.eventbriteEventId ?? null]);
-
 // ---------- Eventbrite ----------
 
 /** What Eventbrite needs before a draft can be created or updated, from the record and the module's current values. */
@@ -653,32 +624,16 @@ export function eventbriteIssues(workshop: EventRecord, state: AgendaDraftState)
     !workshop.eventDate && 'Data dell\'evento',
     !clean(workshop.location?.name) && 'Nome della sede',
     !clean(workshop.location?.address) && 'Indirizzo della sede',
-    state.eventbriteTicketCapacity <= 0 && 'Un numero positivo di biglietti gratuiti',
+    state.eventbriteTicketCapacity <= 0 && 'Capienza positiva di biglietti gratuiti',
     state.tracks.length === 0 && 'Almeno una track in agenda',
-    state.items.length === 0 && 'Almeno una voce in agenda',
-    badTimes && 'Orari validi per ogni voce dell\'agenda',
-    !!salesWindowProblem(state.eventbriteSalesStart, state.eventbriteSalesEnd) && 'Fine vendite successiva all\'inizio',
+    state.items.length === 0 && 'Almeno una voce in agenda pianificata',
+    badTimes && 'Orari di inizio e fine validi per ogni voce dell\'agenda',
+    !!salesWindowProblem(state.eventbriteSalesStart, state.eventbriteSalesEnd) && 'Fine vendite successiva all\'inizio vendite',
   ].filter((issue): issue is string => Boolean(issue));
 }
 
-/** The backend's sync statuses (EventbriteIntegrationService) with their meaning. */
-const EVENTBRITE_STATUS: Record<string, string> = {
-  'creating-event': 'Creazione dell\'evento in corso',
-  'event-created': 'Evento creato, biglietto da creare',
-  'creating-ticket': 'Creazione del biglietto in corso',
-  synced: 'Bozza sincronizzata',
-  'update-pending': 'Da sincronizzare',
-  'reconciliation-required': 'Da riconciliare: esito incerto, controlla l\'account Eventbrite prima di riprovare',
-  failed: 'Sincronizzazione fallita',
-};
-
-/** Status as the backend stored it, as the previous admin showed it (raw when unknown), "Non creato" when none. */
-export const eventbriteStatusLabel = (workshop: EventRecord) => {
-  if (workshop.eventbritePublished) return 'Pubblicato';
-  const status = clean(workshop.eventbriteSyncStatus);
-  if (!status) return workshop.eventbriteEventId ? 'Bozza' : 'Non creato';
-  return EVENTBRITE_STATUS[status] ?? status;
-};
+/** The stored sync status as the previous admin showed it (raw), "Non creato" when there is none. */
+export const eventbriteStatusLabel = (workshop: EventRecord) => clean(workshop.eventbriteSyncStatus) || 'Non creato';
 
 /** Talk speaker entries built from directory records (what the module stores on each talk). */
 export const talkSpeakersFrom = (speakers: EventSpeaker[]): EventTalkSpeaker[] =>

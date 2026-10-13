@@ -29,8 +29,8 @@ export function Badge({ kind, children }: { kind: keyof typeof tone; children: R
   return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-bold ${tone[kind]}`}>{children}</span>;
 }
 
-export function Panel({ children, className = '', labelledBy }: { children: React.ReactNode; className?: string; labelledBy?: string }) {
-  return <section aria-labelledby={labelledBy} className={`rounded-2xl border border-line bg-white ${className}`}>{children}</section>;
+export function Panel({ children, className = '', labelledBy, hidden }: { children: React.ReactNode; className?: string; labelledBy?: string; hidden?: boolean }) {
+  return <section aria-labelledby={labelledBy} hidden={hidden} className={`rounded-2xl border border-line bg-white ${className}`}>{children}</section>;
 }
 
 export function PageHeader({ title, description, actions, back }: {

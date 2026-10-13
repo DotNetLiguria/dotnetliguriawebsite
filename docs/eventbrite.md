@@ -36,13 +36,13 @@ non-production account before production use.
 ## Admin workflow
 
 Open **Eventi → the event** in the admin. The wizard sequence (Italian labels in the
-UI) is Pubblicazione, Locandina, Informazioni, Sede, Sessioni, Elenco talk, Agenda e
-orari, Iscrizione, Materiali, and Foto. The **Iscrizione** step is the Eventbrite
-setup step after the schedule; its buttons are "Salva iscrizione e agenda" (save
-registration and agenda), "Crea la bozza su Eventbrite" / "Sincronizza con
-Eventbrite" (create draft / sync), "Aggiorna le vendite" (refresh live ticket
-sales), "Salva capienza biglietti" (save ticket capacity) and "Pubblica su
-Eventbrite" (publish).
+UI) is Pubblicazione, Immagine dell'evento, Informazioni sull'evento, Sede, Tracks,
+Talk pool, Track e orari dell'agenda, Dettagli di iscrizione, Materiali, and Foto.
+The **Dettagli di iscrizione** step is the Eventbrite setup step after the schedule;
+its buttons are "Salva iscrizione e agenda" (save registration and agenda), "Crea
+bozza Eventbrite" / "Sincronizza/Aggiorna Eventbrite" (create draft / sync),
+"Aggiorna le vendite dei biglietti" (refresh live ticket sales), "Salva capienza
+biglietti" (save ticket capacity) and "Pubblica su Eventbrite" (publish).
 
 1. Complete the workshop title, description, event date, venue/location, agenda
    track, and at least one scheduled agenda item. Give agenda items valid start and

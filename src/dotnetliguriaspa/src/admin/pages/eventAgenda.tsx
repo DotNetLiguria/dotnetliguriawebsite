@@ -1,23 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Form } from 'react-aria-components';
+import { Button } from 'react-aria-components';
 import { AdminIcon } from '../icons';
-import { Badge, EmptyState, Panel, TextAreaInput, TextInput, btn } from '../ui';
+import { Badge, Panel, TextAreaInput, TextInput, btn } from '../ui';
 import { clean } from '../adminApi';
 import { notify } from '../toasts';
-import { formatDate } from '../../site/format';
-import { formatDateTime } from '../../questionnaire/format';
 import { MoveButtons, restoreMoveFocus } from './listKit';
 import { ExternalLink, ModalHeader, Notice, RecordModal } from './listUi';
-import { CardForm, EventIcon, EventPage, InlineConfirm, InlineField, NumberInput, PanelTitle, SelectInput, SpeakerPicker, errorText } from './eventKit';
+import { CardForm, EventIcon, EventPage, InlineConfirm, NumberInput, PanelTitle, SelectInput, SpeakerPicker, errorText } from './eventKit';
 import {
-  AgendaDraftState, AgendaPage, EventRecord, EventSpeaker, EventTalk, LegacyTrack, SUGGESTED_INTERVAL_TITLE, ScheduleParams, addServiceInterval,
-  addTalk, adoptTalks, agendaKeyOf, agendaProblem, agendaSaveBody, agendaSnapshot, assignTalkTrack, autoFillSchedule, createId, eventbriteIssues,
-  eventbriteStatusLabel, hasTrack, initAgenda, legacyInputValue, moveItem, onEventDay, removeItem, removeTalk, renameTrack, setTrackCount,
-  talkSpeakersFrom, toClockTime, toStoredTime, trackItems, unscheduledTalks, updateItem, updateTalk,
+  AgendaDraftState, AgendaItem, AgendaPage, AgendaTrack, DEFAULT_INTERVAL_TITLE, EventRecord, EventSpeaker, EventTalk, LegacyTrack,
+  SUGGESTED_INTERVAL_TITLE, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, assignTalkTrack, autoFillSchedule, createId,
+  eventbriteIssues, eventbriteStatusLabel, hasTrack, initAgenda, itemOrder, legacyInputValue, moveItem, removeItem, removeTalk, renameTrack,
+  salesWindowProblem, setTrackCount, talkSpeakersFrom, toClockTime, toStoredTime, trackItems, unscheduledTalks, updateItem, updateTalk,
 } from './eventModel';
 
-// Steps 5 (Sessioni), 6 (Elenco talk), 7 (Agenda e orari) and 8 (Iscrizione) of the wizard: the previous
-// legacy track dialog and AdminWorkshopAgenda, with the same state, saves and checks.
+// Steps 5 (Tracks), 6 (Talk pool), 7 (Track e orari dell'agenda) and 8 (Dettagli di iscrizione): the previous
+// track dialog and the previous AdminWorkshopAgenda, one component mounted for the whole wizard with its three
+// pages shown in turn, the same state, saves, checks and messages.
 
 const SESSION_TYPES = [
   { id: 'talk', label: 'Talk' },
@@ -26,543 +25,434 @@ const SESSION_TYPES = [
   { id: 'other', label: 'Altro' },
 ];
 const LISTED_SESSION_TYPES = [...SESSION_TYPES.slice(0, 3), { id: 'service', label: 'Servizio' }, SESSION_TYPES[3]];
-
-const speakerNames = (talk: EventTalk) => (talk.speakers ?? []).map(speaker => clean(speaker.name)).filter(Boolean).join(', ');
-const talkTitle = (talk: EventTalk) => clean(talk.title) || 'Talk senza titolo';
+const IMPORT_SOURCES = [{ id: 'none', label: 'Nessuno' }, { id: 'sessionize', label: 'Sessionize' }];
 const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
+/** Legacy track times as the previous admin printed them (UTC wall clock). */
+const legacyDateTime = (value: string) => new Date(value).toLocaleString('it-IT', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
 
-// ---------- Module draft (the previous AdminWorkshopAgenda state) ----------
-
-export interface AgendaDraft {
-  state: AgendaDraftState;
-  setState: (next: AgendaDraftState | ((current: AgendaDraftState) => AgendaDraftState)) => void;
-  params: ScheduleParams;
-  setParams: (next: ScheduleParams) => void;
-  trackIndex: number;
-  setTrackIndex: (index: number) => void;
-  dirty: boolean;
-  /** After a Sessionize import: the talks come from the server, the local tracks and items stay (as before). */
-  absorbImport: (workshop: EventRecord, imported: EventRecord) => EventRecord;
-}
-
-interface DraftStore { key: string; state: AgendaDraftState; saved: string; params: ScheduleParams; trackIndex: number }
-
-const fresh = (workshop: EventRecord, previous: DraftStore | null): DraftStore => {
+/** The module state read from the record, and the schedule start the first item suggests. */
+const stateOf = (workshop: EventRecord): { state: AgendaDraftState; scheduleStart: string } => {
   const { scheduleStart, ...state } = initAgenda(workshop);
-  return {
-    key: agendaKeyOf(workshop),
-    state,
-    saved: agendaSnapshot(state),
-    params: { start: scheduleStart, duration: previous?.params.duration ?? '60', gap: previous?.params.gap ?? '5' },
-    trackIndex: Math.min(previous?.trackIndex ?? 0, state.tracks.length - 1),
-  };
+  return { state, scheduleStart };
 };
+const trackOptions = (tracks: AgendaTrack[]) => tracks.map(track => ({ id: track.workshopAgendaTrackId, label: track.name ?? '' }));
+/** Directory speakers of a talk: matched by id, or by name when the talk speaker has no id (as before). */
+const matchedSpeakerIds = (talk: EventTalk, speakers: EventSpeaker[]) =>
+  (talk.speakers ?? []).flatMap(talkSpeaker => {
+    const speaker = speakers.find(value => value.workshopSpeakerId === talkSpeaker.workshopSpeakerId || (!talkSpeaker.workshopSpeakerId && value.name === talkSpeaker.name));
+    return speaker ? [speaker.workshopSpeakerId] : [];
+  });
+const unmatchedSpeakers = (talk: EventTalk, speakers: EventSpeaker[]) =>
+  (talk.speakers ?? []).filter(talkSpeaker => !speakers.some(value => value.workshopSpeakerId === talkSpeaker.workshopSpeakerId || (!talkSpeaker.workshopSpeakerId && value.name === talkSpeaker.name)));
 
-/**
- * The talk pool, schedule and registration being edited. It survives moving between steps and starts again
- * from the record only when the record's own agenda or registration fields change (after a save or a reload).
- */
-export function useAgendaDraft(workshop: EventRecord | null): AgendaDraft | null {
-  const [store, setStore] = useState<DraftStore | null>(null);
-  const key = workshop ? agendaKeyOf(workshop) : '';
-  let current = store;
-  if (workshop && current?.key !== key) {
-    current = fresh(workshop, store);
-    setStore(current);
-  }
-  if (!workshop || !current) return null;
-  const live = current;
-  const update = (patch: Partial<DraftStore> | ((value: DraftStore) => Partial<DraftStore>)) =>
-    setStore(value => (value ? { ...value, ...(typeof patch === 'function' ? patch(value) : patch) } : value));
-  return {
-    state: live.state,
-    // The schedule page follows the tracks: when a track is removed the page index is clamped, as before.
-    setState: next => update(value => {
-      const state = typeof next === 'function' ? next(value.state) : next;
-      return { state, trackIndex: Math.min(value.trackIndex, state.tracks.length - 1) };
-    }),
-    params: live.params,
-    setParams: params => update({ params }),
-    trackIndex: live.trackIndex,
-    setTrackIndex: trackIndex => update({ trackIndex }),
-    dirty: agendaSnapshot(live.state) !== live.saved,
-    absorbImport: (record, imported) => {
-      const next = { ...record, talks: imported.talks ?? [] };
-      update(value => ({ key: agendaKeyOf(next), state: { ...value.state, talks: adoptTalks(imported.talks, value.state.tracks) } }));
-      return next;
-    },
-  };
-}
+interface TicketSales { totalCapacity: number; sold: number; pending: number; remaining: number; refreshedAt: string }
 
-/** The module's save: the same checks as before for the page it runs from, then one PUT of the whole record. */
-function useAgendaSave(page: EventPage, draft: AgendaDraft) {
-  const [problem, setProblem] = useState<string | null>(null);
-  const save = useCallback(async (from: AgendaPage, title: string) => {
-    const error = agendaProblem(draft.state, from);
-    if (error) {
-      setProblem(error);
-      return false;
-    }
-    setProblem(null);
-    return page.save(latest => agendaSaveBody(latest, draft.state), { title });
-  }, [draft.state, page]);
-  return { save, saving: page.saving, problem, setProblem };
-}
-
-const trackOptions = (state: AgendaDraftState) => state.tracks.map(track => ({ id: track.workshopAgendaTrackId, label: clean(track.name) || 'Track' }));
-const idsInDirectory = (talk: EventTalk, speakers: EventSpeaker[]) =>
-  (talk.speakers ?? []).flatMap(speaker => (speaker.workshopSpeakerId && speakers.some(s => s.workshopSpeakerId === speaker.workshopSpeakerId) ? [speaker.workshopSpeakerId] : []));
-const namesOutsideDirectory = (talk: EventTalk, speakers: EventSpeaker[]) =>
-  (talk.speakers ?? []).filter(speaker => !(speaker.workshopSpeakerId && speakers.some(s => s.workshopSpeakerId === speaker.workshopSpeakerId))).map(speaker => clean(speaker.name)).filter(Boolean);
-
-// ---------- 6. Elenco talk ----------
-
-export function TalkListStep({ page, draft }: { page: EventPage; draft: AgendaDraft }) {
-  const { workshop, speakers } = page;
-  const { state, setState } = draft;
-  const { save, saving, problem } = useAgendaSave(page, draft);
+export function AgendaModule({ page, activePage }: { page: EventPage; activePage: AgendaPage | null }) {
+  const { workshop, speakers, api } = page;
+  const [state, setState] = useState<AgendaDraftState>(() => stateOf(workshop).state);
+  const { talks, tracks, items } = state;
+  const [eventbriteSales, setEventbriteSales] = useState<TicketSales | null>(null);
+  const [refreshingSales, setRefreshingSales] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [confirmPublish, setConfirmPublish] = useState(false);
+  const [importSource, setImportSource] = useState<'none' | 'sessionize'>('none');
   const [sessionizeId, setSessionizeId] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [trackCount, setTrackCountText] = useState(String(state.tracks.length));
-  const [newTalk, setNewTalk] = useState({ title: '', abstract: '', type: 'talk', speakerIds: [] as string[], trackId: null as string | null });
-  const [notice, setNotice] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
-  const multiTrack = state.tracks.length > 1;
-  useEffect(() => setTrackCountText(String(state.tracks.length)), [state.tracks.length]);
-
-  const importTalks = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setImporting(true);
-    try {
-      await page.api(`/Workshop/ImportSessionize/${encodeURIComponent(workshop.workshopId)}`, { method: 'POST', body: JSON.stringify({ sessionizeId: sessionizeId.trim() }) });
-      const refreshed = await page.api<EventRecord>(`/Workshop/Get/${encodeURIComponent(workshop.workshopId)}`);
-      page.replace(draft.absorbImport(page.current(), refreshed));
-      page.reloadSpeakers();
-      setNotice({ tone: 'ok', text: 'Talk importati da Sessionize; i relatori corrispondenti sono stati aggiornati in anagrafica.' });
-    } catch (error) {
-      setNotice({ tone: 'danger', text: errorText(error) });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  // A changed track count clears the new talk's track, as before: a removed track must not stick to it.
-  const changeTrackCount = (value: string) => {
-    setTrackCountText(value);
-    const count = Number(value);
-    if (count >= 1) {
-      setState(current => setTrackCount(current, count));
-      setNewTalk(current => ({ ...current, trackId: null }));
-    }
-  };
-
-  const addNewTalk = () => {
-    if (!newTalk.title.trim()) return setNotice({ tone: 'danger', text: 'Indica il titolo del talk.' });
-    if (newTalk.speakerIds.length === 0) return setNotice({ tone: 'danger', text: "Scegli almeno un relatore dall'anagrafica." });
-    if (multiTrack && !hasTrack(state, newTalk.trackId)) return setNotice({ tone: 'danger', text: 'Scegli la track di questo talk.' });
-    const chosen = speakers.filter(speaker => newTalk.speakerIds.includes(speaker.workshopSpeakerId));
-    setState(current => addTalk(current, {
-      workshopTalkId: createId(),
-      trackId: multiTrack ? newTalk.trackId : current.tracks[0].workshopAgendaTrackId,
-      title: newTalk.title.trim(),
-      abstract: newTalk.abstract,
-      sessionType: newTalk.type,
-      speakers: talkSpeakersFrom(chosen),
-    }));
-    setNewTalk(value => ({ ...value, title: '', abstract: '', speakerIds: [] }));
-    setNotice({ tone: 'ok', text: "Talk aggiunto all'elenco: salva l'elenco per renderlo definitivo." });
-  };
-
-  const setSpeakersOf = (talk: EventTalk, ids: string[]) => {
-    const chosen = speakers.filter(speaker => ids.includes(speaker.workshopSpeakerId));
-    const kept = (talk.speakers ?? []).filter(speaker => !(speaker.workshopSpeakerId && speakers.some(s => s.workshopSpeakerId === speaker.workshopSpeakerId)));
-    setState(current => updateTalk(current, talk.workshopTalkId, { speakers: [...kept, ...talkSpeakersFrom(chosen)] }));
-  };
-
-  return (
-    <div className="space-y-5">
-      <Panel labelledBy="import-title" className="p-5">
-        <PanelTitle id="import-title" title="Importa da Sessionize" hint="Le sessioni accettate arrivano con relatori e abstract e sostituiscono l'elenco qui sotto; track e orari non salvati restano." />
-        <Form onSubmit={importTalks} className="mt-3 flex flex-wrap items-end gap-3" aria-label="Importa da Sessionize">
-          <TextInput label="ID evento Sessionize" value={sessionizeId} onChange={setSessionizeId} placeholder="Per esempio: 2k3abc9x" className="block min-w-64" />
-          <Button type="submit" isDisabled={importing || !sessionizeId.trim()} className={btn.secondary}><AdminIcon name="download" />{importing ? 'Importazione…' : 'Importa talk'}</Button>
-        </Form>
-      </Panel>
-
-      <Panel labelledBy="tracks-title" className="p-5">
-        <PanelTitle id="tracks-title" title="Track parallele" hint="Una track per sala o percorso; i talk di una track tolta passano alla prima." />
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <TextInput label="Numero di track" type="number" value={trackCount} onChange={changeTrackCount} />
-          {state.tracks.map((track, index) => (
-            <TextInput key={track.workshopAgendaTrackId} label={`Nome della track ${index + 1}`} value={track.name ?? ''} onChange={name => setState(current => renameTrack(current, track.workshopAgendaTrackId, name))} />
-          ))}
-        </div>
-      </Panel>
-
-      <Panel labelledBy="new-talk-title" className="p-5">
-        <PanelTitle id="new-talk-title" title="Crea un talk" />
-        <div className="mt-3 grid gap-3">
-          <TextInput label="Titolo del talk" value={newTalk.title} onChange={title => setNewTalk(value => ({ ...value, title }))} />
-          <TextAreaInput label="Abstract" rows={2} value={newTalk.abstract} onChange={abstract => setNewTalk(value => ({ ...value, abstract }))} />
-          <SelectInput label="Tipo di sessione" items={SESSION_TYPES} selectedKey={newTalk.type} onSelectionChange={type => setNewTalk(value => ({ ...value, type: type ?? 'talk' }))} className="block sm:max-w-xs" />
-          <SpeakerPicker speakers={speakers} selectedIds={newTalk.speakerIds} onChange={speakerIds => setNewTalk(value => ({ ...value, speakerIds }))} collapsed />
-          {multiTrack
-            ? <SelectInput label="Track" items={trackOptions(state)} selectedKey={hasTrack(state, newTalk.trackId) ? newTalk.trackId : null} onSelectionChange={trackId => setNewTalk(value => ({ ...value, trackId }))} placeholder="Scegli una track…" className="block sm:max-w-xs" />
-            : <p className="text-sm text-muted">I talk vanno in «{clean(state.tracks[0].name) || 'Track 1'}» automaticamente.</p>}
-          <div><Button onPress={addNewTalk} className={btn.secondary}><AdminIcon name="plus" />Aggiungi talk all'elenco</Button></div>
-        </div>
-      </Panel>
-
-      {notice && <Notice tone={notice.tone} title={notice.tone === 'ok' ? 'Fatto' : 'Controlla'}>{notice.text}</Notice>}
-
-      <Panel labelledBy="talks-title">
-        <div className="p-5"><PanelTitle id="talks-title" title="Talk nell'elenco" hint={state.talks.length ? `${state.talks.length} talk` : 'Ancora nessun talk: importali da Sessionize o creali qui sopra.'} /></div>
-        {state.talks.length > 0 && (
-          <ul className="divide-y divide-line border-t border-line" aria-label="Talk nell'elenco">
-            {state.talks.map(talk => (
-              <li key={talk.workshopTalkId} className="grid gap-3 p-5 md:grid-cols-[minmax(0,1fr)_auto]">
-                <div className="grid gap-3">
-                  <TextInput label="Titolo del talk" value={talk.title ?? ''} onChange={title => setState(current => updateTalk(current, talk.workshopTalkId, { title }))} />
-                  <TextAreaInput label="Abstract" rows={2} value={talk.abstract ?? ''} onChange={abstract => setState(current => updateTalk(current, talk.workshopTalkId, { abstract }))} />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <SelectInput label="Tipo di sessione" items={LISTED_SESSION_TYPES} selectedKey={talk.sessionType || 'talk'} onSelectionChange={sessionType => setState(current => updateTalk(current, talk.workshopTalkId, { sessionType: sessionType ?? 'talk' }))} />
-                    {multiTrack
-                      ? <SelectInput label="Track" items={trackOptions(state)} selectedKey={hasTrack(state, talk.trackId) ? talk.trackId! : null} onSelectionChange={trackId => setState(current => assignTalkTrack(current, talk.workshopTalkId, trackId))} placeholder="Scegli una track…" />
-                      : <p className="self-end pb-3 text-sm text-muted">{clean(state.tracks[0]?.name) || 'Track 1'}</p>}
-                  </div>
-                  <SpeakerPicker label={`Relatori di ${talkTitle(talk)}`} speakers={speakers} selectedIds={idsInDirectory(talk, speakers)} onChange={ids => setSpeakersOf(talk, ids)} extras={namesOutsideDirectory(talk, speakers)} collapsed />
-                </div>
-                <div><Button onPress={() => setState(current => removeTalk(current, talk.workshopTalkId))} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Rimuovi</Button></div>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
-          <span className="text-sm font-semibold text-[#8a4b00]">{draft.dirty ? 'Modifiche non salvate' : ''}</span>
-          <Button onPress={() => void save('talks', 'Elenco talk salvato')} isDisabled={saving} className={btn.primary}>{saving ? 'Salvataggio…' : 'Salva elenco talk'}</Button>
-        </div>
-        {problem && <div className="px-5 pb-5"><Notice tone="danger" title="L'elenco non è pronto">{problem}</Notice></div>}
-      </Panel>
-    </div>
-  );
-}
-
-// ---------- 7. Agenda e orari ----------
-
-function ScheduleRow({ item, title, isTalk, speakersText, index, count, eventDate, onChange, onMove, onRemove }: {
-  item: AgendaDraftState['items'][number];
-  title: string;
-  isTalk: boolean;
-  speakersText: string;
-  index: number;
-  count: number;
-  eventDate: string;
-  onChange: (update: Partial<AgendaDraftState['items'][number]>) => void;
-  onMove: (delta: -1 | 1) => void;
-  onRemove?: () => void;
-}) {
-  return (
-    <li className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-start sm:px-5">
-      <div role="group" aria-label={`Orario di ${title}`} className="flex shrink-0 items-center gap-1.5">
-        <InlineField label={`Inizio di ${title}`} type="time" value={toClockTime(item.startTime)} onChange={value => { if (value) onChange({ startTime: toStoredTime(value, item.startTime, eventDate) }); }} className="w-[6.5rem]" />
-        <span aria-hidden="true" className="text-muted">–</span>
-        <InlineField label={`Fine di ${title}`} type="time" value={toClockTime(item.endTime)} onChange={value => { if (value) onChange({ endTime: toStoredTime(value, item.endTime, eventDate) }); }} className="w-[6.5rem]" />
-      </div>
-      <div className="min-w-0 flex-1">
-        {isTalk ? (
-          <>
-            <p className="font-bold leading-snug">{title}</p>
-            {speakersText && <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted"><AdminIcon name="mic" className="size-4" />{speakersText}</p>}
-          </>
-        ) : (
-          <InlineField label="Titolo della pausa" value={item.title ?? ''} onChange={value => onChange({ title: value })} placeholder="Pausa" />
-        )}
-        <InlineField label={`Sala di ${title}`} value={item.roomName ?? ''} onChange={value => onChange({ roomName: value })} placeholder="Sala (facoltativa)" className="mt-1.5 max-w-56" />
-      </div>
-      <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
-        <MoveButtons id={item.workshopAgendaItemId} name={title} index={index} count={count} onMove={onMove} />
-        {onRemove && <Button onPress={onRemove} aria-label={`Rimuovi: ${title}`} className={btn.icon}><AdminIcon name="trash" /></Button>}
-      </div>
-    </li>
-  );
-}
-
-export function ScheduleStep({ page, draft }: { page: EventPage; draft: AgendaDraft }) {
-  const { workshop } = page;
-  const { state, setState, params, setParams, trackIndex, setTrackIndex } = draft;
-  const { save, saving, problem, setProblem } = useAgendaSave(page, draft);
-  const [interval, setIntervalDraft] = useState({ title: SUGGESTED_INTERVAL_TITLE, room: '' });
+  const [talkTitleDraft, setTalkTitleDraft] = useState('');
+  const [talkAbstract, setTalkAbstract] = useState('');
+  const [talkType, setTalkType] = useState('talk');
+  const [talkSpeakerIds, setTalkSpeakerIds] = useState<string[]>([]);
+  const [talkTrackId, setTalkTrackId] = useState<string | null>(null);
+  const [trackIndex, setTrackIndex] = useState(0);
+  const [scheduleStart, setScheduleStart] = useState('09:00');
+  const [talkDuration, setTalkDuration] = useState('60');
+  const [gapDuration, setGapDuration] = useState('5');
+  const [intervalTitle, setIntervalTitle] = useState(SUGGESTED_INTERVAL_TITLE);
+  const [itemRoom, setItemRoom] = useState('');
+  const [busy, setBusy] = useState(false);
+  const skipInit = useRef(false);
   const refocus = useRef<{ id: string; delta: -1 | 1 } | null>(null);
+
+  // As before: the module starts again from the workshop whenever the record changes.
+  useEffect(() => {
+    if (skipInit.current) { skipInit.current = false; return; }
+    const { state: next, scheduleStart: start } = stateOf(workshop);
+    setState(next);
+    setTrackIndex(0);
+    setTalkTrackId(next.tracks.length === 1 ? next.tracks[0].workshopAgendaTrackId : null);
+    if (next.items.length > 0) setScheduleStart(start);
+    setEventbriteSales(null);
+  }, [workshop]);
+
   useEffect(() => {
     if (!refocus.current) return;
     restoreMoveFocus(refocus.current.id, refocus.current.delta);
     refocus.current = null;
-  }, [state.items]);
+  }, [items]);
 
-  const pageIndex = Math.min(trackIndex, state.tracks.length - 1);
-  const track = state.tracks[pageIndex];
-  const trackId = track.workshopAgendaTrackId;
-  const rows = trackItems(state, trackId);
-
-  const fill = useCallback(() => {
-    const result = autoFillSchedule(state, params, workshop.eventDate);
-    if ('error' in result) {
-      setProblem(result.error);
-      return;
-    }
-    setState(current => ({ ...current, items: result.items }));
-    setProblem(null);
-    notify('Orari riempiti', { description: 'Orari calcolati da inizio e durate: controlla sessioni e pause qui sotto.' });
-  }, [params, setProblem, setState, state, workshop.eventDate]);
-
-  // Entering this step with talks still unscheduled fills the tracks, as the previous schedule page did.
-  useEffect(() => {
-    if (state.talks.length > 0 && unscheduledTalks(state).length > 0) fill();
-  }, [fill, state]);
-
-  const addInterval = () => {
-    setState(current => addServiceInterval(current, trackId, { title: interval.title, room: interval.room, gap: params.gap, scheduleStart: params.start, eventDate: workshop.eventDate }));
-    setIntervalDraft({ title: SUGGESTED_INTERVAL_TITLE, room: '' });
-    notify('Pausa aggiunta', { description: 'Sistema orario e posizione nella scaletta della track.' });
-  };
-
-  return (
-    <div className="space-y-5">
-      <Panel labelledBy="fill-title" className="p-5">
-        <PanelTitle id="fill-title" title="Riempi gli orari" hint="Ricalcola gli orari di ogni track da questo inizio; le pause che hai aggiunto restano al loro posto." />
-        <Form onSubmit={event => { event.preventDefault(); fill(); }} className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end" aria-label="Riempi gli orari">
-          <TextInput label="Inizio della track" type="time" value={params.start} onChange={start => setParams({ ...params, start })} />
-          <TextInput label="Durata talk (minuti)" type="number" value={params.duration} onChange={duration => setParams({ ...params, duration })} />
-          <TextInput label="Pausa tecnica (minuti)" type="number" value={params.gap} onChange={gap => setParams({ ...params, gap })} />
-          <Button type="submit" className={btn.secondary}><EventIcon name="clock" />Riempi gli orari</Button>
-        </Form>
-      </Panel>
-
-      {problem && <Notice tone="danger" title="L'agenda non è pronta">{problem}</Notice>}
-
-      <Panel labelledBy="schedule-title">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-          <PanelTitle id="schedule-title" title={state.tracks.length > 1 ? `${clean(track.name) || 'Track'} (${pageIndex + 1} di ${state.tracks.length})` : clean(track.name) || 'Track 1'} hint="Orari sul giorno dell'evento" />
-          {state.tracks.length > 1 && (
-            <div className="flex gap-2">
-              <Button onPress={() => setTrackIndex(Math.max(0, pageIndex - 1))} isDisabled={pageIndex === 0} className={btn.ghost}><AdminIcon name="back" />Track precedente</Button>
-              <Button onPress={() => setTrackIndex(Math.min(state.tracks.length - 1, pageIndex + 1))} isDisabled={pageIndex >= state.tracks.length - 1} className={btn.ghost}>Track successiva<AdminIcon name="arrow" /></Button>
-            </div>
-          )}
-        </div>
-        {rows.length ? (
-          <ol className="divide-y divide-line" aria-label={`Scaletta di ${clean(track.name) || 'Track'}`}>
-            {rows.map((item, index) => {
-              const talk = state.talks.find(value => value.workshopTalkId === item.talkId);
-              const isTalk = item.itemType === 'talk' && !!talk;
-              const title = isTalk ? talkTitle(talk) : clean(item.title) || 'Pausa';
-              return (
-                <ScheduleRow
-                  key={item.workshopAgendaItemId}
-                  item={item}
-                  title={title}
-                  isTalk={isTalk}
-                  speakersText={talk ? speakerNames(talk) : ''}
-                  index={index}
-                  count={rows.length}
-                  eventDate={workshop.eventDate}
-                  onChange={update => setState(current => updateItem(current, item.workshopAgendaItemId, update))}
-                  onMove={delta => { refocus.current = { id: item.workshopAgendaItemId, delta }; setState(current => moveItem(current, trackId, item.workshopAgendaItemId, delta)); }}
-                  onRemove={isTalk ? undefined : () => setState(current => removeItem(current, item.workshopAgendaItemId))}
-                />
-              );
-            })}
-          </ol>
-        ) : (
-          <EmptyState icon="calendar" title="Nessuna voce in scaletta"><p>Aggiungi i talk nel passo «Elenco talk» o una pausa qui sotto.</p></EmptyState>
-        )}
-        <Form onSubmit={event => { event.preventDefault(); addInterval(); }} className="flex flex-wrap items-end gap-3 border-t border-line px-5 py-4" aria-label="Aggiungi pausa">
-          <TextInput label="Titolo della nuova pausa" value={interval.title} onChange={title => setIntervalDraft(value => ({ ...value, title }))} />
-          <TextInput label="Sala della nuova pausa" value={interval.room} onChange={room => setIntervalDraft(value => ({ ...value, room }))} />
-          <Button type="submit" className={btn.secondary}><AdminIcon name="plus" />Aggiungi pausa</Button>
-        </Form>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
-          <span className="text-sm font-semibold text-[#8a4b00]">{draft.dirty ? 'Modifiche non salvate' : ''}</span>
-          <Button onPress={() => void save('schedule', 'Agenda salvata')} isDisabled={saving} className={btn.primary}>{saving ? 'Salvataggio…' : 'Salva agenda'}</Button>
-        </div>
-      </Panel>
-    </div>
-  );
-}
-
-// ---------- 8. Iscrizione ----------
-
-interface TicketSales { totalCapacity: number; sold: number; pending: number; remaining: number; refreshedAt: string }
-
-export function RegistrationStep({ page, draft }: { page: EventPage; draft: AgendaDraft }) {
-  const { workshop, api } = page;
-  const { state, setState } = draft;
-  const { save, saving, problem } = useAgendaSave(page, draft);
-  const [sales, setSales] = useState<TicketSales | null>(null);
-  const [busy, setBusy] = useState<'sales' | 'capacity' | 'sync' | 'publish' | null>(null);
-  const [confirmPublish, setConfirmPublish] = useState(false);
-  const issues = eventbriteIssues(workshop, state);
-  const id = encodeURIComponent(workshop.workshopId);
-  const synced = workshop.eventbriteSyncedTicketCapacity ?? 0;
-  const hasEvent = !!workshop.eventbriteEventId;
-  // As before: the capacity cannot go below what is synchronized or already sold and pending.
-  const minimumCapacity = Math.max(synced, (sales?.sold ?? 0) + (sales?.pending ?? 0));
   const set = (patch: Partial<AgendaDraftState>) => setState(current => ({ ...current, ...patch }));
+  const message = (text: string, error = false) => notify(text, error ? { kind: 'error' } : undefined);
 
-  const run = async (kind: NonNullable<typeof busy>, action: () => Promise<void>, failure: string) => {
-    setBusy(kind);
+  const handleImport = async () => {
+    if (importSource === 'none') return;
+    setBusy(true);
     try {
-      await action();
+      await api(`/Workshop/ImportSessionize/${encodeURIComponent(workshop.workshopId)}`, { method: 'POST', body: JSON.stringify({ sessionizeId: sessionizeId.trim() }) });
+      let refreshed: EventRecord;
+      try {
+        refreshed = await api<EventRecord>(`/Workshop/Get/${encodeURIComponent(workshop.workshopId)}`);
+      } catch (error) {
+        throw new Error(`Impossibile ricaricare i talk importati (${errorText(error)})`, { cause: error });
+      }
+      // The imported talks replace the local ones; unsaved tracks and items stay. The page record follows the
+      // server's talks too, so the final "Salva modifiche" cannot revert the import.
+      skipInit.current = true;
+      setState(current => ({ ...current, talks: adoptTalks(refreshed.talks, current.tracks) }));
+      page.commitRecord({ ...page.current(), talks: refreshed.talks ?? [] });
+      page.reloadSpeakers();
+      message('Talk importati da Sessionize e schede dei relatori corrispondenti aggiornate.');
     } catch (error) {
-      notify(failure, { description: errorText(error), kind: 'error' });
+      message(error instanceof Error ? error.message : 'Importazione da Sessionize non riuscita', true);
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   };
-  const refreshSales = () => run('sales', async () => {
-    setSales(await api<TicketSales>(`/Eventbrite/TicketSales/${id}`));
-    notify('Vendite aggiornate', { description: 'Dati letti ora da Eventbrite.' });
-  }, 'Vendite non disponibili');
-  const saveCapacity = () => run('capacity', async () => {
-    page.replace(await api<EventRecord>(`/Eventbrite/SetTicketCapacity/${id}`, { method: 'PUT', body: JSON.stringify({ capacity: state.eventbriteTicketCapacity }) }));
-    notify('Capienza salvata in locale', { description: 'Usa «Sincronizza con Eventbrite» per applicarla.' });
-  }, 'Capienza non aggiornata');
-  // As before: the module is saved (with its checks) and only then Eventbrite is called.
-  const sync = () => run('sync', async () => {
-    if (!await save('registration', 'Iscrizione e agenda salvate')) return;
-    const updated = await api<EventRecord>(`/Eventbrite/Sync/${id}`, { method: 'POST' });
-    page.replace(updated);
-    if (updated.eventbriteEventId) notify('Evento sincronizzato con Eventbrite');
-    else notify('Evento salvato', { description: 'Aggiungi sede, agenda e biglietti iniziali prima che Eventbrite possa creare la bozza.' });
-  }, 'Sincronizzazione con Eventbrite non riuscita');
-  const publish = () => run('publish', async () => {
-    await api(`/Eventbrite/Publish/${id}`, { method: 'POST' });
-    await page.reload();
-    setConfirmPublish(false);
-    notify('Pubblicato su Eventbrite');
-  }, 'Pubblicazione su Eventbrite non riuscita');
+
+  const handleAddTalk = () => {
+    if (!talkTitleDraft.trim()) return message('Inserisci un titolo per il talk.', true);
+    if (talkSpeakerIds.length === 0) return message("Seleziona almeno un relatore dall'anagrafica relatori.", true);
+    if (tracks.length > 1 && !talkTrackId) return message('Seleziona una track per questo talk.', true);
+    const chosen = speakers.filter(speaker => talkSpeakerIds.includes(speaker.workshopSpeakerId));
+    set({ talks: [...talks, {
+      workshopTalkId: createId(),
+      trackId: tracks.length === 1 ? tracks[0].workshopAgendaTrackId : talkTrackId || null,
+      title: talkTitleDraft.trim(),
+      abstract: talkAbstract,
+      sessionType: talkType,
+      speakers: talkSpeakersFrom(chosen),
+    }] });
+    setTalkTitleDraft('');
+    setTalkAbstract('');
+    setTalkSpeakerIds([]);
+    message("Talk aggiunto al pool dell'evento. Salva il talk pool per renderlo definitivo.");
+  };
+
+  const handleTrackCount = (count: number) => {
+    const next = setTrackCount(state, count);
+    setState(next);
+    setTalkTrackId(next.tracks.length === 1 ? next.tracks[0].workshopAgendaTrackId : null);
+    setTrackIndex(current => Math.min(current, next.tracks.length - 1));
+  };
+
+  const handleAutoFillSchedule = useCallback(() => {
+    const result = autoFillSchedule(state, { start: scheduleStart, duration: talkDuration, gap: gapDuration }, workshop.eventDate);
+    if ('error' in result) return message(result.error, true);
+    setState(current => ({ ...current, items: result.items }));
+    message("Orari delle track riempiti dall'ora di inizio e dalle durate selezionate. Sistema sessioni o intervalli qui sotto.");
+  }, [gapDuration, scheduleStart, state, talkDuration, workshop.eventDate]);
+
+  // As before: the schedule page fills the tracks as soon as it is shown with talks still unscheduled.
+  useEffect(() => {
+    if (activePage === 'schedule' && talks.length > 0 && unscheduledTalks(state).length > 0) handleAutoFillSchedule();
+  }, [activePage, handleAutoFillSchedule, state, talks.length]);
+
+  const handleAddServiceInterval = () => {
+    const track = tracks[trackIndex];
+    if (!track) return;
+    setState(current => addServiceInterval(current, track.workshopAgendaTrackId, { title: intervalTitle, room: itemRoom, gap: gapDuration, scheduleStart, eventDate: workshop.eventDate }));
+    setIntervalTitle(SUGGESTED_INTERVAL_TITLE);
+    setItemRoom('');
+    message('Intervallo di servizio aggiunto. Sistema orario e posizione negli orari della track.');
+  };
+
+  const setSpeakersOf = (talk: EventTalk, ids: string[]) => {
+    const chosen = speakers.filter(speaker => ids.includes(speaker.workshopSpeakerId));
+    setState(current => updateTalk(current, talk.workshopTalkId, { speakers: [...unmatchedSpeakers(talk, speakers), ...talkSpeakersFrom(chosen)] }));
+  };
+
+  /** The previous handleSave: the page's checks, then one PUT of the whole record; the record then reads update-pending. */
+  const handleSave = async (): Promise<boolean> => {
+    const problem = agendaProblem(state, activePage ?? 'registration');
+    if (problem) {
+      message(problem, true);
+      return false;
+    }
+    return page.save(latest => agendaSaveBody(latest, state), { title: "Dettagli dell'evento e agenda salvati." });
+  };
+
+  const handleSetEventbriteCapacity = async () => {
+    setBusy(true);
+    try {
+      page.replace(await api<EventRecord>(`/Eventbrite/SetTicketCapacity/${encodeURIComponent(workshop.workshopId)}`, { method: 'PUT', body: JSON.stringify({ capacity: state.eventbriteTicketCapacity }) }));
+      message('Capienza biglietti salvata in locale. Usa Sincronizza/Aggiorna Eventbrite per applicarla.');
+    } catch (error) {
+      message(error instanceof Error ? error.message : 'Impossibile aggiornare la disponibilità dei biglietti Eventbrite', true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRefreshEventbriteSales = async () => {
+    setRefreshingSales(true);
+    try {
+      setEventbriteSales(await api<TicketSales>(`/Eventbrite/TicketSales/${encodeURIComponent(workshop.workshopId)}`));
+      message('Vendite live dei biglietti Eventbrite aggiornate.');
+    } catch (error) {
+      message(error instanceof Error ? error.message : 'Impossibile aggiornare le vendite dei biglietti Eventbrite', true);
+    } finally {
+      setRefreshingSales(false);
+    }
+  };
+
+  const handleSyncEventbrite = async () => {
+    setSyncing(true);
+    try {
+      if (!await handleSave()) return;
+      const updated = await api<EventRecord>(`/Eventbrite/Sync/${encodeURIComponent(workshop.workshopId)}`, { method: 'POST' });
+      page.replace(updated);
+      message(updated.eventbriteEventId
+        ? 'Evento Eventbrite sincronizzato.'
+        : 'Evento salvato. Aggiungi sede, agenda e quantità iniziale di biglietti prima che Eventbrite possa creare una bozza.');
+    } catch (error) {
+      message(error instanceof Error ? error.message : 'Sincronizzazione Eventbrite non riuscita', true);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handlePublishEventbrite = async () => {
+    setPublishing(true);
+    try {
+      await api(`/Eventbrite/Publish/${encodeURIComponent(workshop.workshopId)}`, { method: 'POST' });
+      await page.refresh();
+      setConfirmPublish(false);
+      message('Evento pubblicato su Eventbrite.');
+    } catch (error) {
+      message(error instanceof Error ? error.message : 'Pubblicazione su Eventbrite non riuscita', true);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const readinessIssues = eventbriteIssues(workshop, state);
+  const synced = workshop.eventbriteSyncedTicketCapacity ?? 0;
+  const minimumCapacity = Math.max(synced, (eventbriteSales?.sold ?? 0) + (eventbriteSales?.pending ?? 0));
+  const saving = busy || page.saving;
+  const currentTrack = tracks[Math.min(trackIndex, tracks.length - 1)];
+  const currentRows = currentTrack ? trackItems(state, currentTrack.workshopAgendaTrackId) : [];
 
   return (
     <div className="space-y-5">
-      <Panel labelledBy="registration-title" className="space-y-4 p-5">
-        <PanelTitle id="registration-title" title="Iscrizione e note per chi partecipa" hint="Salva prima in locale; Eventbrite cambia solo con «Sincronizza»." />
-        {issues.length > 0 && (
-          <Notice tone="warn" title="Prima di sincronizzare con Eventbrite servono:">
-            <ul className="mt-1 list-disc pl-5">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+      <Panel hidden={activePage !== 'registration'} labelledBy="registration-title" className="space-y-4 p-5 sm:p-6">
+        <PanelTitle id="registration-title" title="Iscrizione e dettagli dei partecipanti" />
+        <p className="text-sm text-muted">Salva prima in locale le modifiche all'evento e all'agenda. Eventbrite cambia solo quando selezioni Sincronizza/Aggiorna qui sotto.</p>
+        {readinessIssues.length > 0 && (
+          <Notice tone="warn" title="Richiesto prima che Eventbrite possa essere sincronizzato">
+            <ul className="mt-1 list-disc pl-5">{readinessIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
           </Notice>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextInput label="Link di prenotazione e disdetta" value={state.bookingServiceUrl} onChange={bookingServiceUrl => set({ bookingServiceUrl })} placeholder="https://…" />
-          <NumberInput label="Biglietti gratuiti disponibili su Eventbrite" min={minimumCapacity} value={String(state.eventbriteTicketCapacity)} onChange={value => set({ eventbriteTicketCapacity: Math.max(0, Number.parseInt(value, 10) || 0) })} description={`Separati dai posti della sede. Aumenta il numero per liberare altri biglietti; totale già sincronizzato: ${synced}.`} />
-          <TextInput label="Inizio vendite" type="datetime-local" value={state.eventbriteSalesStart} onChange={eventbriteSalesStart => set({ eventbriteSalesStart })} description="Facoltativo, nel fuso orario configurato su Eventbrite." />
-          <TextInput label="Fine vendite" type="datetime-local" value={state.eventbriteSalesEnd} onChange={eventbriteSalesEnd => set({ eventbriteSalesEnd })} description="Facoltativo." />
-          <div className="sm:col-span-2"><TextAreaInput label="Note per chi partecipa" rows={3} value={state.attendeeNotes} onChange={attendeeNotes => set({ attendeeNotes })} placeholder="Informazioni pratiche per chi partecipa" /></div>
+          <TextInput label="URL di prenotazione e cancellazione del posto" value={state.bookingServiceUrl} onChange={bookingServiceUrl => set({ bookingServiceUrl })} />
+          <NumberInput label="Biglietti gratuiti Eventbrite disponibili" min={minimumCapacity} value={String(state.eventbriteTicketCapacity)} onChange={value => set({ eventbriteTicketCapacity: Math.max(0, Number.parseInt(value, 10) || 0) })} description={`Separati dalla capienza della sede. Aumenta questo valore per liberare altri biglietti; totale attualmente sincronizzato: ${synced}.`} />
+          <TextInput label="Inizio vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesStart} onChange={eventbriteSalesStart => set({ eventbriteSalesStart })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
+          <TextInput label="Fine vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesEnd} onChange={eventbriteSalesEnd => set({ eventbriteSalesEnd })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
+          <div className="sm:col-span-2"><TextAreaInput label="Note per i partecipanti" rows={2} value={state.attendeeNotes} onChange={attendeeNotes => set({ attendeeNotes })} /></div>
         </div>
-        {problem && <Notice tone="danger" title="Non salvato">{problem}</Notice>}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
-          <span className="text-sm font-semibold text-[#8a4b00]">{draft.dirty ? 'Modifiche non salvate' : ''}</span>
-          <Button onPress={() => void save('registration', 'Iscrizione e agenda salvate')} isDisabled={saving || busy !== null} className={btn.primary}>{saving ? 'Salvataggio…' : 'Salva iscrizione e agenda'}</Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm">
+            Stato Eventbrite: {eventbriteStatusLabel(workshop)}
+            {workshop.eventbriteLastSyncedAt ? ` · Ultima sincronizzazione ${new Date(workshop.eventbriteLastSyncedAt).toLocaleString('it-IT')}` : ''}
+          </p>
+          {workshop.eventbriteEventUrl && <ExternalLink href={workshop.eventbriteEventUrl} className={btn.ghost}>Apri l'evento Eventbrite</ExternalLink>}
+          {workshop.eventbriteEventId && (
+            <Button onPress={() => void handleRefreshEventbriteSales()} isDisabled={refreshingSales || saving} className={btn.secondary}><EventIcon name="refresh" />{refreshingSales ? 'Aggiornamento delle vendite…' : 'Aggiorna le vendite dei biglietti'}</Button>
+          )}
+          {eventbriteSales && (
+            <div className="w-full">
+              <Notice tone="ok" title="Biglietti Eventbrite">
+                venduti: {eventbriteSales.sold}, in sospeso: {eventbriteSales.pending}, capienza totale: {eventbriteSales.totalCapacity}, rimanenti: {eventbriteSales.remaining}. Aggiornato {new Date(eventbriteSales.refreshedAt).toLocaleString('it-IT')}.
+              </Notice>
+            </div>
+          )}
+          <Button onPress={() => void handleSave()} isDisabled={saving || syncing} className={btn.primary}>Salva iscrizione e agenda</Button>
+          {workshop.eventbriteEventId && state.eventbriteTicketCapacity > synced && (
+            <Button onPress={() => void handleSetEventbriteCapacity()} isDisabled={saving} className={btn.secondary}><EventIcon name="ticket" />Salva capienza biglietti</Button>
+          )}
+          <Button onPress={() => void handleSyncEventbrite()} isDisabled={saving || syncing || readinessIssues.length > 0} className={btn.secondary}>
+            {syncing ? 'Sincronizzazione…' : workshop.eventbriteEventId ? 'Sincronizza/Aggiorna Eventbrite' : 'Crea bozza Eventbrite'}
+          </Button>
+          {workshop.eventbriteEventId && !workshop.eventbritePublished && !confirmPublish && (
+            <Button onPress={() => setConfirmPublish(true)} isDisabled={saving || publishing} className={btn.primary}>{publishing ? 'Pubblicazione…' : 'Pubblica su Eventbrite'}</Button>
+          )}
+          {confirmPublish && (
+            <div className="w-full">
+              <InlineConfirm title="Pubblicare questo evento su Eventbrite? È separato dalla pubblicazione dell'evento su questo sito." confirmLabel="OK" busyLabel="Pubblicazione…" busy={publishing} onConfirm={() => void handlePublishEventbrite()} onCancel={() => setConfirmPublish(false)} />
+            </div>
+          )}
+          {workshop.eventbritePublished && <Badge kind="ok">Pubblicato su Eventbrite</Badge>}
+          {workshop.eventbriteLastError && <div className="w-full"><Notice tone="danger" title={workshop.eventbriteLastError} /></div>}
         </div>
       </Panel>
 
-      <Panel labelledBy="eventbrite-title" className="space-y-4 p-5">
-        <PanelTitle id="eventbrite-title" title="Eventbrite" hint={<>Stato: <strong>{eventbriteStatusLabel(workshop)}</strong>{workshop.eventbriteLastSyncedAt ? ` · ultima sincronizzazione ${formatDateTime(workshop.eventbriteLastSyncedAt)}` : ''}</>} />
-        {workshop.eventbriteLastError && <Notice tone="danger" title="Ultimo errore Eventbrite">{workshop.eventbriteLastError}</Notice>}
-        {sales && (
-          <Notice tone="ok" title="Biglietti Eventbrite">
-            Venduti {sales.sold}, in sospeso {sales.pending}, capienza {sales.totalCapacity}, disponibili {sales.remaining}. Aggiornato: {formatDateTime(sales.refreshedAt)}.
-          </Notice>
-        )}
-        {confirmPublish ? (
-          <InlineConfirm title="Pubblicare l'evento su Eventbrite?" confirmLabel="Pubblica" busyLabel="Pubblicazione…" busy={busy === 'publish'} onConfirm={() => void publish()} onCancel={() => setConfirmPublish(false)}>
-            <p>È separato dalla pubblicazione sul sito: l'evento diventa visibile e prenotabile su Eventbrite.</p>
-          </InlineConfirm>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2">
-            {workshop.eventbriteEventUrl && <ExternalLink href={workshop.eventbriteEventUrl} className={btn.ghost}>Apri l'evento su Eventbrite</ExternalLink>}
-            {hasEvent && <Button onPress={() => void refreshSales()} isDisabled={busy !== null || saving} className={btn.ghost}><EventIcon name="refresh" />{busy === 'sales' ? 'Aggiornamento…' : 'Aggiorna le vendite'}</Button>}
-            {hasEvent && state.eventbriteTicketCapacity > synced && <Button onPress={() => void saveCapacity()} isDisabled={busy !== null || saving} className={btn.secondary}><EventIcon name="ticket" />{busy === 'capacity' ? 'Salvataggio…' : 'Salva capienza biglietti'}</Button>}
-            <Button onPress={() => void sync()} isDisabled={busy !== null || saving || issues.length > 0} className={btn.secondary}>
-              {busy === 'sync' ? 'Sincronizzazione…' : hasEvent ? 'Sincronizza con Eventbrite' : 'Crea la bozza su Eventbrite'}
-            </Button>
-            {hasEvent && !workshop.eventbritePublished && <Button onPress={() => setConfirmPublish(true)} isDisabled={busy !== null || saving} className={btn.primary}>Pubblica su Eventbrite…</Button>}
-            {workshop.eventbritePublished && <Badge kind="ok">Pubblicato su Eventbrite</Badge>}
+      <Panel hidden={activePage !== 'talks'} labelledBy="talk-pool-title" className="space-y-4 p-5 sm:p-6">
+        <PanelTitle id="talk-pool-title" title="Talk pool" />
+        <h4 className="font-bold">Importa talk</h4>
+        <div className="grid items-end gap-3 md:grid-cols-[1fr_2fr_auto]">
+          <SelectInput label="Importa da" items={IMPORT_SOURCES} selectedKey={importSource} onSelectionChange={key => setImportSource(key === 'sessionize' ? 'sessionize' : 'none')} />
+          {importSource === 'sessionize' && <TextInput label="ID Sessionize" value={sessionizeId} onChange={setSessionizeId} placeholder="ID evento" />}
+          {importSource === 'sessionize' && <Button onPress={() => void handleImport()} isDisabled={saving || !sessionizeId.trim()} className={btn.secondary}><AdminIcon name="download" />Importa talk</Button>}
+        </div>
+        <hr className="border-line" />
+        <h4 className="font-bold">Tracks</h4>
+        <NumberInput label="Numero di track" min={1} value={String(tracks.length)} onChange={value => handleTrackCount(Number(value) || 1)} className="block sm:max-w-xs" />
+        <div className="grid gap-3">
+          {tracks.map((track, index) => (
+            <TextInput key={track.workshopAgendaTrackId} label={`Nome track ${index + 1}`} value={track.name ?? ''} onChange={name => setState(current => renameTrack(current, track.workshopAgendaTrackId, name))} />
+          ))}
+        </div>
+        <hr className="border-line" />
+        <h4 className="font-bold">Crea un talk</h4>
+        <div className="grid gap-3" role="group" aria-label="Crea un talk">
+          <TextInput label="Titolo del talk" value={talkTitleDraft} onChange={setTalkTitleDraft} />
+          <TextAreaInput label="Abstract" rows={2} value={talkAbstract} onChange={setTalkAbstract} />
+          <SelectInput label="Tipo di sessione" items={SESSION_TYPES} selectedKey={talkType} onSelectionChange={key => setTalkType(key ?? 'talk')} className="block sm:max-w-xs" />
+          <SpeakerPicker label="Relatori" placeholder="Seleziona uno o più relatori" speakers={speakers} selectedIds={talkSpeakerIds} onChange={setTalkSpeakerIds} collapsed />
+          {tracks.length > 1 && <SelectInput label="Track" items={trackOptions(tracks)} selectedKey={hasTrack(state, talkTrackId) ? talkTrackId : null} onSelectionChange={setTalkTrackId} placeholder="" className="block sm:max-w-xs" />}
+          {tracks.length === 1 && <p className="text-muted">I talk sono assegnati a {tracks[0].name} automaticamente.</p>}
+          <div><Button onPress={handleAddTalk} className={btn.secondary}>Aggiungi talk al pool</Button></div>
+        </div>
+        <h4 className="font-bold">Talk nel pool</h4>
+        <ul className="grid gap-3" aria-label="Talk nel pool">
+          {talks.map(talk => (
+            <li key={talk.workshopTalkId} className="grid gap-3 rounded-xl border border-line p-4 md:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="grid gap-3">
+                <TextInput label="Titolo del talk" value={talk.title ?? ''} onChange={title => setState(current => updateTalk(current, talk.workshopTalkId, { title }))} />
+                <TextAreaInput label="Abstract" rows={2} value={talk.abstract ?? ''} onChange={abstract => setState(current => updateTalk(current, talk.workshopTalkId, { abstract }))} />
+                <SelectInput label="Tipo di sessione" items={LISTED_SESSION_TYPES} selectedKey={talk.sessionType || 'talk'} onSelectionChange={sessionType => setState(current => updateTalk(current, talk.workshopTalkId, { sessionType: sessionType ?? 'talk' }))} className="block sm:max-w-xs" />
+                <SpeakerPicker label="Relatori" placeholder="Seleziona uno o più relatori" speakers={speakers} selectedIds={matchedSpeakerIds(talk, speakers)} onChange={ids => setSpeakersOf(talk, ids)} extras={unmatchedSpeakers(talk, speakers).map(speaker => clean(speaker.name)).filter(Boolean)} collapsed />
+                {tracks.length > 1
+                  ? <SelectInput label="Track" items={trackOptions(tracks)} selectedKey={hasTrack(state, talk.trackId) ? talk.trackId! : null} onSelectionChange={trackId => setState(current => assignTalkTrack(current, talk.workshopTalkId, trackId))} placeholder="Seleziona una track" className="block sm:max-w-xs" />
+                  : <p className="text-muted">{tracks[0]?.name ?? 'Track 1'}</p>}
+              </div>
+              <div><Button onPress={() => setState(current => removeTalk(current, talk.workshopTalkId))} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>Rimuovi</Button></div>
+            </li>
+          ))}
+        </ul>
+        <div><Button onPress={() => void handleSave()} isDisabled={saving} className={btn.primary}>Salva talk pool</Button></div>
+      </Panel>
+
+      <Panel hidden={activePage !== 'schedule'} labelledBy="schedule-title" className="space-y-4 p-5 sm:p-6">
+        <PanelTitle id="schedule-title" title="Orari della track" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <TextInput label="Ora di inizio della track" type="time" value={scheduleStart} onChange={setScheduleStart} />
+          <NumberInput label="Durata talk (minuti)" min={1} value={talkDuration} onChange={setTalkDuration} />
+          <NumberInput label="Durata pausa (minuti)" min={1} value={gapDuration} onChange={setGapDuration} />
+        </div>
+        <div><Button onPress={handleAutoFillSchedule} className={btn.secondary}><EventIcon name="clock" />Riempi automaticamente gli orari delle track</Button></div>
+        {tracks.length > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button onPress={() => setTrackIndex(index => Math.max(0, index - 1))} isDisabled={trackIndex === 0} className={btn.ghost}><AdminIcon name="back" />Track precedente</Button>
+            <h4 className="text-lg font-bold">{currentTrack?.name} ({Math.min(trackIndex, tracks.length - 1) + 1} di {tracks.length})</h4>
+            <Button onPress={() => setTrackIndex(index => Math.min(tracks.length - 1, index + 1))} isDisabled={trackIndex >= tracks.length - 1} className={btn.ghost}>Track successiva<AdminIcon name="arrow" /></Button>
           </div>
         )}
+        {tracks.length === 1 && <h4 className="text-lg font-bold">{tracks[0].name}</h4>}
+        <ol className="grid gap-3" aria-label={`Orari di ${currentTrack?.name ?? ''}`}>
+          {currentRows.map((item, index) => {
+            const talk = talks.find(value => value.workshopTalkId === item.talkId);
+            const itemTitle = talk?.title ?? item.title ?? item.itemType ?? '';
+            return (
+              <li key={item.workshopAgendaItemId} className="grid gap-2 rounded-xl border border-line p-4">
+                <div role="group" aria-label="Titolo e controlli della voce" className="flex items-center gap-2">
+                  <h5 className="min-w-0 flex-1 text-lg font-bold [overflow-wrap:anywhere]">{itemTitle}</h5>
+                  <MoveButtons id={item.workshopAgendaItemId} name={itemTitle} index={index} count={currentRows.length} onMove={delta => { refocus.current = { id: item.workshopAgendaItemId, delta }; setState(current => moveItem(current, currentTrack.workshopAgendaTrackId, item.workshopAgendaItemId, delta)); }} />
+                  {item.itemType !== 'talk' && <Button onPress={() => setState(current => removeItem(current, item.workshopAgendaItemId))} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>Rimuovi intervallo</Button>}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-4">
+                  <div role="group" aria-label="Orari della voce" className="grid grid-cols-2 gap-2 sm:col-span-2">
+                    <TextInput label="Ora di inizio" type="time" value={toClockTime(item.startTime)} onChange={value => { if (value) setState(current => updateItem(current, item.workshopAgendaItemId, { startTime: toStoredTime(value, item.startTime, workshop.eventDate) })); }} />
+                    <TextInput label="Ora di fine" type="time" value={toClockTime(item.endTime)} onChange={value => { if (value) setState(current => updateItem(current, item.workshopAgendaItemId, { endTime: toStoredTime(value, item.endTime, workshop.eventDate) })); }} />
+                  </div>
+                  <TextInput label="Nome sala" value={item.roomName ?? ''} onChange={roomName => setState(current => updateItem(current, item.workshopAgendaItemId, { roomName }))} />
+                  {item.itemType !== 'talk' && <TextInput label="Titolo servizio / intervallo" value={item.title ?? ''} onChange={title => setState(current => updateItem(current, item.workshopAgendaItemId, { title }))} />}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_auto]">
+          <TextInput label="Titolo intervallo di servizio" value={intervalTitle} onChange={setIntervalTitle} />
+          <TextInput label="Sala (facoltativa)" value={itemRoom} onChange={setItemRoom} />
+          <Button onPress={handleAddServiceInterval} className={btn.secondary}>Aggiungi intervallo di servizio</Button>
+        </div>
+        <div><Button onPress={() => void handleSave()} isDisabled={saving} className={btn.primary}>Salva agenda</Button></div>
       </Panel>
     </div>
   );
 }
 
-// ---------- 5. Sessioni (legacy tracks) ----------
+// ---------- 5. Tracks (legacy tracks) ----------
 
 function TrackDialog({ track, speakers, onSave, onClose }: { track: LegacyTrack | null; speakers: EventSpeaker[]; onSave: (track: LegacyTrack) => Promise<boolean>; onClose: () => void }) {
   const [title, setTitle] = useState(track?.title ?? '');
   const [start, setStart] = useState(legacyInputValue(track?.startTime));
   const [end, setEnd] = useState(legacyInputValue(track?.endTime));
-  const [level, setLevel] = useState(String(track?.level ?? 0));
+  const [level, setLevel] = useState(track?.level?.toString() || '0');
   const [abstract, setAbstract] = useState(track?.abstract ?? '');
   const [selected, setSelected] = useState<string[]>((track?.speakers ?? []).filter(id => speakers.some(speaker => speaker.workshopSpeakerId === id)));
-  const [problem, setProblem] = useState<string | null>(null);
 
   const save = async () => {
-    // Title, start and end are required, as before; times are typed as UTC wall-clock values.
-    if (!clean(title) || !start || !end) {
-      setProblem('Compila titolo, inizio e fine della sessione.');
+    if (!title || !start || !end) {
+      notify('Compila tutti i campi obbligatori', { kind: 'error' });
       return false;
     }
-    const startTime = new Date(`${start}:00Z`);
-    const endTime = new Date(`${end}:00Z`);
-    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
-      setProblem('Indica un inizio e una fine validi.');
-      return false;
-    }
+    // As before: the datetime-local values are stored as UTC.
     const chosen = speakers.filter(speaker => selected.includes(speaker.workshopSpeakerId));
     return onSave({
       ...(track ?? { workshopTrackId: EMPTY_GUID, image: '' }),
-      title: clean(title),
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
+      title,
+      startTime: new Date(`${start}:00Z`).toISOString(),
+      endTime: new Date(`${end}:00Z`).toISOString(),
       abstract,
-      level: Number.parseInt(level, 10) || 0,
+      level: Number.parseInt(level, 10),
       speakers: chosen.map(speaker => speaker.workshopSpeakerId),
-      speakersName: chosen.map(speaker => clean(speaker.name)).join(', '),
+      speakersName: chosen.map(speaker => speaker.name).join(', '),
     });
   };
 
   return (
-    <RecordModal isOpen onOpenChange={open => { if (!open) onClose(); }} label={track ? `Modifica sessione: ${clean(track.title)}` : 'Nuova sessione'}>
-      <ModalHeader title={track ? 'Modifica sessione' : 'Nuova sessione'} />
+    <RecordModal isOpen onOpenChange={open => { if (!open) onClose(); }} label={track ? 'Modifica track' : 'Aggiungi nuova track'}>
+      <ModalHeader title={track ? 'Modifica track' : 'Aggiungi nuova track'} />
       <div className="p-5 sm:p-6">
-        <CardForm onSave={save} onCancel={onClose} saveLabel="Salva sessione">
-          <TextInput label="Titolo" autoFocus value={title} onChange={value => { setTitle(value); setProblem(null); }} />
+        <CardForm onSave={save} onCancel={onClose} saveLabel="Salva track">
+          <TextInput label="Titolo" isRequired autoFocus value={title} onChange={setTitle} placeholder="Titolo della track" />
           <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Inizio" type="datetime-local" value={start} onChange={value => { setStart(value); setProblem(null); }} description="Ora UTC, come negli eventi storici." />
-            <TextInput label="Fine" type="datetime-local" value={end} onChange={value => { setEnd(value); setProblem(null); }} />
+            <TextInput label="Ora di inizio" isRequired type="datetime-local" value={start} onChange={setStart} />
+            <TextInput label="Ora di fine" isRequired type="datetime-local" value={end} onChange={setEnd} />
           </div>
-          {problem && <p role="alert" className="text-sm font-semibold text-[#b42318]">{problem}</p>}
-          <TextInput label="Livello" type="number" value={level} onChange={setLevel} description="0 per tutti, poi crescente." />
-          <TextAreaInput label="Abstract" rows={4} value={abstract} onChange={setAbstract} />
-          <SpeakerPicker speakers={speakers} selectedIds={selected} onChange={setSelected} />
+          <TextInput label="Livello" type="number" value={level} onChange={setLevel} placeholder="0" />
+          <TextAreaInput label="Abstract" rows={4} value={abstract} onChange={setAbstract} placeholder="Abstract della track" />
+          <SpeakerPicker label="Relatori" placeholder="Seleziona i relatori" speakers={speakers} selectedIds={selected} onChange={setSelected} />
         </CardForm>
       </div>
     </RecordModal>
   );
 }
 
-export function SessionsStep({ page }: { page: EventPage }) {
+export function TracksStep({ page }: { page: EventPage }) {
   const { workshop, speakers } = page;
   const [dialog, setDialog] = useState<{ track: LegacyTrack | null } | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const tracks = [...(workshop.tracks ?? [])].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
-  // As before: the whole record (the latest one) is saved with the new track list, then read again from the server.
+  // As before: the whole record is saved with the new track list, then read again from the server.
   const persist = async (next: (current: LegacyTrack[]) => LegacyTrack[], toast: string) => {
     if (page.saving) return false;
     setBusy(true);
     try {
       const ok = await page.save(latest => ({ ...latest, tracks: next(latest.tracks ?? []) }), { title: toast });
-      if (ok) await page.reload();
+      if (ok) await page.refresh();
       return ok;
     } finally {
       setBusy(false);
@@ -572,58 +462,49 @@ export function SessionsStep({ page }: { page: EventPage }) {
     const exists = track.workshopTrackId !== EMPTY_GUID && (workshop.tracks ?? []).some(item => item.workshopTrackId === track.workshopTrackId);
     const ok = await persist(
       current => (exists ? current.map(item => (item.workshopTrackId === track.workshopTrackId ? track : item)) : [...current, track]),
-      exists ? 'Sessione aggiornata' : 'Sessione aggiunta',
+      exists ? 'Track aggiornata' : 'Track aggiunta',
     );
     if (ok) setDialog(null);
     return ok;
   };
   const deleteTrack = async (trackId: string) => {
-    const ok = await persist(current => current.filter(item => item.workshopTrackId !== trackId), 'Sessione eliminata');
+    const ok = await persist(current => current.filter(item => item.workshopTrackId !== trackId), 'Track eliminata');
     if (ok) setConfirmId(null);
   };
 
   return (
-    <Panel labelledBy="legacy-title">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-        <PanelTitle id="legacy-title" title="Sessioni in formato storico" hint="Il sito le mostra finché l'evento non ha un'agenda; ogni sessione si salva subito." />
-        <Button onPress={() => setDialog({ track: null })} isDisabled={page.saving} className={btn.primary}><AdminIcon name="plus" />Aggiungi sessione</Button>
-      </div>
-      {tracks.length === 0 && <EmptyState icon="calendar" title="Nessuna sessione in formato storico"><p>Per i nuovi eventi usa «Elenco talk» e «Agenda e orari»; qui restano le sessioni degli eventi passati.</p></EmptyState>}
-      <ul className="divide-y divide-line">
-        {tracks.map(track => {
-          const title = clean(track.title) || 'Sessione senza titolo';
-          const sameDay = onEventDay(track, workshop);
-          return (
-            <li key={track.workshopTrackId} className="px-5 py-3">
+    <Panel labelledBy="tracks-title" className="p-5 sm:p-6">
+      <PanelTitle id="tracks-title" title="Tracks" actions={<Button onPress={() => setDialog({ track: null })} isDisabled={page.saving} className={btn.primary}><AdminIcon name="plus" />Aggiungi</Button>} />
+      {tracks.length > 0 ? (
+        <ul className="mt-4 space-y-2">
+          {tracks.map(track => (
+            <li key={track.workshopTrackId} className="rounded-xl border border-line p-4">
               {confirmId === track.workshopTrackId ? (
-                <InlineConfirm title={`Eliminare «${title}»?`} confirmLabel="Elimina" busyLabel="Eliminazione…" busy={busy || page.saving} onConfirm={() => void deleteTrack(track.workshopTrackId)} onCancel={() => setConfirmId(null)}>
-                  <p>La sessione sparisce dal programma storico dell'evento.</p>
-                </InlineConfirm>
+                <InlineConfirm title="Vuoi davvero eliminare questa track?" confirmLabel="OK" busy={busy} onConfirm={() => void deleteTrack(track.workshopTrackId)} onCancel={() => setConfirmId(null)} />
               ) : (
-                <div className="flex flex-wrap items-start gap-3">
-                  <span className="w-44 shrink-0 pt-0.5 text-sm font-semibold text-cyan-700 tabular-nums">
-                    {!sameDay && <span className="block">{formatDate(track.startTime)}</span>}
-                    {toClockTime(track.startTime)}–{toClockTime(track.endTime)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold leading-snug">{title}</span>
-                      {!sameDay && <Badge kind="warn">Data diversa dall'evento</Badge>}
-                    </span>
-                    <span className="block text-sm text-muted">{[clean(track.speakersName), `Livello ${track.level ?? 0}`].filter(Boolean).join(' · ')}</span>
-                    {clean(track.abstract) && <span className="mt-1 block max-w-[65ch] text-sm">{clean(track.abstract)}</span>}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Button onPress={() => setDialog({ track })} aria-label={`Modifica: ${title}`} className={btn.icon}><AdminIcon name="pencil" /></Button>
-                    <Button onPress={() => setConfirmId(track.workshopTrackId)} aria-label={`Elimina: ${title}`} className={btn.icon}><AdminIcon name="trash" /></Button>
-                  </span>
-                </div>
+                <>
+                  <div className="flex items-center gap-2">
+                    <h4 className="min-w-0 flex-1 text-lg font-bold">{track.title}</h4>
+                    <Button onPress={() => setDialog({ track })} aria-label={`Modifica: ${track.title}`} className={btn.icon}><AdminIcon name="pencil" /></Button>
+                    <Button onPress={() => setConfirmId(track.workshopTrackId)} aria-label={`Elimina: ${track.title}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+                  </div>
+                  <dl className="mt-2 grid gap-2 text-sm md:grid-cols-2">
+                    <div><dt className="text-muted">Ora di inizio</dt><dd>{legacyDateTime(track.startTime)}</dd></div>
+                    <div><dt className="text-muted">Ora di fine</dt><dd>{legacyDateTime(track.endTime)}</dd></div>
+                    <div className="md:col-span-2"><dt className="text-muted">Livello</dt><dd>{track.level}</dd></div>
+                    {track.speakersName && <div className="md:col-span-2"><dt className="text-muted">Relatori</dt><dd>{track.speakersName}</dd></div>}
+                    {track.abstract && <div className="md:col-span-2"><dt className="text-muted">Abstract</dt><dd>{track.abstract}</dd></div>}
+                  </dl>
+                </>
               )}
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      ) : <p className="py-8 text-center text-muted">Nessuna track disponibile. Clicca su «Aggiungi track» per crearne una.</p>}
       {dialog && <TrackDialog track={dialog.track} speakers={speakers} onSave={saveTrack} onClose={() => setDialog(null)} />}
     </Panel>
   );
 }
+
+export { DEFAULT_INTERVAL_TITLE, itemOrder, salesWindowProblem };
+export type { AgendaItem };
