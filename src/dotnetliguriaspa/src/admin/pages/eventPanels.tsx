@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { QRCodeSVG } from 'qrcode.react';
 import { AdminIcon } from '../icons';
-import { Badge, LoadError, Panel, SwitchInput, TextAreaInput, TextInput, btn, linkFocus } from '../ui';
-import { AdminLoad, clean, useAdminLoad } from '../adminApi';
+import { Badge, Panel, SwitchInput, TextAreaInput, TextInput, btn, linkFocus } from '../ui';
+import { clean } from '../adminApi';
 import { notify } from '../toasts';
 import { contentUrl } from '../../site/siteApi';
 import { createQuestionnaireAdminApi, FetchLike } from '../../questionnaire/api';
@@ -13,39 +13,38 @@ import { statusLabels } from '../../questionnaire/status';
 import type { Questionnaire, QuestionnaireStatus } from '../../questionnaire/types';
 import type { VenueModel } from '../../models/VenueModel';
 import EventPoster from '../EventPoster';
-import { ExternalLink, Notice, Skeleton, plural } from './listUi';
-import { Dropzone, EventIcon, EventPage, InlineConfirm, Missing, PanelTitle, SelectInput, errorText } from './eventKit';
-import { EventFile, FILE_TYPE, IMAGE_EXTENSIONS, MATERIAL_EXTENSIONS, hasAllowedExtension, locationFromVenue } from './eventModel';
+import { ModalHeader, Notice, RecordModal } from './listUi';
+import { Caption, EventPage, FilePicker, InlineConfirm, PanelTitle, SelectInput } from './eventKit';
+import { EventFile, FILE_TYPE, locationFromVenue } from './eventModel';
 
-// Steps 1 (Pubblicazione), 2 (Locandina), 3 (Informazioni), 4 (Sede), 9 (Materiali) and 10 (Foto) of the wizard.
-// Steps 1, 3 and 4 edit the page draft and save together with "Salva modifiche"; uploads are immediate.
+// Steps 1 (Pubblicazione), 2 (Immagine dell'evento), 3 (Informazioni sull'evento), 4 (Sede), 9 (Materiali)
+// and 10 (Foto): the previous AdminWorkshopDetail sections, texts translated literally.
 
 // ---------- 1. Pubblicazione ----------
 
 const questionnaireTone: Record<QuestionnaireStatus, 'warn' | 'ok' | 'done'> = { Draft: 'warn', Published: 'ok', Closed: 'done', Archived: 'done' };
 
-export function PublicationStep({ page }: { page: EventPage }) {
-  const { workshop, values, edit } = page;
+/** Questionari collegati: the previous WorkshopQuestionnaires panel. */
+function WorkshopQuestionnaires({ workshopId }: { workshopId: string }) {
   const navigate = useNavigate();
   const { fetch } = useOidcFetch();
   const api = useMemo(() => createQuestionnaireAdminApi(fetch as FetchLike), [fetch]);
   const [items, setItems] = useState<Questionnaire[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const feedbackUrl = `${window.location.origin}/feedback/${workshop.workshopId}`;
 
   useEffect(() => {
     let active = true;
-    api.byWorkshop(workshop.workshopId)
+    api.byWorkshop(workshopId)
       .then(result => { if (active) setItems(result); })
       .catch(err => { if (active) { setItems([]); setError(err instanceof Error ? err.message : 'Impossibile caricare i questionari.'); } });
     return () => { active = false; };
-  }, [api, workshop.workshopId]);
+  }, [api, workshopId]);
 
   const create = async () => {
     setBusy(true);
     try {
-      const created = await api.create({ template: 'workshopFeedback', workshopId: workshop.workshopId });
+      const created = await api.create({ template: 'workshopFeedback', workshopId });
       navigate(`/admin/questionnaires/${created.questionnaireId}/edit`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Creazione non riuscita.');
@@ -53,310 +52,298 @@ export function PublicationStep({ page }: { page: EventPage }) {
     }
   };
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(feedbackUrl);
-      notify('Link copiato', { description: feedbackUrl });
-    } catch {
-      notify('Copia non riuscita', { description: 'Seleziona e copia il link a mano.', kind: 'error' });
-    }
-  };
-
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-      <Panel labelledBy="visibility-title" className="p-5">
-        <PanelTitle id="visibility-title" title="Visibilità sul sito" hint="Si salva con «Salva modifiche» all'ultimo passo." />
-        <ul className="mt-3 divide-y divide-line">
-          <li className="py-3"><SwitchInput isSelected={values.published} onChange={published => edit({ published })}>Pubblicato</SwitchInput><p className="pl-15 text-sm text-muted">Visibile nell'archivio e sulla sua pagina.</p></li>
-          <li className="py-3"><SwitchInput isSelected={values.inHomepage} onChange={inHomepage => edit({ inHomepage })}>In evidenza nella home</SwitchInput><p className="pl-15 text-sm text-muted">Compare in apertura della home; un solo evento alla volta.</p></li>
-          <li className="py-3"><SwitchInput isSelected={values.feedbackEnabled} onChange={feedbackEnabled => edit({ feedbackEnabled })}>Feedback aperto</SwitchInput><p className="pl-15 text-sm text-muted">Il questionario accetta risposte.</p></li>
+    <div className="mt-6 w-full">
+      <h3 className="font-bold">Questionari collegati</h3>
+      {error && <div className="mt-2"><Notice tone="danger" title={error} /></div>}
+      {items && items.length === 0 && !error && <p className="mt-1 text-sm text-muted">Nessun questionario: il link di feedback mostrerà un messaggio finché non ne pubblichi uno.</p>}
+      {items && items.length > 0 && (
+        <ul className="mt-2 space-y-2">
+          {items.map(q => (
+            <li key={q.questionnaireId} className="flex flex-wrap items-center gap-3">
+              <Link to={`/admin/questionnaires/${q.questionnaireId}/edit`} className={`min-w-0 flex-1 rounded font-semibold text-cyan-700 underline ${linkFocus}`}>{q.title}</Link>
+              <Badge kind={questionnaireTone[q.status]}>{statusLabels[q.status]}</Badge>
+              <Link to={`/admin/questionnaires/${q.questionnaireId}/results`} className={`rounded text-sm font-semibold text-cyan-700 underline ${linkFocus}`}>{q.responseCount} risposte</Link>
+            </li>
+          ))}
         </ul>
-      </Panel>
-      <div className="space-y-5">
-        <Panel labelledBy="feedback-title" className="p-5">
-          <PanelTitle id="feedback-title" title="QR code del feedback" hint="Chi partecipa lo apre dal QR code in sala o dal link sulla pagina dell'evento." />
-          <div className="mt-4 flex flex-wrap items-start gap-5">
-            <div className="rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={150} level="H" title={`QR code del feedback di ${clean(workshop.title)}`} /></div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <p className="break-all font-semibold">{feedbackUrl}</p>
-              <Button onPress={() => void copyLink()} className={btn.secondary}><EventIcon name="copy" />Copia il link</Button>
-            </div>
-          </div>
-        </Panel>
-        <Panel labelledBy="questionnaires-title">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-            <h3 id="questionnaires-title" className="text-lg font-bold">Questionari collegati</h3>
-            <Button onPress={() => void create()} isDisabled={busy} className={btn.secondary}><AdminIcon name="plus" />{busy ? 'Creazione…' : 'Crea questionario di feedback'}</Button>
-          </div>
-          {error && <div className="px-5 pb-4"><Notice tone="danger" title="Questionari non disponibili">{error}</Notice></div>}
-          {items === null && !error && <p role="status" className="px-5 pb-5 text-muted">Caricamento dei questionari…</p>}
-          {items && items.length === 0 && !error && <p className="px-5 pb-5 text-muted">Nessun questionario: il link di feedback mostrerà un messaggio finché non ne pubblichi uno.</p>}
-          {items && items.length > 0 && (
-            <ul className="divide-y divide-line border-t border-line">
-              {items.map(q => (
-                <li key={q.questionnaireId} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                  <Link to={`/admin/questionnaires/${q.questionnaireId}/edit`} className={`min-w-0 flex-1 rounded font-bold hover:underline ${linkFocus}`}>{q.title}</Link>
-                  <Badge kind={questionnaireTone[q.status]}>{statusLabels[q.status]}</Badge>
-                  <Link to={`/admin/questionnaires/${q.questionnaireId}/results`} className={`rounded text-sm font-semibold text-cyan-700 underline ${linkFocus}`}>{plural(q.responseCount, 'risposta', 'risposte')}</Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+      )}
+      <Button onPress={() => void create()} isDisabled={busy} className={`mt-3 ${btn.secondary}`}><AdminIcon name="plus" />Crea questionario di feedback</Button>
     </div>
   );
 }
 
-// ---------- 2. Locandina ----------
-
-export function PosterStep({ page, stamp, onUploaded }: { page: EventPage; stamp: number; onUploaded: () => void }) {
-  const { workshop } = page;
-  const [busy, setBusy] = useState(false);
-  const poster = contentUrl(workshop.image);
-  const upload = async (files: File[]) => {
-    const file = files[0];
-    if (!file) return;
-    if (!hasAllowedExtension(file.name, IMAGE_EXTENSIONS)) {
-      notify('Formato non ammesso', { description: 'Carica un file PNG, JPG, WebP o GIF.', kind: 'error' });
-      return;
-    }
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('workshopId', workshop.workshopId);
-      await page.api('/workshopfile/uploadworkshopimage', { method: 'POST', body: form });
-      await page.reload();
-      onUploaded();
-      notify('Locandina aggiornata', { description: file.name });
-    } catch (error) {
-      notify('Caricamento non riuscito', { description: errorText(error), kind: 'error' });
-    } finally {
-      setBusy(false);
-    }
-  };
+export function PublicationStep({ page }: { page: EventPage }) {
+  const { workshop, values, edit } = page;
+  const feedbackUrl = `${window.location.origin}/feedback/${workshop.workshopId}`;
   return (
-    <Panel labelledBy="poster-title" className="p-5">
-      <PanelTitle id="poster-title" title="Locandina" hint="Compare nelle liste e in cima alla scheda dell'evento; il caricamento è immediato." />
-      <div className="mt-4 grid items-start gap-5 md:grid-cols-2">
-        <div>
-          <EventPoster src={poster ? (stamp ? `${poster}?t=${stamp}` : poster) : null} alt={`Locandina di ${clean(workshop.title)}`} className="aspect-video w-full rounded-xl border border-line object-cover" />
-          {!poster && <p className="mt-2"><Missing>Nessuna locandina.</Missing></p>}
+    <Panel labelledBy="publication-title" className="grid items-start gap-6 p-5 md:grid-cols-[5fr_7fr] sm:p-6">
+      <div>
+        <PanelTitle id="publication-title" title="Impostazioni di pubblicazione" />
+        <div className="mt-3 space-y-2">
+          <SwitchInput isSelected={values.published} onChange={published => edit({ published })}>Pubblicato</SwitchInput>
+          <SwitchInput isSelected={values.inHomepage} onChange={inHomepage => edit({ inHomepage })}>Mostra in homepage</SwitchInput>
+          <SwitchInput isSelected={values.feedbackEnabled} onChange={feedbackEnabled => edit({ feedbackEnabled })}>Feedback abilitato</SwitchInput>
         </div>
-        <Dropzone label="Trascina qui la locandina" hint="PNG, JPG, WebP o GIF in formato 16:9" accept={IMAGE_EXTENSIONS} busy={busy} buttonLabel="Scegli il file" onFiles={files => void upload(files)} />
+      </div>
+      <div className="flex flex-col items-center text-center">
+        <h2 className="text-lg font-bold">QR code del feedback</h2>
+        <div className="mt-3 rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={150} level="H" /></div>
+        <p className="mt-2 break-all text-sm text-muted">{feedbackUrl}</p>
+        <WorkshopQuestionnaires workshopId={workshop.workshopId} />
       </div>
     </Panel>
   );
 }
 
-// ---------- 3. Informazioni ----------
+// ---------- 2. Immagine dell'evento ----------
+
+/** The current image (only when there is one) and the file button that uploads at once, as before. */
+export function ImageStep({ page, stamp, onUploaded }: { page: EventPage; stamp: number; onUploaded: () => void }) {
+  const { workshop } = page;
+  const [uploaded, setUploaded] = useState<File | null>(null);
+  const captionId = useId();
+  const poster = contentUrl(workshop.image);
+  const upload = async (file: File) => {
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('workshopId', workshop.workshopId);
+      await page.api('/workshopfile/uploadworkshopimage', { method: 'POST', body: form });
+      if (await page.refresh()) onUploaded();
+      notify("Immagine dell'evento caricata correttamente");
+      setUploaded(file);
+    } catch {
+      notify("Errore nel caricamento dell'immagine dell'evento", { kind: 'error' });
+    }
+  };
+  return (
+    <Panel labelledBy="image-title" className="space-y-4 p-5 sm:p-6">
+      <PanelTitle id="image-title" title="Immagine dell'evento" />
+      {workshop.image && (
+        <div>
+          <Caption>Immagine attuale</Caption>
+          <EventPoster src={poster && stamp ? `${poster}?t=${stamp}` : poster} alt={clean(workshop.title)} className="mt-1 aspect-video w-full max-w-md rounded-xl border border-line object-cover" />
+        </div>
+      )}
+      <div>
+        <Caption id={captionId}>Carica l'immagine di copertina dell'evento</Caption>
+        <div className="mt-1"><FilePicker label="Scegli il file immagine…" file={uploaded} accept={['image/*']} describedBy={captionId} onSelect={file => void upload(file)} /></div>
+      </div>
+    </Panel>
+  );
+}
+
+// ---------- 3. Informazioni sull'evento ----------
 
 export function InfoStep({ page }: { page: EventPage }) {
   const { values, edit } = page;
   return (
-    <Panel labelledBy="info-title" className="space-y-4 p-5">
-      <PanelTitle id="info-title" title="Informazioni" hint="Si salvano con «Salva modifiche» all'ultimo passo." />
+    <Panel labelledBy="info-title" className="space-y-4 p-5 sm:p-6">
+      <PanelTitle id="info-title" title="Informazioni" />
       <TextInput label="Titolo" value={values.title} onChange={title => edit({ title })} placeholder="Titolo dell'evento" />
-      <TextInput label="Data" type="date" value={values.eventDate} onChange={eventDate => edit({ eventDate })} className="block sm:max-w-xs" />
-      <TextAreaInput label="Descrizione" rows={6} value={values.description} onChange={description => edit({ description })} placeholder="Di cosa si parla e a chi è rivolto" description="Compare nella scheda dell'evento e nella home." />
-      <TextInput label="Tag" value={values.tags} onChange={tags => edit({ tags })} placeholder="dotnet, ai, cloud" description="Separati da virgola: compaiono nella scheda dell'evento." />
-      <TextAreaInput label="HTML esteso" rows={6} value={values.blogHtml} onChange={blogHtml => edit({ blogHtml })} description="Facoltativo: HTML mostrato nella scheda sotto la descrizione. Il sito lo ripulisce prima di mostrarlo." />
+      <TextInput label="Data dell'evento" type="date" value={values.eventDate} onChange={eventDate => edit({ eventDate })} />
+      <TextAreaInput label="Descrizione dell'evento" rows={6} value={values.description} onChange={description => edit({ description })} placeholder="Inserisci la descrizione dell'evento" />
     </Panel>
   );
 }
 
 // ---------- 4. Sede ----------
 
-export function VenueStep({ page }: { page: EventPage }) {
+/** The venues load with the page and the chosen one stays selected across the steps, as before. */
+export function LocationStep({ page, venues, venueId, onVenue }: { page: EventPage; venues: VenueModel[]; venueId: string | null; onVenue: (venueId: string) => void }) {
   const { values, edit } = page;
-  const [venuesLoad, reloadVenues] = useAdminLoad<VenueModel[]>('/Venue');
-  const venues = venuesLoad.state === 'ready' ? venuesLoad.data : [];
-  const [venueId, setVenueId] = useState<string | null>(null);
   const copyVenue = (id: string | null) => {
-    setVenueId(id);
     const venue = venues.find(item => item.venueId === id);
     if (!venue) return;
+    onVenue(venue.venueId);
     const location = locationFromVenue(venue);
     edit({ locationName: location.name ?? '', address: location.address ?? '', coordinates: location.coordinates ?? '', googleMapsUrl: location.googleMapsUrl ?? '', maximumSpaces: String(location.maximumSpaces ?? 0) });
   };
   return (
-    <Panel labelledBy="venue-title" className="space-y-4 p-5">
-      <PanelTitle id="venue-title" title="Sede" hint="Si salva con «Salva modifiche» all'ultimo passo." />
-      {venuesLoad.state === 'error' ? (
-        <p className="text-sm text-muted">Le sedi salvate non si sono caricate. <button type="button" onClick={reloadVenues} className={`font-bold text-cyan-700 underline ${linkFocus}`}>Riprova</button></p>
-      ) : (
-        <SelectInput
-          label="Copia da una sede salvata"
-          items={venues.map(venue => ({ id: venue.venueId, label: clean(venue.name), description: clean(venue.address) || undefined }))}
-          selectedKey={venueId}
-          onSelectionChange={copyVenue}
-          placeholder={venuesLoad.state === 'loading' ? 'Caricamento delle sedi…' : venues.length ? 'Scegli una sede…' : 'Nessuna sede salvata da copiare'}
-          isDisabled={venuesLoad.state === 'loading' || venues.length === 0}
-          description="Compila nome, indirizzo, coordinate, mappa e posti dalla sede scelta; puoi poi correggerli qui sotto."
-        />
-      )}
-      <TextInput label="Nome della sede" value={values.locationName} onChange={locationName => edit({ locationName })} placeholder="Nome della sede" />
+    <Panel labelledBy="location-title" className="space-y-4 p-5 sm:p-6">
+      <PanelTitle id="location-title" title="Informazioni sulla sede" />
+      <div>
+        <SelectInput label="Copia dalla sede" items={venues.map(venue => ({ id: venue.venueId, label: clean(venue.name) }))} selectedKey={venueId} onSelectionChange={copyVenue} placeholder="" isDisabled={venues.length === 0} />
+        {venues.length === 0 && <p className="mt-1.5 text-sm text-muted">Nessuna sede disponibile da copiare.</p>}
+      </div>
+      <TextInput label="Nome" isRequired value={values.locationName} onChange={locationName => edit({ locationName })} placeholder="Nome della sede" />
       <TextInput label="Coordinate" value={values.coordinates} onChange={coordinates => edit({ coordinates })} placeholder="Latitudine, longitudine" />
-      <TextInput label="Indirizzo" value={values.address} onChange={address => edit({ address })} />
-      <TextInput label="Link a Google Maps" value={values.googleMapsUrl} onChange={googleMapsUrl => edit({ googleMapsUrl })} placeholder="https://maps.google.com/..." />
-      <TextInput label="Posti disponibili" type="number" value={values.maximumSpaces} onChange={maximumSpaces => edit({ maximumSpaces })} className="block sm:max-w-xs" />
-      <TextAreaInput label="Sale di questo evento" rows={2} value={values.rooms} onChange={rooms => edit({ rooms })} placeholder="Una sala per riga" description="Le sale possono cambiare da un evento all'altro." />
+      <TextInput label="Indirizzo" isRequired value={values.address} onChange={address => edit({ address })} />
+      <TextInput label="URL di Google Maps" type="url" value={values.googleMapsUrl} onChange={googleMapsUrl => edit({ googleMapsUrl })} placeholder="https://maps.google.com/..." />
+      <TextInput label="Posti massimi" type="number" value={values.maximumSpaces} onChange={maximumSpaces => edit({ maximumSpaces })} />
     </Panel>
   );
 }
 
 // ---------- 9. Materiali and 10. Foto ----------
 
+const FILE_TEXT = {
+  material: {
+    dialog: 'Aggiungi materiale', placeholder: 'Titolo del materiale', confirm: 'Vuoi davvero eliminare questo materiale?',
+    uploaded: 'Materiale caricato correttamente', uploadFailed: 'Errore nel caricamento del materiale',
+    deleted: 'Materiale eliminato correttamente', deleteFailed: "Errore nell'eliminazione del materiale",
+  },
+  photo: {
+    dialog: 'Aggiungi foto', placeholder: 'Titolo della foto', confirm: 'Vuoi davvero eliminare questa foto?',
+    uploaded: 'Foto caricata correttamente', uploadFailed: 'Errore nel caricamento della foto',
+    deleted: 'Foto eliminata correttamente', deleteFailed: "Errore nell'eliminazione della foto",
+  },
+} as const;
+type FileKind = keyof typeof FILE_TEXT;
+
 /** Files of the event from the file endpoint (materials are type 4, photos type 2), with upload and delete. */
-function useEventFiles(page: EventPage) {
+function useEventFiles(page: EventPage, kind: FileKind) {
   const { workshop, api } = page;
-  const [load, setLoad] = useState<AdminLoad<EventFile[]>>({ state: 'loading' });
-  const [busy, setBusy] = useState<'upload' | 'delete' | null>(null);
+  const fileType = kind === 'material' ? FILE_TYPE.material : FILE_TYPE.photo;
+  const text = FILE_TEXT[kind];
+  const [files, setFiles] = useState<EventFile[]>([]);
+  const [busy, setBusy] = useState(false);
   const fetchFiles = useCallback(async () => {
     try {
-      setLoad({ state: 'ready', data: await api<EventFile[]>(`/workshopfile/${encodeURIComponent(workshop.workshopId)}`) });
-    } catch (error) {
-      setLoad({ state: 'error', message: errorText(error) });
-    }
-  }, [api, workshop.workshopId]);
+      const all = await api<EventFile[]>(`/workshopfile/${encodeURIComponent(workshop.workshopId)}`);
+      setFiles(all.filter(file => file.fileType === fileType));
+    } catch { /* as before: the list stays empty */ }
+  }, [api, fileType, workshop.workshopId]);
   useEffect(() => { void fetchFiles(); }, [fetchFiles]);
 
-  const upload = async (kind: 'material' | 'photo', chosen: File[], title: string) => {
-    const allowed = kind === 'material' ? MATERIAL_EXTENSIONS : IMAGE_EXTENSIONS;
-    const rejected = chosen.filter(file => !hasAllowedExtension(file.name, allowed)).map(file => file.name);
-    const accepted = chosen.filter(file => hasAllowedExtension(file.name, allowed));
-    const failed: string[] = [];
-    setBusy('upload');
-    for (const file of accepted) {
+  const upload = async (file: File, title: string) => {
+    setBusy(true);
+    try {
       const form = new FormData();
       form.append('file', file);
       form.append('workshopId', workshop.workshopId);
-      form.append('fileType', String(kind === 'material' ? FILE_TYPE.material : FILE_TYPE.photo));
+      form.append('fileType', String(fileType));
       form.append('title', title);
-      try {
-        await api('/workshopfile/Upload', { method: 'POST', body: form });
-      } catch (error) {
-        failed.push(`${file.name} (${errorText(error)})`);
-      }
+      await api('/workshopfile/Upload', { method: 'POST', body: form });
+      await fetchFiles();
+      notify(text.uploaded);
+      return true;
+    } catch {
+      notify(text.uploadFailed, { kind: 'error' });
+      return false;
+    } finally {
+      setBusy(false);
     }
-    setBusy(null);
-    const saved = accepted.length - failed.length;
-    if (saved) await fetchFiles();
-    const problems = [...rejected.map(name => `${name}: formato non ammesso`), ...failed];
-    if (saved && !problems.length) notify(kind === 'material' ? plural(saved, 'file caricato', 'file caricati') : plural(saved, 'foto caricata', 'foto caricate'));
-    else if (saved) notify(plural(saved, 'file caricato', 'file caricati'), { description: `Non caricati: ${problems.join('; ')}.` });
-    else notify('Caricamento non riuscito', { description: problems.join('; ') || 'Nessun file scelto.', kind: 'error' });
-    return saved > 0;
   };
 
   const remove = async (file: EventFile) => {
-    setBusy('delete');
+    setBusy(true);
     try {
       await api(`/workshopfile/${encodeURIComponent(file.workshopFileId)}`, { method: 'DELETE' });
-      setLoad(current => (current.state === 'ready' ? { state: 'ready', data: current.data.filter(item => item.workshopFileId !== file.workshopFileId) } : current));
-      notify('File eliminato', { description: clean(file.title) || clean(file.fileName) });
-    } catch (error) {
-      notify('Eliminazione non riuscita', { description: errorText(error), kind: 'error' });
+      setFiles(current => current.filter(item => item.workshopFileId !== file.workshopFileId));
+      notify(text.deleted);
+      return true;
+    } catch {
+      notify(text.deleteFailed, { kind: 'error' });
+      return false;
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   };
 
-  return { load, busy, upload, remove, retry: () => { setLoad({ state: 'loading' }); void fetchFiles(); } };
+  return { files, busy, upload, remove };
 }
 
-function FileRow({ file, busy, onDelete }: { file: EventFile; busy: boolean; onDelete: () => Promise<void> }) {
-  const [confirm, setConfirm] = useState(false);
-  const title = clean(file.title) || clean(file.fileName) || 'File';
-  const href = contentUrl(file.fullPath);
+/** The previous "Add" button and dialog (full page on phones): a title and a file, both required, then Carica. */
+function AddFileDialog({ kind, accept, busy, onUpload }: { kind: FileKind; accept?: string[]; busy: boolean; onUpload: (file: File, title: string) => Promise<boolean> }) {
+  const text = FILE_TEXT[kind];
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const captionId = useId();
+  const close = () => { setOpen(false); setTitle(''); setFile(null); };
   return (
-    <li className="px-5 py-3">
-      {confirm ? (
-        <InlineConfirm title={`Eliminare «${title}»?`} confirmLabel="Elimina" busyLabel="Eliminazione…" busy={busy} onConfirm={() => void onDelete().then(() => setConfirm(false))} onCancel={() => setConfirm(false)}>
-          <p>Il file viene cancellato dal server e sparisce dalla scheda dell'evento.</p>
-        </InlineConfirm>
-      ) : (
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-cyan-50 text-cyan-700"><AdminIcon name="file" /></span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-bold leading-snug">{title}</span>
-            <span className="block truncate text-sm text-muted">{clean(file.fileName)}</span>
-          </span>
-          {href && <ExternalLink href={href} className={btn.icon}><span className="sr-only">Apri {title}</span></ExternalLink>}
-          <Button onPress={() => setConfirm(true)} aria-label={`Elimina: ${title}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+    <>
+      <Button onPress={() => setOpen(true)} className={btn.primary}><AdminIcon name="plus" />Aggiungi</Button>
+      <RecordModal isOpen={open} onOpenChange={value => { if (!value) close(); }} label={text.dialog}>
+        <ModalHeader title={text.dialog} />
+        <div className="space-y-4 p-5 sm:p-6">
+          <TextInput label="Titolo" isRequired autoFocus value={title} onChange={setTitle} placeholder={text.placeholder} />
+          <div>
+            <Caption id={captionId}>File *</Caption>
+            <div className="mt-1"><FilePicker label="Scegli file…" file={file} accept={accept} describedBy={captionId} onSelect={setFile} /></div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button onPress={close} className={btn.ghost}>Annulla</Button>
+            <Button onPress={() => { if (file) void onUpload(file, title).then(ok => { if (ok) close(); }); }} isDisabled={!title || !file || busy} className={btn.primary}>{busy ? 'Caricamento…' : 'Carica'}</Button>
+          </div>
         </div>
-      )}
-    </li>
+      </RecordModal>
+    </>
   );
 }
 
-function PhotoCard({ file, busy, onDelete }: { file: EventFile; busy: boolean; onDelete: () => Promise<void> }) {
-  const [confirm, setConfirm] = useState(false);
-  const title = clean(file.title) || clean(file.fileName) || 'Foto';
-  const src = contentUrl(file.fullPath);
-  return (
-    <li className="overflow-hidden rounded-xl border border-line">
-      {src && <img src={src} alt={title} loading="lazy" className="aspect-[4/3] w-full object-cover" />}
-      {confirm ? (
-        <div className="p-3">
-          <InlineConfirm title={`Eliminare «${title}»?`} confirmLabel="Elimina" busyLabel="Eliminazione…" busy={busy} onConfirm={() => void onDelete().then(() => setConfirm(false))} onCancel={() => setConfirm(false)} />
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 p-3">
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-bold">{title}</span>
-            <span className="block truncate text-sm text-muted">{clean(file.fileName)}</span>
-          </span>
-          <Button onPress={() => setConfirm(true)} aria-label={`Elimina: ${title}`} className={btn.icon}><AdminIcon name="trash" /></Button>
-        </div>
-      )}
-    </li>
-  );
-}
+const fileLabel = (file: EventFile) => clean(file.title) || clean(file.fileName);
 
 export function MaterialsStep({ page }: { page: EventPage }) {
-  const files = useEventFiles(page);
-  const [title, setTitle] = useState('');
-  if (files.load.state === 'error') return <LoadError message={`I materiali non sono disponibili (${files.load.message}).`} onRetry={files.retry} />;
-  if (files.load.state === 'loading') return <Skeleton className="h-72" />;
-  const materials = files.load.data.filter(file => file.fileType === FILE_TYPE.material);
+  const { files, busy, upload, remove } = useEventFiles(page, 'material');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
-    <Panel labelledBy="materials-title">
-      <div className="p-5">
-        <PanelTitle id="materials-title" title="Slide e materiali" hint={materials.length ? plural(materials.length, 'file', 'file') : 'Ancora nessun file: chi ha partecipato li cerca qui.'} />
-        <div className="mt-4 space-y-3">
-          <TextInput label="Titolo del materiale" value={title} onChange={setTitle} placeholder="Per esempio: slide del talk su Blazor" description="Facoltativo: se vuoto, usa il nome del file." />
-          <Dropzone label="Trascina qui slide e materiali" hint="PDF, DOCX, PPTX o XLSX" accept={MATERIAL_EXTENSIONS} multiple busy={files.busy === 'upload'} onFiles={chosen => void files.upload('material', chosen, clean(title)).then(ok => { if (ok) setTitle(''); })} />
-        </div>
-      </div>
-      {materials.length > 0 && (
-        <ul className="divide-y divide-line border-t border-line" aria-label="Materiali">
-          {materials.map(file => <FileRow key={file.workshopFileId} file={file} busy={files.busy === 'delete'} onDelete={() => files.remove(file)} />)}
+    <Panel labelledBy="materials-title" className="p-5 sm:p-6">
+      <PanelTitle id="materials-title" title="Materiali" actions={<AddFileDialog kind="material" busy={busy} onUpload={upload} />} />
+      {files.length > 0 ? (
+        <ul className="mt-4 space-y-3">
+          {files.map(file => (
+            <li key={file.workshopFileId} className="rounded-xl bg-[#f3f7fa] p-4">
+              {confirmId === file.workshopFileId ? (
+                <InlineConfirm title={FILE_TEXT.material.confirm} confirmLabel="OK" busy={busy} onConfirm={() => void remove(file).then(() => setConfirmId(null))} onCancel={() => setConfirmId(null)} />
+              ) : (
+                <div className="flex items-center gap-4">
+                  <AdminIcon name="file" className="size-10 shrink-0 text-cyan-700" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold">{file.title}</span>
+                    <span className="block text-sm text-muted">{file.fileName}</span>
+                    <span className="block text-xs text-muted">Tipo file: {file.fileType}</span>
+                  </span>
+                  <Button onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+                </div>
+              )}
+            </li>
+          ))}
         </ul>
-      )}
+      ) : <p className="py-8 text-center text-muted">Nessun materiale disponibile.</p>}
     </Panel>
   );
 }
 
+/** A photo, or the previous "Image not found" placeholder when it is missing or does not load. */
+function PhotoImage({ src, title }: { src: string | null; title: string }) {
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  if (!src || src === failedSource) {
+    return <div role="img" aria-label="Immagine non trovata" className="grid h-48 w-full place-items-center bg-[#dddddd] font-mono text-[#666666]">Immagine non trovata</div>;
+  }
+  return <img src={src} alt={title} loading="lazy" onError={() => setFailedSource(src)} className="h-48 w-full object-cover" />;
+}
+
 export function PhotosStep({ page }: { page: EventPage }) {
-  const files = useEventFiles(page);
-  if (files.load.state === 'error') return <LoadError message={`Le foto non sono disponibili (${files.load.message}).`} onRetry={files.retry} />;
-  if (files.load.state === 'loading') return <Skeleton className="h-72" />;
-  const photos = files.load.data.filter(file => file.fileType === FILE_TYPE.photo);
+  const { files, busy, upload, remove } = useEventFiles(page, 'photo');
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
-    <Panel labelledBy="photos-title">
-      <div className="p-5">
-        <PanelTitle id="photos-title" title="Foto dell'evento" hint={photos.length ? plural(photos.length, 'foto', 'foto') : 'Ancora nessuna foto.'} />
-        <div className="mt-4">
-          <Dropzone label="Trascina qui le foto" hint="JPG, PNG, WebP o GIF" accept={IMAGE_EXTENSIONS} multiple busy={files.busy === 'upload'} onFiles={chosen => void files.upload('photo', chosen, '')} />
-        </div>
-      </div>
-      {photos.length > 0 && (
-        <ul className="grid gap-3 border-t border-line p-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Foto">
-          {photos.map(file => <PhotoCard key={file.workshopFileId} file={file} busy={files.busy === 'delete'} onDelete={() => files.remove(file)} />)}
+    <Panel labelledBy="photos-title" className="p-5 sm:p-6">
+      <PanelTitle id="photos-title" title="Foto" actions={<AddFileDialog kind="photo" accept={['image/*']} busy={busy} onUpload={upload} />} />
+      {files.length > 0 ? (
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+          {files.map(file => (
+            <li key={file.workshopFileId} className="overflow-hidden rounded-xl bg-[#f3f7fa]">
+              {confirmId === file.workshopFileId ? (
+                <div className="p-3"><InlineConfirm title={FILE_TEXT.photo.confirm} confirmLabel="OK" busy={busy} onConfirm={() => void remove(file).then(() => setConfirmId(null))} onCancel={() => setConfirmId(null)} /></div>
+              ) : (
+                <>
+                  <PhotoImage src={contentUrl(file.fullPath)} title={clean(file.title)} />
+                  <div className="flex items-center gap-2 p-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{file.title}</span>
+                      <span className="block truncate text-xs text-muted">{file.fileName}</span>
+                    </span>
+                    <Button onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+                  </div>
+                </>
+              )}
+            </li>
+          ))}
         </ul>
-      )}
+      ) : <p className="py-8 text-center text-muted">Nessuna foto disponibile.</p>}
     </Panel>
   );
 }

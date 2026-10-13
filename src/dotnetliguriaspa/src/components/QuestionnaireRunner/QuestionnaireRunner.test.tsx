@@ -36,7 +36,7 @@ function sample(extra: Partial<Questionnaire> = {}): Questionnaire {
 
 describe('<QuestionnaireRunner />', () => {
   test('blocks submission until required visible questions are answered and sends a clean payload', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onSubmit = vi.fn(async () => undefined);
     render(<QuestionnaireRunner questionnaire={sample()} onSubmit={onSubmit} draftKey="draft" />);
 
@@ -80,7 +80,7 @@ describe('<QuestionnaireRunner />', () => {
   });
 
   test('stepper validates each page before moving forward', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<QuestionnaireRunner questionnaire={sample({ displayMode: 'Stepper' })} onSubmit={vi.fn()} />);
 
     expect(screen.queryByText('Valuta le sessioni')).not.toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('<QuestionnaireRunner />', () => {
   });
 
   test('identified mode requires respondent data and consent and maps server conflicts', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onSubmit = vi.fn(async () => {
       throw new QuestionnaireApiError(409, { code: 'Duplicate', message: 'dup', errors: [] });
     });
@@ -139,7 +139,7 @@ describe('<QuestionnaireRunner />', () => {
   });
 
   test('preview mode validates without submitting', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const questionnaire = sample();
     questionnaire.sections[0].questions[0].required = false;
     render(<QuestionnaireRunner questionnaire={questionnaire} />);
@@ -158,7 +158,7 @@ describe('<PublicQuestionnaire />', () => {
   );
 
   test('resolves the workshop alias and submits to the public endpoint', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const questionnaire = sample();
     questionnaire.sections[0].questions[0].required = false;
     mockApi({

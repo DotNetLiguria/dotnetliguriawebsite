@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { eventFixture } from './eventFixtures';
 import {
-  AgendaDraftState, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, autoFillSchedule, buildFormUpdate, buildWorkshopUpdate,
-  coreValuesOf, dateInputValue, eventbriteIssues, eventbriteStatusLabel, hasAllowedExtension, initAgenda, isPublished, moveItem, onEventDay,
-  parseRooms, problemDetail, registrationOf, setTrackCount, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave,
+  AgendaDraftState, EventApiError, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, autoFillSchedule, buildWorkshopUpdate,
+  coreValuesOf, dateInputValue, detailMessage, eventbriteIssues, eventbriteStatusLabel, initAgenda, isPublished, moveItem,
+  parseRooms, problemMessage, registrationOf, setTrackCount, statusMessage, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave,
 } from './eventModel';
 
 const draft = (overrides: Partial<AgendaDraftState> = {}): AgendaDraftState => ({
@@ -48,12 +48,13 @@ describe('buildWorkshopUpdate', () => {
     expect(buildWorkshopUpdate(eventFixture(), { ...coreValuesOf(eventFixture()), eventDate: '' }).eventDate).toBe('2024-03-15T10:00:00Z');
   });
 
-  it('builds the "Salva modifiche" body with tags, extended HTML and rooms split on new lines only', () => {
-    const body = buildFormUpdate(eventFixture(), { ...coreValuesOf(eventFixture()), title: 'T', tags: 'ai, web', blogHtml: '<p>x</p>', rooms: 'Auditorium, Room B\nSala C\n' });
-    expect(body).toMatchObject({ title: 'T', tags: 'ai, web', blogHtml: '<p>x</p>', location: { name: 'Genova', rooms: ['Auditorium, Room B', 'Sala C'] } });
+  it('leaves tags, extended HTML and rooms as they were, splits rooms on new lines only and marks a saved Eventbrite event as pending', () => {
+    const record = eventFixture({ tags: 'ai, web', blogHtml: '<p>x</p>', location: { name: 'Genova', rooms: ['Auditorium, Room B', 'Sala C'] } });
+    expect(buildWorkshopUpdate(record, { ...coreValuesOf(record), title: 'T' })).toMatchObject({ title: 'T', tags: 'ai, web', blogHtml: '<p>x</p>', location: { name: 'Genova', rooms: ['Auditorium, Room B', 'Sala C'] } });
     expect(parseRooms('A\r\nB\n\n C ')).toEqual(['A', 'B', 'C']);
+    // handleRelatedWorkshopSaved: an existing Eventbrite event is update-pending and its last error is cleared.
     expect(afterSave(eventFixture({ eventbriteEventId: 'ev', eventbriteSyncStatus: 'synced', eventbriteLastError: 'boom' }))).toMatchObject({ eventbriteSyncStatus: 'update-pending', eventbriteLastError: undefined });
-    expect(afterSave(eventFixture({ eventbriteSyncStatus: 'x' })).eventbriteSyncStatus).toBe('x');
+    expect(afterSave(eventFixture({ eventbriteSyncStatus: 'x', eventbriteLastError: 'kept' }))).toMatchObject({ eventbriteSyncStatus: 'x', eventbriteLastError: 'kept' });
   });
 });
 
@@ -64,45 +65,63 @@ describe('helpers', () => {
     expect(toClockTime('2024-03-15T09:05:00.000Z')).toBe('09:05');
     expect(toStoredTime('10:30', undefined, '2024-03-15T10:00:00Z')).toBe('2024-03-15T10:30:00.000Z');
     expect(toStoredTime('10:30', '2024-03-16T08:00:00Z', '2024-03-15T10:00:00Z')).toBe('2024-03-16T10:30:00.000Z');
-    expect(hasAllowedExtension('slides.PDF', ['.pdf'])).toBe(true);
-    expect(hasAllowedExtension('virus.exe', ['.pdf'])).toBe(false);
-    expect(problemDetail(JSON.stringify({ title: 'T', detail: 'Workshop counter unavailable' }))).toBe('Workshop counter unavailable');
-    expect(problemDetail(JSON.stringify({ message: 'Sessione scaduta' }))).toBe('Sessione scaduta');
-    expect(problemDetail('<html>')).toBeNull();
-    expect(onEventDay({ startTime: '2024-03-15T09:00:00Z' }, eventFixture())).toBe(true);
-    expect(onEventDay({ startTime: '2024-12-03T09:00:00Z' }, eventFixture())).toBe(false);
-    expect(onEventDay({ startTime: '2024-03-15T09:00:00Z' }, { eventDate: '2024-03-15T00:00:00+01:00' })).toBe(true);
+    // A cleared time input is stored as it is: not a date, so the save check refuses it, as before.
+    expect(Number.isNaN(new Date(toStoredTime('', '2024-03-16T08:00:00Z', null)).getTime())).toBe(true);
+    expect(toClockTime(toStoredTime('', '2024-03-16T08:00:00Z', null))).toBe('');
+    // Set again, the time goes back on the event day.
+    expect(toStoredTime('11:05', toStoredTime('', '2024-03-16T08:00:00Z', null), '2024-03-15T10:00:00Z')).toBe('2024-03-15T11:05:00.000Z');
   });
 
-  it('maps the URL to a step, including the hashes of the previous six-section card', () => {
+  it('words a failed call the way each previous action did', () => {
+    const json = (status: number, body: unknown) => new EventApiError(status, 'application/problem+json; charset=utf-8', JSON.stringify(body));
+    const text = (status: number, body: string) => new EventApiError(status, 'text/plain', body);
+    // Loads of venues and speakers: status only.
+    expect(statusMessage(json(503, { detail: 'down' }), 'Impossibile caricare le sedi')).toBe('Impossibile caricare le sedi (HTTP 503)');
+    expect(statusMessage(new TypeError('Failed to fetch'), 'Impossibile caricare le sedi')).toBe('Failed to fetch');
+    expect(statusMessage('boom', 'Impossibile caricare le sedi', 'Errore nel caricamento delle sedi')).toBe('Errore nel caricamento delle sedi');
+    // getResponseErrorMessage ("Salva modifiche"): a JSON detail, message or title wins; otherwise the fallback with the status.
+    expect(problemMessage(json(400, { title: 'T', detail: 'Workshop counter unavailable' }), "Impossibile salvare l'evento")).toBe('Workshop counter unavailable');
+    expect(problemMessage(json(400, { message: 'Sessione scaduta' }), "Impossibile salvare l'evento")).toBe('Sessione scaduta');
+    expect(problemMessage(json(400, { title: 'Bad Request' }), "Impossibile salvare l'evento")).toBe('Bad Request');
+    expect(problemMessage(json(500, {}), "Impossibile salvare l'evento")).toBe("Impossibile salvare l'evento (HTTP 500)");
+    expect(problemMessage(text(502, '<html>Bad gateway</html>'), "Impossibile salvare l'evento")).toBe("Impossibile salvare l'evento (HTTP 502)");
+    expect(problemMessage(new EventApiError(500, 'application/json', 'not json'), "Impossibile salvare l'evento")).toBe("Impossibile salvare l'evento (HTTP 500)");
+    expect(problemMessage(null, "Impossibile salvare l'evento", "Errore nell'aggiornamento dell'evento")).toBe("Errore nell'aggiornamento dell'evento");
+    // reportError (agenda, Eventbrite, Sessionize, creation): the detail, else the body as it came, else the fallback with the status.
+    expect(detailMessage(json(502, { title: 'Eventbrite synchronization failed', detail: 'Eventbrite rejected the venue' }), 'Sincronizzazione Eventbrite non riuscita')).toBe('Eventbrite rejected the venue');
+    expect(detailMessage(text(400, 'Sessionize ID non valido'), 'Importazione da Sessionize non riuscita')).toBe('Sessionize ID non valido');
+    expect(detailMessage(json(400, { title: 'Bad Request' }), "Impossibile salvare l'agenda dell'evento")).toBe('{"title":"Bad Request"}');
+    expect(detailMessage(new EventApiError(500), "Impossibile salvare l'agenda dell'evento")).toBe("Impossibile salvare l'agenda dell'evento (HTTP 500)");
+    expect(detailMessage(new Error('offline'), "Impossibile creare l'evento")).toBe('offline');
+  });
+
+  it('maps the URL to a step, including the hashes of earlier versions of the card', () => {
     expect(stepFromLocation('', '')).toBe('pubblicazione');
     expect(stepFromLocation('#agenda', '')).toBe('agenda');
     expect(stepFromLocation('#iscrizione', '')).toBe('iscrizione');
+    expect(stepFromLocation('#talk-pool', '')).toBe('talk-pool');
+    expect(stepFromLocation('#tracks', '')).toBe('tracks');
     expect(stepFromLocation('', '?tab=foto')).toBe('foto');
     expect(stepFromLocation('#panoramica', '')).toBe('informazioni');
-    expect(stepFromLocation('#relatori', '')).toBe('talk');
+    expect(stepFromLocation('#relatori', '')).toBe('talk-pool');
     expect(stepFromLocation('#questionario', '')).toBe('pubblicazione');
     expect(stepFromLocation('#materiali', '')).toBe('materiali');
+    expect(stepFromLocation('#locandina', '')).toBe('immagine');
+    expect(stepFromLocation('#sessioni', '')).toBe('tracks');
+    expect(stepFromLocation('#talk', '')).toBe('talk-pool');
     expect(stepFromLocation('#sconosciuto', '')).toBe('pubblicazione');
   });
 
-  it('names the Eventbrite status and lists what Eventbrite still needs from the record and the module state', () => {
-    expect(eventbriteIssues(eventFixture(), draft({ talks: [] }))).toEqual(['Un numero positivo di biglietti gratuiti', 'Almeno una voce in agenda']);
+  it('shows the stored Eventbrite status as it is and lists what Eventbrite still needs from the record and the module state', () => {
+    expect(eventbriteIssues(eventFixture(), draft({ talks: [] }))).toEqual(['Capienza positiva di biglietti gratuiti', 'Almeno una voce in agenda pianificata']);
     const ready = draft({ eventbriteTicketCapacity: 25, items: [{ workshopAgendaItemId: 'i1', itemType: 'service', trackId: 'track-1', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z' }] });
     expect(eventbriteIssues(eventFixture(), ready)).toEqual([]);
-    expect(eventbriteIssues(eventFixture({ description: '' }), { ...ready, eventbriteSalesStart: '2024-03-14T18:00', eventbriteSalesEnd: '2024-03-01T09:00' })).toEqual(["Descrizione dell'evento", "Fine vendite successiva all'inizio"]);
+    expect(eventbriteIssues(eventFixture({ description: '' }), { ...ready, eventbriteSalesStart: '2024-03-14T18:00', eventbriteSalesEnd: '2024-03-01T09:00' })).toEqual(["Descrizione dell'evento", "Fine vendite successiva all'inizio vendite"]);
     expect(eventbriteStatusLabel(eventFixture())).toBe('Non creato');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e' }))).toBe('Bozza');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'synced' }))).toBe('Bozza sincronizzata');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'update-pending' }))).toBe('Da sincronizzare');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbritePublished: true }))).toBe('Pubblicato');
-    // Backend statuses recorded before an event id exists are shown with their meaning, raw when unknown.
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'creating-event' }))).toBe("Creazione dell'evento in corso");
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'event-created' }))).toBe('Evento creato, biglietto da creare');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'creating-ticket' }))).toBe('Creazione del biglietto in corso');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'reconciliation-required' }))).toMatch(/^Da riconciliare/);
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'failed' }))).toBe('Sincronizzazione fallita');
-    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'something-new' }))).toBe('something-new');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e' }))).toBe('Non creato');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'synced' }))).toBe('synced');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteEventId: 'e', eventbriteSyncStatus: 'update-pending', eventbritePublished: true }))).toBe('update-pending');
+    expect(eventbriteStatusLabel(eventFixture({ eventbriteSyncStatus: 'reconciliation-required' }))).toBe('reconciliation-required');
   });
 });
 
@@ -155,9 +174,9 @@ describe('talk pool, schedule and registration', () => {
     if ('error' in refilled) throw new Error(refilled.error);
     expect(refilled.items.map(item => [item.title ?? item.itemType, toClockTime(item.startTime)])).toEqual([['talk', '14:00'], ['Technical gap', '14:30'], ['talk', '14:40'], ['Pranzo', '15:10']]);
 
-    expect(autoFillSchedule(draft(), { start: '09:00', duration: '0', gap: '5' })).toEqual({ error: 'Indica un orario di inizio valido e durate positive per talk e pause.' });
+    expect(autoFillSchedule(draft(), { start: '09:00', duration: '0', gap: '5' })).toEqual({ error: 'Inserisci un orario di inizio valido e durate positive per sessioni e pause.' });
     const unassigned = draft({ talks: [{ ...draft().talks[0], trackId: null }] });
-    expect(autoFillSchedule(unassigned, { start: '09:00', duration: '60', gap: '5' })).toEqual({ error: 'Assegna ogni talk a una track prima di riempire gli orari.' });
+    expect(autoFillSchedule(unassigned, { start: '09:00', duration: '60', gap: '5' })).toEqual({ error: 'Assegna ogni talk a una track prima di generare gli orari.' });
     expect(unscheduledTalks(draft())).toHaveLength(2);
     expect(unscheduledTalks(draft({ items: filled.items }))).toHaveLength(0);
   });
@@ -177,10 +196,10 @@ describe('talk pool, schedule and registration', () => {
     if ('error' in filled) throw new Error(filled.error);
     const state = draft({ items: filled.items });
     expect(agendaProblem(state, 'schedule')).toBeNull();
-    expect(agendaProblem(draft({ ...state, eventbriteSalesStart: '2024-03-14T18:00', eventbriteSalesEnd: '2024-03-01T09:00' }), 'registration')).toBe('La vendita dei biglietti deve finire dopo il suo inizio.');
+    expect(agendaProblem(draft({ ...state, eventbriteSalesStart: '2024-03-14T18:00', eventbriteSalesEnd: '2024-03-01T09:00' }), 'registration')).toBe("La vendita dei biglietti Eventbrite deve finire dopo l'inizio.");
     expect(agendaProblem({ ...state, talks: [{ ...state.talks[0], trackId: null }, state.talks[1]] }, 'registration')).toBe("Assegna ogni talk a una track prima di salvare l'agenda.");
     const backwards = { ...state, items: [{ ...filled.items[0], endTime: filled.items[0].startTime }] };
-    expect(agendaProblem(backwards, 'talks')).toBe("Ogni voce dell'agenda deve finire dopo il suo inizio.");
+    expect(agendaProblem(backwards, 'talks')).toBe("Ogni voce dell'agenda deve avere un orario di fine valido successivo all'inizio.");
     expect(agendaProblem(backwards, 'registration')).toBeNull();
     const overlapping = { ...state, items: filled.items.map(item => ({ ...item, startTime: '2024-03-15T09:00:00.000Z', endTime: '2024-03-15T10:00:00.000Z' })) };
     expect(agendaProblem(overlapping, 'schedule')).toMatch(/non possono sovrapporsi/);

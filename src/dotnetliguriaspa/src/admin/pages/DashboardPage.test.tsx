@@ -19,7 +19,8 @@ const speakers = [
   { workshopSpeakerId: 's2', name: 'Angelo Ferrando' },
   { workshopSpeakerId: 's3', name: 'Angelo  Ferrando' },
 ];
-// Only Ada has a photo in /Contents/speakers.
+// Only Ada has a photo in /Contents/speakers (the build lists the shipped files; here the list is faked).
+vi.mock('virtual:content-photos', () => ({ default: ['speakers/ada_lovelace.jpg'] }));
 const contents = (url: string) => (url.includes('speakers/ada_lovelace.jpg')
   ? new Response('', { status: 200, headers: { 'Content-Type': 'image/jpeg' } })
   : new Response('', { status: 404 }));
@@ -80,7 +81,7 @@ describe('<DashboardPage />', () => {
   });
 
   test('reports a failed load with a retry instead of an empty dashboard', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let calls = 0;
     mockApi({ '/Workshop/Get': () => (++calls === 1 ? jsonResponse({}, 503) : jsonResponse([past])), '/Speaker/Get': [], '/Venue': [] });
     render(<DashboardPage />, { route: '/admin' });

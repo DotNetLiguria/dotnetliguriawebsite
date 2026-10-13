@@ -65,7 +65,7 @@ function NextEvent({ workshop }: { workshop: AdminWorkshop }) {
         <CheckRow done={!!clean(workshop.description)} title="Descrizione" detail={clean(workshop.description) ? 'Presente' : 'Manca: compare nella scheda e nella home.'} action={clean(workshop.description) ? undefined : fix('Scrivi', 'informazioni')} />
         <CheckRow done={!!clean(workshop.location?.name)} title="Data e sede" detail={clean(workshop.location?.name) ? `${formatDate(workshop.eventDate)} · ${clean(workshop.location?.name)}` : 'Manca la sede.'} action={clean(workshop.location?.name) ? undefined : fix('Scegli la sede', 'sede')} />
         <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? sessionsLabel(sessions) : 'Nessuna sessione: importa i talk da Sessionize o aggiungili.'} action={sessions ? undefined : fix("Prepara l'agenda", 'agenda')} />
-        <CheckRow done={!!workshop.image} title="Locandina" detail={workshop.image ? 'Caricata' : 'Manca la locandina.'} action={workshop.image ? undefined : fix('Carica', 'locandina')} />
+        <CheckRow done={!!workshop.image} title="Locandina" detail={workshop.image ? 'Caricata' : 'Manca la locandina.'} action={workshop.image ? undefined : fix('Carica', 'immagine')} />
         <CheckRow done={!!registrationOf(workshop)} title="Iscrizione" detail={registrationOf(workshop) ? 'Link di prenotazione presente' : 'Manca il link di prenotazione.'} action={registrationOf(workshop) ? undefined : fix('Aggiungi il link', 'iscrizione')} />
         <CheckRow done={workshop.published === true} title="Pubblicazione" detail={workshop.published === true ? 'Visibile sul sito' : 'In bozza: non è ancora sul sito.'} action={workshop.published === true ? undefined : fix('Pubblica', 'pubblicazione')} />
       </ul>

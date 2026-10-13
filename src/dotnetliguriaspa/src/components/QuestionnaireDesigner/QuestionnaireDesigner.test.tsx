@@ -145,7 +145,7 @@ describe('<QuestionnaireDesigner />', () => {
   beforeEach(() => adminToasts.clear());
 
   test('adds a question from the palette and autosaves it', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { puts } = serve(draft());
     renderDesigner();
 
@@ -161,7 +161,7 @@ describe('<QuestionnaireDesigner />', () => {
   });
 
   test('publish dialog lists blocking issues and publishes a valid questionnaire', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(draft({ sections: [{ id: 's1', title: '', questions: [q('a', 'SingleChoice', '')] }] }));
     renderDesigner();
 
@@ -196,7 +196,7 @@ describe('<QuestionnaireDesigner />', () => {
 
   describe('reordering without dragging', () => {
     test('moves a question with the buttons, keeps focus on the pressed one and announces the position', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await screen.findByText('Torneresti?');
@@ -218,7 +218,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('the first question of a section moves up into the previous one', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Sposta su: Note' }));
@@ -227,7 +227,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('moves sections and keeps focus on their button', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await screen.findByText('Torneresti?');
@@ -239,7 +239,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('options can be moved with buttons too (single-pointer alternative to dragging)', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(choices());
       renderDesigner();
       await user.click(await screen.findByTestId('card-d'));
@@ -255,7 +255,7 @@ describe('<QuestionnaireDesigner />', () => {
   });
 
   test('removing a question moves focus to its neighbour and can be undone', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(draft());
     renderDesigner();
     await user.click(await screen.findByRole('button', { name: 'Elimina: Perché?' }));
@@ -271,7 +271,7 @@ describe('<QuestionnaireDesigner />', () => {
   });
 
   test('undo and redo also answer to Ctrl+Z and Ctrl+Shift+Z outside text fields', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(draft());
     renderDesigner();
     await screen.findByText('Torneresti?');
@@ -286,7 +286,7 @@ describe('<QuestionnaireDesigner />', () => {
 
   describe('properties', () => {
     test('edits the selected question: text, type and required flag', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const { puts } = serve(draft());
       renderDesigner();
       expect(await screen.findByRole('heading', { name: 'Impostazioni questionario' })).toBeInTheDocument();
@@ -310,7 +310,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('options: Enter adds a row and focuses it, rows can be removed down to the minimum', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(choices());
       renderDesigner();
       await user.click(await screen.findByTestId('card-d'));
@@ -329,7 +329,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('options: pasted lists are cleaned and duplicates ignored', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(choices());
       renderDesigner();
       await user.click(await screen.findByTestId('card-d'));
@@ -343,7 +343,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('when responses exist the option texts stay editable but the list cannot change', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve({ ...choices(), status: 'Published', responseCount: 5 });
       renderDesigner();
       await user.click(await screen.findByTestId('card-d'));
@@ -358,7 +358,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('visibility: edits the condition and can drop it', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByTestId('card-b'));
@@ -378,7 +378,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('settings: a missing title is reported on the field and blocks saving', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const { puts } = serve(draft());
       renderDesigner();
       const title = await screen.findByRole('textbox', { name: 'Titolo' });
@@ -411,7 +411,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('settings: identified respondents get the default consent text; the mode is fixed once there are responses', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByRole('radio', { name: /Identificati/ }));
@@ -425,7 +425,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('a section can be renamed and described from the properties', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByRole('textbox', { name: 'Titolo sezione 2' }));
@@ -440,7 +440,7 @@ describe('<QuestionnaireDesigner />', () => {
 
   describe('publishing', () => {
     test('an issue in the publish checklist opens the question that needs fixing, with the problem on its field', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft({ sections: [{ id: 's1', title: '', questions: [q('a', 'SingleChoice', 'Scegli', { options: [{ id: 'x', label: 'Uno' }] })] }] }));
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Pubblica' }));
@@ -454,7 +454,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('a failed publish is reported inside the dialog', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Pubblica' }));
@@ -466,7 +466,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('closes and reopens a published questionnaire', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const { calls } = serve(draft({ status: 'Published' }));
       renderDesigner();
       expect(screen.queryByText('Bozza')).not.toBeInTheDocument();
@@ -483,7 +483,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('duplicates a locked questionnaire and opens the copy', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const { calls } = serve(draft({ status: 'Published', responseCount: 3 }));
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Duplica' }));
@@ -495,7 +495,7 @@ describe('<QuestionnaireDesigner />', () => {
 
   describe('autosave status', () => {
     test('a version conflict is announced and "Ricarica" loads the latest version', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const { calls } = serve(draft(), { put: (_, count) => (count === 1 ? problem(409, 'Il questionario è stato modificato da un altro utente.') : undefined) });
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: /Aggiungi domanda: .*Stelle/i }));
@@ -511,7 +511,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('a failed save offers a retry', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       const { puts } = serve(draft(), { put: (_, count) => (count === 1 ? problem(500, 'Errore del server (500).') : undefined) });
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: /Aggiungi domanda: .*Stelle/i }));
@@ -524,7 +524,7 @@ describe('<QuestionnaireDesigner />', () => {
   });
 
   test('shows a load failure with a retry instead of an empty editor', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve(draft());
     vi.mocked(fetch).mockResolvedValueOnce(problem(404, 'Questionario non trovato.'));
     renderDesigner();
@@ -536,7 +536,7 @@ describe('<QuestionnaireDesigner />', () => {
 
   describe('dialogs', () => {
     test('preview runs the real questionnaire in a desktop or phone frame and closes', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Anteprima' }));
@@ -551,7 +551,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('share shows the public link and the event link, and copies them', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft({ workshopId: 'w9', status: 'Published' }));
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Condividi' }));
@@ -569,7 +569,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('share warns that a draft is not reachable yet', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       serve(draft());
       renderDesigner();
       await user.click(await screen.findByRole('button', { name: 'Condividi' }));
@@ -579,7 +579,7 @@ describe('<QuestionnaireDesigner />', () => {
 
   describe('on a phone', () => {
     test('is a single column: the palette and the properties open as sheets', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       setViewport('phone');
       serve(draft());
       renderDesigner();
@@ -602,7 +602,7 @@ describe('<QuestionnaireDesigner />', () => {
     });
 
     test('settings and the secondary actions are in the page: Impostazioni and the actions menu', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       setViewport('phone');
       serve(draft());
       renderDesigner();

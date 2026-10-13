@@ -121,7 +121,7 @@ describe('<QuestionnaireResults /> header', () => {
   });
 
   test('a failed load offers a retry and then shows the results', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let attempts = 0;
     mockApi({
       '/statistics': () => (++attempts === 1 ? new Response('', { status: 500 }) : jsonResponse(statistics())),
@@ -137,7 +137,7 @@ describe('<QuestionnaireResults /> header', () => {
   });
 
   test('"Aggiorna" loads everything again without blanking the page', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve();
     renderResults();
     await ready();
@@ -168,7 +168,7 @@ describe('<QuestionnaireResults /> summary', () => {
   });
 
   test('"Mostra altre" pages long lists of written answers and keeps the reader in place', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const textAnswers = Array.from({ length: 45 }, (_, i) => ({ responseId: `t${i}`, submittedAt: '2024-05-01T10:00:00Z', text: `Idea numero ${i + 1}` }));
     serve({ stats: statistics({ questions: [{ questionId: 'notes', title: 'Suggerimenti', type: 'LongText', answeredCount: 45, distribution: [], options: [], rows: [], textAnswers }] }) });
     renderResults();
@@ -184,7 +184,7 @@ describe('<QuestionnaireResults /> summary', () => {
   });
 
   test('the selected tab lives in the address', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve();
     renderResults('/admin/questionnaires/q1/results?vista=risposte');
     expect(await screen.findByRole('tab', { name: 'Risposte (3)', selected: true })).toBeInTheDocument();
@@ -197,7 +197,7 @@ describe('<QuestionnaireResults /> summary', () => {
 
 describe('<QuestionnaireResults /> responses table', () => {
   test('is sorted newest first and sorts by any column, announcing the order', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve();
     renderResults();
     const table = await openResponses(user);
@@ -227,7 +227,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('anonymous questionnaires have no respondent columns', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve({ responses: people.map(({ respondent: _respondent, ...rest }) => rest) });
     renderResults();
     const table = await openResponses(user);
@@ -237,7 +237,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('pages 25 rows at a time with a choice of 50 and 100', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const many = Array.from({ length: 60 }, (_, i) => response(`m${i}`, `2024-05-01T${String(8 + Math.floor(i / 6)).padStart(2, '0')}:${String((i % 6) * 10).padStart(2, '0')}:00Z`, { respondent: { name: 'Persona', surname: String(i + 1).padStart(2, '0') } }));
     serve({ responses: many, stats: statistics({ responseCount: 60 }) });
     renderResults();
@@ -260,7 +260,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('searches names, emails and answers, filters by origin and resets', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve();
     renderResults();
     const table = await openResponses(user);
@@ -281,7 +281,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('opens a response in a dialog with every answer, and double click does the same', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve();
     renderResults();
     const table = await openResponses(user);
@@ -300,7 +300,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('deletes a response after a confirmation and refreshes the list', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve();
     renderResults();
     const table = await openResponses(user);
@@ -317,7 +317,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('a failed delete is reported and keeps the confirmation open', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve({ deleteStatus: 500 });
     renderResults();
     const table = await openResponses(user);
@@ -331,7 +331,7 @@ describe('<QuestionnaireResults /> responses table', () => {
   });
 
   test('the dialog of a response can delete it too', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve();
     renderResults();
     const table = await openResponses(user);
@@ -343,7 +343,7 @@ describe('<QuestionnaireResults /> responses table', () => {
 
   describe('on a phone', () => {
     test('stacks the responses as cards with a sort menu', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ delay: null });
       setPhone();
       serve();
       renderResults();
@@ -378,7 +378,7 @@ describe('<QuestionnaireResults /> CSV export', () => {
   });
 
   test('downloads the server CSV with a file name made from the title', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls = serve({ questionnaire: definition({ title: 'Feedback: Meetup 2024!' }) });
     renderResults();
     await ready();
@@ -393,7 +393,7 @@ describe('<QuestionnaireResults /> CSV export', () => {
   });
 
   test('says so when the export fails and offers it again', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve({ exportStatus: 500 });
     renderResults();
     await ready();

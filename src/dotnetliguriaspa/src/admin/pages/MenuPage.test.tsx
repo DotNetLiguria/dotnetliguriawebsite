@@ -79,7 +79,7 @@ describe('<MenuPage />', () => {
   });
 
   test('moves an entry with the arrow buttons and the preview follows', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { writes } = serve();
     renderAt('/admin/topmenu/');
     await screen.findByRole('table');
@@ -98,7 +98,7 @@ describe('<MenuPage />', () => {
   });
 
   test('opens the entry card from its address and saves edits as one update of the whole record', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { writes } = serve();
     renderAt('/admin/topmenu/m-team');
     const card = await screen.findByRole('dialog', { name: 'Il Team' });
@@ -131,7 +131,7 @@ describe('<MenuPage />', () => {
   });
 
   test('creates an entry: name and a valid address are required, and it goes last by default', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { writes, items } = serve();
     renderAt('/admin/topmenu/new');
     const dialog = await screen.findByRole('dialog', { name: 'Nuova voce del menu' });
@@ -158,7 +158,7 @@ describe('<MenuPage />', () => {
   });
 
   test('deletes only after an explicit confirmation and reports failures', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { writes, items } = serve([team, home, events, sponsor], { deleteStatuses: [404, 204] });
     renderAt('/admin/topmenu/m-sponsor');
     const card = await screen.findByRole('dialog', { name: 'Sponsor' });
@@ -178,7 +178,7 @@ describe('<MenuPage />', () => {
   });
 
   test('the row menu keeps the destructive action last and opens the confirmation', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     serve();
     renderAt('/admin/topmenu/');
     await screen.findByRole('table');
@@ -193,7 +193,7 @@ describe('<MenuPage />', () => {
   });
 
   test('activates and deactivates an entry from the row menu', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const { writes } = serve();
     renderAt('/admin/topmenu/');
     await screen.findByRole('table');
@@ -224,7 +224,7 @@ describe('<MenuPage />', () => {
   });
 
   test('reports a failed load with a retry instead of an empty list', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let attempts = 0;
     mockApi({ '/TopMenu': () => (++attempts === 1 ? new Response(null, { status: 503 }) : jsonResponse([home])) });
     renderAt('/admin/topmenu/');
@@ -243,7 +243,7 @@ describe('<MenuPage />', () => {
   });
 
   test('turns into a list of cards on phones, with the same controls', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const { writes } = serve();
     renderAt('/admin/topmenu/');

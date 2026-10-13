@@ -33,7 +33,7 @@ const rowTitles = () => within(screen.getByRole('table')).getAllByRole('row').sl
 
 describe('<QuestionnairesPage />', () => {
   test('lists questionnaires with their links, filters by status and search', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     mockApi({ '/Questionnaire': summaries, '/Workshop/Get': workshops });
     renderAt('/admin/questionnaires');
     expect(await screen.findByText('3 questionari, 1 pubblicato.')).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe('<QuestionnairesPage />', () => {
   });
 
   test('creates a workshop feedback questionnaire from the dialog and opens the designer', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const created: unknown[] = [];
     mockApi({
       '/Questionnaire': (_url: string, init?: RequestInit) => {
@@ -82,7 +82,7 @@ describe('<QuestionnairesPage />', () => {
   });
 
   test('a blank questionnaire does not require an event', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const created: unknown[] = [];
     mockApi({
       '/Questionnaire': (_url: string, init?: RequestInit) => {
@@ -101,7 +101,7 @@ describe('<QuestionnairesPage />', () => {
   });
 
   test('duplicates from the row menu and opens the copy', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls: string[] = [];
     mockApi({
       '/Questionnaire/q1/duplicate': (_url: string, init?: RequestInit) => { calls.push(init?.method ?? 'GET'); return jsonResponse({ questionnaireId: 'copy1', title: 'Feedback Meetup (copia)' }); },
@@ -116,7 +116,7 @@ describe('<QuestionnairesPage />', () => {
   });
 
   test('archives and deletes with confirmation; deletion is blocked when there are responses', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const calls: { url: string; method: string }[] = [];
     let list = summaries;
     mockApi({
@@ -156,7 +156,7 @@ describe('<QuestionnairesPage />', () => {
   });
 
   test('shows the permission message when the role is missing and retries', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     let calls = 0;
     mockApi({ '/Questionnaire': () => (++calls === 1 ? new Response('', { status: 403 }) : jsonResponse(summaries)), '/Workshop/Get': workshops });
     renderAt('/admin/questionnaires');
