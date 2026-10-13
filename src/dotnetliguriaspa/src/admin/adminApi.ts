@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../config/apiConfig';
-import { SiteWorkshop, contentUrl } from '../site/siteApi';
+import { SiteWorkshop } from '../site/siteApi';
+import { photoCandidates } from '../site/speakerPhotos';
 
 // Shapes used by the admin, as serialized by DotNetLiguriaCore (fields the admin does not edit are kept as-is).
 export interface AdminWorkshop extends SiteWorkshop {
@@ -78,21 +79,8 @@ export function speakerNamesOf(workshop: AdminWorkshop): string[] {
   return (workshop.tracks ?? []).flatMap(track => clean(track.speakersName).split(/\s*,\s*/)).filter(Boolean);
 }
 
-// Photo candidates, same rule as the public site's SpeakerAvatar: the record (unless it is a stale /Uploads path),
-// then /Contents/speakers and /Contents/profile named after the speaker.
-const slug = (name: string) =>
-  name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/['’]/g, '_').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-
-export function photoCandidates(name: string, profileImageUrl?: string | null) {
-  const list: string[] = [];
-  if (profileImageUrl && !/^\/?uploads\//i.test(profileImageUrl)) {
-    const url = /^https?:\/\//.test(profileImageUrl) ? profileImageUrl : contentUrl(profileImageUrl);
-    if (url) list.push(url);
-  }
-  const base = slug(clean(name));
-  if (base) for (const folder of ['speakers', 'profile']) for (const ext of ['jpg', 'png']) list.push(contentUrl(`${folder}/${base}.${ext}`)!);
-  return list;
-}
+// Photo candidates: the same rule as the public site's SpeakerAvatar (record first, then shipped /Contents files).
+export { photoCandidates };
 
 const photoCache = new Map<string, Promise<string | null>>();
 
