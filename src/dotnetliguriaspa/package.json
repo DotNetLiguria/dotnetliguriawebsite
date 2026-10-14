@@ -71,5 +71,9 @@
   "type": "module",
   "engines": {
     "node": ">=24.21.0 <25"
+  },
+  "allowScripts": {
+    "@axa-fr/oidc-client@7.29.6": true,
+    "@axa-fr/react-oidc@7.29.6": true
   }
 }
