@@ -5,6 +5,7 @@ using CommonAuth;
 using CommonWeb;
 
 using DotNetLiguriaCore.Authorization;
+using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Questionnaires;
 using System.Threading.RateLimiting;
@@ -62,7 +63,7 @@ public class Program
         ConfigureAuthorization(builder.Services, builder.Configuration);
         ConfigureRateLimiting(builder.Services);
 
-        builder.Services.AddControllers();
+        builder.Services.AddValidation();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
@@ -93,6 +94,7 @@ public class Program
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
         builder.Services.AddSingleton<QuestionnaireService>();
         builder.Services.AddSingleton<DatabaseBackupService>();
+        builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
 
         var app = builder.Build();
         app.UseCors(_corsPolicy);
@@ -131,8 +133,7 @@ public class Program
 
         app.UseAuthorization();
 
-        // Map API controllers first
-        app.MapControllers();
+        app.MapApiEndpoints();
         app.MapServiceDefaults();
 
         // Handle development-time browser scripts
@@ -170,13 +171,6 @@ public class Program
         app.MapFallbackToFile("/index.html");
         //    .WithMetadata(new HttpMethodMetadata(new[] { "GET" }));   // specify more verbs on static pages
 
-
-        // old style mapping for the fallback file
-        //app.UseEndpoints(endpoints =>
-        //{
-        //    endpoints.MapControllers();
-        //    endpoints.MapFallbackToFile("/index.html");
-        //});
 
         app.Run();
     }

@@ -1,6 +1,6 @@
 using DotNetLiguriaCore.Model;
 
-namespace DotNetLiguriaCore.Controllers;
+namespace DotNetLiguriaCore.Endpoints;
 
 public static class WorkshopUploadValidation
 {

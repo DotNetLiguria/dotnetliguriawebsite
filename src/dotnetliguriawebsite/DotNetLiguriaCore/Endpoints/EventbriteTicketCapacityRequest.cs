@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace DotNetLiguriaCore.Controllers;
+namespace DotNetLiguriaCore.Endpoints;
 
 public sealed class EventbriteTicketCapacityRequest
 {

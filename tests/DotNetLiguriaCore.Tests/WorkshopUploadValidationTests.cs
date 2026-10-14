@@ -1,4 +1,4 @@
-using DotNetLiguriaCore.Controllers;
+using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Model;
 using Xunit;
 

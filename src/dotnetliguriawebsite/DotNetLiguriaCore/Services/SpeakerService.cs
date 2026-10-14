@@ -168,7 +168,9 @@ namespace DotNetLiguriaCore.Services
                     {
                         await _workshopsCollection.UpdateOneAsync(
                             workshopItem => workshopItem.WorkshopId == workshop.WorkshopId,
-                            Builders<Workshop>.Update.Set(workshopItem => workshopItem.Talks, workshop.Talks));
+                            Builders<Workshop>.Update
+                                .Set(workshopItem => workshopItem.Tracks, workshop.Tracks)
+                                .Set(workshopItem => workshopItem.Talks, workshop.Talks));
                     }
                 }
             }

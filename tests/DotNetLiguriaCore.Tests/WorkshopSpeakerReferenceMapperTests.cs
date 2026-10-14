@@ -39,4 +39,29 @@ public class WorkshopSpeakerReferenceMapperTests
         Assert.Equal("Historical speaker name", speaker.Name);
         Assert.Equal("Historical biography", speaker.Biography);
     }
+
+    [Fact]
+    public void Repoint_updates_legacy_track_speaker_ids()
+    {
+        var duplicateId = Guid.NewGuid();
+        var canonicalId = Guid.NewGuid();
+        var workshop = new Workshop
+        {
+            Tracks =
+            [
+                new WorkshopTrack
+                {
+                    Speakers = [duplicateId],
+                },
+            ],
+        };
+
+        var changed = WorkshopSpeakerReferenceMapper.Repoint(workshop, new Dictionary<Guid, Guid>
+        {
+            [duplicateId] = canonicalId,
+        });
+
+        Assert.True(changed);
+        Assert.Equal(canonicalId, Assert.Single(Assert.Single(workshop.Tracks!).Speakers!));
+    }
 }

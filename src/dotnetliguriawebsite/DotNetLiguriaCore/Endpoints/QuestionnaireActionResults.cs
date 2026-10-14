@@ -1,12 +1,10 @@
 using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services.Questionnaires;
-using Microsoft.AspNetCore.Mvc;
-
-namespace DotNetLiguriaCore.Controllers;
+namespace DotNetLiguriaCore.Endpoints;
 
 public static class QuestionnaireActionResults
 {
-    public static IActionResult From<T>(QuestionnaireOperationResult<T> result, Func<T, IActionResult> onSuccess)
+    public static IResult From<T>(QuestionnaireOperationResult<T> result, Func<T, IResult> onSuccess)
     {
         if (result.Status == QuestionnaireOperationStatus.Ok)
         {
@@ -26,6 +24,6 @@ public static class QuestionnaireActionResults
             QuestionnaireOperationStatus.Unavailable => StatusCodes.Status410Gone,
             _ => StatusCodes.Status409Conflict,
         };
-        return new ObjectResult(body) { StatusCode = statusCode };
+        return Results.Json(body, statusCode: statusCode);
     }
 }
