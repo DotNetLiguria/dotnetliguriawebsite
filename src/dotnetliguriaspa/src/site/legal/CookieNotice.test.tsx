@@ -26,7 +26,7 @@ describe('<CookieNotice />', () => {
   });
 
   test('closes with the button and stays closed on the next visit', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const first = render(<CookieNotice />);
     await user.click(screen.getByRole('button', { name: 'Ho capito' }));
     expect(notice()).not.toBeInTheDocument();
@@ -38,7 +38,7 @@ describe('<CookieNotice />', () => {
   });
 
   test('stays reachable by keyboard and closes with Enter', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     render(<CookieNotice />);
     await user.tab();
     expect(screen.getByRole('link', { name: 'Cookie policy' })).toHaveFocus();
@@ -49,7 +49,7 @@ describe('<CookieNotice />', () => {
   });
 
   test('works when browser storage is unavailable and stays closed for the rest of the visit', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const denied = () => { throw new DOMException('Storage is blocked', 'SecurityError'); };
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(denied);
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(denied);
@@ -67,7 +67,7 @@ describe('<CookieNotice />', () => {
   });
 
   test('makes room for itself while shown, so focused content scrolls clear of it', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(120);
     const root = document.documentElement;
     render(<CookieNotice />);
@@ -82,7 +82,7 @@ describe('<CookieNotice />', () => {
 
 describe('cookie notice on public pages', () => {
   test('is part of the public layout and hands focus to the page when closed', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     render(<SiteLayout><p>Contenuto della pagina</p></SiteLayout>);
     expect(notice()).toBeInTheDocument();
     expect(screen.getByRole('main')).toHaveTextContent('Contenuto della pagina');

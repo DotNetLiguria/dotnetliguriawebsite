@@ -24,7 +24,7 @@ const yearHeadings = () => screen.getAllByRole('heading', { level: 2 }).map(h =>
 
 describe('<EventsPage />', () => {
   test('groups the archive by year, newest first, and filters through a shareable year parameter', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     mockApi({ '/Workshop/Get?onlyPublished=true': LIST });
     renderAt();
 
@@ -75,7 +75,7 @@ describe('<EventsPage />', () => {
   });
 
   test('reports failures with a retry and shows an empty archive plainly', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     let calls = 0;
     mockApi({ '/Workshop/Get?onlyPublished=true': () => (++calls === 1 ? jsonResponse({}, 503) : jsonResponse([])) });

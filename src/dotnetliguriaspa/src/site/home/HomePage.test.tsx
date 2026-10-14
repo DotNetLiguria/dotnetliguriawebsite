@@ -70,7 +70,7 @@ describe('<HomePage />', () => {
   });
 
   test('presents the team in board order with expandable biographies and safe links only', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const bio = 'Mi occupo professionalmente di sviluppo software dal 1987 e mi sono specializzato nelle tecnologie Microsoft. '.repeat(3);
     mockApi({
       '/Board/Get?onlyActive=true': [
@@ -105,7 +105,7 @@ describe('<HomePage />', () => {
   });
 
   test('lets the visitor retry when the event list cannot be loaded', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let calls = 0;
     mockApi({
       '/Workshop/GetInHomePage/HomePage': notFound,

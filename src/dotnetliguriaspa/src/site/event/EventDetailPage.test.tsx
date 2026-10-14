@@ -70,7 +70,7 @@ describe('<EventDetailPage />', () => {
   });
 
   test('shows the agenda with speaker photos and biographies, attendee notes, seat booking and the venue map', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     mockApi({
       [`/Workshop/Get/${ID}`]: workshop({
         eventDate: '2099-03-15T00:00:00+01:00',

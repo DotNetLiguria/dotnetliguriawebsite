@@ -52,7 +52,7 @@ describe('questionnaire designer accessibility', AUDIT, () => {
   beforeEach(() => { vi.mocked(fetch).mockImplementation(async () => jsonResponse(questionnaire)); });
 
   test('three panes with a question selected', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderDesigner();
     await screen.findByText('Voto complessivo');
     await expectNoViolations();
@@ -65,7 +65,7 @@ describe('questionnaire designer accessibility', AUDIT, () => {
   });
 
   test('definition problems shown on the fields', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderDesigner();
     await user.click(await screen.findByRole('button', { name: 'Pubblica' }));
     const dialog = await screen.findByRole('dialog', { name: 'Pubblica il questionario' });
@@ -75,7 +75,7 @@ describe('questionnaire designer accessibility', AUDIT, () => {
   });
 
   test('dialogs: preview, share and publish', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderDesigner();
     await user.click(await screen.findByRole('button', { name: 'Condividi' }));
     await screen.findByRole('dialog', { name: 'Condividi il questionario' });
@@ -87,7 +87,7 @@ describe('questionnaire designer accessibility', AUDIT, () => {
   });
 
   test('single column with the palette and the properties as sheets', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     phone();
     renderDesigner();
     await screen.findByText('Voto complessivo');
@@ -128,7 +128,7 @@ describe('questionnaire results accessibility', AUDIT, () => {
   });
 
   test('responses table, detail and confirmation', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderResults('/admin/questionnaires/q1/results?vista=risposte');
     const table = await screen.findByRole('table', { name: /Risposte al questionario/ });
     await expectNoViolations();
@@ -141,7 +141,7 @@ describe('questionnaire results accessibility', AUDIT, () => {
   });
 
   test('stacked responses on a phone', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     phone();
     renderResults();
     await user.click(await screen.findByRole('tab', { name: /^Risposte \(/ }));

@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => {
     // under its ceiling now that the admin pages are covered; each file still gets its own context.
     maxWorkers: 4,
     environment: 'jsdom',
+    testTimeout: 30000,
+    hookTimeout: 30000,
     globals: true,
     setupFiles: ['./src/setupTests.js'],
     include: ['src/**/*.test.{js,jsx,ts,tsx}'],

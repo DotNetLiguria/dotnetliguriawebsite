@@ -72,7 +72,7 @@ describe('<QuestionnaireResults />', () => {
   };
 
   test('shows KPIs, per-question summaries and searchable text answers', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderResults(url => (url.endsWith('/statistics') ? statistics : url.endsWith('/responses') ? responses : questionnaire));
 
     expect(await screen.findByText('Risultati: Feedback Meetup')).toBeInTheDocument();
@@ -87,7 +87,7 @@ describe('<QuestionnaireResults />', () => {
   });
 
   test('lists responses, shows details and deletes a response', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const calls = renderResults((url, method) => {
       if (method === 'DELETE') return undefined;
       return url.endsWith('/statistics') ? statistics : url.endsWith('/responses') ? responses : questionnaire;

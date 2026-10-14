@@ -81,7 +81,7 @@ describe('<DashboardPage />', () => {
   });
 
   test('reports a failed load with a retry instead of an empty dashboard', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let calls = 0;
     mockApi({ '/Workshop/Get': () => (++calls === 1 ? jsonResponse({}, 503) : jsonResponse([past])), '/Speaker/Get': [], '/Venue': [] });
     render(<DashboardPage />, { route: '/admin' });

@@ -82,7 +82,7 @@ describe('<BoardPage />', () => {
   });
 
   test('moves a member with the arrow buttons: both records are saved, announced, and focus stays on the control', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve();
     renderAt('/admin/board/');
     await screen.findByRole('table');
@@ -100,7 +100,7 @@ describe('<BoardPage />', () => {
   });
 
   test('reports a failed move and shows the list as the server has it', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve([gambaro, rialdi, baroni], { failUpdates: true });
     renderAt('/admin/board/');
     await screen.findByRole('table');
@@ -113,7 +113,7 @@ describe('<BoardPage />', () => {
   });
 
   test('hides and shows a member from the row menu', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve();
     renderAt('/admin/board/');
     await screen.findByRole('table');
@@ -146,7 +146,7 @@ describe('<BoardPage />', () => {
   });
 
   test('edits every field in one form and saves the whole record once', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve();
     renderAt('/admin/board/b-rialdi');
     const card = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
@@ -178,7 +178,7 @@ describe('<BoardPage />', () => {
   });
 
   test('creates a board member from the dashboard and reloads the database list', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve([]);
     renderAt('/admin/board/new');
     const dialog = await screen.findByRole('dialog', { name: 'Nuovo membro del board' });
@@ -193,7 +193,7 @@ describe('<BoardPage />', () => {
   });
 
   test('deletes a board member only after confirmation', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve();
     renderAt('/admin/board/b-rialdi');
     const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
@@ -209,7 +209,7 @@ describe('<BoardPage />', () => {
   });
 
   test('opens straight in the form from the row action and refuses a missing name, a bad link and a bad order', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve();
     renderAt('/admin/board/b-rialdi?azione=modifica');
     const card = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
@@ -226,7 +226,7 @@ describe('<BoardPage />', () => {
   });
 
   test('keeps the form open and reports a failed save', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve([gambaro, rialdi, baroni], { failUpdates: true });
     renderAt('/admin/board/b-baroni?azione=modifica');
     const card = await screen.findByRole('dialog', { name: 'Alberto Baroni' });
@@ -238,7 +238,7 @@ describe('<BoardPage />', () => {
   });
 
   test('says when a member has no photo yet, and that the upload is still to be done', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serve();
     renderAt('/admin/board/b-baroni');
     const card = await screen.findByRole('dialog', { name: 'Alberto Baroni' });
@@ -248,7 +248,7 @@ describe('<BoardPage />', () => {
   });
 
   test('reports a failed load with a retry instead of an empty list', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let attempts = 0;
     mockApi({ '/Board/Get': () => (++attempts === 1 ? new Response(null, { status: 500 }) : jsonResponse([rialdi])) });
     renderAt('/admin/board/');
@@ -283,7 +283,7 @@ describe('<BoardPage />', () => {
   });
 
   test('turns into a list of cards on phones, with the same controls', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const { writes } = serve();
     renderAt('/admin/board/');

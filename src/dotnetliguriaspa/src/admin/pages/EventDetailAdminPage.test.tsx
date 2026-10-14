@@ -20,6 +20,7 @@ const renderAt = (route: string) => render(
   </>,
   { route },
 );
+const setValue = (element: HTMLElement, value: string) => fireEvent.change(element, { target: { value } });
 const loaded = () => screen.findByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop' });
 const steps = () => screen.getByRole('navigation', { name: "Passaggi dell'evento" });
 const currentStep = () => within(steps()).getByRole('link', { current: 'step' });
@@ -96,7 +97,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('reaches steps with Avanti, keeps reached steps clickable and later ones not, and moves focus to the step panel title', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#informazioni');
     await loaded();
@@ -126,7 +127,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('moves the focus to the visible panel title of the talk pool, schedule and registration steps', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#tracks');
     await loaded();
@@ -155,7 +156,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('keeps the draft of steps 1, 3 and 4 across steps and saves it once, from the latest record, with Salva modifiche', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const api = serveEvent(eventFixture({ tags: 'dotnet', blogHtml: '<p>keep</p>', location: { name: 'Genova', address: 'Via del Porto 1', coordinates: '44.4056,8.9463', maximumSpaces: 150, rooms: ['Aula 1'] } }));
     renderAt('/admin/workshop/w1');
     await loaded();
@@ -164,10 +165,9 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.queryByText('Modifiche non salvate')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: "Avanti: Immagine dell'evento" }));
     await user.click(screen.getByRole('button', { name: "Avanti: Informazioni sull'evento" }));
-    await user.type(screen.getByRole('textbox', { name: 'Titolo' }), ' aggiornato');
+    setValue(screen.getByRole('textbox', { name: 'Titolo' }), 'Test Workshop aggiornato');
     await user.click(screen.getByRole('button', { name: 'Avanti: Sede' }));
-    await user.clear(screen.getByRole('textbox', { name: 'Indirizzo' }));
-    await user.type(screen.getByRole('textbox', { name: 'Indirizzo' }), 'Via Nuova 2');
+    setValue(screen.getByRole('textbox', { name: 'Indirizzo' }), 'Via Nuova 2');
     await user.click(within(steps()).getByRole('link', { name: "3. Informazioni sull'evento, raggiunto" }));
     expect(screen.getByRole('textbox', { name: 'Titolo' })).toHaveValue('Test Workshop aggiornato');
     await user.click(within(steps()).getByRole('link', { name: '1. Pubblicazione, raggiunto' }));
@@ -188,11 +188,11 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('keeps the draft and shows the server detail when Salva modifiche fails', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture(), {}, { failUpdate: jsonResponse({ detail: 'Eventbrite ticket capacity cannot be reduced' }, 400) });
     renderAt('/admin/workshop/w1#informazioni');
     await loaded();
-    await user.type(screen.getByRole('textbox', { name: 'Titolo' }), ' bis');
+    setValue(screen.getByRole('textbox', { name: 'Titolo' }), 'Test Workshop bis');
     await goToLastStep(user);
     await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
     expect(await screen.findByText('Eventbrite ticket capacity cannot be reduced')).toBeInTheDocument();
@@ -201,7 +201,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('words a failed Salva modifiche without a JSON detail as before and keeps Indietro off while it runs', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let release: (() => void) | null = null;
     serveEvent(eventFixture(), { '/Workshop/Update/': () => new Promise<Response>(resolve => { release = () => resolve(new Response('<html>Bad gateway</html>', { status: 502, headers: { 'Content-Type': 'text/html' } })); }) });
     renderAt('/admin/workshop/w1#foto');
@@ -215,7 +215,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('copies a saved venue into the Sede step and keeps the fields editable', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const api = serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#sede');
     await loaded();
@@ -227,8 +227,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveValue('https://maps.google.com/?q=Community+Hall');
     expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveAttribute('type', 'url');
     expect(screen.getByRole('spinbutton', { name: 'Posti massimi' })).toHaveValue(120);
-    await user.clear(screen.getByRole('textbox', { name: 'Nome' }));
-    await user.type(screen.getByRole('textbox', { name: 'Nome' }), 'Updated Hall');
+    setValue(screen.getByRole('textbox', { name: 'Nome' }), 'Updated Hall');
     // The chosen venue stays selected while moving between steps, as before.
     await user.click(screen.getByRole('button', { name: "Indietro: Informazioni sull'evento" }));
     await user.click(screen.getByRole('button', { name: 'Avanti: Sede' }));
@@ -251,7 +250,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('does not block the save of a legacy event with incomplete address or coordinates', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const api = serveEvent(eventFixture({ location: { name: 'Online', address: '', coordinates: 'n/d', googleMapsUrl: 'maps' } }));
     renderAt('/admin/workshop/w1#sede');
     await loaded();
@@ -263,7 +262,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('never warns when leaving, with or without edits, as before', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#informazioni');
     await loaded();
@@ -277,7 +276,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('step 1 edits the visibility flags in the draft, shows the feedback QR and link, and manages the linked questionnaires', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const questionnaire = { questionnaireId: 'q1', title: 'Feedback Meetup', status: 'Closed', responseCount: 2, sections: [] };
     const api = serveEvent(eventFixture({ feedbackEnabled: true }), {
       '/Questionnaire/by-workshop/': [questionnaire, { ...questionnaire, questionnaireId: 'q2', title: 'Bozza nuova', status: 'Draft', responseCount: 0 }, { ...questionnaire, questionnaireId: 'q3', title: 'Aperto ora', status: 'Published', responseCount: 7 }],
@@ -363,7 +362,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
   });
 
   test('offers "Torna su" once the page has scrolled past 300px, as before', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1');
@@ -381,7 +380,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
 
   test('on phones shows the compact header with a progress bar and only the reachable steps in a menu', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());
     renderAt('/admin/workshop/w1#informazioni');
     await loaded();

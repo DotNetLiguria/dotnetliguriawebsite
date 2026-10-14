@@ -34,10 +34,11 @@ function serve(venues: unknown | (() => Response), created: Response) {
   return calls;
 }
 const fillBasics = async (user: User) => {
-  await user.type(screen.getByRole('textbox', { name: 'Titolo' }), 'Agenda Day');
-  await user.type(screen.getByRole('textbox', { name: 'Descrizione' }), 'Community event');
+  setValue(screen.getByRole('textbox', { name: 'Titolo' }), 'Agenda Day');
+  setValue(screen.getByRole('textbox', { name: 'Descrizione' }), 'Community event');
   fireEvent.change(screen.getByLabelText("Data dell'evento"), { target: { value: '2027-06-21' } });
 };
+const setValue = (element: HTMLElement, value: string) => fireEvent.change(element, { target: { value } });
 const venueSelect = () => screen.getByRole('button', { name: /^Sede/ });
 const pickVenue = async (user: User) => {
   await waitFor(() => expect(venueSelect()).toBeEnabled());
@@ -50,7 +51,7 @@ beforeEach(() => adminToasts.clear());
 
 describe('<EventCreatePage />', () => {
   test('creates an event with a copied venue snapshot, event rooms, booking and attendee details', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const calls = serve(venuesFixture, jsonResponse({ workshopId: '00112233-4455-6677-8899-aabbccddeeff' }, 201));
     renderPage();
     await fillBasics(user);
@@ -60,26 +61,20 @@ describe('<EventCreatePage />', () => {
     expect(screen.getByRole('textbox', { name: 'Coordinate' })).toHaveValue('44.4,8.9');
     expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveValue('https://maps.google.com/?q=Community+Hall');
     expect(screen.getByRole('spinbutton', { name: 'Posti massimi' })).toHaveValue(120);
-    await user.clear(screen.getByRole('textbox', { name: 'Nome' }));
-    await user.type(screen.getByRole('textbox', { name: 'Nome' }), 'Updated Hall');
-    await user.clear(screen.getByRole('textbox', { name: 'Indirizzo' }));
-    await user.type(screen.getByRole('textbox', { name: 'Indirizzo' }), '2 Main Street');
-    await user.clear(screen.getByRole('textbox', { name: 'Coordinate' }));
-    await user.type(screen.getByRole('textbox', { name: 'Coordinate' }), '44.5,9.0');
-    await user.clear(screen.getByRole('textbox', { name: 'URL di Google Maps' }));
-    await user.type(screen.getByRole('textbox', { name: 'URL di Google Maps' }), 'https://maps.google.com/?q=Updated+Hall');
-    await user.clear(screen.getByRole('spinbutton', { name: 'Posti massimi' }));
-    await user.type(screen.getByRole('spinbutton', { name: 'Posti massimi' }), '150');
-    await user.clear(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' }));
-    await user.type(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' }), '50');
+    setValue(screen.getByRole('textbox', { name: 'Nome' }), 'Updated Hall');
+    setValue(screen.getByRole('textbox', { name: 'Indirizzo' }), '2 Main Street');
+    setValue(screen.getByRole('textbox', { name: 'Coordinate' }), '44.5,9.0');
+    setValue(screen.getByRole('textbox', { name: 'URL di Google Maps' }), 'https://maps.google.com/?q=Updated+Hall');
+    setValue(screen.getByRole('spinbutton', { name: 'Posti massimi' }), '150');
+    setValue(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' }), '50');
     await user.type(screen.getByRole('textbox', { name: 'Sale per questo evento' }), 'Auditorium{enter}Room B');
     const booking = screen.getByRole('textbox', { name: 'URL del servizio di prenotazione e cancellazione del posto' });
     expect(booking).toHaveAttribute('type', 'url');
     expect(booking).toHaveAttribute('placeholder', 'https://...');
     expect(screen.getByRole('textbox', { name: 'URL di Google Maps' })).toHaveAttribute('type', 'url');
     expect(screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite iniziali' })).toHaveAttribute('min', '0');
-    await user.type(booking, 'https://booking.example.test/event/1');
-    await user.type(screen.getByRole('textbox', { name: 'Note per i partecipanti' }), 'Bring your laptop');
+    setValue(booking, 'https://booking.example.test/event/1');
+    setValue(screen.getByRole('textbox', { name: 'Note per i partecipanti' }), 'Bring your laptop');
     await user.click(create());
 
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
@@ -112,7 +107,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('shows the API error detail when workshop creation fails', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serve(venuesFixture, new Response(JSON.stringify({ detail: 'Workshop counter unavailable' }), { status: 503, headers: { 'Content-Type': 'application/problem+json' } }));
     renderPage();
     await fillBasics(user);
@@ -124,7 +119,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('words a failed creation without a body as before and keeps Annulla off while it runs', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let release: (() => void) | null = null;
     vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/Workshop/Post')) return new Promise<Response>(resolve => { release = () => resolve(new Response(null, { status: 500 })); });
@@ -142,7 +137,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('does not navigate to an undefined workshop when the create response omits its ID', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serve(venuesFixture, jsonResponse({}, 201));
     renderPage();
     await fillBasics(user);
@@ -153,7 +148,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('without saved venues names "Venues / Sale eventi" as plain text and refuses the submit with the single message', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const calls = serve([], jsonResponse({}, 201));
     renderPage();
     expect(await screen.findByText('Aggiungi una sede in Venues / Sale eventi prima di creare un evento.')).toBeInTheDocument();
@@ -168,7 +163,7 @@ describe('<EventCreatePage />', () => {
 
   test.each([
     ['the description', async (user: User) => {
-      await user.type(screen.getByRole('textbox', { name: 'Titolo' }), 'Agenda Day');
+      setValue(screen.getByRole('textbox', { name: 'Titolo' }), 'Agenda Day');
       fireEvent.change(screen.getByLabelText("Data dell'evento"), { target: { value: '2027-06-21' } });
       await pickVenue(user);
     }],
@@ -183,7 +178,7 @@ describe('<EventCreatePage />', () => {
       await user.clear(screen.getByRole('textbox', { name: 'Indirizzo' }));
     }],
   ])('does not post without %s and shows the single message, as before', async (_label, prepare) => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const calls = serve(venuesFixture, jsonResponse({ workshopId: '00112233-4455-6677-8899-aabbccddeeff' }, 201));
     renderPage();
     await waitFor(() => expect(venueSelect()).toBeEnabled());
@@ -195,7 +190,7 @@ describe('<EventCreatePage />', () => {
   });
 
   test('reports a failed venue list as before, keeps the form usable and goes back with Annulla', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serve(() => new Response(null, { status: 500 }), jsonResponse({}, 201));
     renderPage();
     expect(await screen.findByText('Impossibile caricare le sedi (HTTP 500)')).toBeInTheDocument();

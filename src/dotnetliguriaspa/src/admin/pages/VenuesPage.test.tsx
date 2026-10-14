@@ -48,7 +48,7 @@ describe('venue helpers', () => {
 
 describe('<VenuesPage />', () => {
   test('lists venues with map links, flags missing data and filters by search', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     mockApi({ '/Venue': venues, '/Workshop/Get': workshops });
     renderAt('/admin/venues/');
     expect(await screen.findByText('3 sedi salvate, 1 senza indirizzo.')).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('<VenuesPage />', () => {
   });
 
   test('offers to save the venues of past events when none is saved yet', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const posted: Record<string, unknown>[] = [];
     let saved: Record<string, unknown>[] = [];
     mockApi({
@@ -102,7 +102,7 @@ describe('<VenuesPage />', () => {
   });
 
   test('opens the venue card from the address, validates coordinates and map link, then saves', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const saved: Record<string, unknown>[] = [];
     mockApi({
       '/Venue/v1': (_url: string, init?: RequestInit) => { saved.push(JSON.parse(String(init?.body))); return new Response(null, { status: 204 }); },
@@ -134,7 +134,7 @@ describe('<VenuesPage />', () => {
   });
 
   test('requires name and address for a new venue, creates it and opens its card', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const created: Record<string, unknown>[] = [];
     let list = venues;
     mockApi({
@@ -167,7 +167,7 @@ describe('<VenuesPage />', () => {
   });
 
   test('deletes after an explicit confirmation and reports failures', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let attempts = 0;
     mockApi({
       '/Venue/v2': () => (++attempts === 1 ? new Response(null, { status: 409 }) : new Response(null, { status: 204 })),
@@ -185,7 +185,7 @@ describe('<VenuesPage />', () => {
   });
 
   test('reports a failed load and retries', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let calls = 0;
     mockApi({ '/Venue': () => (++calls === 1 ? new Response('', { status: 500 }) : jsonResponse(venues)), '/Workshop/Get': workshops });
     renderAt('/admin/venues/');

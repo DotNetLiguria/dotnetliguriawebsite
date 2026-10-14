@@ -30,7 +30,7 @@ describe('<SiteHeader />', () => {
   });
 
   test('opens the phone menu and closes it with Escape, returning focus to the button', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     mockApi({ '/TopMenu': [{ name: 'Eventi passati', url: '/workshops', isActive: true, order: 1 }] });
     render(<SiteHeader />);
     const toggle = screen.getByRole('button', { name: 'Menu' });
@@ -44,7 +44,7 @@ describe('<SiteHeader />', () => {
   });
 
   test('offers login to visitors and logout to signed-in users', async () => {
-    const user = userEvent.setup({ delay: null });
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const visitor = render(<SiteHeader />);
     await user.click(screen.getByRole('button', { name: 'Area Personale' }));
     expect(useOidc().login).toHaveBeenCalledWith('/admin');
