@@ -17,5 +17,7 @@
 **/secrets*.yaml
 **/appsettings.*.json
 **/*.*proj.user
-src/dotnetliguriawebsite/DataMigration
+src/dotnetliguriawebsite/DataMigration/*
+!src/dotnetliguriawebsite/DataMigration/json/
+!src/dotnetliguriawebsite/DataMigration/json/workshops.json
 tests
