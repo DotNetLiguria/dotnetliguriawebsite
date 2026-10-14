@@ -131,7 +131,7 @@ registries; manifests and the npm lock retain the exact selected versions.
 | React and types | 18 | 19.3.0 | Upgrade runtime, DOM and types together |
 | CRA/TypeScript | react-scripts 5 / TS 4.9 | Vite 8.3.4 / TS 6.0.3 | New HTML entry and public environment bridge |
 | UI kit | MUI 5 / Data Grid | Tailwind CSS 4.3.3 / React Aria Components 1.22.1 | Redesign; MUI, Emotion and Data Grid removed |
-| Test runners | Legacy Jest/browser-only .NET checks | Vitest 5.0.3 / xUnit 2.9.3 | Offline units; live integration checks remain opt-in |
+| Test runners | Legacy Jest/browser-only .NET checks | Vitest 5.0.3 / xUnit.net v3 (`xunit.v3` 4.0.2) | Offline units; live integration checks remain opt-in |
 | QR | Server-side decoding | qrcode.react 4.2.0 | Browser-side generation; native decoding removed |
 
 ```powershell

@@ -10,6 +10,9 @@ project-specific requirements; it does not relax the standards below.
 
 ## Required Standards
 - Target .NET 10 for every .NET project. Use stable, compatible dependencies only.
+- **MANDATORY: use xUnit.net v3 for every test project. Reference `xunit.v3`;
+  never reference the deprecated `xunit` package. Do not create or migrate a test
+  project with `xunit`, even when a template suggests it.**
 - Name every handwritten private C# field `_camelCase`, including static, readonly,
   constant and implicitly private fields. Do not use `s_` or omit the underscore.
 - Declare one handwritten type per file, including interfaces, records, enums,

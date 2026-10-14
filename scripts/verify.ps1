@@ -84,8 +84,8 @@ for ($run = $first; $run -le $Runs; $run++) {
         $report = Join-Path $results "$suite-$run.trx"
         Remove-Item $report -ErrorAction SilentlyContinue
         $limit = if ($Measure) { 120 } else { [int]$budgets.suites[$suite].ceilingSeconds }
-        $elapsed = Invoke-CheckedProcess $dotnet @('test', $projects[$suite], '-c', 'Release', '--no-build', '--no-restore', '--nologo',
-            '--logger', "trx;LogFileName=$suite-$run.trx", '--results-directory', $results) $root $limit
+        $elapsed = Invoke-CheckedProcess $dotnet @('run', '--project', $projects[$suite], '-c', 'Release', '--no-build', '--no-restore', '--',
+            '-result-trx', $report) $root $limit
         [xml]$trxReport = Get-Content $report -Raw
         $counters = $trxReport.SelectSingleNode("/*[local-name()='TestRun']/*[local-name()='ResultSummary']/*[local-name()='Counters']")
         if (!$counters -or [int]$counters.total -eq 0 -or [int]$counters.passed -ne [int]$counters.total -or

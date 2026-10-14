@@ -96,7 +96,7 @@ public class RepositoryStandardsTests
     }
 
     [Fact]
-    public void BothExecutablesConfigureBsonBeforeHostOrMigrationWork()
+    public async Task BothExecutablesConfigureBsonBeforeHostOrMigrationWork()
     {
         var root = FindRoot();
         foreach (var (path, nextCall) in new[]
@@ -105,7 +105,8 @@ public class RepositoryStandardsTests
             ("src/dotnetliguriawebsite/DataMigration/Program.cs", "ConfigurationReader.Read")
         })
         {
-            var syntax = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root, path))).GetRoot();
+            var source = await File.ReadAllTextAsync(Path.Combine(root, path), TestContext.Current.CancellationToken);
+            var syntax = ParseSyntaxTree(source).GetRoot(TestContext.Current.CancellationToken);
             var calls = syntax.DescendantNodes().OfType<InvocationExpressionSyntax>().ToList();
             var configure = Assert.Single(calls, call => call.Expression.ToString().EndsWith("BsonCompatibility.Configure", StringComparison.Ordinal));
             var next = calls.First(call => call.Expression.ToString().StartsWith(nextCall, StringComparison.Ordinal));
@@ -122,6 +123,25 @@ public class RepositoryStandardsTests
             var project = XDocument.Load(path);
             Assert.Equal("net10.0", project.Descendants("TargetFramework").Single().Value);
             Assert.DoesNotContain(project.Descendants("PackageReference"), reference => reference.Attribute("Version")?.Value.Contains('-') == true);
+        }
+    }
+
+    [Fact]
+    public void EveryTestProjectUsesXunitV3()
+    {
+        var root = FindRoot();
+        foreach (var path in EnumerateFiles(root).Where(path => path.EndsWith(".csproj", StringComparison.Ordinal)))
+        {
+            var project = XDocument.Load(path);
+            if (!bool.TryParse(project.Descendants("IsTestProject").SingleOrDefault()?.Value, out var isTestProject) || !isTestProject)
+                continue;
+
+            var packages = project.Descendants("PackageReference")
+                .Select(reference => reference.Attribute("Include")?.Value)
+                .Where(name => name is not null)
+                .ToArray();
+            Assert.Contains(packages, name => string.Equals(name, "xunit.v3", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(packages, name => string.Equals(name, "xunit", StringComparison.OrdinalIgnoreCase));
         }
     }
 
@@ -158,6 +178,9 @@ public class RepositoryStandardsTests
                     || name == "Aspire.Hosting.SqlServer"));
         }
     }
+
+    private static Microsoft.CodeAnalysis.SyntaxTree ParseSyntaxTree(string source) =>
+        CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken);
 
     private static IEnumerable<string> EnumerateFiles(string folder)
     {

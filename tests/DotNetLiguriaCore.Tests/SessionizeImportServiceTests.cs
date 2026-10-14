@@ -23,7 +23,7 @@ public class SessionizeImportServiceTests
         var handler = new SessionizeHttpMessageHandler(json);
         var service = new SessionizeImportService(new HttpClient(handler));
 
-        var result = await service.ImportAsync("test123");
+        var result = await service.ImportAsync("test123", TestContext.Current.CancellationToken);
 
         Assert.Single(result.Talks);
         Assert.Equal("session-1", result.Talks[0].SessionizeId);
@@ -46,7 +46,7 @@ public class SessionizeImportServiceTests
         var handler = new SessionizeHttpMessageHandler("{}");
         var service = new SessionizeImportService(new HttpClient(handler));
 
-        await Assert.ThrowsAsync<ArgumentException>(() => service.ImportAsync(sessionizeId));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.ImportAsync(sessionizeId, TestContext.Current.CancellationToken));
 
         Assert.Null(handler.LastRequest);
     }
