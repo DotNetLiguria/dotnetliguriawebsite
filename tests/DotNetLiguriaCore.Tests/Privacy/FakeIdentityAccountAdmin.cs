@@ -9,6 +9,10 @@ internal sealed class FakeIdentityAccountAdmin : IIdentityAccountAdmin
     public Dictionary<string, IdentityAccount> Accounts { get; } = new();
     public bool FailDeletion { get; set; }
     public bool FailLookup { get; set; }
+    public bool LeaveEnabledOnDisable { get; set; }
+    public bool FailDisable { get; set; }
+    public bool LoseDeleteResponse { get; set; }
+    public bool FailLookupAfterDeletion { get; set; }
     public int Deletions { get; private set; }
     public Task<IdentityAccount?> GetAsync(AccountReference account, CancellationToken cancellationToken)
     {
@@ -17,7 +21,8 @@ internal sealed class FakeIdentityAccountAdmin : IIdentityAccountAdmin
     }
     public Task DisableAsync(AccountReference account, CancellationToken cancellationToken)
     {
-        if (Accounts.TryGetValue(account.Subject, out var profile)) profile.Enabled = false;
+        if (FailDisable) throw new HttpRequestException("synthetic disable failure");
+        if (!LeaveEnabledOnDisable && Accounts.TryGetValue(account.Subject, out var profile)) profile.Enabled = false;
         return Task.CompletedTask;
     }
     public Task DeleteAsync(AccountReference account, CancellationToken cancellationToken)
@@ -25,6 +30,8 @@ internal sealed class FakeIdentityAccountAdmin : IIdentityAccountAdmin
         if (FailDeletion) throw new HttpRequestException("Synthetic failure");
         Accounts.Remove(account.Subject);
         Deletions++;
+        if (FailLookupAfterDeletion) FailLookup = true;
+        if (LoseDeleteResponse) throw new HttpRequestException("synthetic lost response");
         return Task.CompletedTask;
     }
     public Task SetConsentAsync(AccountReference account, string purpose, string? evidence, CancellationToken cancellationToken)

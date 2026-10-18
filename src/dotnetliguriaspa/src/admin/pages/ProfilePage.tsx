@@ -1,66 +1,67 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from 'react-aria-components';
-import { useOidc, useOidcFetch, useOidcUser } from '@axa-fr/react-oidc';
+import { useOidc } from '@axa-fr/react-oidc';
 import { PageHeader, Panel, TextInput, btn } from '../ui';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
-import { API_BASE_URL } from '../../config/apiConfig';
 import { clearPrivateBrowserState } from '../../questionnaire/drafts';
-import PrivacyAdministration from './PrivacyAdministration';
+import { ConsentData, PersonalData, useAccountRequest } from '../../account/accountApi';
+import { useAccountResource } from '../../account/useAccountResource';
+import { accountReturnPath } from '../../account/returnPath';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
 
 type Subscription = { version: string; monthlyUpcomingEvents: boolean; eventAnnouncements: boolean };
-const messages: Record<string, string> = {
-  recent_mfa_required: 'È richiesta una verifica MFA recente. Verifica MFA e conferma di nuovo.',
-  erasure_preflight_blocked: 'Cancellazione bloccata: dati o regole di conservazione richiedono un intervento amministrativo.',
-  identity_admin_not_configured: 'Il collegamento amministrativo a Keycloak non è configurato.',
-  protected_storage_not_approved: 'Le protezioni dello storage non sono ancora approvate.',
-  external_copies_erasure_not_approved: 'La cancellazione delle copie esterne non è ancora approvata.',
-  privacy_dependency_unavailable: 'Operazione incompleta: servizio non disponibile. Riprova o richiedi assistenza.',
-  notification_dispatch_unavailable_no_approved_provider: 'Preparazione confermata, ma nessun messaggio è stato inviato: manca un fornitore approvato.',
-};
+const purposeLabel = (purpose: string) => ({
+  'monthly-upcoming-events': 'Riepilogo mensile', 'event-announcements': 'Annunci eventi',
+})[purpose] ?? purpose;
+const date = (value: string | null) => value && !Number.isNaN(Date.parse(value))
+  ? new Intl.DateTimeFormat('it', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Non disponibile';
+
+function ResourceStatus({ name, loading, error, reload }: { name: string; loading: boolean; error: string; reload: () => void }) {
+  return <>{loading && <p role="status">Caricamento {name}…</p>}
+    {error && <div role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">
+      <p>{name}: {error}</p><Button className={btn.secondary} onPress={reload}>Riprova {name}</Button>
+    </div>}</>;
+}
 
 export default function ProfilePage() {
-  const { oidcUser } = useOidcUser();
-  const { login, logout } = useOidc();
-  const { fetch: authenticatedFetch } = useOidcFetch();
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [status, setStatus] = useState('Caricamento dello stato privacy…');
+  const { logout } = useOidc();
+  const { clear } = useAccountCapabilities();
+  const [erased, setErased] = useState<'completed' | 'awaiting_manual_identity_removal' | null>(null);
+  const [logoutFailed, setLogoutFailed] = useState(false);
+  if (erased) return <section className="space-y-4">
+    <h1 className="text-3xl font-bold">Richiesta di cancellazione</h1>
+    <p role="status">{erased === 'completed' ? 'Cancellazione completata.'
+      : 'Richiesta accettata. I dati del sito sono stati rimossi e l’account è disabilitato. La rimozione dell’identità Keycloak richiede un intervento amministrativo: la cancellazione non è ancora completata.'}</p>
+    {logoutFailed && <p role="alert">La chiusura della sessione non è riuscita: chiudi la scheda.</p>}
+    <Link className={btn.secondary} to="/">Torna al sito</Link>
+  </section>;
+  return <PersonalContent onErased={status => {
+    clearPrivateBrowserState();
+    clear();
+    setErased(status);
+    void logout('/').catch(() => setLogoutFailed(true));
+  }} />;
+}
+
+function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'awaiting_manual_identity_removal') => void }) {
+  const { login } = useOidc();
+  const location = useLocation();
+  const request = useAccountRequest();
+  const personal = useAccountResource<PersonalData>('privacy/data?offset=0');
+  const consents = useAccountResource<ConsentData>('notifications/consents?offset=0');
+  const subscription = useAccountResource<Subscription>('notifications/subscription/');
+  const privacy = useAccountResource<{ status: string }>('privacy/status');
+  const [recordOffset, setRecordOffset] = useState(0);
+  const [historyOffset, setHistoryOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
   const account = `${getOidcPublicSettings().authority.replace(/\/+$/, '')}/account`;
-
-  const request = useCallback(async (path: string, init?: RequestInit) => {
-    const response = await authenticatedFetch(`${API_BASE_URL}/${path}`, { cache: 'no-store', ...init });
-    if (!response.ok) {
-      let code: string;
-      try { code = (await response.json() as { code?: string }).code ?? ''; }
-      catch { code = ''; }
-      throw new Error(response.status === 401 ? 'Accedi di nuovo al tuo account.'
-        : messages[code] ?? (response.status === 403 ? 'Operazione non autorizzata.'
-          : `Operazione non completata (${response.status}). Riprova o richiedi assistenza.`));
-    }
-    return response;
-  }, [authenticatedFetch]);
-
-  const load = useCallback(async () => {
-    await Promise.all([
-      request('privacy/status').then(response => response.json()).then((value: { status: string }) => {
-        setStatus(value.status === 'no_pending_request' ? 'Nessuna richiesta pendente.'
-          : `Richiesta non conclusa (${value.status}). Rivolgiti a un amministratore per il recupero.`);
-      }),
-      request('notifications/subscription/').then(response => response.json()).then(setSubscription),
-    ]);
-  }, [request]);
-
-  useEffect(() => {
-    let active = true;
-    load().catch(() => { if (active) setError('Impossibile caricare stato privacy o consensi. Riprova o richiedi assistenza.'); });
-    return () => { active = false; };
-  }, [load]);
-
+  const reloadPersonal = () => { personal.setData(null); setRecordOffset(0); personal.reload(); };
+  const reloadConsents = () => { consents.setData(null); setHistoryOffset(0); consents.reload(); };
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError(''); setMessage('');
     try { await action(); }
@@ -68,84 +69,126 @@ export default function ProfilePage() {
     finally { setBusy(false); }
   };
   const subscribe = (purpose: string, optIn: boolean) => run(async () => {
-    if (!subscription) throw new Error('Consensi non disponibili.');
+    if (!subscription.data) throw new Error('Consensi non disponibili.');
     await request('notifications/subscription/', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purpose, version: subscription.version, optIn }),
+      body: JSON.stringify({ purpose, version: subscription.data.version, optIn }),
     });
-    await load();
-    setMessage(optIn ? 'Iscrizione registrata in Keycloak.' : 'Iscrizione revocata.');
+    subscription.setData(null); subscription.reload(); reloadConsents(); reloadPersonal();
+    setMessage(optIn ? 'Preferenza accettata. Verifica lo stato nella cronologia dei consensi.' : 'Revoca accettata. Verifica lo stato nella cronologia dei consensi.');
   });
   const exportData = () => run(async () => {
     const response = await request('privacy/export');
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url; anchor.download = 'dotnetliguria-dati-personali.json';
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(await response.blob());
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'dotnetliguria-dati-personali.json'; anchor.click();
+    } finally { URL.revokeObjectURL(url); }
     setMessage('Esportazione scaricata: contiene dati personali. Conservala e cancellala in modo sicuro.');
   });
   const erase = () => run(async () => {
-    await request('privacy/erase', { method: 'POST', headers: { 'X-Confirm-Erasure': 'erase-my-account' } });
-    clearPrivateBrowserState();
-    setMessage('Cancellazione completata.');
-    try { await logout('/'); }
-    catch { setMessage('Cancellazione completata. La chiusura della sessione non è riuscita: chiudi la scheda.'); }
+    const response = await request('privacy/erase', { method: 'POST', headers: { 'X-Confirm-Erasure': 'erase-my-account' } });
+    const result = await response.json() as { status: string };
+    if (response.status === 200 && result.status === 'completed') onErased('completed');
+    else if (response.status === 202 && result.status === 'awaiting_manual_identity_removal') onErased('awaiting_manual_identity_removal');
+    else throw new Error('Esito della cancellazione non confermato. Richiedi assistenza.');
   });
-
+  const identity = personal.data?.identity;
   return <>
-    <PageHeader title="Profilo" description="Account, consensi e diritti privacy." />
+    <PageHeader title="Area personale" description="Account, dati condivisi, consensi e diritti privacy." />
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
     {message && <p role="status" className="mt-4 rounded-xl bg-cyan-50 p-4">{message}</p>}
     <div className="mt-6 grid gap-6">
       <Panel labelledBy="profile-account" className="space-y-4 p-6">
         <h2 id="profile-account" className="text-lg font-bold">Account Keycloak</h2>
-        <p>Nome, cognome ed email dell'account restano in Keycloak. Il sito non raccoglie dati aggiuntivi sul profilo.</p>
-        <TextInput label="Nome" value={String(oidcUser?.given_name ?? '')} isReadOnly />
-        <TextInput label="Cognome" value={String(oidcUser?.family_name ?? '')} isReadOnly />
-        <TextInput label="Email" value={String(oidcUser?.email ?? '')} isReadOnly />
-        <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Apri il tuo account (nuova scheda)</a>
+        <p>Nome, cognome, email e sicurezza si modificano in Keycloak. Questi dati vengono riletti dal servizio, non dal token di accesso.</p>
+        <ResourceStatus name="dati personali" {...personal} reload={reloadPersonal} />
+        {identity && <>
+          <TextInput label="Nome" value={identity.firstName ?? ''} isReadOnly />
+          <TextInput label="Cognome" value={identity.lastName ?? ''} isReadOnly />
+          <TextInput label="Email" value={identity.email ?? ''} isReadOnly />
+          <p>Email {identity.emailVerified ? 'verificata' : 'non verificata'}.</p>
+        </>}
+        {personal.data && !identity && <p>Identità aggiornata non disponibile. Apri Keycloak o riprova.</p>}
+        <Button className={btn.secondary} isDisabled={personal.loading} onPress={reloadPersonal}>Aggiorna dati personali</Button>
+        <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Modifica account e sicurezza (nuova scheda)</a>
+      </Panel>
+      <Panel labelledBy="profile-data" className="space-y-4 p-6">
+        <h2 id="profile-data" className="text-lg font-bold">Dati condivisi con il sito</h2>
+        <p>Mostriamo solo i dati attribuibili al tuo account e le evidenze di consenso effettivamente disponibili.</p>
+        {personal.data?.warning && <p role="note">{personal.data.warning}</p>}
+        {personal.data?.records.length === 0 && <p>Nessun record attribuibile disponibile.</p>}
+        <ul className="space-y-3">{personal.data?.records.map(record => <li key={`${record.kind}:${record.id}`} className="rounded-xl border border-line p-4">
+          <h3 className="font-bold">{record.title ?? 'Senza titolo'}</h3>
+          <p>Tipo: {record.kind} · Data: {date(record.submittedAt)}</p>
+          <p>Consenso questionario: {record.consentGiven === null ? 'non disponibile' : record.consentGiven ? 'prestato' : 'non prestato'}.
+            Versione: {record.questionnaireVersion ?? 'non disponibile'}.</p>
+        </li>)}</ul>
+        {personal.data?.hasMore && <Button className={btn.secondary} isDisabled={busy || personal.loading} onPress={() => void run(async () => {
+          const next = await (await request(`privacy/data?offset=${recordOffset + 50}`)).json() as PersonalData;
+          personal.setData(current => current ? { ...next, records: [...current.records, ...next.records] } : next);
+          setRecordOffset(value => value + 50);
+        })}>Carica altri dati</Button>}
       </Panel>
       <Panel labelledBy="profile-notifications" className="space-y-4 p-6">
         <h2 id="profile-notifications" className="text-lg font-bold">Avvisi sugli eventi</h2>
-        <p>Consenso facoltativo e separato dai questionari; richiede email verificata.
-          Versione dell'informativa: {subscription?.version ?? 'non disponibile'}.
-          Nessun servizio di invio è attualmente configurato.</p>
-        <Link className="font-bold underline" to="/privacy">Leggi l'informativa sulla privacy</Link>
+        <ResourceStatus name="preferenze avvisi" {...subscription} />
+        <p>Consenso facoltativo e separato dai questionari; per iscriversi serve un’email verificata.
+          Versione dell'informativa: {subscription.data?.version ?? 'non disponibile'}.
+          Nessun servizio di invio degli avvisi è attualmente configurato.</p>
+        <Link className="inline-flex min-h-11 items-center font-bold underline" to="/privacy">Leggi l'informativa sulla privacy</Link>
         <div className="flex flex-wrap gap-3">
-          <Button className={btn.secondary} isDisabled={busy || !subscription}
-            onPress={() => void subscribe('monthly-upcoming-events', !subscription?.monthlyUpcomingEvents)}>
-            {subscription?.monthlyUpcomingEvents ? 'Revoca riepilogo mensile' : 'Iscriviti al riepilogo mensile'}
+          <Button className={btn.secondary} isDisabled={busy || subscription.loading || !!subscription.error || !subscription.data}
+            onPress={() => void subscribe('monthly-upcoming-events', !subscription.data?.monthlyUpcomingEvents)}>
+            {subscription.data?.monthlyUpcomingEvents ? 'Revoca riepilogo mensile' : 'Iscriviti al riepilogo mensile'}
           </Button>
-          <Button className={btn.secondary} isDisabled={busy || !subscription}
-            onPress={() => void subscribe('event-announcements', !subscription?.eventAnnouncements)}>
-            {subscription?.eventAnnouncements ? 'Revoca annunci eventi' : 'Iscriviti agli annunci eventi'}
+          <Button className={btn.secondary} isDisabled={busy || subscription.loading || !!subscription.error || !subscription.data}
+            onPress={() => void subscribe('event-announcements', !subscription.data?.eventAnnouncements)}>
+            {subscription.data?.eventAnnouncements ? 'Revoca annunci eventi' : 'Iscriviti agli annunci eventi'}
           </Button>
         </div>
+        <h3 className="font-bold">Consensi attuali e cronologia</h3>
+        <ResourceStatus name="evidenze e cronologia" {...consents} reload={reloadConsents} />
+        <p>Le evidenze attuali non ricostruiscono eventi passati. La cronologia registra solo le modifiche successive all’attivazione di questa funzione. Uno stato in attesa non conferma un consenso completato.</p>
+        {consents.data && <>
+          <ul>{consents.data.current.map(consent => <li key={consent.purpose}>{purposeLabel(consent.purpose)}: consenso attuale · versione {consent.version} · {date(consent.grantedAt)}</li>)}</ul>
+          {!consents.data.current.length && <p>Nessuna evidenza di consenso attuale disponibile.</p>}
+          <ol className="space-y-2">{consents.data.history.map(item => <li key={item.id} className="rounded-xl border border-line p-3">
+            {purposeLabel(item.purpose)} · {item.action === 'grant' ? 'Adesione' : 'Revoca'} · versione {item.version} · {date(item.occurredAt)} ·
+            {{ pending: ' In attesa', completed: ' Completata', superseded: ' Superata da una modifica successiva' }[item.status]}
+          </li>)}</ol>
+          {!consents.data.history.length && <p>Nessuna modifica registrata nella cronologia futura.</p>}
+          {consents.data.hasMore && <Button className={btn.secondary} isDisabled={busy || consents.loading} onPress={() => void run(async () => {
+            const next = await (await request(`notifications/consents?offset=${historyOffset + 50}`)).json() as ConsentData;
+            consents.setData(current => current ? { ...next, history: [...current.history, ...next.history] } : next);
+            setHistoryOffset(value => value + 50);
+          })}>Carica altra cronologia</Button>}
+        </>}
       </Panel>
       <Panel labelledBy="profile-privacy" className="space-y-4 p-6">
-        <h2 id="profile-privacy" className="text-lg font-bold">Dati personali e cancellazione</h2>
-        <p>{status}</p>
+        <h2 id="profile-privacy" className="text-lg font-bold">Esportazione e cancellazione</h2>
+        <ResourceStatus name="stato privacy" {...privacy} />
+        {privacy.data && <p>{privacy.data.status === 'no_pending_request' ? 'Nessuna richiesta pendente.'
+          : `Richiesta non conclusa (${privacy.data.status}). Rivolgiti a un amministratore per il recupero.`}</p>}
         <p>L'esportazione è personale e può contenere risposte sensibili. I dati legacy non attribuibili
           richiedono una verifica separata: un export non dimostra l'assenza di altri dati.</p>
         <Button className={btn.secondary} isDisabled={busy} onPress={() => void exportData()}>Esporta i miei dati</Button>
         <p>La cancellazione è irreversibile: elimina il profilo Keycloak, le tue risposte e i questionari
           che hai creato, comprese tutte le risposte di altre persone a quei questionari.
           Le copie di sicurezza interessate vengono eliminate. Dati non attribuibili, configurazioni
-          non sicure o copie esterne non verificate bloccano il completamento.</p>
+          non sicure o copie esterne non verificate bloccano il completamento. Se serve una rimozione
+          manuale dell’identità, la richiesta resta pendente fino alla verifica amministrativa.</p>
         <Button className={btn.secondary} isDisabled={busy}
-          onPress={() => void login(window.location.pathname, { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
+          onPress={() => void login(accountReturnPath(location), { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
           Verifica MFA per la cancellazione
         </Button>
-        <label className="flex gap-3"><input type="checkbox" checked={acknowledged}
+        <label className="flex min-h-11 items-center gap-3"><input className="size-6" type="checkbox" checked={acknowledged}
           onChange={event => setAcknowledged(event.target.checked)} />
           Ho compreso l'eliminazione irreversibile dei questionari creati e di tutte le loro risposte.</label>
         <TextInput label="Scrivi ELIMINA per confermare" value={confirmation} onChange={setConfirmation} />
         <Button className={btn.danger} isDisabled={busy || !acknowledged || confirmation !== 'ELIMINA'}
           onPress={() => void erase()}>Cancella definitivamente il mio account</Button>
       </Panel>
-      <PrivacyAdministration request={request} />
     </div>
   </>;
 }

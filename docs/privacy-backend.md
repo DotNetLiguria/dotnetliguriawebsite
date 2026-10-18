@@ -1,7 +1,8 @@
 # Privacy and notification backend
 
 This documents the isolated backend surfaces, not production rollout approval.
-No migration or delivery provider is included.
+No existing-data migration or event/marketing delivery provider is included.
+Administrative privacy notices use a separate, explicitly configured SMTP transport.
 
 ## Wiring
 
@@ -9,6 +10,7 @@ Import `DotNetLiguriaCore.Services.Privacy` and
 `DotNetLiguriaCore.Endpoints`, then register
 `builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment)`.
 Map `app.MapPrivacyEndpoints()` and `app.MapNotificationEndpoints()`.
+Map `app.MapAccountEndpoints()` for authenticated policy-backed capability flags.
 Use the existing JWT validation and exception middleware; do not enable cookies
 on these routes. The unsubscribe capability is the only anonymous mutation.
 The wired bearer validation additionally checks the current Keycloak account,
@@ -43,6 +45,7 @@ Configure the following under `Privacy` through trusted server configuration:
 | `NotificationAdministratorRole` | Explicit role required by `NotificationAdministrator`; absent means access denied |
 | `ConsentVersion` | Controller-approved current purpose/notice version |
 | `IdentityAttributePermissionsApproved` | Operator attestation that users cannot self-edit the server-controlled consent evidence and that those attributes cannot grant privileges |
+| `AutomaticIdentityDeletion` | Defaults to `true`; `false` disables automatic Keycloak deletion, not account disablement or website erasure |
 | `ProtectedStorageApproved` | Operator approval of backup/journal permissions, encryption-at-rest and persistent protected Data Protection keys |
 | `ExternalCopiesErasureApproved` | Approval of effective deletion of operator/provider copies and downloaded exports, including procedures not owned by this application |
 | `AssessedNonAccountCollections` | Exact collection-name inventory assessed not to contain ordinary account linkage; unassessed collections block erasure |
@@ -64,12 +67,27 @@ with synthetic staging accounts before release.
 
 ## Erasure semantics
 
-`GET /api/privacy/status`, `GET /api/privacy/export`, and
+`GET /api/privacy/status`, `GET /api/privacy/data`, `GET /api/privacy/export`, and
 `POST /api/privacy/erase` operate only on the authenticated caller's JWT issuer
 and subject. Erasure requires recent MFA and
 `X-Confirm-Erasure: erase-my-account`. Success is returned only after identity
 disable/logout, application deletion, snapshot purge, verified Keycloak deletion
-and removal of the pending journal.
+and removal of the pending journal. The normal completed response remains
+HTTP 200 `{status:"completed"}`.
+
+Website-admin authorization is separate from authentication. The SPA's
+`/area-personale` is available to ordinary active accounts, while the dashboard
+requires the existing `WebDevAdmin` policy. `/admin/profile/` redirects to the
+personal area. Name/email/security editing stays in the Keycloak account console;
+the website edits only its notification preferences. The capabilities endpoint
+uses the existing server policies, not board membership or an audience claim.
+Narrower privacy/notification/questionnaire/backup API permissions remain separate.
+
+`GET /api/privacy/data?offset=0` returns a fresh identity projection and pages of
+50 attributable record summaries, with a legacy-coverage warning. The same
+1,000-record export boundary applies; a limit failure is explicit, not a claim
+that no data exists. Full recorded values remain available in the personal export.
+Neither the summary nor export is a proof that unattributable legacy data is absent.
 
 Default behavior is deliberately destructive, **not text anonymization**:
 
@@ -79,6 +97,9 @@ Default behavior is deliberately destructive, **not text anonymization**:
   responses**, including other respondents' responses. Authored free text is not
   presumed anonymous. The UI must disclose this before confirming erasure.
 * Delete campaign metadata attributed to the account.
+* Delete complete account-linked `ConsentHistory` documents, including pending
+  change intents and unknown fields. No historical consent or subject hash is
+  retained after completed erasure.
 * Do not match names against public board/speaker editorial content, or treat
   those contacts as accounts/subscribers.
 * Block on legacy respondent objects/email deduplication keys, unattributable
@@ -98,11 +119,36 @@ and outside snapshots, so restore cannot roll it back.
 
 Pending state is Data-Protection-protected under `<BackupFolder>/.privacy`.
 `GET /api/privacy/admin/operations` exposes transient operation IDs/stages, not
-accounts. `GET /api/privacy/admin/operations/{id}/report` reports blockers without
+accounts; it also reports administrative-notice status, attempts and sanitized
+failure codes. `GET /api/privacy/admin/operations/{id}/report` reports blockers without
 field values. `POST /api/privacy/admin/operations/{id}/resume`, recent MFA and
 `X-Confirm-Erasure: resume-erasure` retry idempotent stages. Interrupted/corrupt
 atomic writes block operations and require restricted operator recovery; never
 delete a journal merely to make status appear complete.
+
+If automatic deletion is disabled or fails, the coordinator verifies that the
+remaining Keycloak identity is disabled before returning HTTP 202
+`{status:"awaiting_manual_identity_removal"}`. Website data and owned snapshots
+have been erased, but identity erasure is **not complete**. A lost DELETE response
+is verified: an already absent identity can complete normally. Unavailable final
+identity verification leaves `identity_verification_blocked`, not a fabricated
+disabled/completed state. Failure to disable/logout or verify disablement before
+website erasure stops destructive application work.
+
+Pending manual removal keeps only the protected issuer/subject and transient
+coordination/notice state. It continues to block backups/restores under existing
+safety rules. It is not an anonymous completed record or a retention exception.
+The user's session is ended after an accepted removal; a disabled user is not
+required to sign back in to finish the administrator's work.
+
+Privacy administrators can retrieve the minimal identity at
+`GET /api/privacy/admin/operations/{id}/identity` after recent MFA. No name/email
+directory is returned. After manual Keycloak deletion, POST
+`/api/privacy/admin/operations/{id}/verify-removal` with recent MFA and
+`X-Confirm-Erasure: verify-identity-removal`. It verifies actual identity absence
+and cleanup before deleting the protected task. An unchecked "mark done" is not
+supported. Existing resume/reconciliation endpoints remain available; resume can
+also return HTTP 202 while identity removal is still pending.
 
 For an identity deleted directly in Keycloak, an administrator can invoke
 `POST /api/privacy/admin/reconcile-deleted-identity` with JSON `{issuer,subject}`,
@@ -136,6 +182,41 @@ protected storage is an explicit rollout gate.
 
 ## Notifications
 
+### Administrative SMTP
+
+Configure these trusted server settings under `Privacy:Smtp`. Do not put runtime
+credentials or real mailbox values into checked-in configuration or the SPA.
+
+| Setting | Requirement |
+| --- | --- |
+| `Host`, `Port` | Approved SMTP endpoint; port defaults to 587 |
+| `TlsMode` | `StartTls` (default, required upgrade) or `SslOnConnect`; no plaintext mode |
+| `Sender` | Approved operational sender mailbox |
+| `AdministratorRecipients` | One to twenty approved administrator mailboxes |
+| `DashboardUrl` | Trusted absolute HTTPS URL whose path is exactly `/admin/privacy`, with no userinfo, query or fragment |
+| `UserName`, `Password` | Required authenticated SMTP credentials from runtime secret management |
+
+Normal certificate/revocation validation and TLS 1.2/1.3 apply. Notices have a
+generic subject/body and dashboard link, not a user name, address, issuer,
+subject, operation ID or action token. This sender does not contact the erased
+user or enable event campaigns.
+
+The hosted worker stores retry state only inside the protected pending operation.
+It sends outside the privacy gate, attempts at most five times, and persists
+backoff/recovery state across restarts. The status `accepted_by_smtp` means SMTP
+acceptance, **not inbox delivery**. A crash after acceptance may cause a duplicate;
+exactly-once delivery is not claimed. Removed tasks are never recreated by a late
+send result.
+
+Missing/invalid configuration and SMTP failures remain visible as sanitized
+notification codes on the task and the `privacy_smtp` health check. POST
+`/api/privacy/admin/operations/{id}/retry-notification` with
+`X-Confirm-Erasure: retry-notification` to reset bounded retries for an outstanding
+task. This action cannot resurrect a resolved operation. Configure mailbox
+access/retention separately, even though messages contain no per-user identifiers.
+
+### Event notification preferences
+
 `GET /api/notifications/subscription/` returns
 `{version,monthlyUpcomingEvents,eventAnnouncements}`.
 `PUT` accepts `{purpose,version,optIn}`, where purpose is
@@ -145,9 +226,27 @@ Opt-out does not require accepting a new notice version.
 An enabled account can withdraw consent even while an erasure preflight is
 blocked; pending erasure must not be used to prevent withdrawal.
 
-Consent evidence, including purpose/version/time, exists only in Keycloak
-attributes `dnl_notifications_monthly` and `dnl_notifications_events`.
-There is no MongoDB subscriber directory or durable recipient email copy.
+Current notification consent remains authoritative in Keycloak attributes
+`dnl_notifications_monthly` and `dnl_notifications_events`. `ConsentHistory` in
+MongoDB records future changes only: issuer/subject, purpose, notice version at
+the action, server UTC time, grant/withdraw action and minimal recovery state.
+It stores no name, email, IP, user agent or answer content. This is not a
+subscriber email directory.
+
+`GET /api/notifications/consents?offset=0` returns current stored grant evidence
+and pages of 50 future history entries. Existing grants are not backfilled as
+invented history. Questionnaire consent is shown separately using the evidence
+actually present in the response; unknown historical notice/version information
+must not be inferred.
+
+Preference changes and one-click unsubscribe persist an intent before updating
+and verifying Keycloak, then finalize it. This is not a distributed transaction.
+An interrupted intent stays visibly pending until a read/change reconciles it
+against current Keycloak evidence as completed or superseded. Recovery observes
+state; it never replays an old grant over a later withdrawal. Failures are
+explicit. Withdrawals for already-disabled identities remove the Keycloak grant
+without recreating erased website history. New history is covered by the
+versioned inventory, export, full-record erasure and backup epoch protections.
 
 `NotificationAdministrator` can
 `POST /api/notifications/campaigns/preview` with `{purpose,eventIds}`.

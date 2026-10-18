@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import QuestionnaireRunner from '../QuestionnaireRunner/QuestionnaireRunner';
 import { publicQuestionnaireApi, QuestionnaireApiError } from '../../questionnaire/api';
 import type { PublicQuestionnaireView } from '../../questionnaire/types';
@@ -8,6 +8,7 @@ import PageMeta from '../../site/PageMeta';
 import { LogoArc } from '../../site/ui';
 import { useOidc, useOidcFetch, useOidcUser } from '@axa-fr/react-oidc';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
+import { accountReturnPath } from '../../account/returnPath';
 
 const DESCRIPTION = 'Questionario di feedback di un evento DotNetLiguria: valuta i talk e suggerisci i temi del prossimo incontro.';
 
@@ -30,6 +31,7 @@ const PublicQuestionnaire: FC = () => {
   const { oidcUser } = useOidcUser();
   const { fetch: authenticatedFetch } = useOidcFetch();
   const { questionnaireId, workshopId } = useParams<{ questionnaireId?: string; workshopId?: string }>();
+  const location = useLocation();
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
   useEffect(() => {
@@ -81,7 +83,7 @@ const PublicQuestionnaire: FC = () => {
           <h1 className="text-3xl font-bold">{q.title}</h1>
           <p className="mt-3">Questo questionario richiede l'accesso con Keycloak. Nome ed email non vengono salvati con le risposte.</p>
           <button type="button" className="mt-5 rounded-full bg-navy px-6 py-3 font-bold text-white"
-            onClick={() => void login(window.location.pathname)}>Accedi per compilare</button>
+            onClick={() => void login(accountReturnPath(location))}>Accedi per compilare</button>
         </div>
       ) : requiresLogin && !oidcUser?.sub ? (
         <div className={panel} role="status">Caricamento dei dati di accesso…</div>

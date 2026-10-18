@@ -1,12 +1,14 @@
 import React, { lazy, Suspense, useEffect, useRef } from 'react';
 import { useOidc, useOidcUser } from "@axa-fr/react-oidc";
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import AdminShell from "./admin/AdminShell";
 import DashboardPage from "./admin/pages/DashboardPage";
 import SpeakersPage from "./admin/pages/SpeakersPage";
 import EventsAdminPage from "./admin/pages/EventsAdminPage";
-import ProfilePage from "./admin/pages/ProfilePage";
+import PersonalArea from './account/PersonalArea';
+import PrivacyAdministration from './admin/pages/PrivacyAdministration';
+import { AccountCapabilitiesProvider } from './account/AccountCapabilities';
 import VenuesPage from "./admin/pages/VenuesPage";
 import BackupPage from "./admin/pages/BackupPage";
 import AdminNotFoundPage from "./admin/pages/AdminNotFoundPage";
@@ -30,6 +32,11 @@ const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesig
 const QuestionnaireResults = lazy(() => import('./components/QuestionnaireResults/QuestionnaireResults'));
 const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</Suspense>;
 
+function ProfileRedirect() {
+    const location = useLocation();
+    return <Navigate to={`/area-personale${location.search}${location.hash}`} replace />;
+}
+
 function App() {
     const { isAuthenticated } = useOidc();
     const { oidcUser } = useOidcUser();
@@ -42,12 +49,12 @@ function App() {
     }, [account]);
 
     return (
-        <div key={account ?? 'anonymous'} className="App">
+        <AccountCapabilitiesProvider><div key={account ?? 'anonymous'} className="App">
             <Routes>
                 {/* The shell asks unauthenticated visitors to sign in instead of rendering a blank page. */}
                 <Route element={<AdminShell />}>
                     <Route path='/admin' element={<DashboardPage />} />
-                    <Route path='/admin/profile/' element={<ProfilePage />} />
+                    <Route path='/admin/privacy' element={<PrivacyAdministration />} />
                     <Route path='/admin/board/' element={<BoardPage />} />
                     <Route path='/admin/board/:id' element={<BoardPage />} />
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />
@@ -67,6 +74,8 @@ function App() {
                     <Route path='/admin/import-export/' element={<BackupPage />} />
                     <Route path='/admin/*' element={<AdminNotFoundPage />} />
                 </Route>
+                <Route path='/admin/profile/' element={<ProfileRedirect />} />
+                <Route path='/area-personale' element={<PersonalArea />} />
                 <Route path='/' element={<HomePage />} />
                 <Route path="/workshops" element={<EventsPage />} />
                 <Route path="/workshop/:id" element={<EventDetailPage />} />
@@ -81,7 +90,7 @@ function App() {
                 <Route path="/authentication/*" element={null} />
                 <Route path="*" element={<LegacyRedirect />} />
             </Routes>
-        </div>
+        </div></AccountCapabilitiesProvider>
     );
 
 }

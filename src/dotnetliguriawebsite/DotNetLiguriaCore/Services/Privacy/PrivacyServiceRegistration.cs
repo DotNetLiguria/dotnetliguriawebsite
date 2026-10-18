@@ -1,5 +1,6 @@
 using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Services.Notifications;
+using DotNetLiguriaCore.Services.Privacy.Notices;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -11,6 +12,7 @@ public static class PrivacyServiceRegistration
         IConfiguration configuration, IHostEnvironment environment)
     {
         services.Configure<PrivacyOptions>(configuration.GetSection("Privacy"));
+        services.AddPrivacyAdminNotices(configuration);
         var options = configuration.GetSection("Privacy").Get<PrivacyOptions>() ?? new PrivacyOptions();
         services.AddDataProtection();
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
@@ -24,6 +26,7 @@ public static class PrivacyServiceRegistration
         services.TryAddSingleton<UnsubscribeTokens>();
         services.TryAddSingleton<INotificationCampaignStore, MongoNotificationCampaignStore>();
         services.TryAddSingleton<NotificationService>();
+        services.TryAddSingleton<IConsentHistoryStore, MongoConsentHistoryStore>();
         services.TryAddSingleton<INotificationRecipientPreparation>(provider => provider.GetRequiredService<NotificationService>());
         services.AddHttpClient<IIdentityAccountAdmin, KeycloakIdentityAccountAdmin>(client =>
         {

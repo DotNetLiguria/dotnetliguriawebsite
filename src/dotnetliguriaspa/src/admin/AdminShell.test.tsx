@@ -2,7 +2,7 @@ import React from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
-import { mockApi, render, screen, within } from '../test-utils';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, jsonResponse, mockApi, render, screen, within, waitFor } from '../test-utils';
 import AdminShell from './AdminShell';
 
 function Where() {
@@ -18,32 +18,34 @@ const renderShell = (route: string) => render(
     </Route>
     <Route path="*" element={<Where />} />
   </Routes>,
-  { route },
+  { route, accountProvider: true },
 );
 
 const signedIn = (logout = vi.fn(async () => undefined)) => {
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout, renewTokens: vi.fn() } as unknown as ReturnType<typeof useOidc>);
+  mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
   return logout;
 };
 
 describe('<AdminShell />', () => {
-  test('groups the sections and marks the current one, including event pages under Eventi', () => {
+  test('groups the sections and marks the current one, including event pages under Eventi', async () => {
     signedIn();
     const { unmount } = renderShell('/admin');
-    const sections = screen.getByRole('navigation', { name: 'Sezioni' });
-    expect(within(sections).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori', 'Sedi', 'Board', 'Questionari', 'Menu del sito', 'Backup e import']);
+    const sections = await screen.findByRole('navigation', { name: 'Sezioni' });
+    expect(within(sections).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori', 'Sedi', 'Board', 'Questionari', 'Menu del sito', 'Backup e import', 'Privacy e avvisi']);
     expect(within(sections).getByRole('link', { name: 'Panoramica' })).toHaveAttribute('aria-current', 'page');
     unmount();
 
     renderShell('/admin/workshop/abc');
-    const again = screen.getByRole('navigation', { name: 'Sezioni' });
+    const again = await screen.findByRole('navigation', { name: 'Sezioni' });
     expect(within(again).getByRole('link', { name: 'Eventi' })).toHaveAttribute('aria-current', 'page');
     expect(within(again).getByRole('link', { name: 'Panoramica' })).not.toHaveAttribute('aria-current');
   });
 
-  test('positions the content and the sidebar scrollers, so absolutely placed children stay inside them', () => {
+  test('positions the content and the sidebar scrollers, so absolutely placed children stay inside them', async () => {
     signedIn();
     renderShell('/admin');
+    await screen.findByRole('navigation', { name: 'Sezioni' });
     const main = screen.getByRole('main');
     expect(main).toHaveAttribute('id', 'contenuto-admin');
     expect(main).toHaveClass('relative');
@@ -54,10 +56,12 @@ describe('<AdminShell />', () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     signedIn();
     mockApi({
+      'account/capabilities': ADMIN_CAPABILITIES,
       '/Workshop/Get': [{ workshopId: 'w1', title: 'AI Generativa', eventDate: '2025-06-12T00:00:00+02:00', location: { name: 'Confindustria' } }],
       '/Speaker/Get': [{ workshopSpeakerId: 's1', name: 'Ada Lovelace' }, { workshopSpeakerId: 's2', name: 'Alan Turing' }],
     });
     renderShell('/admin');
+    await screen.findByRole('navigation', { name: 'Sezioni' });
     await user.keyboard('{Control>}k{/Control}');
     const dialog = await screen.findByRole('dialog', { name: 'Cerca e vai' });
     await within(dialog).findByText('Ada Lovelace');
@@ -74,7 +78,7 @@ describe('<AdminShell />', () => {
     const logout = signedIn();
     localStorage.setItem('profileStore', '{}');
     renderShell('/admin');
-    await user.click(screen.getByRole('button', { name: /^Menu di Test User/ }));
+    await user.click(await screen.findByRole('button', { name: /^Menu di Test User/ }));
     await user.click(await screen.findByRole('menuitem', { name: 'Esci' }));
     expect(logout).toHaveBeenCalled();
     expect(localStorage.getItem('profileStore')).toBeNull();
@@ -85,11 +89,48 @@ describe('<AdminShell />', () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     signedIn();
     renderShell('/admin/board/');
-    const tabs = screen.getByRole('navigation', { name: 'Sezioni principali' });
+    const tabs = await screen.findByRole('navigation', { name: 'Sezioni principali' });
     expect(within(tabs).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori']);
     await user.click(within(tabs).getByRole('button', { name: 'Altro' }));
     const sheet = await screen.findByRole('dialog', { name: 'Altre sezioni' });
     expect(within(sheet).getByRole('link', { name: 'Board' })).toHaveAttribute('aria-current', 'page');
     expect(within(sheet).getByRole('link', { name: /Vedi il sito/ })).toHaveAttribute('target', '_blank');
+  });
+
+  test.each([NO_CAPABILITIES, { ...ADMIN_CAPABILITIES, websiteAdmin: false }])('denies ordinary and specialized-only accounts without mounting pages or palette', async capabilities => {
+    signedIn();
+    mockApi({ 'account/capabilities': capabilities });
+    renderShell('/admin');
+    await screen.findByRole('heading', { name: 'Accesso non autorizzato' });
+    await userEvent.setup({ delay: null }).keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Panoramica di prova' })).not.toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.every(([url]) => String(url).endsWith('/account/capabilities'))).toBe(true);
+  });
+
+  test('waits for server authorization before mounting a page and exposes retry on failure', async () => {
+    signedIn();
+    let resolve!: (value: Response) => void;
+    mockApi({ 'account/capabilities': () => new Promise<Response>(done => { resolve = done; }) });
+    renderShell('/admin');
+    expect(screen.getByRole('status')).toHaveTextContent('Verifica dei permessi');
+    expect(screen.queryByRole('heading', { name: 'Panoramica di prova' })).not.toBeInTheDocument();
+    resolve(jsonResponse({}, 503));
+    await screen.findByRole('heading', { name: 'Permessi non disponibili' });
+    mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
+    await userEvent.click(screen.getByRole('button', { name: 'Riprova verifica permessi' }));
+    await screen.findByRole('heading', { name: 'Panoramica di prova' });
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('account/capabilities'), expect.objectContaining({ cache: 'no-store' }));
+  });
+
+  test.each(['/admin/questionnaires', '/admin/import-export/', '/admin/privacy'])('filters specialized navigation and denies direct access %s', async route => {
+    signedIn();
+    mockApi({ 'account/capabilities': { ...NO_CAPABILITIES, websiteAdmin: true } });
+    renderShell(route);
+    await screen.findByRole('heading', { name: 'Accesso non autorizzato' });
+    const sections = screen.getByRole('navigation', { name: 'Sezioni' });
+    for (const label of ['Questionari', 'Backup e import', 'Privacy e avvisi'])
+      expect(within(sections).queryByRole('link', { name: label })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Pagina admin' })).not.toBeInTheDocument());
   });
 });

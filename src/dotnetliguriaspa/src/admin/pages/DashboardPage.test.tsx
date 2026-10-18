@@ -1,6 +1,7 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
-import { jsonResponse, mockApi, render, screen, within } from '../../test-utils';
+import { useOidc } from '@axa-fr/react-oidc';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, jsonResponse, mockApi, render, screen, within } from '../../test-utils';
 import { resetPhotoCache } from '../adminApi';
 import DashboardPage from './DashboardPage';
 
@@ -90,5 +91,21 @@ describe('<DashboardPage />', () => {
     await user.click(within(alert).getByRole('button', { name: 'Riprova' }));
     expect(await screen.findByRole('link', { name: 'AI Generativa' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  test.each([ADMIN_CAPABILITIES, { ...NO_CAPABILITIES, websiteAdmin: true }])('privacy task counts require both website and privacy permissions', async capabilities => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    mockApi({
+      'account/capabilities': capabilities,
+      'privacy/admin/operations': [{ id: 'task-1', stage: 'awaiting_manual_identity_removal', notificationStatus: 'queued', notificationAttempts: 0, notificationError: null }],
+    });
+    render(<DashboardPage />, { route: '/admin', accountProvider: true });
+    await screen.findByRole('heading', { name: 'Nessun evento in programma' });
+    if (capabilities.privacyAdmin) {
+      expect(await screen.findByRole('link', { name: '1 richiesta da verificare' })).toHaveAttribute('href', '/admin/privacy');
+    } else {
+      expect(screen.queryByRole('heading', { name: 'Richieste privacy pendenti' })).not.toBeInTheDocument();
+      expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('privacy/admin/operations'))).toBe(false);
+    }
   });
 });

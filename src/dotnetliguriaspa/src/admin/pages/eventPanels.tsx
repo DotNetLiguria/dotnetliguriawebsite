@@ -12,6 +12,7 @@ import { createQuestionnaireAdminApi, FetchLike } from '../../questionnaire/api'
 import { statusLabels } from '../../questionnaire/status';
 import type { Questionnaire, QuestionnaireStatus } from '../../questionnaire/types';
 import type { VenueModel } from '../../models/VenueModel';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import EventPoster from '../EventPoster';
 import { ModalHeader, Notice, RecordModal } from './listUi';
 import { Caption, EventPage, FilePicker, InlineConfirm, PanelTitle, SelectInput } from './eventKit';
@@ -74,6 +75,7 @@ function WorkshopQuestionnaires({ workshopId }: { workshopId: string }) {
 }
 
 export function PublicationStep({ page }: { page: EventPage }) {
+  const { capabilities } = useAccountCapabilities();
   const { workshop, values, edit } = page;
   const feedbackUrl = `${window.location.origin}/feedback/${workshop.workshopId}`;
   return (
@@ -90,7 +92,7 @@ export function PublicationStep({ page }: { page: EventPage }) {
         <h2 className="text-lg font-bold">QR code del feedback</h2>
         <div className="mt-3 rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={150} level="H" /></div>
         <p className="mt-2 break-all text-sm text-muted">{feedbackUrl}</p>
-        <WorkshopQuestionnaires workshopId={workshop.workshopId} />
+        {capabilities?.websiteAdmin && capabilities.feedbackAdmin && <WorkshopQuestionnaires workshopId={workshop.workshopId} />}
       </div>
     </Panel>
   );

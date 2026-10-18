@@ -51,11 +51,97 @@ public sealed class PrivacyCoordinatorTests
         var identities = Identities();
         identities.FailDeletion = true;
         var service = Create(journal, identities, new(), new());
-        await Assert.ThrowsAsync<HttpRequestException>(() => service.EraseAsync(_account, TestContext.Current.CancellationToken));
-        Assert.Equal("snapshots_purged", await service.StatusAsync(_account, TestContext.Current.CancellationToken));
+        Assert.Equal("awaiting_manual_identity_removal", await service.EraseAsync(_account, TestContext.Current.CancellationToken));
+        Assert.Equal("awaiting_manual_identity_removal", await service.StatusAsync(_account, TestContext.Current.CancellationToken));
+        Assert.Equal("queued", Assert.Single(journal.Operations.Values).NoticeStatus);
         identities.Accounts.Clear();
         identities.FailDeletion = false;
         await service.EraseAsync(_account, TestContext.Current.CancellationToken);
+        Assert.Empty(journal.Operations);
+    }
+
+    [Fact]
+    public async Task ManualModeDisablesErasesAndKeepsOnlyRestrictedPendingTaskUntilVerifiedRemoval()
+    {
+        var journal = new MemoryErasureJournal();
+        var identities = Identities();
+        var data = new FakeAccountPrivacyStore();
+        var snapshots = new FakePrivacySnapshotStore();
+        var options = Settings();
+        options.AutomaticIdentityDeletion = false;
+        var service = Create(journal, identities, data, snapshots, options);
+        Assert.Equal("awaiting_manual_identity_removal", await service.EraseAsync(_account, TestContext.Current.CancellationToken));
+        Assert.False(identities.Accounts[_account.Subject].Enabled);
+        Assert.Equal(0, identities.Deletions);
+        Assert.Equal(1, data.Erasures);
+        Assert.Equal(1, snapshots.Purges);
+        var operation = Assert.Single(journal.Operations.Values);
+        Assert.Equal(_account, await service.IdentityForOperationAsync(operation.Id, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => service.VerifyIdentityRemovalAsync(operation.Id, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => service.EnsureAccountActiveAsync(_account, TestContext.Current.CancellationToken));
+        identities.Accounts.Clear();
+        await service.VerifyIdentityRemovalAsync(operation.Id, TestContext.Current.CancellationToken);
+        Assert.Empty(journal.Operations);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task UnverifiedOrFailedDisableCannotEraseApplicationData(bool fails)
+    {
+        var identities = Identities();
+        identities.FailDisable = fails;
+        identities.LeaveEnabledOnDisable = !fails;
+        var data = new FakeAccountPrivacyStore();
+        var snapshots = new FakePrivacySnapshotStore();
+        var journal = new MemoryErasureJournal();
+        var service = Create(journal, identities, data, snapshots);
+        await Assert.ThrowsAnyAsync<Exception>(() => service.EraseAsync(_account, TestContext.Current.CancellationToken));
+        Assert.Equal(0, data.Erasures);
+        Assert.Equal(0, snapshots.Purges);
+        Assert.Equal(0, identities.Deletions);
+        Assert.Equal("requested", Assert.Single(journal.Operations.Values).Stage);
+    }
+
+    [Fact]
+    public async Task LostDeleteResponseCompletesOnlyAfterIdentityAbsenceIsVerified()
+    {
+        var identities = Identities();
+        identities.LoseDeleteResponse = true;
+        var journal = new MemoryErasureJournal();
+        Assert.Equal("completed", await Create(journal, identities, new(), new()).EraseAsync(_account, TestContext.Current.CancellationToken));
+        Assert.Empty(journal.Operations);
+    }
+
+    [Fact]
+    public async Task UnavailableFinalIdentityVerificationStaysBlockedAndNotifiesAdministrators()
+    {
+        var identities = Identities();
+        identities.FailLookupAfterDeletion = true;
+        var journal = new MemoryErasureJournal();
+        var error = await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
+            Create(journal, identities, new(), new()).EraseAsync(_account, TestContext.Current.CancellationToken));
+        Assert.Equal("identity_disable_not_verified", error.Code);
+        Assert.Equal("identity_verification_blocked", Assert.Single(journal.Operations.Values).Stage);
+        Assert.Equal("queued", Assert.Single(journal.Operations.Values).NoticeStatus);
+    }
+
+    [Fact]
+    public async Task NotificationRetryCannotResurrectResolvedTask()
+    {
+        var journal = new MemoryErasureJournal();
+        var identities = Identities();
+        identities.FailDeletion = true;
+        var service = Create(journal, identities, new(), new());
+        await service.EraseAsync(_account, TestContext.Current.CancellationToken);
+        var operation = Assert.Single(journal.Operations.Values);
+        journal.Operations[operation.Id] = operation with { NoticeStatus = "failed", NoticeAttempts = 5, NoticeErrorCode = "smtp_unavailable" };
+        await service.RetryNotificationAsync(operation.Id, TestContext.Current.CancellationToken);
+        Assert.Equal("queued", journal.Operations[operation.Id].NoticeStatus);
+        Assert.Equal(0, journal.Operations[operation.Id].NoticeAttempts);
+        identities.Accounts.Clear();
+        await service.VerifyIdentityRemovalAsync(operation.Id, TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => service.RetryNotificationAsync(operation.Id, TestContext.Current.CancellationToken));
         Assert.Empty(journal.Operations);
     }
 

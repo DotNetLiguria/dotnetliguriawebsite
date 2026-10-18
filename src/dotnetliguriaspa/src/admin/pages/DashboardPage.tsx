@@ -8,6 +8,9 @@ import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatDate, formatWeekday } from '../../site/format';
 import { programme, sessionCount, sessionsLabel } from '../../site/event/programme';
 import EventPoster from '../EventPoster';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { ErasureOperation } from '../../account/accountApi';
+import { useAccountResource } from '../../account/useAccountResource';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -74,6 +77,7 @@ function NextEvent({ workshop }: { workshop: AdminWorkshop }) {
 }
 
 function LatestEvent({ workshop }: { workshop: AdminWorkshop }) {
+  const { capabilities } = useAccountCapabilities();
   const entries = programme(workshop);
   const sessions = sessionCount(entries);
   const speakers = new Set(entries.flatMap(e => e.speakers.map(s => s.name))).size;
@@ -88,7 +92,7 @@ function LatestEvent({ workshop }: { workshop: AdminWorkshop }) {
         <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? `${sessionsLabel(sessions)} con ${plural(speakers, 'relatore', 'relatori')}` : 'Nessuna sessione'} />
         <CheckRow done={materials > 0} title="Slide e materiali" detail={materials ? plural(materials, 'file caricato', 'file caricati') : 'Nessun materiale caricato: chi ha partecipato li cerca qui.'} action={materials ? undefined : <Link to={`${to}#materiali`} className={btn.secondary}><AdminIcon name="upload" />Carica materiali</Link>} />
         <CheckRow done={photos > 0} title="Foto dell'evento" detail={photos ? plural(photos, 'foto', 'foto') : 'Nessuna foto.'} action={photos ? undefined : <Link to={`${to}#foto`} className={btn.ghost}>Carica foto</Link>} />
-        <CheckRow done={!!workshop.feedbackEnabled} title="Questionario di feedback" detail={workshop.feedbackEnabled ? 'Aperto' : "Non attivo: senza questionario non sappiamo com'è andata."} action={workshop.feedbackEnabled ? undefined : <Link to="/admin/questionnaires" className={btn.ghost}>Crea questionario</Link>} />
+        {capabilities?.feedbackAdmin && <CheckRow done={!!workshop.feedbackEnabled} title="Questionario di feedback" detail={workshop.feedbackEnabled ? 'Aperto' : "Non attivo: senza questionario non sappiamo com'è andata."} action={workshop.feedbackEnabled ? undefined : <Link to="/admin/questionnaires" className={btn.ghost}>Crea questionario</Link>} />}
       </ul>
     </Panel>
   );
@@ -168,6 +172,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="space-y-6">
+          <PrivacyTasks />
           <Panel labelledBy="todo-title">
             <div className="flex items-center justify-between px-5 pt-5 sm:px-6">
               <h2 id="todo-title" className="text-lg font-bold">Da sistemare</h2>
@@ -216,4 +221,21 @@ export default function DashboardPage() {
       </div>
     </>
   );
+}
+
+function PrivacyTasks() {
+  const { capabilities } = useAccountCapabilities();
+  if (!capabilities?.websiteAdmin || !capabilities.privacyAdmin) return null;
+  return <PendingPrivacyTasks />;
+}
+
+function PendingPrivacyTasks() {
+  const pending = useAccountResource<ErasureOperation[]>('privacy/admin/operations');
+  return <Panel labelledBy="pending-privacy" className="space-y-3 p-5">
+    <h2 id="pending-privacy" className="text-lg font-bold">Richieste privacy pendenti</h2>
+    {pending.loading && <p role="status">Caricamento richieste privacy…</p>}
+    {pending.error && <><p role="alert">Conteggio richieste non disponibile: {pending.error}</p>
+      <button className={btn.secondary} onClick={pending.reload}>Riprova richieste privacy</button></>}
+    {pending.data && <Link to="/admin/privacy" className={btn.secondary}>{plural(pending.data.length, 'richiesta da verificare', 'richieste da verificare')}</Link>}
+  </Panel>;
 }

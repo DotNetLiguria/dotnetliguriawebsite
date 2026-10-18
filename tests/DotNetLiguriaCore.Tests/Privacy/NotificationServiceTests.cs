@@ -14,6 +14,7 @@ public sealed class NotificationServiceTests
     private readonly FakeIdentityAccountAdmin _identities = new();
     private readonly MemoryErasureJournal _journal = new();
     private readonly FakeNotificationCampaignStore _campaigns = new();
+    private readonly MemoryConsentHistoryStore _history = new();
 
     [Fact]
     public async Task OptInRequiresVerifiedEmailAndExplicitCurrentVersion()
@@ -104,6 +105,7 @@ public sealed class NotificationServiceTests
         Assert.Throws<PrivacyBlockedException>(() => tokens.Validate(token + "tamper"));
         await service.UnsubscribeAsync(token, TestContext.Current.CancellationToken);
         await service.UnsubscribeAsync(token, TestContext.Current.CancellationToken);
+        Assert.Equal("withdraw", Assert.Single(_history.Entries).Action);
         Assert.False(NotificationConsent.HasCurrentConsent(_identities.Accounts[first.Subject], "event-announcements", _settings.ConsentVersion));
         Assert.True(NotificationConsent.HasCurrentConsent(_identities.Accounts[second.Subject], "event-announcements", _settings.ConsentVersion));
         _clock.Now = _clock.Now.AddDays(31);
@@ -133,6 +135,125 @@ public sealed class NotificationServiceTests
             new("event-announcements", _settings.ConsentVersion, true), TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task FutureHistoryRecordsVerifiedGrantsAndWithdrawalsWithoutCopyingContactData()
+    {
+        var account = AddAccount("subscriber");
+        var service = Service();
+        await service.SetSubscriptionAsync(account, new("event-announcements", _settings.ConsentVersion, true),
+            TestContext.Current.CancellationToken);
+        _clock.Now = _clock.Now.AddMinutes(1);
+        await service.SetSubscriptionAsync(account, new("event-announcements", "", false),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(new[] { "grant", "withdraw" }, _history.Entries.Select(entry => entry.Action));
+        Assert.All(_history.Entries, entry =>
+        {
+            Assert.Equal("completed", entry.Status);
+            Assert.Equal(account.Issuer, entry.AccountIssuer);
+            Assert.Equal(account.Subject, entry.AccountSubject);
+            Assert.Equal(_settings.ConsentVersion, entry.Version);
+        });
+        Assert.DoesNotContain("@example.test", JsonSerializer.Serialize(_history.Entries));
+        Assert.Equal(_clock.Now, _history.Entries[1].OccurredAt);
+    }
+
+    [Fact]
+    public async Task OldUnsubscribeLinkCannotRecreateHistoryForDisabledErasingAccount()
+    {
+        var account = AddAccount("erasing");
+        Grant(account.Subject);
+        _identities.Accounts[account.Subject].Enabled = false;
+        var tokens = new UnsubscribeTokens(new EphemeralDataProtectionProvider(), _clock, Options.Create(_settings));
+        var token = tokens.Create(account, "event-announcements");
+        await Service(tokens).UnsubscribeAsync(token, TestContext.Current.CancellationToken);
+        Assert.Empty(_history.Entries);
+        Assert.Empty(_identities.Accounts[account.Subject].Attributes);
+    }
+
+    [Fact]
+    public async Task ExistingGrantIsCurrentEvidenceNotInventedHistory()
+    {
+        var account = AddAccount("existing");
+        Grant(account.Subject);
+        var json = JsonSerializer.SerializeToElement(await Service().ConsentsAsync(account, 0, TestContext.Current.CancellationToken));
+        Assert.Single(json.GetProperty("current").EnumerateArray());
+        Assert.Empty(json.GetProperty("history").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task MalformedEvidenceIsReportedButDoesNotPreventWithdrawal()
+    {
+        var account = AddAccount("subscriber");
+        _identities.Accounts[account.Subject].Attributes["dnl_notifications_events"] = ["invalid", "duplicate"];
+        var service = Service();
+        var error = await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
+            service.ConsentsAsync(account, 0, TestContext.Current.CancellationToken));
+        Assert.Equal("consent_evidence_invalid", error.Code);
+        await service.SetSubscriptionAsync(account, new("event-announcements", "", false), TestContext.Current.CancellationToken);
+        Assert.Empty(_identities.Accounts[account.Subject].Attributes);
+        Assert.Equal("withdraw", Assert.Single(_history.Entries).Action);
+    }
+
+    [Fact]
+    public async Task InterruptedConsentFinalizationIsReconciledWithoutReapplyingGrant()
+    {
+        var account = AddAccount("subscriber");
+        var service = Service();
+        _history.FailCompletion = true;
+        await Assert.ThrowsAsync<IOException>(() => service.SetSubscriptionAsync(account,
+            new("event-announcements", _settings.ConsentVersion, true), TestContext.Current.CancellationToken));
+        Assert.Equal("pending", Assert.Single(_history.Entries).Status);
+        // Another trusted writer has withdrawn the grant before recovery.
+        _identities.Accounts[account.Subject].Attributes.Remove("dnl_notifications_events");
+        _history.FailCompletion = false;
+        await service.ConsentsAsync(account, 0, TestContext.Current.CancellationToken);
+        Assert.Equal("superseded", Assert.Single(_history.Entries).Status);
+        Assert.False(NotificationConsent.HasCurrentConsent(_identities.Accounts[account.Subject], "event-announcements", _settings.ConsentVersion));
+    }
+
+    [Fact]
+    public async Task LostFinalizationCanBeVerifiedFromCurrentIdentityEvidence()
+    {
+        var account = AddAccount("subscriber");
+        _history.FailCompletion = true;
+        await Assert.ThrowsAsync<IOException>(() => Service().SetSubscriptionAsync(account,
+            new("event-announcements", _settings.ConsentVersion, true), TestContext.Current.CancellationToken));
+        _history.FailCompletion = false;
+        await Service().ConsentsAsync(account, 0, TestContext.Current.CancellationToken);
+        Assert.Equal("completed", Assert.Single(_history.Entries).Status);
+    }
+
+    [Fact]
+    public async Task HistoryUnavailableDoesNotClaimARecordedConsentOrMutateKeycloak()
+    {
+        var account = AddAccount("subscriber");
+        _history.FailAppend = true;
+        await Assert.ThrowsAsync<IOException>(() => Service().SetSubscriptionAsync(account,
+            new("event-announcements", _settings.ConsentVersion, true), TestContext.Current.CancellationToken));
+        Assert.Empty(_history.Entries);
+        Assert.Empty(_identities.Accounts[account.Subject].Attributes);
+    }
+
+    [Fact]
+    public async Task ConsentHistoryIsCallerScopedAndPaged()
+    {
+        var account = AddAccount("subscriber");
+        var other = AddAccount("other");
+        for (var index = 0; index < 52; index++)
+            _history.Entries.Add(new(index.ToString(), account.Issuer, account.Subject, "event-announcements",
+                "version", _clock.Now.AddMinutes(index), "withdraw", "completed"));
+        _history.Entries.Add(new("private-other", other.Issuer, other.Subject, "event-announcements",
+            "version", _clock.Now, "withdraw", "completed"));
+        var first = JsonSerializer.SerializeToElement(await Service().ConsentsAsync(account, 0, TestContext.Current.CancellationToken));
+        Assert.Equal(50, first.GetProperty("history").GetArrayLength());
+        Assert.True(first.GetProperty("hasMore").GetBoolean());
+        var next = JsonSerializer.SerializeToElement(await Service().ConsentsAsync(account, 50, TestContext.Current.CancellationToken));
+        Assert.Equal(2, next.GetProperty("history").GetArrayLength());
+        Assert.False(next.GetProperty("hasMore").GetBoolean());
+        Assert.DoesNotContain("private-other", first.ToString() + next.ToString());
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() => Service().ConsentsAsync(account, -1, TestContext.Current.CancellationToken));
+    }
+
     private AccountReference AddAccount(string subject, bool verified = true)
     {
         _identities.Accounts[subject] = new IdentityAccount
@@ -151,6 +272,6 @@ public sealed class NotificationServiceTests
         var options = Options.Create(_settings);
         var privacy = new PrivacyCoordinator(gate, _journal, new FakeAccountPrivacyStore(), _identities, new FakePrivacySnapshotStore(), options);
         return new NotificationService(_identities, privacy, gate, _journal, _campaigns,
-            tokens ?? new UnsubscribeTokens(new EphemeralDataProtectionProvider(), _clock, options), options, _clock);
+            tokens ?? new UnsubscribeTokens(new EphemeralDataProtectionProvider(), _clock, options), options, _clock, _history);
     }
 }

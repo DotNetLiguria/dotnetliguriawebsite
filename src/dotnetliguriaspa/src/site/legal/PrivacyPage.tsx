@@ -73,6 +73,12 @@ export default function PrivacyPage() {
             non nel database applicativo. L'applicazione usa riferimenti immutabili per autorizzazione e attribuzione.
             La sola visita delle pagine pubbliche non richiede l'accesso.
           </p>
+          <p>
+            Nell’<LegalLink to="/area-personale">area personale</LegalLink> puoi leggere i dati attribuibili
+            al tuo account, gestire gli avvisi, esportare i dati e richiedere la cancellazione.
+            Nome, email e sicurezza si modificano nella console dell’account Keycloak.
+            L’accesso personale non concede funzioni di amministrazione.
+          </p>
           <p>Base giuridica: legittimo interesse a gestire il sito in modo sicuro (art. 6, par. 1, lett. f).</p>
         </LegalSubsection>
 
@@ -81,6 +87,15 @@ export default function PrivacyPage() {
             L'iscrizione agli avvisi è facoltativa, separata dal consenso ai questionari e riservata agli account
             con email verificata. Il consenso e la sua revoca sono gestiti in Keycloak. Non creiamo un elenco
             permanente di indirizzi nel database applicativo e non iscriviamo automaticamente relatori o partecipanti.
+          </p>
+          <p>
+            Conserviamo nel database applicativo una cronologia delle modifiche successive all’attivazione
+            di questa funzione: riferimento immutabile all’account, finalità, versione dell’informativa,
+            data, adesione o revoca e stato operativo necessario a verificare la modifica.
+            Non vi copiamo nome, email, indirizzo IP o browser. Le evidenze di consensi già presenti
+            in Keycloak sono mostrate separatamente, senza ricostruire una cronologia passata.
+            Le modifiche in attesa non equivalgono a consensi completati. Cronologia e modifiche
+            incompiute attribuibili all’account rientrano nell’esportazione e nella cancellazione.
           </p>
           <p>
             Al momento non è configurato un servizio di invio: preparare un avviso non significa averlo inviato.
@@ -164,6 +179,16 @@ export default function PrivacyPage() {
           La cancellazione dell'account richiede una verifica MFA recente e riguarda il profilo Keycloak, i dati
           applicativi e le copie interessate. Configurazioni di conservazione non sicure o errori operativi
           impediscono di dichiararla conclusa; lo stato deve indicare il blocco e richiede intervento del titolare.
+        </p>
+        <p>
+          La rimozione dell’identità Keycloak è automatica quando configurata e disponibile. Se occorre
+          rimuoverla manualmente, dopo aver verificato la disabilitazione dell’account e rimosso i dati
+          del sito e le copie interessate, la richiesta viene accettata ma resta pendente.
+          Solo gli amministratori autorizzati possono consultare il riferimento minimo emittente/soggetto
+          necessario alla rimozione, con una verifica MFA recente. La cancellazione si conclude soltanto
+          dopo aver verificato l’assenza dell’identità; il riferimento operativo viene quindi eliminato.
+          Un eventuale avviso email agli amministratori non contiene l’identità o l’identificativo della richiesta
+          e non abilita l’invio degli avvisi sugli eventi.
         </p>
         <p>
           Se ritieni che il trattamento violi la normativa puoi proporre reclamo al Garante per la protezione dei dati personali

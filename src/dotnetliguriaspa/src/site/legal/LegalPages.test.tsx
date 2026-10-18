@@ -1,6 +1,6 @@
 import React from 'react';
 import { useOidc } from '@axa-fr/react-oidc';
-import { render, screen, within } from '../../test-utils';
+import { ADMIN_CAPABILITIES, mockApi, render, screen, within } from '../../test-utils';
 import App from '../../App';
 import { userProfileLocalStorageStore } from '../../store/userProfileLocalStorageStore';
 import { resetCookieNotice } from './CookieNotice';
@@ -122,6 +122,7 @@ describe('routing', () => {
   test('the admin area does not show the public cookie notice', async () => {
     userProfileLocalStorageStore.getState().setProfileSaved(true);
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
     render(<App />, { route: '/admin' });
     expect(await screen.findByRole('heading', { level: 1, name: 'Ciao, Test' })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Informativa sui cookie' })).not.toBeInTheDocument();

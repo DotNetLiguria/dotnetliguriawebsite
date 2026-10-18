@@ -1,4 +1,4 @@
-import { render, screen, within, makeWorkshop } from './test-utils';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, jsonResponse, mockApi, render, screen, within, makeWorkshop } from './test-utils';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
 import { AxiosError } from 'axios';
@@ -18,7 +18,7 @@ test('public home renders the community and offers login', async () => {
   expect(await screen.findAllByRole('heading', { level: 2, name: 'Test Workshop' })).toHaveLength(2);
   const login = useOidc().login;
   await userEvent.click(screen.getByRole('button', { name: 'Area Personale' }));
-  expect(login).toHaveBeenCalledWith('/admin');
+  expect(login).toHaveBeenCalledWith('/');
 });
 
 test('public home renders an empty state when a fresh database has no featured workshop', async () => {
@@ -44,7 +44,7 @@ test('public home reports server failures instead of presenting an empty databas
 });
 
 test.each([
-  ['/admin', 'Ciao, Test'], ['/admin/profile/', 'Profilo'],
+  ['/admin', 'Ciao, Test'],
   ['/admin/workshops/', 'Eventi'], ['/admin/speakers/', 'Relatori'],
   ['/admin/board/', 'Board'], ['/admin/venues/', 'Sedi'],
   ['/admin/feedbacks', 'Questionari'], ['/admin/questionnaires', 'Questionari'],
@@ -52,6 +52,7 @@ test.each([
 ])('authenticated route %s retains its screen', async (route, heading) => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
   const routeWarnings = vi.spyOn(console, 'warn').mockImplementation(() => {});
   render(<App />, { route });
   expect(await screen.findByRole('heading', { name: heading })).toBeInTheDocument();
@@ -78,20 +79,63 @@ test('unknown admin addresses stay in the admin: sign-in without a session, not-
   expect(screen.getByRole('heading', { name: 'Area riservata' })).toBeInTheDocument();
   unmount();
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
   render(<App />, { route: '/admin/sezione-inesistente' });
-  expect(screen.getByRole('heading', { name: 'Pagina non trovata' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Pagina non trovata' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Vai alla panoramica/ })).toHaveAttribute('href', '/admin');
 });
 
 test('the questionnaire sidebar link opens the new questionnaire screen', async () => {
   userProfileLocalStorageStore.getState().setProfileSaved(true);
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
   render(<App />, { route: '/admin' });
-  const link = within(screen.getByRole('navigation', { name: 'Sezioni' })).getByRole('link', { name: 'Questionari' });
+  const link = within(await screen.findByRole('navigation', { name: 'Sezioni' })).getByRole('link', { name: 'Questionari' });
   expect(link).toHaveAttribute('href', '/admin/questionnaires');
   expect(screen.queryByRole('link', { name: /feedback/i })).not.toBeInTheDocument();
   await userEvent.click(link);
   expect(await screen.findByRole('heading', { name: 'Questionari' })).toBeInTheDocument();
+});
+
+test('legacy profile redirects outside admin shell, preserving query and fragment for sign-in', async () => {
+  const login = vi.fn();
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: false, login, logout: vi.fn(), renewTokens: vi.fn() });
+  render(<App />, { route: '/admin/profile/?from=old#privacy' });
+  await screen.findByRole('heading', { name: 'Area personale' });
+  expect(screen.queryByRole('navigation', { name: 'Sezioni' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Accedi' }));
+  expect(login).toHaveBeenCalledWith('/area-personale?from=old#privacy');
+});
+
+test('ordinary authenticated accounts can use the public personal area even without dashboard privileges', async () => {
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  mockApi({
+    'account/capabilities': NO_CAPABILITIES,
+    'privacy/data': { identity: null, records: [], hasMore: false, warning: '' },
+    'notifications/consents': { current: [], history: [], hasMore: false },
+  });
+  render(<App />, { route: '/area-personale' });
+  await screen.findByText('Nessun record attribuibile disponibile.');
+  expect(screen.getByRole('heading', { name: 'Area personale' })).toBeInTheDocument();
+  expect(screen.queryByRole('navigation', { name: 'Sezioni' })).not.toBeInTheDocument();
+});
+
+test('admin data requests do not start until the server grants website access', async () => {
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  let authorize;
+  mockApi({ 'account/capabilities': () => new Promise(resolve => { authorize = resolve; }) });
+  render(<App />, { route: '/admin' });
+  expect(screen.getByRole('status')).toHaveTextContent('Verifica dei permessi');
+  expect(fetch.mock.calls.map(([url]) => String(url))).toEqual([expect.stringContaining('account/capabilities')]);
+  authorize(jsonResponse(NO_CAPABILITIES));
+  await screen.findByRole('heading', { name: 'Accesso non autorizzato' });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test.each(['/authentication/callback', '/authentication/silent-callback'])('preserves OIDC route %s', route => {
+  const { container } = render(<App />, { route });
+  expect(container.querySelector('.App')).toBeEmptyDOMElement();
+  expect(fetch).not.toHaveBeenCalled();
 });
 
 test('profile store persists confirmation and can be reset', () => {

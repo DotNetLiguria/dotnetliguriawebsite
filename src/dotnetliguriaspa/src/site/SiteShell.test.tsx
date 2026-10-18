@@ -1,7 +1,7 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
-import { mockApi, render, screen, within } from '../test-utils';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, mockApi, render, screen, within, waitFor } from '../test-utils';
 import SiteHeader from './SiteHeader';
 import SiteFooter from './SiteFooter';
 
@@ -47,17 +47,52 @@ describe('<SiteHeader />', () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const visitor = render(<SiteHeader />);
     await user.click(screen.getByRole('button', { name: 'Area Personale' }));
-    expect(useOidc().login).toHaveBeenCalledWith('/admin');
+    expect(useOidc().login).toHaveBeenCalledWith('/');
     visitor.unmount();
 
     const logout = vi.fn(async () => undefined);
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout } as unknown as ReturnType<typeof useOidc>);
     localStorage.setItem('profileStore', '{}');
     render(<SiteHeader />);
-    expect(screen.getByRole('link', { name: 'Ciao, Test User' })).toHaveAttribute('href', '/admin');
-    await user.click(screen.getByRole('button', { name: 'Esci' }));
+    await user.click(screen.getByRole('button', { name: 'Ciao, Test User' }));
+    expect(screen.getByRole('menuitem', { name: 'Area personale' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Dashboard' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: 'Esci' }));
     expect(logout).toHaveBeenCalled();
     expect(localStorage.getItem('profileStore')).toBeNull();
+  });
+
+  test.each(['/', '/workshop/synthetic?source=email#agenda', '/q/questionnaire?step=2#consenso'])('login returns to exact address %s', async route => {
+    render(<SiteHeader />, { route });
+    await userEvent.click(screen.getByRole('button', { name: 'Area Personale' }));
+    expect(useOidc().login).toHaveBeenCalledWith(route);
+  });
+
+  test.each([NO_CAPABILITIES, ADMIN_CAPABILITIES])('greeting dropdown uses server capability and Escape returns keyboard focus', async capabilities => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    mockApi({ 'account/capabilities': capabilities });
+    render(<SiteHeader />, { accountProvider: true });
+    const controls = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const greeting = screen.getByRole('button', { name: 'Ciao, Test User' });
+    await controls.click(greeting);
+    const menu = await screen.findByRole('menu', { name: 'Ciao, Test User' });
+    expect(within(menu).queryByRole('menuitem', { name: 'Dashboard' }) !== null).toBe(capabilities.websiteAdmin);
+    await controls.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(greeting).toHaveFocus());
+  });
+
+  test('mobile account navigation closes the disclosure', async () => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    mockApi({ 'account/capabilities': NO_CAPABILITIES });
+    render(<SiteHeader />, { accountProvider: true });
+    const controls = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const toggle = screen.getByRole('button', { name: 'Menu' });
+    await controls.click(toggle);
+    const navs = screen.getAllByRole('navigation', { name: 'Principale' });
+    await controls.click(within(navs[1]).getByRole('button', { name: 'Ciao, Test User' }));
+    await controls.click(await screen.findByRole('menuitem', { name: 'Area personale' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 });
 

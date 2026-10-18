@@ -13,6 +13,7 @@ public sealed class PrivacyOptions
     public bool ProtectedStorageApproved { get; set; }
     public bool ExternalCopiesErasureApproved { get; set; }
     public bool IdentityAttributePermissionsApproved { get; set; }
+    public bool AutomaticIdentityDeletion { get; set; } = true;
     public Dictionary<string, string> RetentionOverrides { get; set; } = new(StringComparer.Ordinal);
     public string[] AssessedNonAccountCollections { get; set; } = [];
 }

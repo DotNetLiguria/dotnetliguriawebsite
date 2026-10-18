@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button, ProgressBar } from 'react-aria-components';
 import { useOidc, useOidcFetch } from '@axa-fr/react-oidc';
+import { useLocation } from 'react-router-dom';
+import { accountReturnPath } from '../../account/returnPath';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn } from '../ui';
 import { AdminLoad } from '../adminApi';
@@ -45,6 +47,7 @@ const contents = (s: BackupSnapshotInfo) => `${plural(s.collectionCount, 'raccol
 
 export default function BackupPage() {
   const { login } = useOidc();
+  const location = useLocation();
   const { fetch } = useOidcFetch();
   const [load, setLoad] = useState<AdminLoad<BackupSnapshotInfo[]>>({ state: 'loading' });
   const [version, setVersion] = useState(0);
@@ -127,7 +130,7 @@ export default function BackupPage() {
         description="I backup del database restano sul server. Importarne uno sostituisce tutti i dati correnti, dopo aver creato una copia di sicurezza automatica."
         actions={<>
           <Button className={btn.secondary}
-            onPress={() => void login(window.location.pathname, { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
+            onPress={() => void login(accountReturnPath(location), { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
             Verifica MFA per il ripristino
           </Button>
           {createButton(btn.primary)}

@@ -167,6 +167,7 @@ public class Program
 
         app.MapApiEndpoints();
         app.MapPrivacyEndpoints();
+        app.MapAccountEndpoints();
         app.MapNotificationEndpoints();
         app.MapServiceDefaults();
         app.MapFallback("/api/{**path}", () => Results.Problem(

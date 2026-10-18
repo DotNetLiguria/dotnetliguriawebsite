@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button, Disclosure, DisclosurePanel } from 'react-aria-components';
+import { Button, Disclosure, DisclosurePanel, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { useOidc, useOidcUser } from '@axa-fr/react-oidc';
 // Historic logo of dotnetliguria.net, in use until the new vector identity ships (see src/assets/logo).
 import logo from '../assets/logo/dotnet-liguria-storico.png';
@@ -8,6 +8,8 @@ import logo2x from '../assets/logo/dotnet-liguria-storico-2x.png';
 import { getTopMenu, isAbortError } from './siteApi';
 import { Icon } from './icons';
 import { clearPrivateBrowserState } from '../questionnaire/drafts';
+import { useAccountCapabilities } from '../account/AccountCapabilities';
+import { accountReturnPath } from '../account/returnPath';
 
 interface MenuItem {
   label: string;
@@ -36,27 +38,37 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
   const { login, logout, isAuthenticated } = useOidc();
   const { oidcUser } = useOidcUser();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { capabilities, status, retry } = useAccountCapabilities();
+  const [logoutError, setLogoutError] = useState('');
   const pill = `inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 border-navy px-5 font-bold text-navy transition data-[hovered]:bg-navy data-[hovered]:text-white ${focusRing}`;
 
   if (!isAuthenticated) {
-    return <Button className={pill} onPress={() => login('/admin')}>Area Personale</Button>;
+    return <Button className={pill} onPress={() => login(accountReturnPath(location))}>Area Personale</Button>;
   }
   return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <Link to="/admin" className="inline-flex min-h-11 items-center rounded-full px-4 font-semibold text-navy no-underline hover:bg-cyan-50" onClick={onNavigate}>
+    <><MenuTrigger>
+      <Button className={pill}>
         {oidcUser?.name ? `Ciao, ${oidcUser.name}` : 'Area personale'}
-      </Link>
-      <Button
-        className={pill}
-        onPress={async () => {
-          clearPrivateBrowserState();
-          await logout();
-          navigate('/');
-        }}
-      >
-        Esci
       </Button>
-    </span>
+      <Popover placement="bottom end" className="z-50 min-w-60 rounded-xl border border-line bg-white p-2 text-navy shadow-lift">
+        <Menu aria-label="Account" className="outline-none" onAction={key => {
+          if (key === 'retry') { retry(); return; }
+          onNavigate?.();
+          if (key === 'personal') navigate('/area-personale');
+          if (key === 'dashboard') navigate('/admin');
+          if (key === 'logout') {
+            clearPrivateBrowserState();
+            void logout('/').then(() => navigate('/')).catch(() => setLogoutError('Uscita non riuscita. Riprova o chiudi la scheda.'));
+          }
+        }}>
+          <MenuItem id="personal" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Area personale</MenuItem>
+          {capabilities?.websiteAdmin && <MenuItem id="dashboard" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Dashboard</MenuItem>}
+          {status === 'error' && <MenuItem id="retry" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 outline-none data-[focused]:bg-cyan-50">Permessi non disponibili: riprova</MenuItem>}
+          <MenuItem id="logout" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Esci</MenuItem>
+        </Menu>
+      </Popover>
+    </MenuTrigger>{logoutError && <p role="alert" className="p-3 text-sm text-red-900">{logoutError}</p>}</>
   );
 }
 
@@ -83,7 +95,7 @@ export default function SiteHeader() {
   useEffect(() => {
     if (!expanded) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !event.defaultPrevented && !(event.target instanceof Element && event.target.closest('[role="menu"]'))) {
         setExpanded(false);
         trigger.current?.focus();
       }

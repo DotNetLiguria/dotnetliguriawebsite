@@ -6,7 +6,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import axios from 'axios';
-import { useOidc, useOidcAccessToken } from '@axa-fr/react-oidc';
+import { useOidc, useOidcAccessToken, useOidcUser } from '@axa-fr/react-oidc';
 import { userProfileLocalStorageStore } from './store/userProfileLocalStorageStore';
 
 vi.mock('@axa-fr/react-oidc', () => {
@@ -14,7 +14,7 @@ vi.mock('@axa-fr/react-oidc', () => {
 	return {
 		useOidc: vi.fn(() => ({ isAuthenticated: false, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() })),
 		useOidcFetch: () => ({ fetch: globalThis.fetch }),
-		useOidcUser: () => ({ oidcUser: user, oidcUserLoadingState: 'Loaded' }),
+		useOidcUser: vi.fn(() => ({ oidcUser: user, oidcUserLoadingState: 'Loaded' })),
 		useOidcIdToken: () => ({ idToken: null, idTokenPayload: {} }),
 		useOidcAccessToken: vi.fn(() => ({ accessToken: null, accessTokenPayload: {} })),
 	};
@@ -26,6 +26,10 @@ beforeEach(() => {
 	userProfileLocalStorageStore.setState({ profileSaved: false });
 	vi.mocked(useOidc).mockReturnValue({ isAuthenticated: false, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
 	vi.mocked(useOidcAccessToken).mockReturnValue({ accessToken: null, accessTokenPayload: {} });
+	vi.mocked(useOidcUser).mockReturnValue({
+		oidcUser: { sub: 'test-user', name: 'Test User', given_name: 'Test', family_name: 'User', email: 'user@example.test', roles: ['member'] },
+		oidcUserLoadingState: 'Loaded',
+	});
 	vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } })));
 	axios.defaults.adapter = async () => { throw new Error('Unexpected Axios request: install a test adapter'); };
 });

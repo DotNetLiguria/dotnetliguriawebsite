@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useOidc } from '@axa-fr/react-oidc';
-import { mockApi, render, screen, waitFor, within } from '../../test-utils';
+import { ADMIN_CAPABILITIES, mockApi, render, screen, waitFor, within } from '../../test-utils';
 import App from '../../App';
 import { resolveLegacyPath, workshopByOldUrl } from './legacyRoutes';
 
@@ -108,6 +108,7 @@ describe('public fallback route', () => {
 
   test('keeps the admin screens when signed in', async () => {
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() } as unknown as ReturnType<typeof useOidc>);
+    mockApi({ 'account/capabilities': ADMIN_CAPABILITIES });
     renderApp('/admin/venues/');
     expect(await screen.findByRole('heading', { level: 1, name: 'Sedi' })).toBeInTheDocument();
     expect(notFound()).not.toBeInTheDocument();

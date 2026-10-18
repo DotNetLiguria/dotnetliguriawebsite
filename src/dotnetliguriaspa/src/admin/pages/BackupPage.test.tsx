@@ -1,5 +1,6 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
+import { useOidc } from '@axa-fr/react-oidc';
 import { jsonResponse, mockApi, render, screen, waitFor, within } from '../../test-utils';
 import { AdminToastRegion, adminToasts } from '../toasts';
 import BackupPage from './BackupPage';
@@ -98,5 +99,16 @@ describe('<BackupPage />', () => {
     await user.click(within(await screen.findByRole('alertdialog', { name: 'Sostituire tutti i dati?' })).getByRole('button', { name: 'Conferma importazione' }));
     expect(await alertsText()).toContain('Nessun dato è stato sostituito');
     await waitFor(() => expect(screen.queryByRole('alertdialog', { name: 'Sostituire tutti i dati?' })).not.toBeInTheDocument());
+  });
+
+  test('MFA step-up preserves the current admin query and fragment without restoring a backup', async () => {
+    mockApi({ '/Backup/snapshots': [] });
+    render(<BackupPage />, { route: '/admin/import-export/?source=privacy#restore' });
+    await screen.findByRole('heading', { name: 'Nessun backup sul server' });
+    await userEvent.click(screen.getByRole('button', { name: /Verifica MFA/ }));
+    expect(useOidc().login).toHaveBeenCalledWith('/admin/import-export/?source=privacy#restore', {
+      acr_values: 'mfa', max_age: '0', prompt: 'login',
+    });
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/Backup/import'))).toBe(false);
   });
 });

@@ -26,6 +26,10 @@ See `hardening.md` for task evidence and `privacy-backend.md` for endpoint contr
 7. Do not enable delivery without an approved provider, disclosure/deletion
    controls and unsubscribe integration. Campaign confirmation intentionally
    returns unavailable, never "sent".
+8. Configure and approve the separate administrative SMTP transport before
+   relying on email notification of pending identity removal. Its messages must
+   contain no account identifiers; the restricted dashboard is the authoritative
+   task queue. SMTP acceptance is not proof of mailbox delivery.
 
 ## Keycloak configuration checklist
 
@@ -46,6 +50,9 @@ See `hardening.md` for task evidence and `privacy-backend.md` for endpoint contr
   privilege claims must be issuer-controlled and exactly true.
 * Configure explicit `privacyadmin` / `notificationadmin` assignments or change
   the corresponding server role options. UI hints are not authorization.
+  Dashboard access additionally requires the configured `WebDevAdmin`
+  privilege. A board record or a specialized role alone does not grant dashboard
+  access. Do not broaden API policies to compensate for missing assignments.
 * Restore and destructive privacy operations require `acr` equal to `mfa` or
   `hwk` and one numeric `auth_time` no more than 300 seconds old. Ensure these
   issuer-controlled claims are present in **access tokens**, not only ID tokens.
@@ -65,6 +72,36 @@ See `hardening.md` for task evidence and `privacy-backend.md` for endpoint contr
 * Deletions initiated directly in Keycloak need reliable event delivery or an
   audited operator process invoking the MFA-protected reconciliation endpoint.
   An automatic Keycloak event listener is **not** included.
+* `Privacy:AutomaticIdentityDeletion` defaults to true. Where automated deletion
+  is intentionally unavailable, it may be disabled without disabling the
+  immediate account disable/logout step or website erasure. Failed automatic
+  deletion requires verified disablement before a manual-removal fallback is
+  accepted; identity outages remain explicitly blocked.
+
+## Manual identity-removal queue
+
+Website administrators with privacy-administration permission use `/admin/privacy`.
+Only the protected pending task retains the issuer/subject needed for Keycloak
+removal. Access to that detail and destructive verification requires fresh MFA.
+Do not copy subjects or personal data into tickets, email, screenshots or logs.
+
+Delete the indicated disabled identity in the approved realm, then invoke the
+task's verified-completion action. The backend must independently confirm the
+identity is absent and complete application/backup cleanup before removing the
+task. Do not delete journal files, re-enable the identity, restore an old backup,
+or manually mark work complete to clear a warning. Pending tasks continue the
+existing global backup/restore restrictions.
+
+SMTP delivery failures do not undo website erasure and must not turn a pending
+identity removal into a completed status. Retry only through the restricted
+notification action. Resolve tasks promptly; an outstanding issuer/subject is
+still identifying data, not anonymized history.
+
+Consent history begins with the new feature; there is no fabricated historic
+ledger. Current Keycloak grants remain authoritative. History contains minimal
+account references and is deleted on account erasure, including unfinished
+intents. Approve any different legal retention requirement separately rather
+than retaining a hash/tombstone by default.
 
 ## NGINX boundary
 

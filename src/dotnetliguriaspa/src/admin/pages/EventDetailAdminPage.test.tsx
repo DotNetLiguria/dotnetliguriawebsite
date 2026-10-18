@@ -1,14 +1,15 @@
 import React from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { fireEvent, jsonResponse, render, screen, waitFor, within } from '../../test-utils';
+import { useOidc } from '@axa-fr/react-oidc';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, fireEvent, jsonResponse, render, screen, waitFor, within } from '../../test-utils';
 import { AdminToastRegion, adminToasts } from '../toasts';
 import EventDetailAdminPage from './EventDetailAdminPage';
 import { eventFixture, serveEvent } from './eventFixtures';
 
 const CurrentPath = () => { const { pathname, hash } = useLocation(); return <span data-testid="current-path">{pathname}{hash}</span>; };
 
-const renderAt = (route: string) => render(
+const renderAt = (route: string, accountProvider = false) => render(
   <>
     <Routes>
       <Route path="/admin/workshop/:id" element={<EventDetailAdminPage />} />
@@ -18,7 +19,7 @@ const renderAt = (route: string) => render(
     <AdminToastRegion />
     <CurrentPath />
   </>,
-  { route },
+  { route, accountProvider },
 );
 const setValue = (element: HTMLElement, value: string) => fireEvent.change(element, { target: { value } });
 const loaded = () => screen.findByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop' });
@@ -277,12 +278,14 @@ describe('<EventDetailAdminPage /> wizard', () => {
 
   test('step 1 edits the visibility flags in the draft, shows the feedback QR and link, and manages the linked questionnaires', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
     const questionnaire = { questionnaireId: 'q1', title: 'Feedback Meetup', status: 'Closed', responseCount: 2, sections: [] };
     const api = serveEvent(eventFixture({ feedbackEnabled: true }), {
+      'account/capabilities': ADMIN_CAPABILITIES,
       '/Questionnaire/by-workshop/': [questionnaire, { ...questionnaire, questionnaireId: 'q2', title: 'Bozza nuova', status: 'Draft', responseCount: 0 }, { ...questionnaire, questionnaireId: 'q3', title: 'Aperto ora', status: 'Published', responseCount: 7 }],
       '/Questionnaire': (_url: string, init?: RequestInit) => jsonResponse(init?.method === 'POST' ? { ...questionnaire, questionnaireId: 'new2', title: 'Nuovo feedback' } : []),
     });
-    renderAt('/admin/workshop/w1');
+    renderAt('/admin/workshop/w1', true);
     await loaded();
     expect(screen.getByRole('switch', { name: 'Pubblicato' })).toBeChecked();
     expect(screen.getByRole('switch', { name: 'Mostra in homepage' })).not.toBeChecked();
@@ -292,7 +295,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.getByText('http://localhost:3000/feedback/w1')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'QR code del feedback' }).nextElementSibling!.querySelector('svg')).toHaveAttribute('height', '150');
     expect(screen.queryByTitle(/QR code/)).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: 'Questionari collegati' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: 'Questionari collegati' })).toBeInTheDocument();
 
     expect(await screen.findByRole('link', { name: 'Feedback Meetup' })).toHaveAttribute('href', '/admin/questionnaires/q1/edit');
     expect(screen.getByRole('link', { name: '2 risposte' })).toHaveAttribute('href', '/admin/questionnaires/q1/results');
@@ -303,6 +306,15 @@ describe('<EventDetailAdminPage /> wizard', () => {
     await user.click(screen.getByRole('button', { name: 'Crea questionario di feedback' }));
     expect(await screen.findByText('Editor aperto')).toBeInTheDocument();
     expect(api.to('/Questionnaire', 'POST')[0].body).toEqual({ template: 'workshopFeedback', workshopId: 'w1' });
+  });
+
+  test('website administrator without feedback capability never loads linked questionnaire data', async () => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    const api = serveEvent(eventFixture(), { 'account/capabilities': { ...NO_CAPABILITIES, websiteAdmin: true } });
+    renderAt('/admin/workshop/w1', true);
+    await loaded();
+    expect(screen.queryByRole('heading', { name: 'Questionari collegati' })).not.toBeInTheDocument();
+    expect(api.to('/Questionnaire')).toHaveLength(0);
   });
 
   test('step 2 uploads the image at once as multipart data, reloads the event and names the uploaded file', async () => {

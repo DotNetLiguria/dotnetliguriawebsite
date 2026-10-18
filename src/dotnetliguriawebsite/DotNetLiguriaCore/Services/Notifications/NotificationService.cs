@@ -8,7 +8,7 @@ namespace DotNetLiguriaCore.Services.Notifications;
 public sealed class NotificationService(
     IIdentityAccountAdmin identities, PrivacyCoordinator privacy, PrivacyOperationGate gate,
     IErasureJournal journal, INotificationCampaignStore campaigns, UnsubscribeTokens tokens,
-    IOptions<PrivacyOptions> options, TimeProvider clock) : INotificationRecipientPreparation
+    IOptions<PrivacyOptions> options, TimeProvider clock, IConsentHistoryStore history) : INotificationRecipientPreparation
 {
     private readonly IIdentityAccountAdmin _identities = identities;
     private readonly PrivacyCoordinator _privacy = privacy;
@@ -18,6 +18,7 @@ public sealed class NotificationService(
     private readonly UnsubscribeTokens _tokens = tokens;
     private readonly PrivacyOptions _options = options.Value;
     private readonly TimeProvider _clock = clock;
+    private readonly IConsentHistoryStore _history = history;
 
     public async Task SetSubscriptionAsync(AccountReference account, NotificationSubscriptionRequest request, CancellationToken cancellationToken)
     {
@@ -30,10 +31,7 @@ public sealed class NotificationService(
             ?? throw new PrivacyBlockedException("account_unavailable", 409);
         if (request.OptIn && (!profile.CanReceiveNotifications || request.Version != _options.ConsentVersion))
             throw new PrivacyBlockedException("verified_email_and_current_consent_required", 409);
-        var evidence = request.OptIn
-            ? JsonSerializer.Serialize(new NotificationConsent(request.Purpose, _options.ConsentVersion, _clock.GetUtcNow()))
-            : null;
-        await _identities.SetConsentAsync(account, request.Purpose, evidence, cancellationToken);
+        await ChangeConsentUnderGateAsync(account, profile, request.Purpose, request.OptIn, cancellationToken);
     }
 
     public async Task<object> SubscriptionAsync(AccountReference account, CancellationToken cancellationToken)
@@ -55,8 +53,96 @@ public sealed class NotificationService(
         var payload = _tokens.Validate(token);
         using var lease = await _gate.EnterAsync(cancellationToken);
         // Deleted users need no mutation; tokens cannot create accounts or opt anyone in.
-        if (await _identities.GetAsync(payload.Account, cancellationToken) is not null)
-            await _identities.SetConsentAsync(payload.Account, payload.Purpose, null, cancellationToken);
+        if (await _identities.GetAsync(payload.Account, cancellationToken) is { } profile)
+            await ChangeConsentUnderGateAsync(payload.Account, profile, payload.Purpose, false, cancellationToken);
+    }
+
+    public async Task<object> ConsentsAsync(AccountReference account, int offset, CancellationToken cancellationToken)
+    {
+        EnsureConsentConfigured();
+        if (offset is < 0 or > 10000)
+            throw new PrivacyBlockedException("invalid_page_offset", StatusCodes.Status400BadRequest);
+        using var lease = await _gate.EnterAsync(cancellationToken);
+        var profile = await _identities.GetAsync(account, cancellationToken)
+            ?? throw new PrivacyBlockedException("account_unavailable", StatusCodes.Status409Conflict);
+        foreach (var purpose in new[] { "monthly-upcoming-events", "event-announcements" })
+            await ReconcileConsentUnderGateAsync(account, profile, purpose, cancellationToken);
+        var entries = await _history.ReadAsync(account, offset, 51, cancellationToken);
+        return new
+        {
+            current = CurrentConsents(profile),
+            history = entries.Take(50).Select(entry => new
+            {
+                entry.Id, entry.Purpose, entry.Version, entry.OccurredAt, entry.Action, entry.Status
+            }),
+            hasMore = entries.Count > 50
+        };
+    }
+
+    private static IReadOnlyList<NotificationConsent> CurrentConsents(IdentityAccount profile)
+    {
+        var result = new List<NotificationConsent>();
+        foreach (var purpose in new[] { "monthly-upcoming-events", "event-announcements" })
+        {
+            if (!profile.Attributes.TryGetValue(NotificationConsent.AttributeFor(purpose), out var values) || values.Length == 0)
+                continue;
+            if (values.Length != 1) throw new PrivacyBlockedException("consent_evidence_invalid");
+            try
+            {
+                var consent = JsonSerializer.Deserialize<NotificationConsent>(values[0]);
+                if (consent is null || consent.Purpose != purpose || string.IsNullOrWhiteSpace(consent.Version) ||
+                    consent.GrantedAt == default)
+                    throw new PrivacyBlockedException("consent_evidence_invalid");
+                result.Add(consent);
+            }
+            catch (JsonException)
+            {
+                throw new PrivacyBlockedException("consent_evidence_invalid");
+            }
+        }
+        return result;
+    }
+
+    private async Task ChangeConsentUnderGateAsync(AccountReference account, IdentityAccount profile,
+        string purpose, bool optIn, CancellationToken cancellationToken)
+    {
+        if (!optIn && !profile.Enabled)
+        {
+            // An old unsubscribe link must not recreate website history after erasure.
+            await _identities.SetConsentAsync(account, purpose, null, cancellationToken);
+            return;
+        }
+        await ReconcileConsentUnderGateAsync(account, profile, purpose, cancellationToken);
+        if (!optIn && profile.Attributes.GetValueOrDefault(NotificationConsent.AttributeFor(purpose)) is null or { Length: 0 })
+            return;
+        var entry = new ConsentHistoryEntry(Guid.NewGuid().ToString("N"), account.Issuer, account.Subject, purpose,
+            _options.ConsentVersion,
+            DateTimeOffset.FromUnixTimeMilliseconds(_clock.GetUtcNow().ToUnixTimeMilliseconds()),
+            optIn ? "grant" : "withdraw", "pending");
+        await _history.AppendAsync(entry, cancellationToken);
+        await _identities.SetConsentAsync(account, purpose, entry.Evidence, cancellationToken);
+        var stored = await _identities.GetAsync(account, cancellationToken)
+            ?? throw new PrivacyBlockedException("account_unavailable", StatusCodes.Status409Conflict);
+        if (!EvidenceMatches(stored, entry))
+            throw new PrivacyBlockedException("consent_write_not_verified");
+        await _history.SetStatusAsync(entry, "completed", cancellationToken);
+    }
+
+    private async Task ReconcileConsentUnderGateAsync(AccountReference account, IdentityAccount profile,
+        string purpose, CancellationToken cancellationToken)
+    {
+        foreach (var pending in await _history.PendingAsync(account, purpose, cancellationToken))
+        {
+            // Reconcile observation only: replaying an old grant could undo a later withdrawal.
+            await _history.SetStatusAsync(pending, EvidenceMatches(profile, pending) ? "completed" : "superseded", cancellationToken);
+        }
+    }
+
+    private static bool EvidenceMatches(IdentityAccount profile, ConsentHistoryEntry entry)
+    {
+        var values = profile.Attributes.GetValueOrDefault(NotificationConsent.AttributeFor(entry.Purpose));
+        return entry.Action == "withdraw" ? values is null or { Length: 0 }
+            : values is { Length: 1 } && values[0] == entry.Evidence;
     }
 
     public async Task<NotificationCampaign> PreviewAsync(AccountReference administrator, NotificationCampaignRequest request, CancellationToken cancellationToken)

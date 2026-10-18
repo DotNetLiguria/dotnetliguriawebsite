@@ -6,6 +6,7 @@ import {
 import { AdminIcon } from './icons';
 import { AdminSpeaker, AdminWorkshop, clean, useAdminLoad } from './adminApi';
 import { formatDate } from '../site/format';
+import { useAccountCapabilities } from '../account/AccountCapabilities';
 
 interface Command {
   id: string;
@@ -19,6 +20,7 @@ const ACTIONS: Command[] = [
   { id: 'new-event', label: 'Nuovo evento', meta: 'Crea', to: '/admin/workshop/create' },
   { id: 'no-photo', label: 'Relatori senza foto', meta: 'Da sistemare', to: '/admin/speakers/?filtro=senza-foto' },
   { id: 'venues', label: 'Sedi', meta: 'Vai', to: '/admin/venues/' },
+  { id: 'personal', label: 'Area personale', meta: 'Account e consensi', to: '/area-personale' },
   { id: 'site', label: 'Vedi il sito', meta: 'Si apre in una nuova scheda', to: '/', external: true },
 ];
 
@@ -43,6 +45,7 @@ function Section({ title, items }: { title: string; items: Command[] }) {
 function PaletteContent({ close }: { close: () => void }) {
   const navigate = useNavigate();
   const { contains } = useFilter({ sensitivity: 'base' });
+  const { capabilities } = useAccountCapabilities();
   const [workshops] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
   const [speakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get');
 
@@ -56,7 +59,9 @@ function PaletteContent({ close }: { close: () => void }) {
       id: `speaker-${s.workshopSpeakerId}`, label: clean(s.name), meta: 'Relatore', to: `/admin/speakers/${s.workshopSpeakerId}`,
     }))
     : [];
-  const all = [...ACTIONS, ...events, ...people];
+  const actions = capabilities?.privacyAdmin || capabilities?.notificationAdmin
+    ? [...ACTIONS, { id: 'privacy', label: 'Privacy e avvisi', to: '/admin/privacy' }] : ACTIONS;
+  const all = [...actions, ...events, ...people];
 
   return (
     <Autocomplete filter={contains}>
@@ -79,7 +84,7 @@ function PaletteContent({ close }: { close: () => void }) {
         }}
         renderEmptyState={() => <p className="px-4 py-8 text-center text-muted">Nessun risultato.</p>}
       >
-        <Section title="Azioni" items={ACTIONS} />
+        <Section title="Azioni" items={actions} />
         <Section title="Eventi" items={events} />
         <Section title="Relatori" items={people} />
       </Menu>

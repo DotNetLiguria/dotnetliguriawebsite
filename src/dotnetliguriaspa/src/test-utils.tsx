@@ -2,12 +2,21 @@ import React, { ReactElement } from 'react';
 import { render as testingRender, RenderOptions } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WorkshopModel } from './models/WorkshopModel';
+import { AccountCapabilities, AccountCapabilitiesProvider } from './account/AccountCapabilities';
 export * from '@testing-library/react';
 
-export function render(ui: ReactElement, options?: RenderOptions & { route?: string }) {
-  const { route = '/', ...renderOptions } = options ?? {};
-  return testingRender(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>, renderOptions);
+export function render(ui: ReactElement, options?: RenderOptions & { route?: string; accountProvider?: boolean }) {
+  const { route = '/', accountProvider = false, ...renderOptions } = options ?? {};
+  return testingRender(<MemoryRouter initialEntries={[route]}>{accountProvider
+    ? <AccountCapabilitiesProvider>{ui}</AccountCapabilitiesProvider> : ui}</MemoryRouter>, renderOptions);
 }
+
+export const NO_CAPABILITIES: AccountCapabilities = {
+  websiteAdmin: false, feedbackAdmin: false, backupAdmin: false, privacyAdmin: false, notificationAdmin: false,
+};
+export const ADMIN_CAPABILITIES: AccountCapabilities = {
+  websiteAdmin: true, feedbackAdmin: true, backupAdmin: true, privacyAdmin: true, notificationAdmin: true,
+};
 
 export function makeWorkshop(overrides: Partial<WorkshopModel> = {}): WorkshopModel {
   return {

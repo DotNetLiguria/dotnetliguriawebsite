@@ -12,6 +12,11 @@ public static class NotificationEndpointMappings
     public static IEndpointRouteBuilder MapNotificationEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/notifications").AddEndpointFilter<PrivacyEndpointFilter>();
+        group.MapGet("/consents", async (int? offset, HttpContext context, NotificationService service,
+            IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
+            Results.Ok(await service.ConsentsAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer),
+                offset ?? 0, cancellationToken)))
+            .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme });
         var account = group.MapGroup("/subscription").RequireAuthorization(
             new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme });
         account.MapGet("/", async (HttpContext context, NotificationService service, IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>

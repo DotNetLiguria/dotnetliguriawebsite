@@ -9,8 +9,10 @@ import { Avatar, btn, focusRing, linkFocus } from './ui';
 import CommandPalette from './CommandPalette';
 import { AdminToastRegion } from './toasts';
 import { clearPrivateBrowserState } from '../questionnaire/drafts';
+import { AccountCapabilities, useAccountCapabilities } from '../account/AccountCapabilities';
+import { accountReturnPath } from '../account/returnPath';
 
-interface NavItem { label: string; to: string; icon: AdminIconName; match: string[]; end?: boolean }
+interface NavItem { label: string; to: string; icon: AdminIconName; match: string[]; end?: boolean; permission?: 'feedbackAdmin' | 'backupAdmin' | 'privacy' }
 
 export const NAV: { group: string | null; items: NavItem[] }[] = [
   { group: null, items: [{ label: 'Panoramica', to: '/admin', icon: 'home', match: ['/admin'], end: true }] },
@@ -21,14 +23,19 @@ export const NAV: { group: string | null; items: NavItem[] }[] = [
   ] },
   { group: 'Community', items: [
     { label: 'Board', to: '/admin/board/', icon: 'users', match: ['/admin/board'] },
-    { label: 'Questionari', to: '/admin/questionnaires', icon: 'clipboard', match: ['/admin/questionnaires', '/admin/feedbacks'] },
+    { label: 'Questionari', to: '/admin/questionnaires', icon: 'clipboard', match: ['/admin/questionnaires', '/admin/feedbacks'], permission: 'feedbackAdmin' },
   ] },
   { group: 'Sito', items: [
     { label: 'Menu del sito', to: '/admin/topmenu/', icon: 'list', match: ['/admin/topmenu'] },
-    { label: 'Backup e import', to: '/admin/import-export/', icon: 'database', match: ['/admin/import-export', '/admin/downloads'] },
+    { label: 'Backup e import', to: '/admin/import-export/', icon: 'database', match: ['/admin/import-export', '/admin/downloads'], permission: 'backupAdmin' },
+    { label: 'Privacy e avvisi', to: '/admin/privacy', icon: 'user', match: ['/admin/privacy'], permission: 'privacy' },
   ] },
 ];
 const TABS = ['Panoramica', 'Eventi', 'Relatori'];
+
+const permitted = (item: NavItem, capabilities: AccountCapabilities) =>
+  !item.permission || (item.permission === 'privacy'
+    ? capabilities.privacyAdmin || capabilities.notificationAdmin : capabilities[item.permission]);
 
 const isActive = (item: NavItem, path: string) =>
   item.end ? path.replace(/\/+$/, '') === item.to : item.match.some(prefix => path.startsWith(prefix));
@@ -81,12 +88,12 @@ function ProfileMenu() {
           aria-label="Profilo"
           className="outline-none"
           onAction={key => {
-            if (key === 'profile') navigate('/admin/profile/');
+            if (key === 'profile') navigate('/area-personale');
             if (key === 'site') window.open('/', '_blank', 'noopener');
             if (key === 'logout') void signOut();
           }}
         >
-          <MenuItem id="profile" className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50"><AdminIcon name="user" className="size-5 text-muted" />Profilo</MenuItem>
+          <MenuItem id="profile" className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50"><AdminIcon name="user" className="size-5 text-muted" />Area personale</MenuItem>
           <MenuItem id="site" textValue="Vedi il sito" className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50"><AdminIcon name="external" className="size-5 text-muted" />Vedi il sito<span className="sr-only"> (si apre in una nuova scheda)</span></MenuItem>
           <MenuItem id="logout" className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 font-semibold text-[#b42318] outline-none data-[focused]:bg-[#fdecea]"><AdminIcon name="logout" />Esci</MenuItem>
         </Menu>
@@ -95,9 +102,9 @@ function ProfileMenu() {
   );
 }
 
-function MoreSheet({ isOpen, onOpenChange, path }: { isOpen: boolean; onOpenChange: (open: boolean) => void; path: string }) {
+function MoreSheet({ isOpen, onOpenChange, path, nav }: { isOpen: boolean; onOpenChange: (open: boolean) => void; path: string; nav: typeof NAV }) {
   const signOut = useSignOut();
-  const items = NAV.flatMap(g => g.items).filter(i => !TABS.includes(i.label));
+  const items = nav.flatMap(g => g.items).filter(i => !TABS.includes(i.label));
   return (
     <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable className="fixed inset-0 z-50 flex items-end bg-[rgb(0_36_69/0.42)] lg:hidden">
       <Modal className="w-full rounded-t-3xl bg-white text-navy shadow-lift">
@@ -108,6 +115,7 @@ function MoreSheet({ isOpen, onOpenChange, path }: { isOpen: boolean; onOpenChan
           </div>
           <ul className="grid gap-0.5 px-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {items.map(item => <li key={item.to}><NavLinkItem item={item} path={path} onNavigate={() => onOpenChange(false)} /></li>)}
+            <li><Link to="/area-personale" onClick={() => onOpenChange(false)} className={`flex min-h-11 items-center rounded-xl px-3 font-semibold ${linkFocus}`}>Area personale</Link></li>
             <li>
               <a href="/" target="_blank" rel="noopener noreferrer" className={`flex min-h-11 items-center gap-3 rounded-xl px-3 font-semibold text-navy/80 hover:bg-cyan-50 ${linkFocus}`}>
                 <AdminIcon name="external" />Vedi il sito<span className="sr-only"> (si apre in una nuova scheda)</span>
@@ -135,7 +143,7 @@ function SignIn() {
         <h1 className="mt-6 text-2xl font-bold">Area riservata</h1>
         <p className="mt-2 text-muted">Accedi per gestire account, consensi e privacy. Le funzioni di amministrazione richiedono ruoli specifici.</p>
         <div className="mt-6 flex flex-col items-center gap-3">
-          <Button onPress={() => login(location.pathname + location.search)} className={btn.primary}>Accedi</Button>
+          <Button onPress={() => login(accountReturnPath(location))} className={btn.primary}>Accedi</Button>
           <Link to="/" className={`inline-flex min-h-11 items-center font-semibold text-cyan-700 underline ${linkFocus}`}>Torna al sito</Link>
         </div>
       </div>
@@ -146,12 +154,13 @@ function SignIn() {
 /** Back-office shell: side menu, top bar with ⌘K search, phone tab bar. Pages render in the Outlet. */
 export default function AdminShell() {
   const { isAuthenticated } = useOidc();
+  const { status, capabilities, retry } = useAccountCapabilities();
   const { pathname } = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) return undefined;
+    if (!isAuthenticated || !capabilities?.websiteAdmin) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -160,12 +169,22 @@ export default function AdminShell() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, capabilities?.websiteAdmin]);
 
   if (!isAuthenticated) return <SignIn />;
+  if (status === 'loading' || status === 'anonymous') return <main className="p-8" role="status">Verifica dei permessi in corso…</main>;
+  if (status === 'error') return <main className="space-y-4 p-8 text-navy">
+    <h1 className="text-2xl font-bold">Permessi non disponibili</h1>
+    <p role="alert">Impossibile verificare l’accesso. Nessun dato amministrativo è stato caricato.</p>
+    <Button className={btn.primary} onPress={retry}>Riprova verifica permessi</Button>
+    <Link className={btn.secondary} to="/area-personale">Area personale</Link>
+  </main>;
+  if (!capabilities?.websiteAdmin) return <main><AccessDenied /></main>;
+  const nav = NAV.map(group => ({ ...group, items: group.items.filter(item => permitted(item, capabilities)) })).filter(group => group.items.length);
+  const restricted = NAV.flatMap(group => group.items).find(item => item.permission && isActive(item, pathname) && !permitted(item, capabilities));
 
-  const tabItems = NAV.flatMap(g => g.items).filter(i => TABS.includes(i.label));
-  const moreActive = NAV.flatMap(g => g.items).some(i => !TABS.includes(i.label) && isActive(i, pathname));
+  const tabItems = nav.flatMap(g => g.items).filter(i => TABS.includes(i.label));
+  const moreActive = nav.flatMap(g => g.items).some(i => !TABS.includes(i.label) && isActive(i, pathname));
 
   return (
     <div className="admin min-h-dvh bg-[#f3f7fa] text-navy antialiased selection:bg-cyan-200 selection:text-navy-950">
@@ -174,7 +193,7 @@ export default function AdminShell() {
         <aside className="hidden border-r border-line bg-white lg:flex lg:min-h-0 lg:flex-col" aria-label="Area amministrazione">
           <Link to="/admin" aria-label="DotNetLiguria, panoramica dell'amministrazione" className={`mx-5 mt-4 mb-2 inline-flex self-start rounded-lg ${linkFocus}`}><Logo className="h-12" /></Link>
           <nav aria-label="Sezioni" className="relative flex-1 overflow-y-auto px-3 pb-4">
-            {NAV.map(group => (
+            {nav.map(group => (
               <div key={group.group ?? 'main'} className="mt-4">
                 {group.group && <p className="px-3 pb-1 text-sm font-semibold text-muted">{group.group}</p>}
                 <ul className="space-y-0.5">{group.items.map(item => <li key={item.to}><NavLinkItem item={item} path={pathname} /></li>)}</ul>
@@ -200,7 +219,7 @@ export default function AdminShell() {
             </a>
           </header>
           <main id="contenuto-admin" tabIndex={-1} className="relative flex-1 px-4 pt-6 pb-28 outline-none lg:overflow-y-auto lg:px-8 lg:pt-8 lg:pb-12">
-            <div className="mx-auto max-w-[1200px]"><Outlet /></div>
+            <div className="mx-auto max-w-[1200px]">{restricted ? <AccessDenied /> : <Outlet />}</div>
           </main>
         </div>
       </div>
@@ -219,9 +238,18 @@ export default function AdminShell() {
         </Button>
       </nav>
 
-      <MoreSheet isOpen={moreOpen} onOpenChange={setMoreOpen} path={pathname} />
+      <MoreSheet isOpen={moreOpen} onOpenChange={setMoreOpen} path={pathname} nav={nav} />
       <CommandPalette isOpen={paletteOpen} onOpenChange={setPaletteOpen} />
       <AdminToastRegion />
     </div>
   );
+}
+
+function AccessDenied() {
+  return <section className="space-y-4 p-8 text-navy">
+    <h1 className="text-2xl font-bold">Accesso non autorizzato</h1>
+    <p>Il tuo account non dispone dei permessi per questa sezione.</p>
+    <Link to="/area-personale" className={btn.primary}>Vai all’area personale</Link>
+    <Link to="/" className={btn.secondary}>Torna al sito</Link>
+  </section>;
 }

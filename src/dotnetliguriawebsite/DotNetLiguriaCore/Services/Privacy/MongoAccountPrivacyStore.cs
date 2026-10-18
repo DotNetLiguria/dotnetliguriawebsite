@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using DotNetLiguriaCore.Services.Notifications;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -17,7 +18,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
         var known = new HashSet<string>(_options.AssessedNonAccountCollections, StringComparer.Ordinal)
         {
             _settings.QuestionnaireCollectionName, _settings.QuestionnaireResponseCollectionName,
-            "NotificationCampaigns"
+            "NotificationCampaigns", MongoConsentHistoryStore.CollectionName
         };
         using var names = await _database.ListCollectionNamesAsync(cancellationToken: cancellationToken);
         foreach (var name in await names.ToListAsync(cancellationToken))
@@ -62,6 +63,14 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
         });
         if (await Responses.Find(brokenReference).AnyAsync(cancellationToken))
             blockers.Add("unattributable_account_reference");
+        var invalidConsentAccount = new BsonDocument("$or", new BsonArray
+        {
+            new BsonDocument("AccountIssuer", new BsonDocument("$ne", _options.Issuer)),
+            new BsonDocument("AccountSubject", new BsonDocument("$not", new BsonDocument("$type", "string"))),
+            new BsonDocument("AccountSubject", "")
+        });
+        if (await Consents.Find(invalidConsentAccount).AnyAsync(cancellationToken))
+            blockers.Add("unattributable_consent_reference");
         using var authors = await Questionnaires.FindAsync(
             new BsonDocument("CreatedBy", new BsonDocument("$type", "string")), cancellationToken: cancellationToken);
         while (await authors.MoveNextAsync(cancellationToken))
@@ -85,6 +94,8 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
         var campaigns = await _database.GetCollection<BsonDocument>("NotificationCampaigns")
             .Find(new BsonDocument("CreatedBy", account.ActorKey)).Limit(1001).ToListAsync(cancellationToken);
         result.AddRange(campaigns.Select(document => new BsonDocument { { "kind", "campaign-metadata" }, { "document", document } }));
+        var consents = await Consents.Find(MongoConsentHistoryStore.AccountFilter(account)).Limit(1001).ToListAsync(cancellationToken);
+        result.AddRange(consents.Select(document => new BsonDocument { { "kind", "consent-history" }, { "document", document } }));
         if (result.Count > 1000) throw new PrivacyBlockedException("export_limit_exceeded");
         return result;
     }
@@ -106,13 +117,18 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
             }
         await _database.GetCollection<BsonDocument>("NotificationCampaigns")
             .DeleteManyAsync(new BsonDocument("CreatedBy", account.ActorKey), cancellationToken);
+        await Consents.DeleteManyAsync(MongoConsentHistoryStore.AccountFilter(account), cancellationToken);
         if (await Responses.Find(ResponseFilter(account)).AnyAsync(cancellationToken) ||
-            await Questionnaires.Find(new BsonDocument("CreatedBy", account.ActorKey)).AnyAsync(cancellationToken))
+            await Questionnaires.Find(new BsonDocument("CreatedBy", account.ActorKey)).AnyAsync(cancellationToken) ||
+            await Consents.Find(MongoConsentHistoryStore.AccountFilter(account)).AnyAsync(cancellationToken) ||
+            await _database.GetCollection<BsonDocument>("NotificationCampaigns")
+                .Find(new BsonDocument("CreatedBy", account.ActorKey)).AnyAsync(cancellationToken))
             throw new PrivacyBlockedException("application_erasure_not_verified");
     }
 
     private IMongoCollection<BsonDocument> Responses => _database.GetCollection<BsonDocument>(_settings.QuestionnaireResponseCollectionName);
     private IMongoCollection<BsonDocument> Questionnaires => _database.GetCollection<BsonDocument>(_settings.QuestionnaireCollectionName);
+    private IMongoCollection<BsonDocument> Consents => _database.GetCollection<BsonDocument>(MongoConsentHistoryStore.CollectionName);
 
     public static BsonDocument ResponseFilter(AccountReference account) => new("$or", new BsonArray
     {

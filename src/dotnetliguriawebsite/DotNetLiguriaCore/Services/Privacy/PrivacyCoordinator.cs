@@ -57,6 +57,36 @@ public sealed class PrivacyCoordinator(
         };
     }
 
+    public async Task<PersonalDataPage> DataAsync(AccountReference account, int offset, CancellationToken cancellationToken)
+    {
+        if (offset is < 0 or > 1000)
+            throw new PrivacyBlockedException("invalid_page_offset", StatusCodes.Status400BadRequest);
+        using var lease = await _gate.EnterAsync(cancellationToken);
+        var profile = await _identities.GetAsync(account, cancellationToken);
+        var documents = await _store.ExportAsync(account, cancellationToken);
+        var records = documents.Where(document => document["kind"].AsString != "consent-history")
+            .Select(ToPersonalRecord).OrderBy(record => record.Kind, StringComparer.Ordinal)
+            .ThenBy(record => record.Id, StringComparer.Ordinal).ToArray();
+        return new(profile is null ? null : new(profile.FirstName, profile.LastName, profile.Email, profile.EmailVerified),
+            records.Skip(offset).Take(50).ToArray(), records.Length > offset + 50,
+            "Sono mostrati solo dati attribuibili al tuo account. I dati legacy non attribuibili richiedono una verifica separata. " +
+            "L'esportazione contiene i dati completi, entro il limite di 1.000 record.");
+    }
+
+    private static PersonalDataRecord ToPersonalRecord(BsonDocument wrapper)
+    {
+        var document = wrapper["document"].AsBsonDocument;
+        var id = document.GetValue("_id", BsonNull.Value);
+        var title = document.GetValue("Title", BsonNull.Value);
+        var submitted = document.GetValue("SubmittedAt", BsonNull.Value);
+        var consent = document.GetValue("ConsentGiven", BsonNull.Value);
+        var version = document.GetValue("QuestionnaireVersion", BsonNull.Value);
+        return new(wrapper["kind"].AsString, id.IsBsonNull ? "" : id.ToString()!,
+            title.IsString ? title.AsString : null,
+            submitted.IsBsonDateTime ? new DateTimeOffset(submitted.ToUniversalTime()) : null,
+            consent.IsBoolean ? consent.AsBoolean : null, version.IsInt32 ? version.AsInt32 : null);
+    }
+
     public async Task<IReadOnlyList<string>> InspectAsync(AccountReference account, CancellationToken cancellationToken)
     {
         var policy = _retentionPolicy is null ? _options :
@@ -71,18 +101,18 @@ public sealed class PrivacyCoordinator(
         return blockers;
     }
 
-    public async Task EraseAsync(AccountReference account, CancellationToken cancellationToken)
+    public async Task<string> EraseAsync(AccountReference account, CancellationToken cancellationToken)
     {
         using var lease = await _gate.EnterAsync(cancellationToken);
-        await EraseUnderGateAsync(account, cancellationToken);
+        return await EraseUnderGateAsync(account, cancellationToken);
     }
 
-    public async Task ResumeAsync(string operationId, CancellationToken cancellationToken)
+    public async Task<string> ResumeAsync(string operationId, CancellationToken cancellationToken)
     {
         using var lease = await _gate.EnterAsync(cancellationToken);
         var operation = (await _journal.ListAsync(cancellationToken)).SingleOrDefault(item => item.Id == operationId)
             ?? throw new PrivacyBlockedException("operation_not_found", StatusCodes.Status404NotFound);
-        await EraseUnderGateAsync(operation.Account, cancellationToken);
+        return await EraseUnderGateAsync(operation.Account, cancellationToken);
     }
 
     public async Task ReconcileDeletedIdentityAsync(AccountReference account, CancellationToken cancellationToken)
@@ -95,7 +125,43 @@ public sealed class PrivacyCoordinator(
         await EraseUnderGateAsync(account, cancellationToken);
     }
 
-    private async Task EraseUnderGateAsync(AccountReference account, CancellationToken cancellationToken)
+    public async Task<AccountReference> IdentityForOperationAsync(string id, CancellationToken cancellationToken)
+    {
+        using var lease = await _gate.EnterAsync(cancellationToken);
+        return ((await _journal.ListAsync(cancellationToken)).SingleOrDefault(operation => operation.Id == id)
+            ?? throw new PrivacyBlockedException("operation_not_found", StatusCodes.Status404NotFound)).Account;
+    }
+
+    public async Task<IReadOnlyList<ErasureOperation>> OperationsAsync(CancellationToken cancellationToken)
+    {
+        using var lease = await _gate.EnterAsync(cancellationToken);
+        return await _journal.ListAsync(cancellationToken);
+    }
+
+    public async Task VerifyIdentityRemovalAsync(string id, CancellationToken cancellationToken)
+    {
+        using var lease = await _gate.EnterAsync(cancellationToken);
+        var operation = (await _journal.ListAsync(cancellationToken)).SingleOrDefault(item => item.Id == id)
+            ?? throw new PrivacyBlockedException("operation_not_found", StatusCodes.Status404NotFound);
+        if (await _identities.GetAsync(operation.Account, cancellationToken) is not null)
+            throw new PrivacyBlockedException("identity_must_already_be_deleted", StatusCodes.Status409Conflict);
+        await EraseUnderGateAsync(operation.Account, cancellationToken);
+    }
+
+    public async Task RetryNotificationAsync(string id, CancellationToken cancellationToken)
+    {
+        using var lease = await _gate.EnterAsync(cancellationToken);
+        var operation = (await _journal.ListAsync(cancellationToken)).SingleOrDefault(item => item.Id == id)
+            ?? throw new PrivacyBlockedException("operation_not_found", StatusCodes.Status404NotFound);
+        if (operation.Stage is not ("awaiting_manual_identity_removal" or "identity_verification_blocked"))
+            throw new PrivacyBlockedException("manual_removal_not_pending", StatusCodes.Status409Conflict);
+        await _journal.SaveAsync(operation with
+        {
+            NoticeStatus = "queued", NoticeAttempts = 0, NoticeNextAttemptAt = null, NoticeErrorCode = null, NoticeAttemptToken = null
+        }, cancellationToken);
+    }
+
+    private async Task<string> EraseUnderGateAsync(AccountReference account, CancellationToken cancellationToken)
     {
         if (account.Issuer != _options.Issuer)
             throw new PrivacyBlockedException("foreign_account_reference", StatusCodes.Status403Forbidden);
@@ -116,6 +182,8 @@ public sealed class PrivacyCoordinator(
         }
         // Last durable stage survives any failure. Retry repeats idempotent work, never claims a transaction.
         await _identities.DisableAsync(account, cancellationToken);
+        if (await _identities.GetAsync(account, cancellationToken) is { Enabled: true })
+            throw new PrivacyBlockedException("identity_disable_not_verified");
         operation = operation with { Stage = "identity_disabled" };
         await _journal.SaveAsync(operation, cancellationToken);
         await _store.EraseAsync(account, cancellationToken);
@@ -124,10 +192,51 @@ public sealed class PrivacyCoordinator(
         await _snapshots.PurgeForErasureUnderGateAsync(cancellationToken);
         operation = operation with { Stage = "snapshots_purged" };
         await _journal.SaveAsync(operation, cancellationToken);
-        await _identities.DeleteAsync(account, cancellationToken);
-        if (await _identities.GetAsync(account, cancellationToken) is not null)
-            throw new PrivacyBlockedException("identity_erasure_not_verified");
+        if (_options.AutomaticIdentityDeletion)
+        {
+            try
+            {
+                await _identities.DeleteAsync(account, cancellationToken);
+            }
+            catch (Exception exception) when (!cancellationToken.IsCancellationRequested &&
+                exception is (HttpRequestException or OperationCanceledException or PrivacyBlockedException { StatusCode: >= 500 }))
+            {
+                // A lost DELETE response is not proof of failure. Verify state before falling back.
+            }
+        }
+        IdentityAccount? remaining;
+        try
+        {
+            remaining = await _identities.GetAsync(account, cancellationToken);
+        }
+        catch (Exception exception) when (!cancellationToken.IsCancellationRequested &&
+            exception is (HttpRequestException or OperationCanceledException or PrivacyBlockedException { StatusCode: >= 500 }))
+        {
+            await _journal.SaveAsync(operation with
+            {
+                Stage = "identity_verification_blocked", NoticeStatus = "queued"
+            }, cancellationToken);
+            throw new PrivacyBlockedException("identity_disable_not_verified");
+        }
+        if (remaining is not null)
+        {
+            if (remaining.Enabled)
+            {
+                await _journal.SaveAsync(operation with
+                {
+                    Stage = "identity_verification_blocked", NoticeStatus = "queued"
+                }, cancellationToken);
+                throw new PrivacyBlockedException("identity_disable_not_verified");
+            }
+            await _journal.SaveAsync(operation with
+            {
+                Stage = "awaiting_manual_identity_removal",
+                NoticeStatus = operation.NoticeStatus == "not_required" ? "queued" : operation.NoticeStatus
+            }, cancellationToken);
+            return "awaiting_manual_identity_removal";
+        }
         // No completed subject hash, tombstone or per-user audit identifier survives completion.
         await _journal.RemoveAsync(operation, cancellationToken);
+        return "completed";
     }
 }
