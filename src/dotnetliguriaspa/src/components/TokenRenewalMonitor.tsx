@@ -23,7 +23,7 @@ export default function TokenRenewalMonitor() {
 
             renewalInProgress.current = true;
             void renewTokens()
-                .catch(error => console.error('Unable to renew the OIDC session after resuming the app.', error))
+                .catch(() => console.error('Unable to renew the OIDC session after resuming the app.'))
                 .finally(() => {
                     renewalInProgress.current = false;
                 });

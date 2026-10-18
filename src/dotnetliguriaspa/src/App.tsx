@@ -1,5 +1,5 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react';
-import { useOidc } from "@axa-fr/react-oidc";
+import React, { lazy, Suspense, useEffect, useRef } from 'react';
+import { useOidc, useOidcUser } from "@axa-fr/react-oidc";
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AdminShell from "./admin/AdminShell";
@@ -23,6 +23,7 @@ import EventCreatePage from "./admin/pages/EventCreatePage";
 import MenuPage from "./admin/pages/MenuPage";
 import PublicQuestionnaire from "./components/PublicQuestionnaire/PublicQuestionnaire";
 import LegacyRedirect from "./site/legacy/LegacyRedirect";
+import { clearPrivateBrowserState } from './questionnaire/drafts';
 
 // The questionnaire designer and results pull in dnd-kit and Recharts: load them on demand.
 const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
@@ -31,21 +32,17 @@ const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</
 
 function App() {
     const { isAuthenticated } = useOidc();
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [result, setResult] = useState("");
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [isError, setIsError] = useState(true);
+    const { oidcUser } = useOidcUser();
+    const account = isAuthenticated ? String(oidcUser?.sub ?? 'authenticated') : null;
+    const previousAccount = useRef(account);
 
     useEffect(() => {
-        if (!isAuthenticated) {
-            localStorage.removeItem("profileStore");
-        }
-    }, [isAuthenticated]);
+        clearPrivateBrowserState(previousAccount.current !== null && previousAccount.current !== account);
+        previousAccount.current = account;
+    }, [account]);
 
     return (
-        <div className="App">
+        <div key={account ?? 'anonymous'} className="App">
             <Routes>
                 {/* The shell asks unauthenticated visitors to sign in instead of rendering a blank page. */}
                 <Route element={<AdminShell />}>

@@ -414,10 +414,10 @@ describe('<QuestionnaireDesigner />', () => {
       const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
       serve(draft());
       renderDesigner();
-      await user.click(await screen.findByRole('radio', { name: /Identificati/ }));
+      await user.click(await screen.findByRole('radio', { name: /Autenticati/ }));
       expect(screen.getByRole('textbox', { name: /informativa privacy/ })).toHaveValue(DEFAULT_CONSENT_TEXT);
-      await user.click(screen.getByRole('switch', { name: 'Una sola risposta per indirizzo email' }));
-      expect(useDesignerStore.getState().questionnaire!.onePerEmail).toBe(true);
+      await user.click(screen.getByRole('switch', { name: 'Una sola risposta per account' }));
+      expect(useDesignerStore.getState().questionnaire!.onePerAccount).toBe(true);
 
       useDesignerStore.getState().load(draft({ responseCount: 2, status: 'Published' }));
       expect(await screen.findByRole('radio', { name: /Anonimi/ })).toBeDisabled();

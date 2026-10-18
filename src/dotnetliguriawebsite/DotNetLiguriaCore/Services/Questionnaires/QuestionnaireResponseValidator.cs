@@ -37,6 +37,11 @@ public static class QuestionnaireResponseValidator
     public static ResponseValidationResult Validate(Questionnaire questionnaire, SubmitQuestionnaireResponseRequest request)
     {
         var result = new ResponseValidationResult();
+        if (request.Answers is { Count: > 200 })
+        {
+            result.Errors.Add(new(null, "answers", "Troppe risposte."));
+            return result;
+        }
         ValidateRespondent(questionnaire, request, result);
 
         var questions = QuestionnaireRules.AllQuestions(questionnaire)
@@ -91,46 +96,11 @@ public static class QuestionnaireResponseValidator
     private static void ValidateRespondent(Questionnaire questionnaire, SubmitQuestionnaireResponseRequest request,
         ResponseValidationResult result)
     {
-        if (questionnaire.RespondentMode != RespondentMode.Identified)
-        {
-            return;
-        }
-
-        var respondent = request.Respondent ?? new Respondent();
-        var name = respondent.Name?.Trim();
-        var surname = respondent.Surname?.Trim();
-        var email = respondent.Email?.Trim();
-        CheckName(name, "respondent.name", "Il nome", result);
-        CheckName(surname, "respondent.surname", "Il cognome", result);
-        if (!QuestionnaireRules.IsValidEmail(email))
-        {
-            result.Errors.Add(new(null, "respondent.email", "Inserisci un indirizzo email valido."));
-        }
-
-        if (!string.IsNullOrWhiteSpace(questionnaire.ConsentText) && !request.ConsentGiven)
-        {
+        if (request.Respondent is not null)
+            result.Errors.Add(new(null, "respondent", "Non inviare dati personali: l'identità viene verificata tramite Keycloak."));
+        if (questionnaire.RespondentMode is RespondentMode.Authenticated or RespondentMode.Identified &&
+            !string.IsNullOrWhiteSpace(questionnaire.ConsentText) && !request.ConsentGiven)
             result.Errors.Add(new(null, "consentGiven", "È necessario accettare l'informativa."));
-        }
-
-        result.Respondent = new Respondent
-        {
-            Name = name,
-            Surname = surname,
-            Email = email,
-            EmailNormalized = QuestionnaireRules.NormalizeEmail(email),
-        };
-    }
-
-    private static void CheckName(string? value, string field, string label, ResponseValidationResult result)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            result.Errors.Add(new(null, field, $"{label} è obbligatorio."));
-        }
-        else if (value.Length > QuestionnaireRules.MaxNameLength)
-        {
-            result.Errors.Add(new(null, field, $"{label} non può superare {QuestionnaireRules.MaxNameLength} caratteri."));
-        }
     }
 
     private static QuestionAnswer? Sanitize(Question question, QuestionAnswer answer, out string? error)

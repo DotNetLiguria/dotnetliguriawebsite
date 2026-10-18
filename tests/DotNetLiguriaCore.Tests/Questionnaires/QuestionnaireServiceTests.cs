@@ -1,5 +1,6 @@
 using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services.Questionnaires;
+using DotNetLiguriaCore.Security;
 using Xunit;
 using static DotNetLiguriaCore.Tests.Questionnaires.QuestionnaireSamples;
 
@@ -79,25 +80,28 @@ public class QuestionnaireServiceTests
     }
 
     [Fact]
-    public async Task OnePerEmailRejectsSecondSubmissionCaseInsensitively()
+    public async Task OnePerAccountStoresOnlyVerifiedOpaqueIdentityAndRejectsDuplicates()
     {
         var id = await CreatePublishedAsync(Simple("q", QuestionType.ShortText), questionnaire =>
             {
-                questionnaire.RespondentMode = RespondentMode.Identified;
-                questionnaire.OnePerEmail = true;
+                questionnaire.RespondentMode = RespondentMode.Authenticated;
+                questionnaire.OnePerAccount = true;
             },
             TestContext.Current.CancellationToken);
-        SubmitQuestionnaireResponseRequest Request(string email) => new()
-        {
-            Respondent = new Respondent { Name = "Ada", Surname = "Lovelace", Email = email },
-        };
+        var account = new AccountIdentity("https://identity.example.test/realms/test", "synthetic-subject");
+        var anonymous = await _service.SubmitAsync(id, new(), TestContext.Current.CancellationToken);
+        var first = await _service.SubmitAsync(id, new(), TestContext.Current.CancellationToken, account);
+        var second = await _service.SubmitAsync(id, new(), TestContext.Current.CancellationToken, account);
 
-        var first = await _service.SubmitAsync(id, Request("ada@example.org"), TestContext.Current.CancellationToken);
-        var second = await _service.SubmitAsync(id, Request("ADA@Example.org"), TestContext.Current.CancellationToken);
-
+        Assert.Equal(QuestionnaireOperationStatus.Unauthorized, anonymous.Status);
         Assert.Equal(QuestionnaireOperationStatus.Ok, first.Status);
         Assert.Equal(QuestionnaireOperationStatus.Duplicate, second.Status);
-        Assert.Single(_store.Responses);
+        var response = Assert.Single(_store.Responses);
+        Assert.Null(response.Respondent);
+        Assert.Null(response.UniqueEmailKey);
+        Assert.Equal(account.Subject, response.AccountSubject);
+        Assert.Equal(account.Issuer, response.AccountIssuer);
+        Assert.NotNull(response.UniqueAccountKey);
     }
 
     [Fact]

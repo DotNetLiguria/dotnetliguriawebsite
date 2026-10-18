@@ -88,7 +88,7 @@ describe('validateResponse', () => {
       respondent: { name: 'Mario', surname: '', email: 'bad' },
       consentGiven: false,
     });
-    expect(errors.map(e => e.questionId ?? e.field)).toEqual(['respondent.surname', 'respondent.email', 'consentGiven', 'r', 'c', 'm']);
+    expect(errors.map(e => e.questionId ?? e.field)).toEqual(['consentGiven', 'r', 'c', 'm']);
   });
 
   it('builds a payload without hidden or empty answers', () => {
@@ -145,10 +145,18 @@ describe('factory', () => {
 
 describe('hasFeedbackAdmin', () => {
   it('accepts realm, client roles and claims', () => {
-    expect(hasFeedbackAdmin([{ realm_access: { roles: ['FeedbackAdmin'] } }])).toBe(true);
-    expect(hasFeedbackAdmin([{ resource_access: { spa: { roles: ['feedbackadmin'] } } }])).toBe(true);
+    expect(hasFeedbackAdmin([{ realm_access: { roles: ['feedbackadmin'] } }])).toBe(true);
+    expect(hasFeedbackAdmin([{ resource_access: { DotNetLiguriaCore: { roles: ['feedbackadmin'] } } }])).toBe(true);
     expect(hasFeedbackAdmin([null, { feedbackadmin: 'true' }])).toBe(true);
     expect(hasFeedbackAdmin([{ feedbackadmin: 'false', roles: ['member'] }])).toBe(false);
+  });
+  it.each([
+    { realm_access: { roles: ['FeedbackAdmin'] } },
+    { resource_access: { spa: { roles: ['feedbackadmin'] } } },
+    { roles: { nested: ['feedbackadmin'] } },
+    { feedbackadmin: 'yes' }, { feedbackadmin: 1 }, { FeedbackAdmin: true },
+  ])('rejects foreign-client, nested and loosely truthy privileges %j', payload => {
+    expect(hasFeedbackAdmin([payload])).toBe(false);
   });
 });
 

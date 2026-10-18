@@ -12,6 +12,7 @@ import TermsPage from './legal/TermsPage';
 import CookiePolicyPage from './legal/CookiePolicyPage';
 import PublicQuestionnaire from '../components/PublicQuestionnaire/PublicQuestionnaire';
 import type { Question, Questionnaire } from '../questionnaire/types';
+import { useOidc } from '@axa-fr/react-oidc';
 
 // axe on the rendered DOM (jsdom has no layout, so colour contrast is measured by Lighthouse instead, and the
 // desktop and phone navigations both exist here because CSS does not hide one of them).
@@ -90,13 +91,14 @@ describe('public pages pass axe', () => {
   });
 
   test('questionnaire with every question type, after a failed submission', async () => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     mockApi({ '/TopMenu': menu, '/PublicQuestionnaire/q1': { questionnaireId: 'q1', title: 'Feedback evento', availability: 'Open', questionnaire } });
     render(<Routes><Route path="/q/:questionnaireId" element={<PublicQuestionnaire />} /></Routes>, { route: '/q/q1' });
     await screen.findByRole('heading', { level: 1, name: 'Feedback evento' });
     await user.click(screen.getByRole('radio', { name: 'Altro' }));
     await user.click(screen.getByRole('button', { name: 'Invia' }));
-    await screen.findByText('Il nome è obbligatorio.');
+    await screen.findByText("È necessario accettare l'informativa.");
     await expectNoViolations();
   });
 

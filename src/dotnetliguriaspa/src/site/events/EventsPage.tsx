@@ -27,7 +27,7 @@ export default function EventsPage() {
       .then(data => setLoad({ state: 'ready', data }))
       .catch(error => {
         if (isAbortError(error)) return;
-        console.error('Events request failed:', error);
+        console.error('Events request failed.');
         setLoad({ state: 'error', message: error instanceof Error ? error.message : 'Errore di rete' });
       });
     return () => controller.abort();

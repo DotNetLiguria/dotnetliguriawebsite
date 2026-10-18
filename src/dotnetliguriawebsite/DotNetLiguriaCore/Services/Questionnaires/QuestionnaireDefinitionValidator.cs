@@ -25,9 +25,34 @@ public static class QuestionnaireDefinitionValidator
             errors.Add(new(null, "closesAt", "La data di chiusura deve seguire quella di apertura."));
         }
 
-        if (questionnaire.OnePerEmail && questionnaire.RespondentMode != RespondentMode.Identified)
+        if ((questionnaire.OnePerEmail || questionnaire.OnePerAccount) &&
+            questionnaire.RespondentMode == RespondentMode.Anonymous)
         {
-            errors.Add(new(null, "onePerEmail", "Una risposta per email richiede rispondenti identificati."));
+            errors.Add(new(null, "onePerEmail", "Una risposta per account richiede l'accesso con Keycloak."));
+        }
+        if (!Enum.IsDefined(questionnaire.RespondentMode))
+            errors.Add(new(null, "respondentMode", "Modalità rispondenti non valida."));
+        if (questionnaire.Sections is null || questionnaire.Sections.Any(section => section is null ||
+            section.Questions is null || section.Questions.Any(question => question is null ||
+                question.Settings is null || question.Options is null || question.Rows is null ||
+                question.Options.Any(option => option is null) || question.Rows.Any(row => row is null))))
+        {
+            errors.Add(new(null, "sections", "La struttura non può contenere valori nulli."));
+            return errors;
+        }
+        if (questionnaire.Sections.Count > 30 ||
+            questionnaire.Sections.Sum(section => section.Questions.Count) > 200)
+        {
+            errors.Add(new(null, "sections", "Massimo 30 sezioni e 200 domande."));
+            return errors;
+        }
+        foreach (var question in QuestionnaireRules.AllQuestions(questionnaire))
+        {
+            if (!Enum.IsDefined(question.Type) || question.Options.Count > 100 || question.Rows.Count > 50 ||
+                question.Title?.Length > 2000 || question.HelpText?.Length > 10000 ||
+                question.Options.Any(option => option.Label?.Length > 2000) ||
+                question.Rows.Any(row => row.Label?.Length > 2000))
+                errors.Add(new(question.Id, "definition", "Tipo, dimensioni o numero di opzioni non validi."));
         }
 
         CheckIdentifiers(questionnaire, errors);

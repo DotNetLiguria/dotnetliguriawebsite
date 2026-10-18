@@ -8,4 +8,5 @@ public enum QuestionnaireOperationStatus
     Conflict,
     Duplicate,
     Unavailable,
+    Unauthorized,
 }

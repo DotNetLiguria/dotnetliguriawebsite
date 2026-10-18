@@ -21,7 +21,7 @@ namespace DotNetLiguriaCore.Services
 		}
 
 		public async Task<List<Counter>> GetAsync() =>
-			await _counterCollection.Find(_ => true).ToListAsync();
+			await _counterCollection.Find(_ => true).ReadBoundedAsync();
 
 		public async Task<Counter?> GetAsync(Guid id) =>
 			await _counterCollection.Find(x => x.CounterId == id).FirstOrDefaultAsync();

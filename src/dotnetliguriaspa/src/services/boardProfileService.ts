@@ -17,7 +17,7 @@ export const getBoardProfiles = async (): Promise<BoardProfileModel[]> => {
     const boardProfiles: BoardProfileModel[] = await response.json();
     return boardProfiles;
   } catch (error) {
-    console.error("Error fetching user profiles:", error);
+    console.error("Error fetching board profiles.");
     throw error;
   }
 };
@@ -40,7 +40,7 @@ export const getActiveBoardProfiles = async (): Promise<
     const boardProfiles: BoardProfileModel[] = await response.json();
     return boardProfiles;
   } catch (error) {
-    console.error("Error fetching active board profiles:", error);
+    console.error("Error fetching active board profiles.");
     throw error;
   }
 };

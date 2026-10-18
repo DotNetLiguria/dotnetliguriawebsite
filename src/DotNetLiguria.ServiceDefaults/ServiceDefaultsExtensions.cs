@@ -22,16 +22,23 @@ public static class ServiceDefaultsExtensions
                 .AddHttpClientInstrumentation().AddRuntimeInstrumentation())
             .WithTracing(tracing => tracing.AddAspNetCoreInstrumentation(options =>
                 options.Filter = context => !context.Request.Path.StartsWithSegments("/health")
-                    && !context.Request.Path.StartsWithSegments("/alive"))
-                .AddHttpClientInstrumentation());
+                    && !context.Request.Path.StartsWithSegments("/alive")
+                    && !context.Request.Path.StartsWithSegments("/authentication")
+                    && !context.Request.Path.StartsWithSegments("/signin-oidc")
+                    && !context.Request.Path.StartsWithSegments("/api/Privacy")
+                    && !context.Request.Path.StartsWithSegments("/api/Notifications"))
+                .AddHttpClientInstrumentation(options => options.FilterHttpRequestMessage = request =>
+                    request.RequestUri is not { } uri ||
+                    (!uri.AbsolutePath.Contains("/realms/", StringComparison.Ordinal) &&
+                     !uri.AbsolutePath.Contains("/admin/", StringComparison.Ordinal))));
 
         if (!string.IsNullOrWhiteSpace(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
         {
             services.AddOpenTelemetry().UseOtlpExporter();
             services.AddLogging(logging => logging.AddOpenTelemetry(options =>
             {
-                options.IncludeFormattedMessage = true;
-                options.IncludeScopes = true;
+                options.IncludeFormattedMessage = false;
+                options.IncludeScopes = false;
             }));
         }
         return services;

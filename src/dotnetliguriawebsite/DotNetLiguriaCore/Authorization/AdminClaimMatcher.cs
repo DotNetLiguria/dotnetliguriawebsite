@@ -7,7 +7,7 @@ public static class AdminClaimMatcher
 {
     private static readonly string[] _flatRoleClaims = ["roles", "role", ClaimTypes.Role, "roles0", "roles1", "roles2"];
 
-    public static bool IsAuthorized(ClaimsPrincipal user, string? role, string? claim)
+    public static bool IsAuthorized(ClaimsPrincipal user, string? role, string? claim, string clientId = "DotNetLiguriaCore")
     {
         if (user.Identity?.IsAuthenticated != true)
         {
@@ -15,8 +15,8 @@ public static class AdminClaimMatcher
         }
 
         if (!string.IsNullOrWhiteSpace(claim) && user.Claims.Any(c =>
-                string.Equals(c.Type, claim, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(c.Value, "false", StringComparison.OrdinalIgnoreCase) && c.Value != "0"))
+                string.Equals(c.Type, claim, StringComparison.Ordinal) &&
+                string.Equals(c.Value, "true", StringComparison.Ordinal)))
         {
             return true;
         }
@@ -34,7 +34,7 @@ public static class AdminClaimMatcher
             }
 
             if ((userClaim.Type == "realm_access" || userClaim.Type == "resource_access") &&
-                JsonContainsRole(userClaim.Value, role))
+                StructuredRoleMatches(userClaim.Value, role, userClaim.Type == "resource_access" ? clientId : null))
             {
                 return true;
             }
@@ -51,15 +51,24 @@ public static class AdminClaimMatcher
             return JsonContainsRole(value, role);
         }
 
-        return string.Equals(value, role, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(value, role, StringComparison.Ordinal);
     }
 
-    private static bool JsonContainsRole(string json, string role)
+    private static bool StructuredRoleMatches(string json, string role, string? clientId)
     {
         try
         {
             using var document = JsonDocument.Parse(json);
-            return ElementContainsRole(document.RootElement, role, 0);
+            var element = document.RootElement;
+            if (element.ValueKind != JsonValueKind.Object)
+                return false;
+            if (clientId is not null &&
+                (!element.TryGetProperty(clientId, out element) || element.ValueKind != JsonValueKind.Object))
+                return false;
+            return element.TryGetProperty("roles", out var roles) &&
+                roles.ValueKind == JsonValueKind.Array &&
+                roles.EnumerateArray().Any(value => value.ValueKind == JsonValueKind.String &&
+                    string.Equals(value.GetString(), role, StringComparison.Ordinal));
         }
         catch (JsonException)
         {
@@ -67,20 +76,19 @@ public static class AdminClaimMatcher
         }
     }
 
-    private static bool ElementContainsRole(JsonElement element, string role, int depth)
+    private static bool JsonContainsRole(string json, string role)
     {
-        if (depth > 4)
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.ValueKind == JsonValueKind.Array &&
+                document.RootElement.EnumerateArray().Any(value => value.ValueKind == JsonValueKind.String &&
+                    string.Equals(value.GetString(), role, StringComparison.Ordinal));
+        }
+        catch (JsonException)
         {
             return false;
         }
-
-        return element.ValueKind switch
-        {
-            JsonValueKind.String => string.Equals(element.GetString(), role, StringComparison.OrdinalIgnoreCase),
-            JsonValueKind.Array => element.EnumerateArray().Any(e => ElementContainsRole(e, role, depth + 1)),
-            JsonValueKind.Object => element.EnumerateObject().Any(p => p.Value.ValueKind != JsonValueKind.String &&
-                ElementContainsRole(p.Value, role, depth + 1)),
-            _ => false,
-        };
     }
+
 }

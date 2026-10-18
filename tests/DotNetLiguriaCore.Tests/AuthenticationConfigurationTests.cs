@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
 namespace DotNetLiguriaCore.Tests;
@@ -23,6 +24,7 @@ public class AuthenticationConfigurationTests
             .Get(JwtBearerDefaults.AuthenticationScheme);
 
         Assert.False(options.MapInboundClaims);
+        Assert.True(options.RequireHttpsMetadata);
         Assert.False(options.UseSecurityTokenValidators);
         var handler = Assert.IsType<JsonWebTokenHandler>(Assert.Single(options.TokenHandlers));
         Assert.False(handler.MapInboundClaims);
@@ -51,12 +53,44 @@ public class AuthenticationConfigurationTests
         Assert.Equal(CookieSecurePolicy.Always, cookie.Cookie.SecurePolicy);
         Assert.Equal(SameSiteMode.None, cookie.Cookie.SameSite);
         Assert.True(oidc.UsePkce);
+        Assert.True(oidc.RequireHttpsMetadata);
         Assert.True(oidc.SaveTokens);
         Assert.False(oidc.MapInboundClaims);
         Assert.Equal("code", oidc.ResponseType);
         Assert.Equal("/signin-oidc", oidc.CallbackPath.Value);
         Assert.Equal("/signout-remote/", oidc.RemoteSignOutPath.Value);
         Assert.Equal(PushedAuthorizationBehavior.Disable, oidc.PushedAuthorizationBehavior);
+    }
+
+    [Theory]
+    [InlineData("valid", true)]
+    [InlineData("wrong-issuer", false)]
+    [InlineData("wrong-audience", false)]
+    [InlineData("expired", false)]
+    [InlineData("unsigned", false)]
+    [InlineData("wrong-signature", false)]
+    public async Task JwtValidationRejectsSyntheticTokenAttacksWithoutMetadataNetwork(string scenario, bool valid)
+    {
+        using var provider = CreateProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<JwtBearerOptions>>()
+            .Get(JwtBearerDefaults.AuthenticationScheme);
+        var key = new SymmetricSecurityKey(Enumerable.Repeat((byte)42, 32).ToArray());
+        var wrongKey = new SymmetricSecurityKey(Enumerable.Repeat((byte)43, 32).ToArray());
+        var parameters = options.TokenValidationParameters.Clone();
+        parameters.ValidIssuer = options.Authority;
+        parameters.IssuerSigningKey = key;
+        var handler = new JsonWebTokenHandler();
+        var token = handler.CreateToken(new SecurityTokenDescriptor
+        {
+            Issuer = scenario == "wrong-issuer" ? "https://foreign.example.test/" : options.Authority,
+            Audience = scenario == "wrong-audience" ? "foreign-audience" : options.Audience,
+            IssuedAt = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            NotBefore = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            Expires = new DateTime(scenario == "expired" ? 2001 : 2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            SigningCredentials = scenario == "unsigned" ? null :
+                new SigningCredentials(scenario == "wrong-signature" ? wrongKey : key, SecurityAlgorithms.HmacSha256),
+        });
+        Assert.Equal(valid, (await handler.ValidateTokenAsync(token, parameters)).IsValid);
     }
 
     private static ServiceProvider CreateProvider()

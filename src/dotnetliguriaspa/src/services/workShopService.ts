@@ -20,7 +20,7 @@ export const getWorkshops = async (): Promise<WorkshopModel[]> => {
     const boardProfiles: WorkshopModel[] = await response.json();
     return boardProfiles;
   } catch (error) {
-    console.error("Error fetching user profiles:", error);
+    console.error("Error fetching workshops.");
     throw error;
   }
 };
@@ -44,7 +44,7 @@ export const getWorkshopById = async (id: string): Promise<WorkshopModel> => {
     const workshop: WorkshopModel = await response.json();
     return workshop;
   } catch (error) {
-    console.error("Error fetching workshop:", error);
+    console.error("Error fetching workshop.");
     throw error;
   }
 };
@@ -70,7 +70,7 @@ export const getWorkshopsByYear = async (
     const workshops: WorkshopModel[] = await response.json();
     return workshops;
   } catch (error) {
-    console.error("Error fetching workshops by year:", error);
+    console.error("Error fetching workshops by year.");
     throw error;
   }
 };

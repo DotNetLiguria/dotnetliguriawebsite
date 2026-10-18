@@ -8,6 +8,7 @@ import { AdminIcon, AdminIconName } from './icons';
 import { Avatar, btn, focusRing, linkFocus } from './ui';
 import CommandPalette from './CommandPalette';
 import { AdminToastRegion } from './toasts';
+import { clearPrivateBrowserState } from '../questionnaire/drafts';
 
 interface NavItem { label: string; to: string; icon: AdminIconName; match: string[]; end?: boolean }
 
@@ -54,8 +55,8 @@ function useSignOut() {
   const { logout } = useOidc();
   const navigate = useNavigate();
   return async () => {
+    clearPrivateBrowserState();
     await logout();
-    localStorage.removeItem('profileStore');
     navigate('/');
   };
 }
@@ -132,7 +133,7 @@ function SignIn() {
       <div className="w-full max-w-md rounded-3xl border border-line bg-white p-8 text-center">
         <Logo className="mx-auto h-16" />
         <h1 className="mt-6 text-2xl font-bold">Area riservata</h1>
-        <p className="mt-2 text-muted">L'amministrazione del sito è per il board di DotNetLiguria. Accedi con il tuo account per continuare.</p>
+        <p className="mt-2 text-muted">Accedi per gestire account, consensi e privacy. Le funzioni di amministrazione richiedono ruoli specifici.</p>
         <div className="mt-6 flex flex-col items-center gap-3">
           <Button onPress={() => login(location.pathname + location.search)} className={btn.primary}>Accedi</Button>
           <Link to="/" className={`inline-flex min-h-11 items-center font-semibold text-cyan-700 underline ${linkFocus}`}>Torna al sito</Link>

@@ -12,13 +12,9 @@ const axiosClient = (token: string | null = null): AxiosInstance => {
     withCredentials: false,
   });
 
-  /* eslint-disable  @typescript-eslint/no-explicit-any */
-  client.interceptors.request.use((config: any) => {
-    // Priority: 1. Use token from localStorage, 2. Use token passed to function
-    const storedToken = localStorage.getItem("ACCESS_TOKEN");
-    const tokenToUse = storedToken || token;
+  client.interceptors.request.use(config => {
+    const tokenToUse = token;
 
-    config.headers = config.headers || {};
     if (tokenToUse) {
       config.headers.Authorization = `Bearer ${tokenToUse}`;
     }
@@ -35,8 +31,8 @@ const axiosClient = (token: string | null = null): AxiosInstance => {
         if (response?.status === 401) {
           localStorage.removeItem("ACCESS_TOKEN");
         }
-      } catch (e) {
-        console.error(e);
+      } catch {
+        console.error('Impossibile cancellare il token legacy dal browser.');
       }
       throw error;
     }

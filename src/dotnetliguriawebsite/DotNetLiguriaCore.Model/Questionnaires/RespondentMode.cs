@@ -7,4 +7,5 @@ public enum RespondentMode
 {
     Anonymous,
     Identified,
+    Authenticated,
 }

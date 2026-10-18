@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Security;
 
 namespace DotNetLiguriaCore.Services.Questionnaires;
 
@@ -9,12 +10,16 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
 
     private DateTime UtcNow => timeProvider.GetUtcNow().UtcDateTime;
 
-    public async Task<List<QuestionnaireSummary>> ListAsync(CancellationToken cancellationToken = default)
+    public async Task<List<QuestionnaireSummary>> ListAsync(CancellationToken cancellationToken = default, CollectionWindow? page = null)
     {
-        var questionnaires = await store.ListAsync(cancellationToken);
-        var counts = await store.CountResponsesAsync(cancellationToken);
-        return questionnaires.Select(q => new QuestionnaireSummary
+        var questionnaires = await store.ListAsync(cancellationToken, page);
+        var counts = await store.CountResponsesAsync(cancellationToken,
+            questionnaires.Select(q => q.QuestionnaireId).ToArray());
+        var summaries = new List<QuestionnaireSummary>();
+        foreach (var q in questionnaires)
         {
+            summaries.Add(new QuestionnaireSummary
+            {
             QuestionnaireId = q.QuestionnaireId,
             Title = q.Title,
             Status = q.Status,
@@ -24,7 +29,9 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
             ResponseCount = counts.GetValueOrDefault(q.QuestionnaireId),
             UpdatedAt = q.UpdatedAt,
             Origin = q.Origin,
-        }).ToList();
+            });
+        }
+        return summaries;
     }
 
     public async Task<Questionnaire?> GetAsync(Guid id, CancellationToken cancellationToken = default)
@@ -38,8 +45,9 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
         return questionnaire;
     }
 
-    public async Task<List<Questionnaire>> GetByWorkshopAsync(Guid workshopId, CancellationToken cancellationToken = default) =>
-        await store.GetByWorkshopAsync(workshopId, cancellationToken);
+    public async Task<List<Questionnaire>> GetByWorkshopAsync(Guid workshopId, CancellationToken cancellationToken = default,
+        CollectionWindow? page = null) =>
+        await store.GetByWorkshopAsync(workshopId, cancellationToken, page);
 
     public async Task<Questionnaire> CreateAsync(CreateQuestionnaireRequest request, Workshop? workshop, string? user,
         CancellationToken cancellationToken = default)
@@ -197,10 +205,11 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
             : QuestionnaireStatisticsCalculator.Calculate(questionnaire, await store.GetResponsesAsync(id, cancellationToken));
     }
 
-    public async Task<List<QuestionnaireResponse>?> GetResponsesAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<List<QuestionnaireResponse>?> GetResponsesAsync(Guid id, CancellationToken cancellationToken = default,
+        CollectionWindow? page = null)
     {
         var questionnaire = await store.GetAsync(id, cancellationToken);
-        return questionnaire is null ? null : await store.GetResponsesAsync(id, cancellationToken);
+        return questionnaire is null ? null : await store.GetResponsesAsync(id, cancellationToken, page);
     }
 
     public Task<bool> DeleteResponseAsync(Guid id, Guid responseId, CancellationToken cancellationToken = default) =>
@@ -236,7 +245,7 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
     }
 
     public async Task<QuestionnaireOperationResult<Guid>> SubmitAsync(Guid id, SubmitQuestionnaireResponseRequest request,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, AccountIdentity? account = null)
     {
         // Honeypot: bots get a success response but nothing is stored.
         if (!string.IsNullOrWhiteSpace(request.Website))
@@ -255,6 +264,10 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
             return QuestionnaireOperationResult<Guid>.Fail(QuestionnaireOperationStatus.Unavailable,
                 "Il questionario non accetta risposte in questo momento.");
         }
+        var requiresAccount = questionnaire.RespondentMode is RespondentMode.Identified or RespondentMode.Authenticated;
+        if (requiresAccount && account is null)
+            return QuestionnaireOperationResult<Guid>.Fail(QuestionnaireOperationStatus.Unauthorized,
+                "Accedi con Keycloak per compilare questo questionario.");
 
         var validation = QuestionnaireResponseValidator.Validate(questionnaire, request);
         if (!validation.IsValid)
@@ -269,16 +282,18 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
             QuestionnaireId = questionnaire.QuestionnaireId,
             QuestionnaireVersion = questionnaire.Version,
             SubmittedAt = UtcNow,
-            Respondent = validation.Respondent,
+            AccountIssuer = requiresAccount ? account?.Issuer : null,
+            AccountSubject = requiresAccount ? account?.Subject : null,
             ConsentGiven = request.ConsentGiven,
             Answers = validation.Answers,
             Source = ResponseSource.Web,
         };
 
-        if (questionnaire.OnePerEmail && validation.Respondent?.EmailNormalized is { } email)
+        if ((questionnaire.OnePerEmail || questionnaire.OnePerAccount) && requiresAccount && account is not null)
         {
-            response.UniqueEmailKey = $"{questionnaire.QuestionnaireId:N}|{email}";
-            if (await store.HasResponseFromAsync(questionnaire.QuestionnaireId, response.UniqueEmailKey, cancellationToken))
+            response.UniqueAccountKey = JsonSerializer.Serialize(new[] { questionnaire.QuestionnaireId.ToString("N"),
+                account.Issuer, account.Subject });
+            if (await store.HasResponseFromAsync(questionnaire.QuestionnaireId, response.UniqueAccountKey, cancellationToken))
             {
                 return Duplicate();
             }
@@ -289,7 +304,7 @@ public class QuestionnaireService(IQuestionnaireStore store, TimeProvider timePr
             : Duplicate();
 
         static QuestionnaireOperationResult<Guid> Duplicate() => QuestionnaireOperationResult<Guid>.Fail(
-            QuestionnaireOperationStatus.Duplicate, "Hai già compilato questo questionario con questo indirizzo email.");
+            QuestionnaireOperationStatus.Duplicate, "Hai già compilato questo questionario con questo account.");
     }
 
     private PublicQuestionnaireView ToPublicView(Questionnaire questionnaire)

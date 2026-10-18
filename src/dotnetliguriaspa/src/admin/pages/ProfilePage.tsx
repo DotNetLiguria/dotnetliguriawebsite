@@ -1,104 +1,151 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Checkbox, Form } from 'react-aria-components';
-import { useOidcUser } from '@axa-fr/react-oidc';
-import { AdminIcon } from '../icons';
-import { PageHeader, Panel, TextInput, btn, focusRing, linkFocus } from '../ui';
+import { Button } from 'react-aria-components';
+import { useOidc, useOidcFetch, useOidcUser } from '@axa-fr/react-oidc';
+import { PageHeader, Panel, TextInput, btn } from '../ui';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
+import { API_BASE_URL } from '../../config/apiConfig';
+import { clearPrivateBrowserState } from '../../questionnaire/drafts';
+import PrivacyAdministration from './PrivacyAdministration';
 
-// The old form posted these fields as Keycloak account attributes (d_city, d_prov, d_factory_*, d_social_*,
-// d_consent, d_privacy_consent) to an unrelated server. Saving them needs a real backend/Keycloak integration:
-// until then the form is complete but marked "da completare" and does not send anything.
-type Extra = {
-  city: string; prov: string;
-  factory: string; factoryRole: string; factoryCity: string; factoryProv: string;
-  twitter: string; linkedin: string; github: string;
-  consentData: boolean; consentPrivacy: boolean;
+type Subscription = { version: string; monthlyUpcomingEvents: boolean; eventAnnouncements: boolean };
+const messages: Record<string, string> = {
+  recent_mfa_required: 'È richiesta una verifica MFA recente. Verifica MFA e conferma di nuovo.',
+  erasure_preflight_blocked: 'Cancellazione bloccata: dati o regole di conservazione richiedono un intervento amministrativo.',
+  identity_admin_not_configured: 'Il collegamento amministrativo a Keycloak non è configurato.',
+  protected_storage_not_approved: 'Le protezioni dello storage non sono ancora approvate.',
+  external_copies_erasure_not_approved: 'La cancellazione delle copie esterne non è ancora approvata.',
+  privacy_dependency_unavailable: 'Operazione incompleta: servizio non disponibile. Riprova o richiedi assistenza.',
+  notification_dispatch_unavailable_no_approved_provider: 'Preparazione confermata, ma nessun messaggio è stato inviato: manca un fornitore approvato.',
 };
-const EMPTY: Extra = { city: '', prov: '', factory: '', factoryRole: '', factoryCity: '', factoryProv: '', twitter: '', linkedin: '', github: '', consentData: false, consentPrivacy: false };
-
-const url = (value: string) => (!value.trim() || /^https?:\/\/\S+$/i.test(value.trim()) ? null : 'Inserisci un indirizzo completo che inizi con https://');
-
-function Consent({ isSelected, onChange, children }: { isSelected: boolean; onChange: (v: boolean) => void; children: React.ReactNode }) {
-  return (
-    <Checkbox isSelected={isSelected} onChange={onChange} className={`group flex cursor-pointer items-start gap-3 rounded-xl py-1.5 ${focusRing}`}>
-      <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border-2 border-navy bg-white text-white group-data-[selected]:bg-navy">
-        <AdminIcon name="check" className="size-4 opacity-0 group-data-[selected]:opacity-100" />
-      </span>
-      <span>{children}</span>
-    </Checkbox>
-  );
-}
 
 export default function ProfilePage() {
   const { oidcUser } = useOidcUser();
-  const [extra, setExtra] = useState<Extra>(EMPTY);
-  const set = <K extends keyof Extra>(key: K) => (value: Extra[K]) => setExtra(e => ({ ...e, [key]: value }));
+  const { login, logout } = useOidc();
+  const { fetch: authenticatedFetch } = useOidcFetch();
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [status, setStatus] = useState('Caricamento dello stato privacy…');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [acknowledged, setAcknowledged] = useState(false);
   const account = `${getOidcPublicSettings().authority.replace(/\/+$/, '')}/account`;
-  const given = String(oidcUser?.given_name ?? '');
-  const family = String(oidcUser?.family_name ?? '');
-  const email = String(oidcUser?.email ?? '');
 
-  return (
-    <>
-      <PageHeader title="Profilo" description="I tuoi dati nell'area riservata di DotNetLiguria." />
+  const request = useCallback(async (path: string, init?: RequestInit) => {
+    const response = await authenticatedFetch(`${API_BASE_URL}/${path}`, { cache: 'no-store', ...init });
+    if (!response.ok) {
+      let code: string;
+      try { code = (await response.json() as { code?: string }).code ?? ''; }
+      catch { code = ''; }
+      throw new Error(response.status === 401 ? 'Accedi di nuovo al tuo account.'
+        : messages[code] ?? (response.status === 403 ? 'Operazione non autorizzata.'
+          : `Operazione non completata (${response.status}). Riprova o richiedi assistenza.`));
+    }
+    return response;
+  }, [authenticatedFetch]);
 
-      <div role="status" className="mt-6 flex flex-wrap items-start gap-3 rounded-2xl bg-[#fff4e5] p-5 text-[#8a4b00]">
-        <AdminIcon name="todo" className="mt-0.5 size-6" />
-        <div className="min-w-0 flex-1">
-          <p className="font-bold">Salvataggio da completare</p>
-          <p>Il modulo non invia ancora i dati: manca il collegamento con gli attributi dell'account Keycloak. Nome, email e password li cambi già dalla console del tuo account.</p>
+  const load = useCallback(async () => {
+    await Promise.all([
+      request('privacy/status').then(response => response.json()).then((value: { status: string }) => {
+        setStatus(value.status === 'no_pending_request' ? 'Nessuna richiesta pendente.'
+          : `Richiesta non conclusa (${value.status}). Rivolgiti a un amministratore per il recupero.`);
+      }),
+      request('notifications/subscription/').then(response => response.json()).then(setSubscription),
+    ]);
+  }, [request]);
+
+  useEffect(() => {
+    let active = true;
+    load().catch(() => { if (active) setError('Impossibile caricare stato privacy o consensi. Riprova o richiedi assistenza.'); });
+    return () => { active = false; };
+  }, [load]);
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true); setError(''); setMessage('');
+    try { await action(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Operazione non completata. Richiedi assistenza.'); }
+    finally { setBusy(false); }
+  };
+  const subscribe = (purpose: string, optIn: boolean) => run(async () => {
+    if (!subscription) throw new Error('Consensi non disponibili.');
+    await request('notifications/subscription/', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ purpose, version: subscription.version, optIn }),
+    });
+    await load();
+    setMessage(optIn ? 'Iscrizione registrata in Keycloak.' : 'Iscrizione revocata.');
+  });
+  const exportData = () => run(async () => {
+    const response = await request('privacy/export');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = 'dotnetliguria-dati-personali.json';
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setMessage('Esportazione scaricata: contiene dati personali. Conservala e cancellala in modo sicuro.');
+  });
+  const erase = () => run(async () => {
+    await request('privacy/erase', { method: 'POST', headers: { 'X-Confirm-Erasure': 'erase-my-account' } });
+    clearPrivateBrowserState();
+    setMessage('Cancellazione completata.');
+    try { await logout('/'); }
+    catch { setMessage('Cancellazione completata. La chiusura della sessione non è riuscita: chiudi la scheda.'); }
+  });
+
+  return <>
+    <PageHeader title="Profilo" description="Account, consensi e diritti privacy." />
+    {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
+    {message && <p role="status" className="mt-4 rounded-xl bg-cyan-50 p-4">{message}</p>}
+    <div className="mt-6 grid gap-6">
+      <Panel labelledBy="profile-account" className="space-y-4 p-6">
+        <h2 id="profile-account" className="text-lg font-bold">Account Keycloak</h2>
+        <p>Nome, cognome ed email dell'account restano in Keycloak. Il sito non raccoglie dati aggiuntivi sul profilo.</p>
+        <TextInput label="Nome" value={String(oidcUser?.given_name ?? '')} isReadOnly />
+        <TextInput label="Cognome" value={String(oidcUser?.family_name ?? '')} isReadOnly />
+        <TextInput label="Email" value={String(oidcUser?.email ?? '')} isReadOnly />
+        <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Apri il tuo account (nuova scheda)</a>
+      </Panel>
+      <Panel labelledBy="profile-notifications" className="space-y-4 p-6">
+        <h2 id="profile-notifications" className="text-lg font-bold">Avvisi sugli eventi</h2>
+        <p>Consenso facoltativo e separato dai questionari; richiede email verificata.
+          Versione dell'informativa: {subscription?.version ?? 'non disponibile'}.
+          Nessun servizio di invio è attualmente configurato.</p>
+        <Link className="font-bold underline" to="/privacy">Leggi l'informativa sulla privacy</Link>
+        <div className="flex flex-wrap gap-3">
+          <Button className={btn.secondary} isDisabled={busy || !subscription}
+            onPress={() => void subscribe('monthly-upcoming-events', !subscription?.monthlyUpcomingEvents)}>
+            {subscription?.monthlyUpcomingEvents ? 'Revoca riepilogo mensile' : 'Iscriviti al riepilogo mensile'}
+          </Button>
+          <Button className={btn.secondary} isDisabled={busy || !subscription}
+            onPress={() => void subscribe('event-announcements', !subscription?.eventAnnouncements)}>
+            {subscription?.eventAnnouncements ? 'Revoca annunci eventi' : 'Iscriviti agli annunci eventi'}
+          </Button>
         </div>
-        <a href={account} target="_blank" rel="noopener noreferrer" className={`${btn.secondary} border-[#8a4b00] text-[#8a4b00] hover:bg-[#8a4b00] hover:text-white`}>
-          <AdminIcon name="external" />Apri il tuo account<span className="sr-only"> (si apre in una nuova scheda)</span>
-        </a>
-      </div>
-
-      <Form className="mt-6 grid items-start gap-5 xl:grid-cols-2" onSubmit={e => e.preventDefault()}>
-        <Panel labelledBy="p-you" className="space-y-4 p-5 sm:p-6">
-          <h2 id="p-you" className="text-lg font-bold">I tuoi dati</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Nome" value={given} isReadOnly description="Dall'account" />
-            <TextInput label="Cognome" value={family} isReadOnly description="Dall'account" />
-          </div>
-          <TextInput label="Email" value={email} isReadOnly type="email" description="Si cambia dalla console dell'account." />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Città" value={extra.city} onChange={set('city')} />
-            <TextInput label="Provincia" value={extra.prov} onChange={set('prov')} />
-          </div>
-        </Panel>
-
-        <Panel labelledBy="p-work" className="space-y-4 p-5 sm:p-6">
-          <h2 id="p-work" className="text-lg font-bold">Azienda</h2>
-          <p className="text-sm text-muted">Resta nell'area riservata: il sito non mostra mai l'azienda dei partecipanti.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <TextInput label="Azienda" value={extra.factory} onChange={set('factory')} />
-            <TextInput label="Ruolo" value={extra.factoryRole} onChange={set('factoryRole')} />
-            <TextInput label="Città" value={extra.factoryCity} onChange={set('factoryCity')} />
-            <TextInput label="Provincia" value={extra.factoryProv} onChange={set('factoryProv')} />
-          </div>
-        </Panel>
-
-        <Panel labelledBy="p-social" className="space-y-4 p-5 sm:p-6">
-          <h2 id="p-social" className="text-lg font-bold">Social</h2>
-          <TextInput label="X / Twitter" type="url" value={extra.twitter} onChange={set('twitter')} placeholder="https://x.com/…" validate={url} />
-          <TextInput label="LinkedIn" type="url" value={extra.linkedin} onChange={set('linkedin')} placeholder="https://www.linkedin.com/in/…" validate={url} />
-          <TextInput label="GitHub" type="url" value={extra.github} onChange={set('github')} placeholder="https://github.com/…" validate={url} />
-        </Panel>
-
-        <Panel labelledBy="p-consent" className="space-y-3 p-5 sm:p-6">
-          <h2 id="p-consent" className="text-lg font-bold">Consensi</h2>
-          <Consent isSelected={extra.consentData} onChange={set('consentData')}>Acconsento al trattamento dei miei dati per le attività della community.</Consent>
-          <Consent isSelected={extra.consentPrivacy} onChange={set('consentPrivacy')}>
-            Ho letto l'<Link to="/privacy" target="_blank" className={`font-bold text-cyan-700 underline ${linkFocus}`}>informativa sulla privacy<span className="sr-only"> (si apre in una nuova scheda)</span></Link>.
-          </Consent>
-        </Panel>
-
-        <div className="flex flex-wrap items-center justify-end gap-3 xl:col-span-2">
-          <span className="text-sm text-muted">Il salvataggio arriverà con il collegamento all'account.</span>
-          <Button type="submit" isDisabled className={btn.primary}>Salva (da completare)</Button>
-        </div>
-      </Form>
-    </>
-  );
+      </Panel>
+      <Panel labelledBy="profile-privacy" className="space-y-4 p-6">
+        <h2 id="profile-privacy" className="text-lg font-bold">Dati personali e cancellazione</h2>
+        <p>{status}</p>
+        <p>L'esportazione è personale e può contenere risposte sensibili. I dati legacy non attribuibili
+          richiedono una verifica separata: un export non dimostra l'assenza di altri dati.</p>
+        <Button className={btn.secondary} isDisabled={busy} onPress={() => void exportData()}>Esporta i miei dati</Button>
+        <p>La cancellazione è irreversibile: elimina il profilo Keycloak, le tue risposte e i questionari
+          che hai creato, comprese tutte le risposte di altre persone a quei questionari.
+          Le copie di sicurezza interessate vengono eliminate. Dati non attribuibili, configurazioni
+          non sicure o copie esterne non verificate bloccano il completamento.</p>
+        <Button className={btn.secondary} isDisabled={busy}
+          onPress={() => void login(window.location.pathname, { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
+          Verifica MFA per la cancellazione
+        </Button>
+        <label className="flex gap-3"><input type="checkbox" checked={acknowledged}
+          onChange={event => setAcknowledged(event.target.checked)} />
+          Ho compreso l'eliminazione irreversibile dei questionari creati e di tutte le loro risposte.</label>
+        <TextInput label="Scrivi ELIMINA per confermare" value={confirmation} onChange={setConfirmation} />
+        <Button className={btn.danger} isDisabled={busy || !acknowledged || confirmation !== 'ELIMINA'}
+          onPress={() => void erase()}>Cancella definitivamente il mio account</Button>
+      </Panel>
+      <PrivacyAdministration request={request} />
+    </div>
+  </>;
 }

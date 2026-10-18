@@ -1,6 +1,6 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param()
+param([string]$ArtifactDirectory)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -9,6 +9,24 @@ $output = Join-Path $root '.artifacts/publish'
 $projects = [ordered]@{
     website = 'src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj'
     dataMigration = 'src/dotnetliguriawebsite/DataMigration/DataMigration.csproj'
+}
+
+function Assert-NoPrivateArtifacts([string]$Directory) {
+    if (!(Test-Path $Directory -PathType Container)) { throw 'Artifact directory does not exist.' }
+    $forbidden = @(Get-ChildItem $Directory -File -Recurse -Force | Where-Object {
+        $_.Name -match '^\.env($|\.)|privatekey|^secrets.*\.(json|ya?ml)$|\.(pfx|p12|pem|key|bson)$|^appsettings\.(Development|.*\.local)\.json$' -or
+        $_.FullName -match '[\\/](Backups|PrivateUploads|\.privacy)[\\/]' -or
+        ($_.FullName -match '[\\/]wwwroot[\\/]assets[\\/]' -and $_.Extension -eq '.map')
+    })
+    if ($forbidden.Count) {
+        throw "Published website contains forbidden private configuration, keys or data files ($($forbidden.Count) files)."
+    }
+}
+
+if ($ArtifactDirectory) {
+    Assert-NoPrivateArtifacts $ArtifactDirectory
+    Write-Host 'Artifact confidentiality check passed.'
+    return
 }
 
 Push-Location $root
@@ -23,6 +41,7 @@ try {
 
     $dist = Join-Path $root 'src/dotnetliguriaspa/dist'
     $website = Join-Path $output 'website'
+    Assert-NoPrivateArtifacts $website
     $assets = @(Get-ChildItem $dist -File -Recurse)
     if (!$assets.Count -or !(Test-Path "$dist/index.html")) { throw 'Missing Vite output' }
     foreach ($asset in $assets) {

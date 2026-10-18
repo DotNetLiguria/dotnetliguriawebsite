@@ -7,6 +7,7 @@ import PublicQuestionnaire from '../PublicQuestionnaire/PublicQuestionnaire';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { QuestionnaireApiError } from '../../questionnaire/api';
 import type { Question, Questionnaire } from '../../questionnaire/types';
+import { saveDraft } from '../../questionnaire/drafts';
 
 const q = (id: string, type: Question['type'], title: string, extra: Partial<Question> = {}): Question =>
   ({ id, type, title, required: false, options: [], rows: [], settings: {}, ...extra });
@@ -71,10 +72,11 @@ describe('<QuestionnaireRunner />', () => {
     });
     expect(await screen.findByText('Grazie mille!')).toBeInTheDocument();
     expect(localStorage.getItem('draft')).toBeNull();
+    expect(sessionStorage.getItem('draft')).toBeNull();
   });
 
-  test('restores the local draft', () => {
-    localStorage.setItem('draft', JSON.stringify({ again: { questionId: 'again', bool: false } }));
+  test('restores only an unexpired temporary draft', () => {
+    saveDraft('draft', { again: { questionId: 'again', bool: false } });
     render(<QuestionnaireRunner questionnaire={sample()} onSubmit={vi.fn()} draftKey="draft" />);
     expect(screen.getByText('Perché no?')).toBeInTheDocument();
   });
@@ -92,34 +94,30 @@ describe('<QuestionnaireRunner />', () => {
     expect(screen.getByText('Passo 2 di 2')).toBeInTheDocument();
   });
 
-  test('identified mode requires respondent data and consent and maps server conflicts', async () => {
+  test('authenticated mode requires consent but never collects identity and maps server conflicts', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const onSubmit = vi.fn(async () => {
       throw new QuestionnaireApiError(409, { code: 'Duplicate', message: 'dup', errors: [] });
     });
-    const questionnaire = sample({ respondentMode: 'Identified', onePerEmail: true, consentText: 'Accetto la privacy' });
+    const questionnaire = sample({ respondentMode: 'Authenticated', onePerAccount: true, consentText: 'Accetto la privacy' });
     questionnaire.sections[0].questions[0].required = false;
     render(<QuestionnaireRunner questionnaire={questionnaire} onSubmit={onSubmit} />);
 
     await user.click(screen.getByRole('button', { name: 'Invia' }));
-    expect(await screen.findByText('Il nome è obbligatorio.')).toBeInTheDocument();
-    expect(screen.getByText("È necessario accettare l'informativa.")).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveFocus();
-    expect(screen.getByRole('textbox', { name: 'Nome' })).toBeRequired();
+    expect(await screen.findByText("È necessario accettare l'informativa.")).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Nome' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Email' })).not.toBeInTheDocument();
     const consent = screen.getByRole('checkbox', { name: 'Accetto la privacy' });
     expect(consent).toBeRequired();
     expect(consent).toHaveAttribute('aria-invalid', 'true');
     expect(consent).toHaveAccessibleDescription("È necessario accettare l'informativa.");
 
-    await user.type(screen.getByRole('textbox', { name: 'Nome' }), 'Mario');
-    await user.type(screen.getByRole('textbox', { name: 'Cognome' }), 'Rossi');
-    await user.type(screen.getByRole('textbox', { name: 'Email' }), 'mario@example.com');
     await user.click(screen.getByRole('checkbox', { name: 'Accetto la privacy' }));
     await user.click(screen.getByRole('button', { name: 'Invia' }));
 
     expect(await screen.findByText(/già ricevuto una risposta/)).toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      consentGiven: true, respondent: { name: 'Mario', surname: 'Rossi', email: 'mario@example.com' },
+      consentGiven: true, respondent: null,
     }));
   });
 

@@ -9,6 +9,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
+using DotNetLiguriaCore.Security;
+using DotNetLiguriaCore.Services.Privacy;
+using Microsoft.Extensions.Options;
 
 namespace DotNetLiguriaCore.Endpoints;
 
@@ -21,7 +25,7 @@ public static class ApiEndpointMappings
 
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var api = endpoints.MapGroup("/api");
+        var api = endpoints.MapGroup("/api").AddEndpointFilter<EditorInputFilter>();
         MapBackupEndpoints(api);
         MapBoardEndpoints(api);
         MapCounterEndpoints(api);
@@ -50,9 +54,14 @@ public static class ApiEndpointMappings
         backup.MapPost("/import", async (
             BackupRestoreRequest request,
             DatabaseBackupService backupService,
+            HttpContext context,
+            TimeProvider timeProvider,
             ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            if (!RecentMfa.IsSatisfied(context.User, timeProvider))
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden,
+                    title: "RecentMfaRequired", detail: "Ripeti l'accesso con MFA prima di ripristinare un backup.");
             if (!request.ConfirmReplace)
             {
                 return Results.BadRequest(new ProblemDetails
@@ -373,7 +382,7 @@ public static class ApiEndpointMappings
     private static void MapPublicQuestionnaireEndpoints(RouteGroupBuilder api)
     {
         var questionnaire = api.MapGroup("/PublicQuestionnaire").WithTags("Public questionnaire")
-            .AllowAnonymous().RequireRateLimiting(PublicQuestionnaireRateLimit.PolicyName);
+            .AllowAnonymous();
         questionnaire.MapGet("/{id:guid}", async (Guid id, QuestionnaireService service, CancellationToken cancellationToken) =>
             await service.GetPublicAsync(id, cancellationToken) is { } view ? Results.Ok(view) : Results.NotFound());
         questionnaire.MapGet("/by-workshop/{workshopId:guid}",
@@ -381,38 +390,67 @@ public static class ApiEndpointMappings
                 await service.GetPublicByWorkshopAsync(workshopId, cancellationToken) is { } view
                     ? Results.Ok(view) : Results.NotFound());
         questionnaire.MapPost("/{id:guid}/responses",
-            async (Guid id, SubmitQuestionnaireResponseRequest request, QuestionnaireService service,
+            async (Guid id, SubmitQuestionnaireResponseRequest request, QuestionnaireService service, HttpContext context,
+                PrivacyOperationGate gate, PrivacyCoordinator privacy, IOptions<PrivacyOptions> privacyOptions,
                 CancellationToken cancellationToken) =>
-                QuestionnaireActionResults.From(await service.SubmitAsync(id, request, cancellationToken),
-                    responseId => Results.Ok(new { responseId })));
+            {
+                var authentication = await context.AuthenticateAsync(JwtBearerDefaults.AuthenticationScheme);
+                var account = authentication.Succeeded && authentication.Principal is { } principal
+                    ? AccountIdentity.FromPrincipal(principal) : null;
+                using var lease = await gate.EnterAsync(cancellationToken);
+                var view = await service.GetPublicAsync(id, cancellationToken);
+                if (view?.Questionnaire is { RespondentMode: not RespondentMode.Anonymous })
+                {
+                    if (!authentication.Succeeded || account is null)
+                        return Results.Challenge(authenticationSchemes: [JwtBearerDefaults.AuthenticationScheme]);
+                    if (account.Issuer != privacyOptions.Value.Issuer)
+                        return Results.Problem(statusCode: 403, title: "Invalid account issuer");
+                    await privacy.EnsureAccountActiveAsync(
+                        new AccountReference(account.Issuer, account.Subject), cancellationToken);
+                }
+                return QuestionnaireActionResults.From(await service.SubmitAsync(id, request, cancellationToken, account),
+                    responseId => Results.Ok(new { responseId }));
+            }).AddEndpointFilter<PrivacyEndpointFilter>()
+            .RequireRateLimiting(PublicQuestionnaireRateLimit.PolicyName);
     }
 
     private static void MapQuestionnaireEndpoints(RouteGroupBuilder api)
     {
         var questionnaire = api.MapGroup("/Questionnaire").WithTags("Questionnaire")
-            .RequireAuthorization(QuestionnaireAuthorizationOptions.PolicyName);
-        questionnaire.MapGet("", async (QuestionnaireService service, WorkshopService workshopService,
+            .RequireAuthorization(QuestionnaireAuthorizationOptions.PolicyName)
+            .AddEndpointFilter<PrivacyEndpointFilter>()
+            .AddEndpointFilter<ActiveAccountWriteFilter>();
+        questionnaire.MapGet("", async (QuestionnaireService service, WorkshopService workshopService, HttpContext context,
             CancellationToken cancellationToken) =>
         {
-            var summaries = await service.ListAsync(cancellationToken);
+            var page = CollectionWindow.From(context);
+            var summaries = await service.ListAsync(cancellationToken, page);
             if (summaries.Any(summary => summary.WorkshopId.HasValue))
             {
-                var titles = (await workshopService.GetAllAsync()).GroupBy(workshop => workshop.WorkshopId)
-                    .ToDictionary(group => group.Key, group => group.First().Title);
+                var titles = new Dictionary<Guid, string?>();
+                foreach (var id in summaries.Where(summary => summary.WorkshopId.HasValue)
+                    .Select(summary => summary.WorkshopId!.Value).Distinct())
+                    titles[id] = (await workshopService.GetAsync(id))?.Title;
                 foreach (var summary in summaries.Where(summary => summary.WorkshopId.HasValue))
                 {
                     summary.WorkshopTitle = titles.GetValueOrDefault(summary.WorkshopId!.Value);
                 }
             }
 
+            page?.WriteHeaders(context);
             return Results.Ok(summaries);
         });
         questionnaire.MapGet("/{id:guid}", async (Guid id, QuestionnaireService service, CancellationToken cancellationToken) =>
             await service.GetAsync(id, cancellationToken) is { } item ? Results.Ok(item) : Results.NotFound())
             .WithName("QuestionnaireGetById");
         questionnaire.MapGet("/by-workshop/{workshopId:guid}",
-            async (Guid workshopId, QuestionnaireService service, CancellationToken cancellationToken) =>
-                Results.Ok(await service.GetByWorkshopAsync(workshopId, cancellationToken)));
+            async (Guid workshopId, QuestionnaireService service, HttpContext context, CancellationToken cancellationToken) =>
+            {
+                var page = CollectionWindow.From(context);
+                var items = await service.GetByWorkshopAsync(workshopId, cancellationToken, page);
+                page?.WriteHeaders(context);
+                return Results.Ok(items);
+            });
         questionnaire.MapPost("", async (
             CreateQuestionnaireRequest request, HttpContext context, QuestionnaireService service,
             WorkshopService workshopService, SpeakerService speakerService, CancellationToken cancellationToken) =>
@@ -455,9 +493,14 @@ public static class ApiEndpointMappings
         questionnaire.MapGet("/{id:guid}/statistics", async (Guid id, QuestionnaireService service,
             CancellationToken cancellationToken) =>
             await service.GetStatisticsAsync(id, cancellationToken) is { } statistics ? Results.Ok(statistics) : Results.NotFound());
-        questionnaire.MapGet("/{id:guid}/responses", async (Guid id, QuestionnaireService service,
+        questionnaire.MapGet("/{id:guid}/responses", async (Guid id, QuestionnaireService service, HttpContext context,
             CancellationToken cancellationToken) =>
-            await service.GetResponsesAsync(id, cancellationToken) is { } responses ? Results.Ok(responses) : Results.NotFound());
+        {
+            var page = CollectionWindow.From(context);
+            var responses = await service.GetResponsesAsync(id, cancellationToken, page);
+            page?.WriteHeaders(context);
+            return responses is not null ? Results.Ok(responses) : Results.NotFound();
+        });
         questionnaire.MapDelete("/{id:guid}/responses/{responseId:guid}", async (
             Guid id, Guid responseId, QuestionnaireService service, CancellationToken cancellationToken) =>
             await service.DeleteResponseAsync(id, responseId, cancellationToken) ? Results.NoContent() : Results.NotFound());
@@ -671,13 +714,18 @@ public static class ApiEndpointMappings
             SpeakerService speakerService, WorkshopFileService workshopFileService, IAuthorizationService authorizationService) =>
         {
             var isAdmin = await context.IsWebDevAdminAsync(authorizationService);
-            var items = await workshopService.GetAsync((onlyPublished ?? false) || !isAdmin);
+            var page = CollectionWindow.From(context);
+            var items = await workshopService.GetAsync((onlyPublished ?? false) || !isAdmin, page);
+            var speakers = items.Any(item => item.Tracks is { Count: > 0 }) ? await speakerService.GetAsync() : [];
+            var files = (await workshopFileService.GetForWorkshopsAsync(items.Select(item => item.WorkshopId)))
+                .ToLookup(file => file.WorkshopId);
             foreach (var item in items)
             {
-                await AddWorkshopSpeakers(item, speakerService);
-                await AddWorkshopFiles(item, workshopFileService);
+                AddWorkshopSpeakers(item, speakers);
+                AddWorkshopFiles(item, files[item.WorkshopId]);
             }
-            return Results.Ok(items);
+            page?.WriteHeaders(context);
+            return isAdmin ? Results.Ok(items) : Results.Ok(items.Select(PublicWorkshopProjection.From));
         }).AllowAnonymous();
         workshop.MapGet("/Get/{id}", async (Guid id, HttpContext context, WorkshopService workshopService,
             SpeakerService speakerService, WorkshopFileService workshopFileService, IAuthorizationService authorizationService) =>
@@ -690,7 +738,7 @@ public static class ApiEndpointMappings
             }
             await AddWorkshopSpeakers(item, speakerService);
             await AddWorkshopFiles(item, workshopFileService);
-            return Results.Ok(item);
+            return isAdmin ? Results.Ok(item) : Results.Ok(PublicWorkshopProjection.From(item));
         }).AllowAnonymous().WithName("WorkshopGetById");
         workshop.MapGet("/GetInHomePage/HomePage", async (WorkshopService workshopService, SpeakerService speakerService,
             WorkshopFileService workshopFileService) =>
@@ -702,13 +750,22 @@ public static class ApiEndpointMappings
             }
             await AddWorkshopSpeakers(item, speakerService);
             await AddWorkshopFiles(item, workshopFileService);
-            return Results.Ok(item);
+            return Results.Ok(PublicWorkshopProjection.From(item));
         }).AllowAnonymous();
-        workshop.MapGet("/GetByYear/{year}", async (int year, WorkshopService workshopService) =>
-            Results.Ok(await workshopService.GetByYearAsync(year))).AllowAnonymous();
+        workshop.MapGet("/GetByYear/{year}", async (int year, WorkshopService workshopService, HttpContext context) =>
+        {
+            if (year is < 1900 or > 9998) return Results.BadRequest("Anno non valido.");
+            var page = CollectionWindow.From(context);
+            var items = await workshopService.GetByYearAsync(year, page);
+            page?.WriteHeaders(context);
+            return Results.Ok(items.Select(PublicWorkshopProjection.From));
+        }).AllowAnonymous();
         workshop.MapPost("/Post", async (Workshop newWorkshop, WorkshopService workshopService,
             CounterService counterService, IWebHostEnvironment environment) =>
         {
+            var input = newWorkshop;
+            newWorkshop = new Workshop();
+            WorkshopEditorInput.Apply(newWorkshop, input);
             newWorkshop.WorkshopId = Guid.NewGuid();
             var counter = await counterService.GetOrCreateWorkshopCounterAsync();
             var number = await counterService.ReserveNextWorkshopNumberAsync(counter.CounterId);
@@ -822,10 +879,10 @@ public static class ApiEndpointMappings
                     Status = StatusCodes.Status400BadRequest,
                 });
             }
-            updated.WorkshopId = current.WorkshopId;
+            WorkshopEditorInput.Apply(current, updated);
+            updated = current;
             if (!string.IsNullOrWhiteSpace(current.EventbriteEventId))
             {
-                CopyEventbriteState(current, updated);
                 updated.EventbriteSyncStatus = "update-pending";
                 updated.EventbriteLastError = null;
             }
@@ -862,6 +919,24 @@ public static class ApiEndpointMappings
     private static void MapWorkshopFileEndpoints(RouteGroupBuilder api)
     {
         var workshopFile = api.MapGroup("/WorkshopFile").WithTags("Workshop file");
+        workshopFile.MapGet("/Download/{id:guid}", async (Guid id, HttpContext context,
+            WorkshopFileService files, WorkshopService workshops, WorkshopAssetStorage storage,
+            IAuthorizationService authorization) =>
+        {
+            var file = await files.GetFileAsync(id);
+            if (file is null || file.FullPath != $"/api/WorkshopFile/Download/{id:D}")
+                return Results.NotFound();
+            var workshop = await workshops.GetAsync(file.WorkshopId);
+            if (workshop is null || (workshop.Published != true && !await context.IsWebDevAdminAsync(authorization)))
+                return Results.NotFound();
+            var path = storage.PathFor(file);
+            if (!File.Exists(path)) return Results.NotFound();
+            var provider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+            var contentType = provider.TryGetContentType(path, out var mime) ? mime : "application/octet-stream";
+            return Results.File(path, contentType,
+                fileDownloadName: file.FileType is WorkshopFileTypeEnum.Image or WorkshopFileTypeEnum.Photo
+                    ? null : file.FileName, enableRangeProcessing: true);
+        }).AllowAnonymous();
         workshopFile.MapGet("/{workshopId}", async (Guid workshopId, HttpContext context, WorkshopService workshopService,
             WorkshopFileService workshopFileService, IAuthorizationService authorizationService) =>
         {
@@ -881,7 +956,8 @@ public static class ApiEndpointMappings
             return Results.Ok(await workshopFileService.GetAsync(workshopId));
         }).AllowAnonymous();
         workshopFile.MapPost("/UploadWorkshopImage", async (IFormFile file, [FromForm] Guid workshopId,
-            WorkshopService workshopService, IWebHostEnvironment environment) =>
+            WorkshopService workshopService, WorkshopFileService files, WorkshopAssetStorage storage,
+            CancellationToken cancellationToken) =>
         {
             if (file is null || file.Length == 0)
             {
@@ -904,26 +980,24 @@ public static class ApiEndpointMappings
             {
                 return Results.BadRequest("Only JPEG, PNG, WebP, and GIF images are allowed.");
             }
-            var contentsPath = Path.Combine(environment.ContentRootPath, "Contents");
-            var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
-            var workshopPath = Path.GetFullPath(Path.Combine(workshopsPath, workshop.FolderName));
-            if (!IsPathWithinDirectory(workshopsPath, workshopPath))
+            var id = Guid.NewGuid();
+            var fileName = $"{id:N}{extension}";
+            var relativePath = $"/api/WorkshopFile/Download/{id:D}";
+            var asset = new WorkshopFile
             {
-                return Results.BadRequest("Workshop folder name is invalid.");
-            }
-            Directory.CreateDirectory(workshopPath);
-            var fileName = $"workshop{extension}";
-            await using (var stream = File.Create(Path.Combine(workshopPath, fileName)))
-            {
-                await file.CopyToAsync(stream);
-            }
-            var relativePath = $"/workshops/{workshop.FolderName}/{fileName}";
+                WorkshopFileId = id, WorkshopId = workshopId, FileName = fileName, FullPath = relativePath,
+                FileType = WorkshopFileTypeEnum.Image, Title = "Workshop image",
+            };
+            if (!await storage.SaveAsync(file, asset, cancellationToken))
+                return Results.BadRequest("File content or size is not permitted.");
+            try { await files.CreateAsync(asset); }
+            catch { File.Delete(storage.PathFor(asset)); throw; }
             await workshopService.UpdateImageAsync(workshopId, relativePath);
             return Results.Ok(new { fileName, filePath = relativePath, workshopId });
         }).DisableAntiforgery().RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
         workshopFile.MapPost("/Upload", async (IFormFile file, [FromForm] Guid workshopId, [FromForm] int fileType,
             [FromForm] string? title, WorkshopService workshopService, WorkshopFileService workshopFileService,
-            IWebHostEnvironment environment) =>
+            WorkshopAssetStorage storage, CancellationToken cancellationToken) =>
         {
             if (file is null || file.Length == 0)
             {
@@ -947,45 +1021,22 @@ public static class ApiEndpointMappings
             {
                 return Results.BadRequest("The file type or extension is not allowed.");
             }
-            var contentsPath = Path.Combine(environment.ContentRootPath, "Contents");
-            var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
-            var workshopPath = Path.GetFullPath(Path.Combine(workshopsPath, workshop.FolderName));
-            if (!IsPathWithinDirectory(workshopsPath, workshopPath))
-            {
-                return Results.BadRequest("Workshop folder name is invalid.");
-            }
-            Directory.CreateDirectory(workshopPath);
-            var subFolder = (WorkshopFileTypeEnum)fileType switch
-            {
-                WorkshopFileTypeEnum.Photo => "photos",
-                WorkshopFileTypeEnum.Material => "tracks",
-                _ => string.Empty,
-            };
-            var targetPath = string.IsNullOrEmpty(subFolder) ? workshopPath : Path.Combine(workshopPath, subFolder);
-            Directory.CreateDirectory(targetPath);
-            var relativePath = string.IsNullOrEmpty(subFolder)
-                ? $"/workshops/{workshop.FolderName}/{Guid.NewGuid():N}{extension}"
-                : $"/workshops/{workshop.FolderName}/{subFolder}/{Guid.NewGuid():N}{extension}";
-            var fileName = Path.GetFileName(relativePath);
-            var filePath = Path.GetFullPath(Path.Combine(targetPath, fileName));
-            if (!IsPathWithinDirectory(workshopsPath, filePath))
-            {
-                return Results.BadRequest("Upload path is invalid.");
-            }
-            await using (var stream = File.Create(filePath))
-            {
-                await file.CopyToAsync(stream);
-            }
+            var id = Guid.NewGuid();
+            var relativePath = $"/api/WorkshopFile/Download/{id:D}";
+            var fileName = $"{id:N}{extension}";
             var item = new WorkshopFile
             {
-                WorkshopFileId = Guid.NewGuid(),
+                WorkshopFileId = id,
                 WorkshopId = workshopId,
                 Title = string.IsNullOrWhiteSpace(title) ? Path.GetFileNameWithoutExtension(file.FileName) : title,
                 FileName = fileName,
                 FullPath = relativePath,
                 FileType = (WorkshopFileTypeEnum)fileType,
             };
-            await workshopFileService.CreateAsync(item);
+            if (!await storage.SaveAsync(file, item, cancellationToken))
+                return Results.BadRequest("File content or size is not permitted. Office archives require a scanning integration.");
+            try { await workshopFileService.CreateAsync(item); }
+            catch { File.Delete(storage.PathFor(item)); throw; }
             return Results.Ok(new
             {
                 fileName,
@@ -996,18 +1047,23 @@ public static class ApiEndpointMappings
             });
         }).DisableAntiforgery().RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
         workshopFile.MapDelete("/{workshopFileId}", async (Guid workshopFileId, WorkshopFileService workshopFileService,
-            IWebHostEnvironment environment) =>
+            IWebHostEnvironment environment, WorkshopAssetStorage storage) =>
         {
             if (workshopFileId == Guid.Empty)
             {
                 return Results.BadRequest("WorkshopFile ID is required.");
             }
-            var item = (await workshopFileService.GetAsync()).FirstOrDefault(file => file.WorkshopFileId == workshopFileId);
+            var item = await workshopFileService.GetFileAsync(workshopFileId);
             if (item is null)
             {
                 return Results.NotFound("WorkshopFile not found.");
             }
-            if (!string.IsNullOrEmpty(item.FullPath))
+            if (item.FullPath == $"/api/WorkshopFile/Download/{item.WorkshopFileId:D}")
+            {
+                var path = storage.PathFor(item);
+                if (File.Exists(path)) File.Delete(path);
+            }
+            else if (!string.IsNullOrEmpty(item.FullPath))
             {
                 var contentsPath = Path.Combine(environment.ContentRootPath, "Contents");
                 var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
@@ -1063,7 +1119,12 @@ public static class ApiEndpointMappings
 
     private static async Task AddWorkshopFiles(Workshop workshop, WorkshopFileService service)
     {
-        foreach (var file in await service.GetAsync(workshop.WorkshopId))
+        AddWorkshopFiles(workshop, await service.GetAsync(workshop.WorkshopId));
+    }
+
+    private static void AddWorkshopFiles(Workshop workshop, IEnumerable<WorkshopFile> files)
+    {
+        foreach (var file in files)
         {
             if (file.FileType == WorkshopFileTypeEnum.Photo)
             {
@@ -1080,7 +1141,11 @@ public static class ApiEndpointMappings
 
     private static async Task AddWorkshopSpeakers(Workshop workshop, SpeakerService service)
     {
-        var speakers = await service.GetAsync();
+        AddWorkshopSpeakers(workshop, await service.GetAsync());
+    }
+
+    private static void AddWorkshopSpeakers(Workshop workshop, IReadOnlyCollection<WorkshopSpeaker> speakers)
+    {
         foreach (var track in workshop.Tracks ?? [])
         {
             if (track.Speakers is not { Count: > 0 })
@@ -1092,21 +1157,6 @@ public static class ApiEndpointMappings
             track.SpeakersDetails = details;
             track.SpeakersName = string.Join(", ", details);
         }
-    }
-
-    private static void CopyEventbriteState(Workshop source, Workshop target)
-    {
-        target.EventbriteEventId = source.EventbriteEventId;
-        target.EventbriteEventUrl = source.EventbriteEventUrl;
-        target.EventbriteVenueId = source.EventbriteVenueId;
-        target.EventbriteTicketClassId = source.EventbriteTicketClassId;
-        target.EventbriteSyncedTicketCapacity = source.EventbriteSyncedTicketCapacity;
-        target.EventbriteSyncStatus = source.EventbriteSyncStatus;
-        target.EventbriteLastError = source.EventbriteLastError;
-        target.EventbriteLastSyncedAt = source.EventbriteLastSyncedAt;
-        target.EventbritePublished = source.EventbritePublished;
-        target.ExternalRegistrationLink = source.ExternalRegistrationLink;
-        target.ExternalRegistration = source.ExternalRegistration;
     }
 
     private static void EnsureAgendaIds(Workshop workshop)
@@ -1189,7 +1239,7 @@ public static class ApiEndpointMappings
         });
 
     private static string? CurrentUser(ClaimsPrincipal user) =>
-        user.FindFirst("preferred_username")?.Value ?? user.FindFirst("email")?.Value ?? user.Identity?.Name;
+        AccountIdentity.FromPrincipal(user) is { } account ? $"{account.Issuer}|{account.Subject}" : null;
 
     private static async Task AddSpeakerNames(Workshop workshop, SpeakerService speakerService)
     {

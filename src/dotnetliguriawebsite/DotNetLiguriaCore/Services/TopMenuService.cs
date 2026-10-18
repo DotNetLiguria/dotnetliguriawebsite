@@ -21,7 +21,7 @@ namespace DotNetLiguriaCore.Services
             var activeElements = await _topMenuCollection
                 .Find(x => x.IsActive == true)
                 .SortBy(x => x.Order)
-                .ToListAsync();
+                .ReadBoundedAsync();
 
             if (onlyActive)
             {
@@ -30,7 +30,7 @@ namespace DotNetLiguriaCore.Services
 
             var inactiveElements = await _topMenuCollection
                 .Find(x => x.IsActive == false)
-                .ToListAsync();
+                .ReadBoundedAsync();
 
             return activeElements.Concat(inactiveElements).ToList();
         }

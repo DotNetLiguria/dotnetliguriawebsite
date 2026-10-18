@@ -21,7 +21,7 @@ namespace DotNetLiguriaCore.Services
             var visibleBoards = await _boardCollection
                 .Find(x => x.IsActive == true)
                 .SortBy(x => x.Order)
-                .ToListAsync();
+                .ReadBoundedAsync();
 
             if (onlyActive)
             {
@@ -30,7 +30,7 @@ namespace DotNetLiguriaCore.Services
 
             var invisibleBoards = await _boardCollection
                 .Find(x => x.IsActive == false)
-                .ToListAsync();
+                .ReadBoundedAsync();
 
             return visibleBoards.Concat(invisibleBoards).ToList();
         }

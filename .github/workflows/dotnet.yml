@@ -43,6 +43,8 @@ jobs:
         run: ./scripts/verify.ps1
       - name: Publish and verify application assets without executing applications
         run: ./scripts/verify-publish.ps1
+      - name: Check production dependency advisories
+        run: ./scripts/verify-security.ps1
       - name: Build Linux container
         if: matrix.os == 'ubuntu-latest'
         run: docker build -f src/dotnetliguriawebsite/DotNetLiguriaCore/Dockerfile -t dotnetliguria-verify .

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within, makeWorkshop } from './test-utils';
+import { render, screen, within, makeWorkshop } from './test-utils';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
 import { AxiosError } from 'axios';
@@ -109,11 +109,11 @@ test.each([null, 'synthetic-fallback'])('Axios sends a fallback token only when 
   expect(adapter.mock.calls[0][0].headers.get('Authorization')).toBe(token ? `Bearer ${token}` : undefined);
 });
 
-test('stored access token takes priority over a caller token', async () => {
+test('legacy stored credentials never override the caller session', async () => {
   localStorage.setItem('ACCESS_TOKEN', 'synthetic-stored');
   const client = axiosClient('synthetic-fallback');
   client.defaults.adapter = async config => {
-    expect(config.headers.get('Authorization')).toBe('Bearer synthetic-stored');
+    expect(config.headers.get('Authorization')).toBe('Bearer synthetic-fallback');
     return { data: {}, status: 200, statusText: 'OK', headers: {}, config };
   };
   await client.get('/test');

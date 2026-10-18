@@ -23,7 +23,7 @@ namespace DotNetLiguriaCore.Services
         {
             var activeSpeakers = await _workshopSpeakersCollection
                 .Find(x => x.IsActive == true)
-                .ToListAsync();
+                .ReadBoundedAsync();
 
             if (onlyActive)
             {
@@ -32,7 +32,7 @@ namespace DotNetLiguriaCore.Services
 
             var inactiveSpeakers = await _workshopSpeakersCollection
                 .Find(x => x.IsActive == false)
-                .ToListAsync();
+                .ReadBoundedAsync();
 
             return activeSpeakers.Concat(inactiveSpeakers).ToList();
         }

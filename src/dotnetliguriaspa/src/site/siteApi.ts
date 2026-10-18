@@ -170,6 +170,8 @@ export async function getWorkshop(id: string, signal?: AbortSignal): Promise<Sit
 
 /** Absolute URL for a file stored under /Contents (workshop images, board photos). */
 export const contentUrl = (path?: string | null) =>
-  path ? `${CONTENT_BASE_URL}${path.replace(/^\/+/, '')}` : null;
+  path?.startsWith('/api/WorkshopFile/Download/')
+    ? `${API_BASE_URL.replace(/\/api\/?$/, '')}${path}`
+    : path ? `${CONTENT_BASE_URL}${path.replace(/^\/+/, '')}` : null;
 
 export const isAbortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError';

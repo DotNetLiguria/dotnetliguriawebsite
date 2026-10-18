@@ -23,7 +23,6 @@ public class OtpRequirementHandler : AuthorizationHandler<OtpRequirement>
         OtpRequirement requirement)
     {
         var ctx = _httpContextAccessor.HttpContext;
-        var userName = context.User.Identity?.Name ?? "guest";
         if (ctx == null) return Task.CompletedTask;
 
         // This puts "mfa" or "hwk" in the context
@@ -37,13 +36,13 @@ public class OtpRequirementHandler : AuthorizationHandler<OtpRequirement>
         if (hasAcrOtp)
         {
             _logger.LogInformation(
-                $"User {userName} was authenticated with OTP {requirement.Name}");
+                "MFA requirement satisfied for assurance {Assurance}.", requirement.Name);
             context.Succeed(requirement);
             return Task.CompletedTask;
         }
 
         _logger.LogInformation(
-            $"User {userName} fails the OTP requirement of {requirement.Name}");
+            "MFA requirement not satisfied for assurance {Assurance}.", requirement.Name);
         return Task.CompletedTask;
     }
 

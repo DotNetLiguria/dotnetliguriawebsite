@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     >
       <LegalSummary>
         <li>Il sito non usa strumenti di analisi, pubblicità o profilazione: non ti tracciamo.</li>
-        <li>Raccogliamo dati personali solo se compili un questionario che chiede nome ed email o se fai parte del team che gestisce il sito.</li>
+        <li>I questionari possono essere anonimi o collegati al tuo account Keycloak. Nome, cognome ed email dell'account restano nel servizio di identità.</li>
         <li>L'iscrizione agli eventi avviene su piattaforme esterne, con la loro informativa.</li>
         <li>Puoi esercitare i tuoi diritti in ogni momento scrivendo al titolare.</li>
       </LegalSummary>
@@ -39,10 +39,11 @@ export default function PrivacyPage() {
 
         <LegalSubsection title="Questionari di feedback">
           <p>
-            Alcuni questionari sono anonimi. Altri chiedono nome, cognome ed email e il tuo consenso al trattamento: in questo caso
-            salviamo nome, cognome, indirizzo email, risposte, data e ora di invio e il fatto che hai dato il consenso. Se il
-            questionario ammette una sola risposta per persona, conserviamo anche una versione normalizzata dell'email per
-            riconoscere i duplicati.
+            Alcuni questionari sono anonimi; altri richiedono l'accesso con Keycloak e il consenso al trattamento.
+            Per i nuovi invii autenticati salviamo solo il riferimento immutabile all'account (emittente e soggetto),
+            le risposte, la data e il consenso, non nome, cognome o email. Il riferimento resta un dato personale
+            ed è usato anche per impedire invii duplicati quando previsto. Gli invii anonimi non sono collegati all'account,
+            neppure quando hai già effettuato l'accesso.
           </p>
           <p>
             Finalità: raccogliere e analizzare i commenti sugli eventi per migliorarli. Base giuridica: il tuo consenso (art. 6,
@@ -54,9 +55,10 @@ export default function PrivacyPage() {
             particolari (per esempio sulla salute o sulle opinioni politiche e religiose).
           </p>
           <p>
-            Mentre compili un questionario il tuo browser salva una bozza delle risposte, senza nome, email e consenso, per non
-            farti perdere il lavoro se ricarichi la pagina. La bozza resta sul tuo dispositivo e si cancella quando invii il
-            questionario: vedi la <LegalLink to="/cookie">Cookie policy</LegalLink>.
+            Il browser conserva temporaneamente una bozza delle risposte nella memoria della scheda (sessionStorage),
+            con scadenza dopo 30 minuti senza modifiche. Puoi scartarla; viene rimossa dopo l'invio, all'uscita
+            dall'account o alla chiusura della scheda. Le vecchie bozze persistenti vengono eliminate, non recuperate.
+            Anche una bozza può contenere dati personali nel testo libero: vedi la <LegalLink to="/cookie">Cookie policy</LegalLink>.
           </p>
           <p>
             Le risposte sono consultabili solo dagli amministratori autorizzati, anche in forma aggregata (statistiche). Gli
@@ -64,14 +66,26 @@ export default function PrivacyPage() {
           </p>
         </LegalSubsection>
 
-        <LegalSubsection title="Area riservata del team">
+        <LegalSubsection title="Account e area riservata">
           <p>
-            Chi gestisce il sito accede con un account personale gestito da Keycloak, il servizio di accesso di Vevy Europe S.p.A.
-            (hello.vevy.com). Trattiamo nome, cognome, indirizzo email, identificativo dell'account e i dati tecnici dell'accesso,
-            per consentire un accesso sicuro all'area riservata. Chi visita soltanto le pagine pubbliche non entra in contatto
-            con il servizio di accesso.
+            Amministratori e partecipanti ai questionari autenticati accedono con Keycloak, il servizio di accesso
+            di Vevy Europe S.p.A. (hello.vevy.com). Nome, cognome ed email dell'account sono conservati in Keycloak,
+            non nel database applicativo. L'applicazione usa riferimenti immutabili per autorizzazione e attribuzione.
+            La sola visita delle pagine pubbliche non richiede l'accesso.
           </p>
           <p>Base giuridica: legittimo interesse a gestire il sito in modo sicuro (art. 6, par. 1, lett. f).</p>
+        </LegalSubsection>
+
+        <LegalSubsection title="Avvisi sugli eventi">
+          <p>
+            L'iscrizione agli avvisi è facoltativa, separata dal consenso ai questionari e riservata agli account
+            con email verificata. Il consenso e la sua revoca sono gestiti in Keycloak. Non creiamo un elenco
+            permanente di indirizzi nel database applicativo e non iscriviamo automaticamente relatori o partecipanti.
+          </p>
+          <p>
+            Al momento non è configurato un servizio di invio: preparare un avviso non significa averlo inviato.
+            Prima di attivarlo devono essere approvati il fornitore, le informative e le modalità di disiscrizione.
+          </p>
         </LegalSubsection>
 
         <LegalSubsection title="Relatori, team e foto degli eventi">
@@ -79,6 +93,8 @@ export default function PrivacyPage() {
             Pubblichiamo nome, foto, biografia e link che i relatori e i membri del team ci hanno fornito, anche tramite il
             servizio Sessionize, da cui provengono i dati dei relatori importati. Base giuridica: consenso dell'interessato (art.
             6, par. 1, lett. a). Puoi chiedere in qualsiasi momento di modificare o rimuovere i tuoi dati.
+            Gli indirizzi di contatto editoriali eventualmente conservati sono privati e accessibili soltanto
+            agli amministratori autorizzati.
           </p>
           <p>
             Le pagine degli eventi possono includere foto scattate durante gli incontri, pubblicate per documentare le attività
@@ -111,18 +127,24 @@ export default function PrivacyPage() {
           <li>Gli amministratori del sito, del team DotNetLiguria, autorizzati ad accedere ai dati necessari al loro compito.</li>
         </ul>
         <p>
-          Non vendiamo né cediamo dati a terzi. Non trasferiamo dati personali fuori dallo Spazio economico europeo.
+          Non vendiamo dati personali. <Placeholder>verificare e documentare localizzazione dei servizi,
+          responsabili e sub-responsabili, eventuali trasferimenti internazionali e relative garanzie</Placeholder>
         </p>
       </LegalSection>
 
       <LegalSection id="conservazione" title="Per quanto tempo conserviamo i dati">
         <ul>
-          <li>Risposte ai questionari: <Placeholder>periodo di conservazione, per esempio 24 mesi dall'evento, o criterio di cancellazione</Placeholder></li>
+          <li>Dati dimostrabilmente e irreversibilmente anonimi: possono essere conservati senza scadenza,
+            previa approvazione delle finalità da parte del titolare. Rimuovere un identificativo non basta a renderli anonimi.</li>
+          <li>Risposte collegate all'account e altri dati identificabili: <Placeholder>periodo proporzionato alle finalità e criteri approvati dal titolare</Placeholder></li>
           <li>Risposte raccolte prima dell'attuale sistema di questionari: <Placeholder>periodo o criterio di conservazione</Placeholder></li>
           <li>Log tecnici del server: <Placeholder>durata di conservazione dei log, gestiti da Vevy Europe S.p.A.</Placeholder></li>
           <li>Account dell'area riservata: <Placeholder>tempi di disattivazione o cancellazione degli account del team</Placeholder></li>
           <li>Dati di relatori e team: finché restano pubblicati. Li aggiorniamo o li rimuoviamo su richiesta.</li>
-          <li>Bozza del questionario nel browser: sul tuo dispositivo fino all'invio o finché non cancelli i dati del sito.</li>
+          <li>Bozza del questionario: nella scheda del browser, massimo 30 minuti senza modifiche e comunque non oltre la chiusura della scheda.</li>
+          <li>Copie di sicurezza: le copie interessate da una cancellazione devono essere eliminate o rese
+            irreversibilmente anonime; le copie non interessate possono essere conservate. Copie esterne e
+            precedenti esportazioni richiedono una verifica operativa separata.</li>
         </ul>
       </LegalSection>
 
@@ -133,10 +155,15 @@ export default function PrivacyPage() {
           trattamenti basati sul legittimo interesse (art. 21) e revocare il consenso quando vuoi (art. 7, par. 3).
         </p>
         <p>
-          Per esercitare i tuoi diritti scrivi al contatto indicato nella sezione «Titolare del trattamento», specificando, se
-          ti riguarda un questionario, l'indirizzo email usato e il questionario compilato. Rispondiamo entro un mese (art. 12 GDPR). Le
-          risposte ai questionari anonimi non possono essere ricondotte a una persona, quindi non possiamo modificarle o
-          cancellarle su richiesta.
+          Per esercitare i tuoi diritti usa le funzioni privacy dell'account o scrivi al titolare, indicando il
+          questionario interessato senza inviare password o token. Rispondiamo entro un mese (art. 12 GDPR).
+          Il testo libero può consentire di riconoscere una persona anche in un questionario definito anonimo:
+          ogni richiesta deve essere valutata, senza presumere che l'assenza di un account garantisca l'anonimato.
+        </p>
+        <p>
+          La cancellazione dell'account richiede una verifica MFA recente e riguarda il profilo Keycloak, i dati
+          applicativi e le copie interessate. Configurazioni di conservazione non sicure o errori operativi
+          impediscono di dichiararla conclusa; lo stato deve indicare il blocco e richiede intervento del titolare.
         </p>
         <p>
           Se ritieni che il trattamento violi la normativa puoi proporre reclamo al Garante per la protezione dei dati personali

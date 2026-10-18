@@ -5,10 +5,11 @@ using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Driver;
+using DotNetLiguriaCore.Services.Privacy;
 
 namespace DotNetLiguriaCore.Services;
 
-public sealed class DatabaseBackupService
+public sealed class DatabaseBackupService : IPrivacySnapshotStore
 {
     private const int _manifestVersion = 1;
     private const int _insertBatchSize = 500;
@@ -45,22 +46,28 @@ public sealed class DatabaseBackupService
     private readonly string _backupRoot;
     private readonly ILogger<DatabaseBackupService> _logger;
     private readonly TimeProvider _timeProvider;
-    private readonly SemaphoreSlim _operationLock = new(1, 1);
+    private readonly PrivacyOperationGate _operationGate;
+    private readonly IErasureJournal? _erasureJournal;
+    private readonly PrivacyOptions _privacyOptions;
 
     public DatabaseBackupService(
         IOptions<DotNetLiguriaDatabaseSettings> settings,
         IHostEnvironment hostEnvironment,
         TimeProvider timeProvider,
-        ILogger<DatabaseBackupService> logger)
+        ILogger<DatabaseBackupService> logger,
+        PrivacyOperationGate? operationGate = null,
+        IErasureJournal? erasureJournal = null,
+        IOptions<PrivacyOptions>? privacyOptions = null)
     {
         var databaseSettings = settings.Value;
         var client = new MongoClient(databaseSettings.ConnectionString);
         _database = client.GetDatabase(databaseSettings.DatabaseName);
-        _backupRoot = Path.GetFullPath(Path.IsPathRooted(databaseSettings.BackupFolder)
-            ? databaseSettings.BackupFolder
-            : Path.Combine(hostEnvironment.ContentRootPath, databaseSettings.BackupFolder));
+        _backupRoot = PrivacyStoragePaths.ValidateBackupRoot(databaseSettings.BackupFolder, hostEnvironment.ContentRootPath);
         _timeProvider = timeProvider;
         _logger = logger;
+        _operationGate = operationGate ?? PrivacyOperationGate.Shared;
+        _erasureJournal = erasureJournal;
+        _privacyOptions = privacyOptions?.Value ?? new PrivacyOptions();
     }
 
     public static bool IsValidSnapshotId(string? snapshotId) =>
@@ -68,6 +75,7 @@ public sealed class DatabaseBackupService
 
     public async Task<IReadOnlyList<BackupSnapshotInfo>> ListAsync(CancellationToken cancellationToken)
     {
+        PrivacyStoragePaths.RejectLinks(_backupRoot);
         if (!Directory.Exists(_backupRoot))
         {
             return [];
@@ -95,43 +103,109 @@ public sealed class DatabaseBackupService
 
     public async Task<BackupSnapshotInfo> CreateAsync(CancellationToken cancellationToken)
     {
-        await _operationLock.WaitAsync(cancellationToken);
-        try
-        {
-            return await CreateSnapshotAsync(false, cancellationToken);
-        }
-        finally
-        {
-            _operationLock.Release();
-        }
+        using var lease = await _operationGate.EnterAsync(cancellationToken);
+        await EnsureOperationsAvailableAsync(cancellationToken);
+        return await CreateSnapshotAsync(false, cancellationToken);
     }
 
     public async Task<BackupRestoreResult?> RestoreAsync(string snapshotId, CancellationToken cancellationToken)
     {
         ValidateSnapshotId(snapshotId);
-        await _operationLock.WaitAsync(cancellationToken);
-        try
+        using var lease = await _operationGate.EnterAsync(cancellationToken);
+        await EnsureOperationsAvailableAsync(cancellationToken);
+        if (!Directory.Exists(GetSnapshotPath(snapshotId)))
         {
-            if (!Directory.Exists(GetSnapshotPath(snapshotId)))
-            {
-                return null;
-            }
-
-            var manifest = await ReadManifestAsync(snapshotId, cancellationToken);
-            await ValidateSnapshotFilesAsync(snapshotId, manifest, cancellationToken);
-
-            var safetySnapshot = await CreateSnapshotAsync(true, cancellationToken);
-            await ReplaceDatabaseAsync(manifest, snapshotId, cancellationToken);
-            return new BackupRestoreResult(snapshotId, safetySnapshot);
+            return null;
         }
-        finally
+
+        var manifest = await ReadManifestAsync(snapshotId, cancellationToken);
+        var epoch = await GetEpochAsync(cancellationToken);
+        if (!manifest.TryGetValue("privacyEpoch", out var snapshotEpoch) ||
+            snapshotEpoch.BsonType != BsonType.String || snapshotEpoch.AsString != epoch)
+            throw new PrivacyBlockedException("snapshot_predates_privacy_boundary");
+        await ValidateSnapshotFilesAsync(snapshotId, manifest, cancellationToken);
+
+        var safetySnapshot = await CreateSnapshotAsync(true, cancellationToken);
+        await ReplaceDatabaseAsync(manifest, snapshotId, cancellationToken);
+        return new BackupRestoreResult(snapshotId, safetySnapshot);
+    }
+
+    // Caller holds the shared operation gate. No snapshot is assumed anonymous merely because an ID was not found.
+    public async Task PurgeForErasureUnderGateAsync(CancellationToken cancellationToken)
+    {
+        PrivacyStoragePaths.RejectLinks(_backupRoot);
+        Directory.CreateDirectory(_backupRoot);
+        await WriteEpochAsync(Guid.NewGuid().ToString("N"), cancellationToken);
+        foreach (var path in Directory.EnumerateFileSystemEntries(_backupRoot))
         {
-            _operationLock.Release();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Path.GetFileName(path) == ".privacy") continue;
+            RejectTreeLinks(path);
+            if (Directory.Exists(path)) Directory.Delete(path, true);
+            else File.Delete(path);
         }
+        if (Directory.EnumerateFileSystemEntries(_backupRoot).Any(path => Path.GetFileName(path) != ".privacy"))
+            throw new PrivacyBlockedException("snapshot_purge_not_verified");
+    }
+
+    private async Task EnsureOperationsAvailableAsync(CancellationToken cancellationToken)
+    {
+        PrivacyStoragePaths.RejectLinks(_backupRoot);
+        if (!_privacyOptions.ProtectedStorageApproved || _erasureJournal is null)
+            throw new PrivacyBlockedException("protected_backup_storage_not_approved");
+        if ((await _erasureJournal.ListAsync(cancellationToken)).Count != 0)
+            throw new PrivacyBlockedException("erasure_in_progress", StatusCodes.Status409Conflict);
+    }
+
+    private static void RejectTreeLinks(string path)
+    {
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new PrivacyBlockedException("linked_storage_not_supported");
+        if (Directory.Exists(path))
+            foreach (var child in Directory.EnumerateFileSystemEntries(path))
+                RejectTreeLinks(child);
+    }
+
+    private async Task<string> GetEpochAsync(CancellationToken cancellationToken)
+    {
+        var path = Path.Combine(_backupRoot, ".privacy", "backup.epoch");
+        PrivacyStoragePaths.RejectLinks(Path.GetDirectoryName(path)!);
+        if (!File.Exists(path))
+        {
+            var epoch = Guid.NewGuid().ToString("N");
+            await WriteEpochAsync(epoch, cancellationToken);
+            return epoch;
+        }
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new PrivacyBlockedException("invalid_backup_privacy_epoch");
+        var existing = await File.ReadAllTextAsync(path, cancellationToken);
+        if (!Guid.TryParseExact(existing, "N", out _))
+            throw new PrivacyBlockedException("invalid_backup_privacy_epoch");
+        return existing;
+    }
+
+    private async Task WriteEpochAsync(string epoch, CancellationToken cancellationToken)
+    {
+        var root = Path.Combine(_backupRoot, ".privacy");
+        PrivacyStoragePaths.RejectLinks(root);
+        Directory.CreateDirectory(root);
+        var path = Path.Combine(root, "backup.epoch");
+        if (File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new PrivacyBlockedException("invalid_backup_privacy_epoch");
+        var pending = path + ".pending";
+        await using (var stream = new FileStream(pending, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+            4096, FileOptions.WriteThrough | FileOptions.Asynchronous))
+        {
+            await stream.WriteAsync(Encoding.UTF8.GetBytes(epoch), cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+            stream.Flush(true);
+        }
+        File.Move(pending, path, true);
     }
 
     private async Task<BackupSnapshotInfo> CreateSnapshotAsync(bool isSafetySnapshot, CancellationToken cancellationToken)
     {
+        PrivacyStoragePaths.RejectLinks(_backupRoot);
         Directory.CreateDirectory(_backupRoot);
         var createdAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         var snapshotId = CreateSnapshotId(createdAtUtc, isSafetySnapshot);
@@ -175,6 +249,7 @@ public sealed class DatabaseBackupService
                 { "version", _manifestVersion },
                 { "createdAtUtc", createdAtUtc },
                 { "isSafetySnapshot", isSafetySnapshot },
+                { "privacyEpoch", await GetEpochAsync(cancellationToken) },
                 { "collections", collectionManifest },
             };
             ValidateManifest(manifest);
@@ -495,6 +570,7 @@ public sealed class DatabaseBackupService
             throw new ArgumentException("The snapshot identifier is invalid.", nameof(snapshotId));
         }
 
+        PrivacyStoragePaths.RejectLinks(snapshotPath);
         return snapshotPath;
     }
 

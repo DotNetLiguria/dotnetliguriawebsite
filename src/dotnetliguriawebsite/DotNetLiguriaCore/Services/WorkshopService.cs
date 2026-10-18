@@ -16,44 +16,31 @@ namespace DotNetLiguriaCore.Services
             _workshopsCollection = mongoDatabase.GetCollection<Workshop>(mongoDBDatabaseSettings.Value.WorkshopCollectionName);
         }
 
-        public async Task<List<Workshop>> GetAsync(bool onlyPublished = false)
+        public async Task<List<Workshop>> GetAsync(bool onlyPublished = false, CollectionWindow? page = null)
         {
-            var publishedWorkshops = await _workshopsCollection
-                .Find(x => x.Published == true)
-                .SortByDescending(w => w.EventDate)
-                .ToListAsync();
-
-            if (onlyPublished)
-            {
-                return publishedWorkshops;
-            }
-
-            var unpublishedWorkshops = await _workshopsCollection
-                .Find(x => x.Published == false || x.Published == null)
-                .SortByDescending(w => w.EventDate)
-                .ToListAsync();
-
-            return publishedWorkshops.Concat(unpublishedWorkshops)
-                .OrderByDescending(w => w.EventDate)
-                .ToList();
+            return await _workshopsCollection
+                .Find(onlyPublished ? Builders<Workshop>.Filter.Eq(w => w.Published, true)
+                    : Builders<Workshop>.Filter.Empty)
+                .SortByDescending(w => w.EventDate).ThenBy(w => w.WorkshopId)
+                .ReadBoundedAsync(page: page);
         }
 
         public async Task<List<Workshop>> GetAllAsync()
         {
             return await _workshopsCollection
             .Find(_ => true)
-            .ToListAsync();
+            .ReadBoundedAsync();
         }
 
-        public async Task<List<Workshop>> GetByYearAsync(int year)
+        public async Task<List<Workshop>> GetByYearAsync(int year, CollectionWindow? page = null)
         {
             var startDate = new DateTime(year, 1, 1);
             var endDate = new DateTime(year + 1, 1, 1);
 
             return await _workshopsCollection
                 .Find(w => w.Published == true && w.EventDate >= startDate && w.EventDate < endDate)
-                .SortByDescending(w => w.EventDate)
-                .ToListAsync();
+                .SortByDescending(w => w.EventDate).ThenBy(w => w.WorkshopId)
+                .ReadBoundedAsync(page: page);
         }
 
         public async Task<Workshop?> GetAsync(Guid id)

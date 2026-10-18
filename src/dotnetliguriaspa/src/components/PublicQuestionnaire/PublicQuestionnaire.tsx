@@ -6,6 +6,8 @@ import type { PublicQuestionnaireView } from '../../questionnaire/types';
 import SiteLayout from '../../site/SiteLayout';
 import PageMeta from '../../site/PageMeta';
 import { LogoArc } from '../../site/ui';
+import { useOidc, useOidcFetch, useOidcUser } from '@axa-fr/react-oidc';
+import { getOidcPublicSettings } from '../../config/oidcConfig';
 
 const DESCRIPTION = 'Questionario di feedback di un evento DotNetLiguria: valuta i talk e suggerisci i temi del prossimo incontro.';
 
@@ -24,6 +26,9 @@ const homeLink = (
 );
 
 const PublicQuestionnaire: FC = () => {
+  const { isAuthenticated, login } = useOidc();
+  const { oidcUser } = useOidcUser();
+  const { fetch: authenticatedFetch } = useOidcFetch();
   const { questionnaireId, workshopId } = useParams<{ questionnaireId?: string; workshopId?: string }>();
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
 
@@ -65,12 +70,30 @@ const PublicQuestionnaire: FC = () => {
     const { view } = state;
     title = view.title || title;
     if (view.availability === 'Open' && view.questionnaire) {
-      const q = view.questionnaire;
-      content = (
+      const q = view.questionnaire.respondentMode === 'Identified'
+        ? { ...view.questionnaire, respondentMode: 'Authenticated' as const }
+        : view.questionnaire;
+      const requiresLogin = q.respondentMode === 'Authenticated';
+      const draftOwner = requiresLogin
+        ? `${getOidcPublicSettings().authority}|${String(oidcUser?.sub ?? '')}` : 'anonymous';
+      content = requiresLogin && !isAuthenticated ? (
+        <div className={panel}>
+          <h1 className="text-3xl font-bold">{q.title}</h1>
+          <p className="mt-3">Questo questionario richiede l'accesso con Keycloak. Nome ed email non vengono salvati con le risposte.</p>
+          <button type="button" className="mt-5 rounded-full bg-navy px-6 py-3 font-bold text-white"
+            onClick={() => void login(window.location.pathname)}>Accedi per compilare</button>
+        </div>
+      ) : requiresLogin && !oidcUser?.sub ? (
+        <div className={panel} role="status">Caricamento dei dati di accesso…</div>
+      ) : (
         <QuestionnaireRunner
+          key={`${q.questionnaireId}:${draftOwner}`}
           questionnaire={q}
+          draftOwner={draftOwner}
           draftKey={`questionnaire-draft:${q.questionnaireId}:${q.version}`}
-          onSubmit={async payload => { await publicQuestionnaireApi.submit(q.questionnaireId, payload); }}
+          onSubmit={async payload => {
+            await publicQuestionnaireApi.submit(q.questionnaireId, payload, requiresLogin ? authenticatedFetch : fetch);
+          }}
         />
       );
     } else {

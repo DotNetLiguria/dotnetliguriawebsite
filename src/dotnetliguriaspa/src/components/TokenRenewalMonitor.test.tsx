@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { useOidc, useOidcAccessToken } from '@axa-fr/react-oidc';
 import TokenRenewalMonitor from './TokenRenewalMonitor';
 
@@ -39,6 +39,7 @@ test('does not renew a session with sufficient token lifetime', () => {
         logout: vi.fn(),
         renewTokens,
     });
+
     vi.mocked(useOidcAccessToken).mockReturnValue({
         accessToken: null,
         accessTokenPayload: { exp: nowInSeconds + 121 },
@@ -48,4 +49,19 @@ test('does not renew a session with sufficient token lifetime', () => {
     window.dispatchEvent(new Event('focus'));
 
     expect(renewTokens).not.toHaveBeenCalled();
+});
+
+test('renewal failures never print the exception, token or claim payload', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(useOidc).mockReturnValue({
+        isAuthenticated: true, login: vi.fn(), logout: vi.fn(),
+        renewTokens: vi.fn().mockRejectedValue(new Error('synthetic-sensitive-session-details')),
+    });
+    vi.mocked(useOidcAccessToken).mockReturnValue({
+        accessToken: null, accessTokenPayload: { exp: nowInSeconds + 60 },
+    });
+    render(<TokenRenewalMonitor />);
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() => expect(log).toHaveBeenCalledWith('Unable to renew the OIDC session after resuming the app.'));
+    expect(JSON.stringify(log.mock.calls)).not.toContain('synthetic-sensitive-session-details');
 });

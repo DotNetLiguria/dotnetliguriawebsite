@@ -14,7 +14,7 @@ export function useLoad<T>(loader: (signal: AbortSignal) => Promise<T>, key: unk
       .then(data => setResult({ state: 'ready', data }))
       .catch(error => {
         if (isAbortError(error)) return;
-        console.error('Request failed:', error);
+        console.error('Request failed.');
         setResult({ state: 'error', message: error instanceof Error ? error.message : 'Errore di rete' });
       });
     return () => controller.abort();

@@ -8,6 +8,7 @@ using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Questionnaires;
+using DotNetLiguriaCore.Services.Privacy;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using DotNetLiguria.ServiceDefaults;
@@ -17,6 +18,9 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
+using DotNetLiguriaCore.Security;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace DotNetLiguriaCore;
 
@@ -24,14 +28,6 @@ public class Program
 {
     private const string _authServerSectionName = "AuthServer";
     private const string _corsPolicy = "DotNetLiguriaCorsPolicy";
-    private static readonly string[] _allowedOrigins =
-        {
-            "https://localhost:3443",
-            "http://localhost:3000",
-            "https://www.dotnetliguria.net:3443",
-            "https://beta.dotnetliguria.net:3443",
-            "https://beta.dotnetliguria.net",
-        };
 
     public static void Main(string[] args)
     {
@@ -44,6 +40,22 @@ public class Program
 #endif
 
         var builder = WebApplication.CreateBuilder(args);
+        if (builder.Environment.IsDevelopment() &&
+            (string.IsNullOrWhiteSpace(builder.Configuration["AllowedHosts"]) ||
+             builder.Configuration["AllowedHosts"] == "dotnetliguria.net;www.dotnetliguria.net"))
+            builder.Configuration["AllowedHosts"] = "localhost;127.0.0.1;[::1]";
+        if (!builder.Environment.IsDevelopment() &&
+            (string.IsNullOrWhiteSpace(builder.Configuration["AllowedHosts"]) ||
+             builder.Configuration["AllowedHosts"] == "*"))
+            builder.Configuration["AllowedHosts"] = "dotnetliguria.net;www.dotnetliguria.net";
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            ProxyConfiguration.Configure(options, builder.Configuration));
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 25 * 1024 * 1024;
+            options.ValueLengthLimit = 64 * 1024;
+            options.ValueCountLimit = 100;
+        });
         builder.Services.AddServiceDefaults(builder.Configuration);
         if (builder.Configuration["DOTNET_LIGURIA_ASPIRE"] == "true")
             builder.Services.AddHealthChecks().AddCheck<MongoDatabaseHealthCheck>("mongodb");
@@ -51,24 +63,41 @@ public class Program
         {
             options.AddPolicy(_corsPolicy, policy =>
             {
-                policy
-                    .AllowAnyOrigin()
-                    // .WithOrigins(AllowedOrigins)
-                    .AllowAnyHeader()
-                    .AllowAnyMethod();
+                var origins = builder.Configuration.GetSection("Security:CorsOrigins").Get<string[]>() ??
+                    (builder.Environment.IsDevelopment() ? ["https://localhost:3443"] : []);
+                if (origins.Any(origin => !Uri.TryCreate(origin, UriKind.Absolute, out var parsed) ||
+                    parsed.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(parsed.UserInfo) ||
+                    parsed.AbsolutePath != "/" || !string.IsNullOrEmpty(parsed.Query) ||
+                    !string.IsNullOrEmpty(parsed.Fragment) || parsed.Host.Contains('*')))
+                    throw new InvalidOperationException("Security:CorsOrigins must contain exact HTTPS origins only.");
+                if (origins.Length > 0)
+                    policy.WithOrigins(origins);
+                policy.WithHeaders("Content-Type", "Authorization", "Accept", "X-Confirm-Erasure",
+                        "X-Confirm-Retention-Policy", "X-Confirm-Campaign")
+                    .WithExposedHeaders("X-Page-Offset", "X-Page-Limit", "X-Next-Offset")
+                    .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
             });
         });
 
+        if (!builder.Environment.IsDevelopment() &&
+            string.IsNullOrWhiteSpace(builder.Configuration["AuthServer:ClientSecret"]))
+            throw new InvalidOperationException("The confidential backend OIDC client secret must be supplied through runtime configuration.");
+        if (builder.Configuration["Privacy:Issuer"] != builder.Configuration["AuthServer:Authority"])
+            throw new InvalidOperationException("Privacy:Issuer must exactly match AuthServer:Authority.");
         ConfigureAuthentication(builder.Services, builder.Configuration);
         ConfigureAuthorization(builder.Services, builder.Configuration);
         ConfigureRateLimiting(builder.Services);
 
         builder.Services.AddValidation();
+        builder.Services.AddProblemDetails();
+        builder.Services.AddExceptionHandler<SafeExceptionHandler>();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
 
         builder.Services.AddOptions<DotNetLiguriaDatabaseSettings>()
             .Bind(builder.Configuration.GetSection("DotNetLiguriaDatabase"))
+            .Validate(settings => !string.IsNullOrWhiteSpace(settings.ConnectionString),
+                "DotNetLiguriaDatabase:ConnectionString must be supplied through runtime configuration.")
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.BackupFolder),
                 "DotNetLiguriaDatabase:BackupFolder must be configured.")
             .ValidateOnStart();
@@ -80,6 +109,7 @@ public class Program
         builder.Services.AddSingleton<BoardService>();
         builder.Services.AddSingleton<CounterService>();
         builder.Services.AddSingleton<WorkshopFileService>();
+        builder.Services.AddSingleton<WorkshopAssetStorage>();
         builder.Services.AddHttpClient<SessionizeImportService>()
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddOptions<EventbriteOptions>()
@@ -94,11 +124,12 @@ public class Program
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
         builder.Services.AddSingleton<QuestionnaireService>();
         builder.Services.AddSingleton<DatabaseBackupService>();
+        builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
         builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
 
         var app = builder.Build();
-        app.UseCors(_corsPolicy);
-
+        app.UseForwardedHeaders();
+        app.UseMiddleware<SecurityHeadersMiddleware>();
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -108,7 +139,7 @@ public class Program
         }
         else
         {
-            app.UseExceptionHandler("/Error");
+            app.UseExceptionHandler();
             app.UseHsts();
         }
 
@@ -129,12 +160,17 @@ public class Program
         });
         
         app.UseRouting();
+        app.UseCors(_corsPolicy);
         app.UseRateLimiter();
 
         app.UseAuthorization();
 
         app.MapApiEndpoints();
+        app.MapPrivacyEndpoints();
+        app.MapNotificationEndpoints();
         app.MapServiceDefaults();
+        app.MapFallback("/api/{**path}", () => Results.Problem(
+            statusCode: StatusCodes.Status404NotFound, title: "ApiEndpointNotFound"));
 
         // Handle development-time browser scripts
         if (app.Environment.IsDevelopment())
@@ -193,6 +229,19 @@ public class Program
             throw new InvalidOperationException(
                 $"The configuraton '{_authServerSectionName}' cannot be found");
         }
+        if (!Uri.TryCreate(authServerConfig.Authority, UriKind.Absolute, out var authority) ||
+            authority.Scheme != Uri.UriSchemeHttps ||
+            !string.IsNullOrEmpty(authority.UserInfo) ||
+            !string.IsNullOrEmpty(authority.Query) || !string.IsNullOrEmpty(authority.Fragment) ||
+            !Uri.TryCreate(authServerConfig.MetadataAddress, UriKind.Absolute, out var metadata) ||
+            metadata.Scheme != Uri.UriSchemeHttps ||
+            !string.IsNullOrEmpty(metadata.UserInfo) || !string.IsNullOrEmpty(metadata.Query) ||
+            !string.IsNullOrEmpty(metadata.Fragment) ||
+            metadata.Authority != authority.Authority ||
+            !metadata.AbsolutePath.StartsWith(authority.AbsolutePath.TrimEnd('/') + "/", StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(authServerConfig.ClientId) ||
+            string.IsNullOrWhiteSpace(authServerConfig.Audience))
+            throw new InvalidOperationException("AuthServer must specify an HTTPS issuer, matching HTTPS metadata, client ID and audience.");
 
         services.AddAuthentication(options =>
         {
@@ -259,15 +308,15 @@ public class Program
             options.MapInboundClaims = false;
 
             options.MetadataAddress = authServerConfig.MetadataAddress;
-            options.RequireHttpsMetadata = false;
+            options.RequireHttpsMetadata = true;
             options.Audience = authServerConfig.Audience;
             options.Authority = authServerConfig.Authority;
             options.Events = new JwtBearerEvents()
             {
-                OnChallenge = x => Dbg($"JWT: Challenge "),
+                OnChallenge = ActiveAccountAuthentication.ChallengeAsync,
                 OnMessageReceived = x => Dbg($"JWT: OnMessageReceived "),
-                OnAuthenticationFailed = x => Dbg($"JWT: {x.Exception.ToString()}"),
-                OnTokenValidated = x => Dbg($"JWT: Token has been validated: {x.Result}"),
+                OnAuthenticationFailed = x => Dbg("JWT: Authentication failed"),
+                OnTokenValidated = ActiveAccountAuthentication.ValidateAsync,
                 OnForbidden = x => Dbg($"JWT: Forbidden"),
             };
 
@@ -324,6 +373,15 @@ public class Program
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 300,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
             options.AddPolicy(PublicQuestionnaireRateLimit.PolicyName, context =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     context.Connection.RemoteIpAddress?.ToString() ?? "unknown",

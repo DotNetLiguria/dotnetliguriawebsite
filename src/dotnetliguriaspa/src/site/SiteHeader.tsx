@@ -7,6 +7,7 @@ import logo from '../assets/logo/dotnet-liguria-storico.png';
 import logo2x from '../assets/logo/dotnet-liguria-storico-2x.png';
 import { getTopMenu, isAbortError } from './siteApi';
 import { Icon } from './icons';
+import { clearPrivateBrowserState } from '../questionnaire/drafts';
 
 interface MenuItem {
   label: string;
@@ -48,8 +49,8 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
       <Button
         className={pill}
         onPress={async () => {
+          clearPrivateBrowserState();
           await logout();
-          localStorage.removeItem('profileStore');
           navigate('/');
         }}
       >

@@ -16,6 +16,12 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <Content Remove=".env;.env.*;Backups\**;PrivateUploads\**;**\*.pem;**\*.pfx;**\*.p12;**\*.key;**\privatekey.xml" />
+      <None Remove=".env;.env.*;Backups\**;PrivateUploads\**;**\*.pem;**\*.pfx;**\*.p12;**\*.key;**\privatekey.xml" />
+      <Content Update="appsettings.Development.json;appsettings.*.local.json" CopyToPublishDirectory="Never" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Content Include="Contents\profile\alberto-baroni.jpg" />
       <Content Include="Contents\profile\alessandro-gambaro.jpg" />
       <Content Include="Contents\profile\alessio-gogna.jpg" />

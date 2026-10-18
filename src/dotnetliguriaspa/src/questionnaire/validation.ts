@@ -1,5 +1,5 @@
 import {
-  allQuestions, hasValue, isAnswerable, isValidEmail, MAX_NAME_LENGTH, operatorsFor, OTHER_OPTION_ID,
+  allQuestions, hasValue, isAnswerable, isValidEmail, operatorsFor, OTHER_OPTION_ID,
   DEFAULT_SHORT_TEXT_LENGTH, scaleBounds, textLimit, visibleQuestionIds,
 } from './rules';
 import type {
@@ -85,20 +85,11 @@ function validateAnswer(question: Question, answer: QuestionAnswer): string | nu
   }
 }
 
-function checkName(value: string | null | undefined, field: string, label: string, errors: QuestionnaireValidationError[]) {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) errors.push({ field, message: `${label} è obbligatorio.` });
-  else if (trimmed.length > MAX_NAME_LENGTH) errors.push({ field, message: `${label} non può superare ${MAX_NAME_LENGTH} caratteri.` });
-}
-
 // Client mirror of QuestionnaireResponseValidator; the server remains authoritative.
 export function validateResponse(questionnaire: Questionnaire, draft: ResponseDraft, onlyQuestionIds?: Set<string>): QuestionnaireValidationError[] {
   const errors: QuestionnaireValidationError[] = [];
   const checkRespondent = !onlyQuestionIds;
-  if (checkRespondent && questionnaire.respondentMode === 'Identified') {
-    checkName(draft.respondent.name, 'respondent.name', 'Il nome', errors);
-    checkName(draft.respondent.surname, 'respondent.surname', 'Il cognome', errors);
-    if (!isValidEmail(draft.respondent.email)) errors.push({ field: 'respondent.email', message: 'Inserisci un indirizzo email valido.' });
+  if (checkRespondent && questionnaire.respondentMode !== 'Anonymous') {
     if (questionnaire.consentText?.trim() && !draft.consentGiven) {
       errors.push({ field: 'consentGiven', message: "È necessario accettare l'informativa." });
     }
@@ -131,9 +122,7 @@ export function buildSubmission(questionnaire: Questionnaire, draft: ResponseDra
       return answer;
     });
   return {
-    respondent: questionnaire.respondentMode === 'Identified'
-      ? { name: draft.respondent.name?.trim(), surname: draft.respondent.surname?.trim(), email: draft.respondent.email?.trim() }
-      : null,
+    respondent: null,
     consentGiven: draft.consentGiven,
     answers,
   };
@@ -149,7 +138,7 @@ export function validateDefinition(questionnaire: Questionnaire, forPublish = tr
   if (questionnaire.opensAt && questionnaire.closesAt && new Date(questionnaire.opensAt) >= new Date(questionnaire.closesAt)) {
     add(null, 'closesAt', 'La data di chiusura deve seguire quella di apertura.');
   }
-  if (questionnaire.onePerEmail && questionnaire.respondentMode !== 'Identified') {
+  if ((questionnaire.onePerEmail || questionnaire.onePerAccount) && questionnaire.respondentMode === 'Anonymous') {
     add(null, 'onePerEmail', 'Una risposta per email richiede rispondenti identificati.');
   }
 

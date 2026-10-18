@@ -2,6 +2,7 @@ using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Questionnaires;
+using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -45,6 +46,34 @@ public class WriteEndpointAuthorizationTests
         }
 
         [Fact]
+        public async Task PrivacyAndNotificationRoutesAreBearerOnlyExceptConfirmedUnsubscribe()
+        {
+            using var app = CreateApp();
+            app.MapPrivacyEndpoints();
+            app.MapNotificationEndpoints();
+            var routes = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
+                .OfType<RouteEndpoint>().Where(endpoint => Route(endpoint).StartsWith("/api/privacy") ||
+                    Route(endpoint).StartsWith("/api/notifications")).ToArray();
+            Assert.NotEmpty(routes);
+            var policies = app.Services.GetRequiredService<IAuthorizationPolicyProvider>();
+            foreach (var endpoint in routes)
+            {
+                if (Route(endpoint).Contains("/unsubscribe/"))
+                {
+                    Assert.NotNull(endpoint.Metadata.GetMetadata<IAllowAnonymous>());
+                    continue;
+                }
+                Assert.Null(endpoint.Metadata.GetMetadata<IAllowAnonymous>());
+                var authorization = endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>();
+                Assert.NotEmpty(authorization);
+                var bearer = authorization.Any(data => data.AuthenticationSchemes == "Bearer");
+                foreach (var policy in authorization.Where(data => !string.IsNullOrEmpty(data.Policy)))
+                    bearer |= (await policies.GetPolicyAsync(policy.Policy!))?.AuthenticationSchemes.Contains("Bearer") == true;
+                Assert.True(bearer, Route(endpoint));
+            }
+        }
+
+        [Fact]
         public void EndpointMappingPreservesTheControllerRouteShapes()
         {
             using var app = CreateApp();
@@ -74,6 +103,8 @@ public class WriteEndpointAuthorizationTests
         {
             var builder = WebApplication.CreateSlimBuilder();
             builder.Services.AddAuthorization();
+            builder.Services.AddSingleton(TimeProvider.System);
+            builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
             builder.Services.AddRateLimiter(_ => { });
             builder.Services.AddSingleton<DatabaseBackupService>();
             builder.Services.AddSingleton<BoardService>();
@@ -86,6 +117,7 @@ public class WriteEndpointAuthorizationTests
             builder.Services.AddSingleton<VenueService>();
             builder.Services.AddSingleton<WorkshopService>();
             builder.Services.AddSingleton<WorkshopFileService>();
+            builder.Services.AddSingleton<WorkshopAssetStorage>();
             builder.Services.AddSingleton<SessionizeImportService>();
             builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
             var app = builder.Build();

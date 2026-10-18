@@ -61,13 +61,15 @@ describe('privacy page', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'I tuoi diritti' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /www\.garanteprivacy\.it/ })).toHaveAttribute('href', 'https://www.garanteprivacy.it');
     expect(screen.getByText(/Non facciamo profilazione/)).toBeInTheDocument();
-    expect(screen.getByText(/Non trasferiamo dati personali fuori dallo Spazio economico europeo/)).toBeInTheDocument();
+    expect(screen.getByText(/verificare e documentare localizzazione dei servizi/)).toBeInTheDocument();
   });
 
   test('covers the questionnaire data, with consent as its basis', () => {
     render(<PrivacyPage />, { route: '/privacy' });
     expect(screen.getByRole('heading', { level: 3, name: 'Questionari di feedback' })).toBeInTheDocument();
-    expect(screen.getByText(/nome, cognome, indirizzo email, risposte, data e ora di invio/)).toBeInTheDocument();
+    expect(screen.getByText(/riferimento immutabile all'account/)).toBeInTheDocument();
+    expect(screen.getByText(/massimo 30 minuti/)).toBeInTheDocument();
+    expect(screen.getByText(/non è configurato un servizio di invio/)).toBeInTheDocument();
     expect(screen.getByText(/Base giuridica: il tuo consenso/)).toBeInTheDocument();
   });
 
@@ -91,7 +93,7 @@ describe('terms page', () => {
 describe('cookie policy page', () => {
   test('lists every item the site can store, with purpose and duration', () => {
     render(<CookiePolicyPage />, { route: '/cookie' });
-    for (const name of [COOKIE_NOTICE_KEY, 'questionnaire-draft:…', 'Cookie di sessione di Keycloak', 'OidcServiceWorker.js', 'oidc.…', 'profileStore']) {
+    for (const name of [COOKIE_NOTICE_KEY, 'questionnaire-draft:…', 'Cookie di sessione di Keycloak', 'OidcServiceWorker.js', 'oidc.…']) {
       const item = screen.getByRole('heading', { level: 4, name }).closest('li')!;
       expect(within(item).getByText('Durata:')).toBeInTheDocument();
       expect(within(item).getByText('A cosa serve:')).toBeInTheDocument();

@@ -54,7 +54,7 @@ public static class KeycloakServiceExtensions
 
               options.ResponseType = OpenIdConnectResponseType.Code;// => standard flow only
 
-              options.RequireHttpsMetadata = false;
+              options.RequireHttpsMetadata = true;
               options.SaveTokens = true;
               options.Events = openIdConnectEvents;
               options.GetClaimsFromUserInfoEndpoint = true;

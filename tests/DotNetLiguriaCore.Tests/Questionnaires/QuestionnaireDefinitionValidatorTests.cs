@@ -17,6 +17,20 @@ public class QuestionnaireDefinitionValidatorTests
     }
 
     [Fact]
+    public void OversizedOptionListsAndNullStructuresFailBeforeProcessing()
+    {
+        var question = Choice("q");
+        question.Options = Enumerable.Range(0, 100)
+            .Select(index => new QuestionOption { Id = index.ToString(), Label = index.ToString() }).ToList();
+        Assert.Empty(QuestionnaireDefinitionValidator.Validate(Create(question), false));
+        question.Options.Add(new QuestionOption { Id = "overflow", Label = "overflow" });
+        Assert.Contains(QuestionnaireDefinitionValidator.Validate(Create(question), false), error => error.Field == "definition");
+        var malformed = Create(question);
+        malformed.Sections = null!;
+        Assert.Contains(QuestionnaireDefinitionValidator.Validate(malformed, false), error => error.Field == "sections");
+    }
+
+    [Fact]
     public void DuplicateIdsAreRejectedEvenForDrafts()
     {
         var questionnaire = Create(Simple("q1", QuestionType.ShortText), Simple("q1", QuestionType.LongText));

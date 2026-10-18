@@ -16,6 +16,15 @@ public class QuestionnaireResponse
     public DateTime SubmittedAt { get; set; }
 
     public Respondent? Respondent { get; set; }
+    [BsonIgnoreIfNull]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? AccountIssuer { get; set; }
+    [BsonIgnoreIfNull]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? AccountSubject { get; set; }
+    [BsonIgnoreIfNull]
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? UniqueAccountKey { get; set; }
     public bool ConsentGiven { get; set; }
 
     public List<QuestionAnswer> Answers { get; set; } = [];

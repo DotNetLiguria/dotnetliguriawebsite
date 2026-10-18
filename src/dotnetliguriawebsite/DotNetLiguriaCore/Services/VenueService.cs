@@ -16,7 +16,7 @@ namespace DotNetLiguriaCore.Services
         }
 
         public async Task<List<Venue>> GetAsync() =>
-            await _venuesCollection.Find(_ => true).SortBy(venue => venue.Name).ToListAsync();
+            await _venuesCollection.Find(_ => true).SortBy(venue => venue.Name).ReadBoundedAsync();
 
         public async Task<Venue?> GetAsync(Guid id) =>
             await _venuesCollection.Find(venue => venue.VenueId == id).FirstOrDefaultAsync();

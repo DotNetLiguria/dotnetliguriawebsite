@@ -2,16 +2,18 @@ import React, { FC, useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox } from 'react-aria-components';
 import QuestionField from './QuestionField';
 import { QuestionnaireApiError } from '../../questionnaire/api';
-import { hasValue, isAnswerable, MAX_EMAIL_LENGTH, MAX_NAME_LENGTH, visibleQuestionIds } from '../../questionnaire/rules';
+import { hasValue, isAnswerable, visibleQuestionIds } from '../../questionnaire/rules';
 import type { AnswerMap, QuestionAnswer, Questionnaire, Respondent, SubmitQuestionnaireResponseRequest } from '../../questionnaire/types';
 import { buildSubmission, validateResponse } from '../../questionnaire/validation';
+import { loadDraft, saveDraft, discardDraft } from '../../questionnaire/drafts';
 
 export interface QuestionnaireRunnerProps {
   questionnaire: Questionnaire;
   /** When omitted the runner works in preview mode: it validates but never submits. */
   onSubmit?: (payload: SubmitQuestionnaireResponseRequest) => Promise<void>;
-  /** localStorage key used to keep unsent answers across reloads. */
+  /** Expiring session-storage key for unsent answers. */
   draftKey?: string;
+  draftOwner?: string;
 }
 
 type Errors = Record<string, string>;
@@ -26,20 +28,10 @@ const Notice = ({ tone, children, role }: { tone: 'info' | 'warning' | 'error'; 
 );
 const RESPONDENT_FIELDS = ['respondent.name', 'respondent.surname', 'respondent.email', 'consentGiven'];
 
-function loadDraft(key?: string): AnswerMap {
-  if (!key) return {};
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as AnswerMap) : {};
-  } catch {
-    return {};
-  }
-}
-
-const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSubmit, draftKey }) => {
+const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSubmit, draftKey, draftOwner }) => {
   const preview = !onSubmit;
-  const [answers, setAnswers] = useState<AnswerMap>(() => loadDraft(draftKey));
-  const [respondent, setRespondent] = useState<Respondent>({});
+  const [answers, setAnswers] = useState<AnswerMap>(() => loadDraft(draftKey, draftOwner));
+  const [respondent] = useState<Respondent>({});
   const [consentGiven, setConsentGiven] = useState(false);
   const [website, setWebsite] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -49,7 +41,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const identified = questionnaire.respondentMode === 'Identified';
+  const identified = questionnaire.respondentMode !== 'Anonymous';
   const visible = useMemo(() => visibleQuestionIds(questionnaire, answers), [questionnaire, answers]);
   const pages = useMemo(
     () => questionnaire.sections.filter(s => s.questions.some(q => visible.has(q.id))),
@@ -70,8 +62,8 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
   }, [questionnaire.sections, visible]);
 
   useEffect(() => {
-    if (draftKey && !done) localStorage.setItem(draftKey, JSON.stringify(answers));
-  }, [answers, draftKey, done]);
+    if (draftKey && !done) saveDraft(draftKey, answers, draftOwner);
+  }, [answers, draftKey, draftOwner, done]);
 
   const draft = () => ({ answers, respondent, consentGiven });
   const toErrors = (list: { questionId?: string | null; field: string; message: string }[]) =>
@@ -139,12 +131,12 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
     try {
       setSubmitting(true);
       await onSubmit!({ ...buildSubmission(questionnaire, draft()), website });
-      if (draftKey) localStorage.removeItem(draftKey);
+      if (draftKey) discardDraft(draftKey);
       setDone(true);
     } catch (err) {
       if (err instanceof QuestionnaireApiError) {
         if (err.problem?.errors?.length) setErrors(toErrors(err.problem.errors));
-        if (err.status === 409) setSubmitError('Abbiamo già ricevuto una risposta associata a questa email. Grazie!');
+        if (err.status === 409) setSubmitError('Abbiamo già ricevuto una risposta per questo account. Grazie!');
         else if (err.status === 410) setSubmitError('Il questionario non accetta più risposte.');
         else setSubmitError(err.message);
       } else {
@@ -157,7 +149,6 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
 
   const restart = () => {
     setAnswers({});
-    setRespondent({});
     setConsentGiven(false);
     setErrors({});
     setAttempted(false);
@@ -185,33 +176,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
   const answeredCount = [...numbers.keys()].filter(id => hasValue(answers[id])).length;
   const progress = stepper ? ((currentStep + 1) / pages.length) * 100 : numbers.size ? (answeredCount / numbers.size) * 100 : 0;
   const progressText = stepper ? `Passo ${currentStep + 1} di ${pages.length}` : `${answeredCount} risposte su ${numbers.size}`;
-  const showRespondent = identified && (!stepper || currentStep === 0);
   const anyRequired = identified || questionnaire.sections.some(s => s.questions.some(q => q.required));
-  const respondentField = (field: keyof Respondent, label: string, max: number, type = 'text') => {
-    const fieldId = `respondent-${field}`;
-    const error = errors[`respondent.${field}`];
-    return (
-      <div className="min-w-0 flex-1">
-        <label htmlFor={fieldId} className="text-base font-bold">
-          {label}<span aria-hidden="true" className="ml-1 text-red-700">*</span>
-        </label>
-        <input
-          id={fieldId}
-          required
-          type={type}
-          maxLength={max}
-          data-field={`respondent.${field}`}
-          autoComplete={field === 'name' ? 'given-name' : field === 'surname' ? 'family-name' : 'email'}
-          value={respondent[field] ?? ''}
-          onChange={e => setRespondent(r => ({ ...r, [field]: e.target.value }))}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${fieldId}-error` : undefined}
-          className={`mt-1 block w-full rounded-2xl border-2 bg-white px-4 py-3 text-lg text-navy focus:border-cyan-700 ${error ? 'border-red-700' : 'border-line-strong'}`}
-        />
-        {error && <p id={`${fieldId}-error`} role="alert" className="mt-1 font-bold text-red-700">{error}</p>}
-      </div>
-    );
-  };
 
   return (
     <form noValidate onSubmit={submit} aria-label={questionnaire.title} className="space-y-6">
@@ -247,17 +212,9 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
         {stepper && <p className="mt-1 text-sm text-muted">Passo {currentStep + 1} di {pages.length}</p>}
       </div>
 
-      {showRespondent && (
-        <section className={card} aria-labelledby="respondent-title">
-          <h2 id="respondent-title" className="text-2xl font-bold">I tuoi dati</h2>
-          <div className="mt-5 flex flex-col gap-4 sm:flex-row">
-            {respondentField('name', 'Nome', MAX_NAME_LENGTH)}
-            {respondentField('surname', 'Cognome', MAX_NAME_LENGTH)}
-          </div>
-          <div className="mt-4">{respondentField('email', 'Email', MAX_EMAIL_LENGTH, 'email')}</div>
-          {questionnaire.onePerEmail && <p className="mt-2 text-sm text-muted">È possibile inviare una sola risposta per indirizzo email.</p>}
-        </section>
-      )}
+      <p className="text-base text-muted">
+        {identified ? "Accesso verificato da Keycloak: nome ed email non sono salvati con le risposte." : "Questionario anonimo: non inserire dati personali nelle risposte."}
+      </p>
 
       {shownPages.map(section => (
         <section key={section.id} className={card}>
@@ -279,7 +236,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
         </section>
       ))}
 
-      {isLastStep && identified && questionnaire.consentText?.trim() && (
+      {isLastStep && (identified || questionnaire.respondentMode === 'Authenticated') && questionnaire.consentText?.trim() && (
         <div className={card} data-field="consentGiven">
           <Checkbox
             isSelected={consentGiven}

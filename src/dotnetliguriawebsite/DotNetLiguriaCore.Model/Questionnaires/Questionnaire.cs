@@ -21,6 +21,7 @@ public class Questionnaire
     public RespondentMode RespondentMode { get; set; } = RespondentMode.Anonymous;
 
     public bool OnePerEmail { get; set; }
+    public bool OnePerAccount { get; set; }
     public string? ConsentText { get; set; }
 
     [BsonRepresentation(BsonType.String)]

@@ -9,6 +9,10 @@ public static class QuestionnaireStructure
 {
     public static bool IsCompatible(Questionnaire original, Questionnaire updated)
     {
+        if (original.RespondentMode != updated.RespondentMode ||
+            original.OnePerAccount != updated.OnePerAccount ||
+            original.OnePerEmail != updated.OnePerEmail)
+            return false;
         var before = Describe(original);
         var after = Describe(updated);
         return before.Count == after.Count && before.All(pair =>

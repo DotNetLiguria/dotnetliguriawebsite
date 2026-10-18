@@ -22,6 +22,7 @@ public static class QuestionnaireActionResults
             QuestionnaireOperationStatus.NotFound => StatusCodes.Status404NotFound,
             QuestionnaireOperationStatus.Invalid => StatusCodes.Status400BadRequest,
             QuestionnaireOperationStatus.Unavailable => StatusCodes.Status410Gone,
+            QuestionnaireOperationStatus.Unauthorized => StatusCodes.Status401Unauthorized,
             _ => StatusCodes.Status409Conflict,
         };
         return Results.Json(body, statusCode: statusCode);

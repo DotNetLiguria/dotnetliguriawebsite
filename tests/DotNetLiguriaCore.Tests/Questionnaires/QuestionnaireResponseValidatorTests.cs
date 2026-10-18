@@ -109,23 +109,24 @@ public class QuestionnaireResponseValidatorTests
     }
 
     [Fact]
-    public void IdentifiedModeRequiresRespondentAndConsentAndNormalizesEmail()
+    public void AuthenticatedModeRequiresConsentAndRejectsCallerIdentity()
     {
         var questionnaire = Create(Simple("q", QuestionType.ShortText));
-        questionnaire.RespondentMode = RespondentMode.Identified;
+        questionnaire.RespondentMode = RespondentMode.Authenticated;
         questionnaire.ConsentText = "Privacy";
 
         var missing = QuestionnaireResponseValidator.Validate(questionnaire, new SubmitQuestionnaireResponseRequest());
-        var valid = QuestionnaireResponseValidator.Validate(questionnaire, new SubmitQuestionnaireResponseRequest
+        var spoofed = QuestionnaireResponseValidator.Validate(questionnaire, new SubmitQuestionnaireResponseRequest
         {
             ConsentGiven = true,
             Respondent = new Respondent { Name = " Ada ", Surname = "Lovelace", Email = " Ada@Example.ORG " },
         });
 
-        Assert.Equal(["respondent.name", "respondent.surname", "respondent.email", "consentGiven"], missing.Errors.Select(e => e.Field));
+        Assert.Equal("consentGiven", Assert.Single(missing.Errors).Field);
+        Assert.Equal("respondent", Assert.Single(spoofed.Errors).Field);
+        var valid = QuestionnaireResponseValidator.Validate(questionnaire, new() { ConsentGiven = true });
         Assert.True(valid.IsValid);
-        Assert.Equal("Ada", valid.Respondent!.Name);
-        Assert.Equal("ada@example.org", valid.Respondent.EmailNormalized);
+        Assert.Null(valid.Respondent);
     }
 
     [Fact]

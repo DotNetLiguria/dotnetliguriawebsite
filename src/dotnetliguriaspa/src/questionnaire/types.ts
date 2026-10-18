@@ -1,7 +1,7 @@
 // Mirrors DotNetLiguriaCore.Model questionnaire contracts (camelCase JSON, enums as strings).
 
 export type QuestionnaireStatus = 'Draft' | 'Published' | 'Closed' | 'Archived';
-export type RespondentMode = 'Anonymous' | 'Identified';
+export type RespondentMode = 'Anonymous' | 'Identified' | 'Authenticated';
 export type QuestionnaireDisplayMode = 'SinglePage' | 'Stepper';
 export type QuestionType =
   | 'ShortText' | 'LongText' | 'Email' | 'Number' | 'Date' | 'YesNo'
@@ -68,6 +68,7 @@ export interface Questionnaire {
   status: QuestionnaireStatus;
   respondentMode: RespondentMode;
   onePerEmail: boolean;
+  onePerAccount?: boolean;
   consentText?: string | null;
   displayMode: QuestionnaireDisplayMode;
   opensAt?: string | null;

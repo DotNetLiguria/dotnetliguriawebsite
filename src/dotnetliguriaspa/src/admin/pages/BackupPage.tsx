@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button, ProgressBar } from 'react-aria-components';
-import { useOidcFetch } from '@axa-fr/react-oidc';
+import { useOidc, useOidcFetch } from '@axa-fr/react-oidc';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn } from '../ui';
 import { AdminLoad } from '../adminApi';
@@ -29,11 +29,13 @@ type Outcome = { tone: 'ok' | 'danger'; title: string; detail?: string };
 
 /** Error text from the API: the role message for 403, otherwise the ProblemDetails detail or title. */
 export async function readBackupError(response: Response, fallback: string) {
-  if (response.status === 403) return 'Accesso negato. È richiesto il ruolo backupadmin.';
   try {
     const problem = await response.json() as { detail?: string; title?: string };
+    if (response.status === 403 && problem.title !== 'RecentMfaRequired')
+      return 'Accesso negato. È richiesto il ruolo backupadmin.';
     return problem.detail ?? problem.title ?? `${fallback} (HTTP ${response.status}).`;
   } catch {
+    if (response.status === 403) return 'Accesso negato. È richiesto il ruolo backupadmin.';
     return `${fallback} (HTTP ${response.status}).`;
   }
 }
@@ -42,6 +44,7 @@ const when = (iso: string) => `${formatDate(iso)}, ${formatTime(iso)}`;
 const contents = (s: BackupSnapshotInfo) => `${plural(s.collectionCount, 'raccolta', 'raccolte')} · ${plural(s.documentCount, 'documento', 'documenti')}`;
 
 export default function BackupPage() {
+  const { login } = useOidc();
   const { fetch } = useOidcFetch();
   const [load, setLoad] = useState<AdminLoad<BackupSnapshotInfo[]>>({ state: 'loading' });
   const [version, setVersion] = useState(0);
@@ -122,7 +125,13 @@ export default function BackupPage() {
       <PageHeader
         title="Backup e import"
         description="I backup del database restano sul server. Importarne uno sostituisce tutti i dati correnti, dopo aver creato una copia di sicurezza automatica."
-        actions={createButton(btn.primary)}
+        actions={<>
+          <Button className={btn.secondary}
+            onPress={() => void login(window.location.pathname, { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
+            Verifica MFA per il ripristino
+          </Button>
+          {createButton(btn.primary)}
+        </>}
       />
 
       {busy && (

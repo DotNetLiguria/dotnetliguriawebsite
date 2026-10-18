@@ -65,17 +65,18 @@ const QuestionnaireSettings: FC<{ workshopTitle?: string | null; errors: Record<
         isDisabled={locked}
         description={locked ? 'Non si può cambiare: il questionario ha già delle risposte.' : undefined}
         onChange={respondentMode => {
-          const identified = respondentMode === 'Identified';
-          set({ respondentMode, onePerEmail: identified && q.onePerEmail, consentText: identified ? q.consentText || DEFAULT_CONSENT_TEXT : q.consentText });
+          const authenticated = respondentMode === 'Authenticated';
+          set({ respondentMode, onePerEmail: false, onePerAccount: authenticated && (q.onePerAccount || q.onePerEmail),
+            consentText: authenticated ? q.consentText || DEFAULT_CONSENT_TEXT : q.consentText });
         }}
         options={[
           { value: 'Anonymous', label: 'Anonimi' },
-          { value: 'Identified', label: 'Identificati', description: 'Nome, cognome ed email.' },
+          { value: 'Authenticated', label: 'Autenticati', description: 'Accesso con Keycloak; nessun nome o email nelle risposte.' },
         ]}
       />
-      {q.respondentMode === 'Identified' && (
+      {q.respondentMode !== 'Anonymous' && (
         <>
-          <SwitchInput isSelected={q.onePerEmail} onChange={onePerEmail => set({ onePerEmail })}>Una sola risposta per indirizzo email</SwitchInput>
+          <SwitchInput isSelected={q.onePerAccount || q.onePerEmail} onChange={onePerAccount => set({ onePerAccount, onePerEmail: false })}>Una sola risposta per account</SwitchInput>
           <FieldText
             label="Testo dell'informativa privacy (consenso obbligatorio)"
             multiline

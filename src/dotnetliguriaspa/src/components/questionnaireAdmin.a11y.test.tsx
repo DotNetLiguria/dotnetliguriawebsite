@@ -21,7 +21,7 @@ const q = (id: string, type: Question['type'], title: string, extra: Partial<Que
   ({ id, type, title, required: false, options: [], rows: [], settings: {}, ...extra });
 
 const questionnaire: Questionnaire = {
-  questionnaireId: 'q1', title: 'Feedback evento', description: 'Dicci come è andata.', status: 'Draft', respondentMode: 'Identified', onePerEmail: true,
+  questionnaireId: 'q1', title: 'Feedback evento', description: 'Dicci come è andata.', status: 'Draft', respondentMode: 'Authenticated', onePerEmail: false, onePerAccount: true,
   consentText: 'Accetto', displayMode: 'SinglePage', version: 1, createdAt: '', updatedAt: '', origin: 'Web', responseCount: 0, workshopId: 'w1',
   sections: [
     { id: 's1', title: 'Generale', questions: [

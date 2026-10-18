@@ -3,35 +3,34 @@ export const FEEDBACK_ADMIN_ROLE = 'feedbackadmin';
 
 type Payload = Record<string, unknown> | null | undefined;
 
-function containsRole(value: unknown, role: string, depth = 0): boolean {
-  if (depth > 4 || value === null || value === undefined) return false;
+function decoded(value: unknown): unknown {
   if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      try {
-        return containsRole(JSON.parse(trimmed), role, depth + 1);
-      } catch {
-        return false;
-      }
-    }
-    return trimmed.toLowerCase() === role;
+    try { return JSON.parse(value); } catch { return value; }
   }
-  if (Array.isArray(value)) return value.some(v => containsRole(v, role, depth + 1));
-  if (typeof value === 'object') {
-    return Object.values(value as Record<string, unknown>)
-      .some(v => typeof v !== 'string' && containsRole(v, role, depth + 1));
-  }
-  return false;
+  return value;
+}
+
+function roleList(value: unknown, role: string): boolean {
+  const roles = decoded(value);
+  return Array.isArray(roles) && roles.some(item => item === role);
+}
+
+function object(value: unknown): Record<string, unknown> | null {
+  const result = decoded(value);
+  return result !== null && typeof result === 'object' && !Array.isArray(result)
+    ? result as Record<string, unknown> : null;
 }
 
 export function hasFeedbackAdmin(payloads: Payload[], role = FEEDBACK_ADMIN_ROLE, claim = FEEDBACK_ADMIN_ROLE): boolean {
   for (const payload of payloads) {
     if (!payload) continue;
     for (const [key, value] of Object.entries(payload)) {
-      const name = key.toLowerCase();
-      if (name === claim && value !== false && value !== 'false' && value !== 0 && value !== '0' && value != null) return true;
-      if (['roles', 'role', 'realm_access', 'resource_access', 'roles0', 'roles1', 'roles2'].includes(name)
-        && containsRole(value, role)) return true;
+      if (key === claim && (value === true || value === 'true')) return true;
+      if (['roles', 'role', 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role', 'roles0', 'roles1', 'roles2'].includes(key)
+        && (value === role || roleList(value, role))) return true;
+      if (key === 'realm_access' && roleList(object(value)?.roles, role)) return true;
+      if (key === 'resource_access' &&
+        roleList(object(object(value)?.DotNetLiguriaCore)?.roles, role)) return true;
     }
   }
   return false;

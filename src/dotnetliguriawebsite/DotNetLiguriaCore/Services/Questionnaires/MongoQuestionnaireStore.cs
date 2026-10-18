@@ -18,14 +18,17 @@ public class MongoQuestionnaireStore : IQuestionnaireStore
         _responses = database.GetCollection<QuestionnaireResponse>(settings.Value.QuestionnaireResponseCollectionName);
     }
 
-    public async Task<List<Questionnaire>> ListAsync(CancellationToken cancellationToken = default) =>
-        await _questionnaires.Find(_ => true).SortByDescending(q => q.UpdatedAt).ToListAsync(cancellationToken);
+    public async Task<List<Questionnaire>> ListAsync(CancellationToken cancellationToken = default, CollectionWindow? page = null) =>
+        await _questionnaires.Find(_ => true).SortByDescending(q => q.UpdatedAt).ThenBy(q => q.QuestionnaireId)
+            .ReadBoundedAsync(cancellationToken, page);
 
     public async Task<Questionnaire?> GetAsync(Guid questionnaireId, CancellationToken cancellationToken = default) =>
         await _questionnaires.Find(q => q.QuestionnaireId == questionnaireId).FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<List<Questionnaire>> GetByWorkshopAsync(Guid workshopId, CancellationToken cancellationToken = default) =>
-        await _questionnaires.Find(q => q.WorkshopId == workshopId).ToListAsync(cancellationToken);
+    public async Task<List<Questionnaire>> GetByWorkshopAsync(Guid workshopId, CancellationToken cancellationToken = default,
+        CollectionWindow? page = null) =>
+        await _questionnaires.Find(q => q.WorkshopId == workshopId).SortBy(q => q.QuestionnaireId)
+            .ReadBoundedAsync(cancellationToken, page);
 
     public async Task CreateAsync(Questionnaire questionnaire, CancellationToken cancellationToken = default)
     {
@@ -48,22 +51,30 @@ public class MongoQuestionnaireStore : IQuestionnaireStore
         await _questionnaires.DeleteOneAsync(q => q.QuestionnaireId == questionnaireId, cancellationToken);
     }
 
-    public async Task<Dictionary<Guid, long>> CountResponsesAsync(CancellationToken cancellationToken = default)
+    public async Task<Dictionary<Guid, long>> CountResponsesAsync(CancellationToken cancellationToken = default,
+        IReadOnlyCollection<Guid>? questionnaireIds = null)
     {
-        var groups = await _responses.Aggregate()
+        if (questionnaireIds is { Count: 0 }) return [];
+        using var cursor = await _responses.Aggregate(new AggregateOptions
+            { BatchSize = 16, MaxTime = TimeSpan.FromSeconds(10) })
+            .Match(questionnaireIds is null ? Builders<QuestionnaireResponse>.Filter.Empty
+                : Builders<QuestionnaireResponse>.Filter.In(r => r.QuestionnaireId, questionnaireIds))
             .Group(r => r.QuestionnaireId, g => new { QuestionnaireId = g.Key, Count = g.Count() })
-            .ToListAsync(cancellationToken);
+            .Limit(1001).ToCursorAsync(cancellationToken);
+        var groups = await BoundedMongoReads.ReadCursorAsync(cursor, 1000, null, cancellationToken);
         return groups.ToDictionary(g => g.QuestionnaireId, g => (long)g.Count);
     }
 
     public Task<long> CountResponsesAsync(Guid questionnaireId, CancellationToken cancellationToken = default) =>
         _responses.CountDocumentsAsync(r => r.QuestionnaireId == questionnaireId, cancellationToken: cancellationToken);
 
-    public async Task<List<QuestionnaireResponse>> GetResponsesAsync(Guid questionnaireId, CancellationToken cancellationToken = default) =>
-        await _responses.Find(r => r.QuestionnaireId == questionnaireId).SortBy(r => r.SubmittedAt).ToListAsync(cancellationToken);
+    public async Task<List<QuestionnaireResponse>> GetResponsesAsync(Guid questionnaireId, CancellationToken cancellationToken = default,
+        CollectionWindow? page = null) =>
+        await _responses.Find(r => r.QuestionnaireId == questionnaireId).SortBy(r => r.SubmittedAt).ThenBy(r => r.ResponseId)
+            .ReadBoundedAsync(cancellationToken, page);
 
     public async Task<bool> HasResponseFromAsync(Guid questionnaireId, string uniqueEmailKey, CancellationToken cancellationToken = default) =>
-        await _responses.Find(r => r.QuestionnaireId == questionnaireId && r.UniqueEmailKey == uniqueEmailKey)
+        await _responses.Find(r => r.QuestionnaireId == questionnaireId && r.UniqueAccountKey == uniqueEmailKey)
             .AnyAsync(cancellationToken);
 
     public async Task<bool> InsertResponseAsync(QuestionnaireResponse response, CancellationToken cancellationToken = default)
@@ -97,7 +108,7 @@ public class MongoQuestionnaireStore : IQuestionnaireStore
         catch (MongoException)
         {
             _ = Interlocked.CompareExchange(ref _indexes, null, task);
-            // Index creation is retried on the next write; the pre-insert check still applies.
+            throw;
         }
     }
 
@@ -109,6 +120,8 @@ public class MongoQuestionnaireStore : IQuestionnaireStore
             new CreateIndexModel<QuestionnaireResponse>(keys.Ascending(r => r.QuestionnaireId).Ascending(r => r.SubmittedAt)),
             new CreateIndexModel<QuestionnaireResponse>(keys.Ascending(r => r.UniqueEmailKey),
                 new CreateIndexOptions { Unique = true, Sparse = true, Name = "UniqueEmailKey_unique" }),
+            new CreateIndexModel<QuestionnaireResponse>(keys.Ascending(r => r.UniqueAccountKey),
+                new CreateIndexOptions { Unique = true, Sparse = true, Name = "UniqueAccountKey_unique" }),
             new CreateIndexModel<QuestionnaireResponse>(keys.Ascending(r => r.SourceKey),
                 new CreateIndexOptions { Unique = true, Sparse = true, Name = "SourceKey_unique" }),
         ]);

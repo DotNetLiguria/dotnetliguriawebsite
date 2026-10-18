@@ -37,7 +37,7 @@ export default function CookiePolicyPage() {
         <li>Il sito non usa cookie di profilazione né di analisi e non carica cookie di terze parti.</li>
         <li>
           Visitare le pagine pubbliche non salva nulla sul tuo dispositivo. Il browser conserva dati solo se chiudi l'avviso sui
-          cookie, compili un questionario o un membro del team accede all'area riservata.
+          cookie, compili un questionario o accedi con il tuo account.
         </li>
         <li>Sono tutti strumenti tecnici: per la normativa italiana non serve il tuo consenso, basta questa informativa.</li>
       </LegalSummary>
@@ -63,18 +63,18 @@ export default function CookiePolicyPage() {
             />
             <StorageItem
               name="questionnaire-draft:…"
-              where="localStorage del browser"
-              purpose="Conserva sul tuo dispositivo le risposte non ancora inviate, senza nome, email e consenso, per non perderle se ricarichi la pagina."
-              duration="Fino all'invio del questionario. Se non lo invii resta finché non cancelli i dati del sito dal browser."
+              where="sessionStorage della scheda del browser"
+              purpose="Conserva temporaneamente le risposte non inviate. Il testo libero può contenere dati personali. Le vecchie bozze in localStorage vengono eliminate."
+              duration="30 minuti senza modifiche; cancellazione all'invio, allo scarto, all'uscita dall'account o alla chiusura della scheda."
               setBy="DotNetLiguria, quando apri un questionario."
             />
           </ul>
         </LegalSubsection>
 
-        <LegalSubsection title="Area riservata, solo per chi gestisce il sito">
+        <LegalSubsection title="Accesso all'account">
           <p>
-            Questi strumenti compaiono solo quando un membro del team accede con «Area Personale». Chi visita le pagine
-            pubbliche non li riceve.
+            Questi strumenti sono necessari anche per i questionari autenticati e le funzioni privacy
+            dell'account, non soltanto per gli amministratori.
           </p>
           <ul className="grid gap-4">
             <StorageItem
@@ -97,13 +97,6 @@ export default function CookiePolicyPage() {
               purpose="Tengono lo stato tecnico dell'accesso, per esempio l'identificativo della scheda e i valori di sicurezza."
               duration="sessionStorage si cancella alla chiusura della scheda. Il resto, al termine dell'accesso o all'uscita."
               setBy="DotNetLiguria, solo durante l'accesso."
-            />
-            <StorageItem
-              name="profileStore"
-              where="localStorage del browser"
-              purpose="Ricorda se il profilo dell'area riservata è già stato compilato."
-              duration="Si cancella all'uscita dall'area riservata."
-              setBy="DotNetLiguria, solo dopo l'accesso."
             />
           </ul>
         </LegalSubsection>
