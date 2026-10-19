@@ -35,23 +35,41 @@ const confirmErasure = async () => {
 describe('<ProfilePage />', () => {
   test('shows fresh server identity and bounded evidence, never token identity or personal localStorage', async () => {
     prepare(); render(<ProfilePage />);
-    await screen.findByText('Nessuna richiesta pendente.');
-    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato');
+    expect(await screen.findByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato');
     expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveAttribute('readonly');
     expect(screen.getByRole('link', { name: /Modifica account e sicurezza/ })).toHaveAttribute('href', 'https://hello.vevy.com/realms/DotNetLiguria/account');
     expect(screen.getAllByRole('link').filter(link => link.getAttribute('href') === 'https://hello.vevy.com/realms/DotNetLiguria/account')).toHaveLength(1);
     expect(document.body).not.toHaveTextContent(/keycloak/i);
     expect(screen.getByRole('heading', { name: 'Account Identity Provider' })).toBeInTheDocument();
+
+    await user().click(screen.getByRole('tab', { name: 'Dati condivisi' }));
     expect(screen.getByText('Feedback evento')).toBeInTheDocument();
     expect(screen.getByText(/Consenso questionario: prestato/)).toBeInTheDocument();
     expect(screen.getByText('I dati legacy richiedono una verifica separata.')).toBeInTheDocument();
+
+    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
     expect(screen.getByText(/consenso attuale · versione old-v1/)).toBeInTheDocument();
     expect(screen.getByText('Nessuna modifica registrata nella cronologia futura.')).toBeInTheDocument();
+
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     expect(screen.queryByRole('textbox', { name: 'Azienda' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Amministrazione privacy' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancella definitivamente il mio account' })).toBeDisabled();
     expect(JSON.stringify({ ...localStorage })).not.toContain('fresh@example.test');
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.cache === 'no-store')).toBe(true);
+  });
+
+  test('organizes the personal area into accessible tabs, including notifications', async () => {
+    prepare(); render(<ProfilePage />);
+    expect(screen.getByRole('tablist', { name: "Sezioni dell'area personale" })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Account' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'Account Identity Provider' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Notifiche' })).not.toBeInTheDocument();
+
+    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
+    expect(screen.getByRole('tab', { name: 'Notifiche' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'Notifiche' })).toBeVisible();
+    expect(screen.queryByRole('heading', { name: 'Avvisi sugli eventi' })).not.toBeInTheDocument();
   });
 
   test('withdraws consent without sending email or identity and reloads evidence, history and personal data', async () => {
@@ -61,6 +79,7 @@ describe('<ProfilePage />', () => {
       return jsonResponse({ ...subscription, monthlyUpcomingEvents: optedIn });
     } });
     render(<ProfilePage />);
+    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
     await user().click(await screen.findByRole('button', { name: 'Revoca riepilogo mensile' }));
     await screen.findByText(/Revoca accettata/);
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('notifications/subscription/'), expect.objectContaining({
@@ -73,7 +92,7 @@ describe('<ProfilePage />', () => {
 
   test('grants a separate event notice with current version and no additional account attributes', async () => {
     prepare(); render(<ProfilePage />);
-    await screen.findByText('Nessuna richiesta pendente.');
+    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
     await user().click(screen.getByRole('button', { name: 'Iscriviti agli annunci eventi' }));
     await screen.findByText(/Preferenza accettata/);
     expect(fetch).toHaveBeenCalledWith(expect.stringContaining('notifications/subscription/'), expect.objectContaining({
@@ -83,6 +102,7 @@ describe('<ProfilePage />', () => {
 
   test('requests fresh MFA at current path/query/hash but never deletes just by requesting step-up', async () => {
     prepare(); render(<ProfilePage />, { route: '/area-personale?source=account#cancellazione' });
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await user().click(screen.getByRole('button', { name: 'Verifica MFA per la cancellazione' }));
     expect(useOidc().login).toHaveBeenCalledWith('/area-personale?source=account#cancellazione', { acr_values: 'mfa', max_age: '0', prompt: 'login' });
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/privacy/erase'))).toBe(false);
@@ -91,6 +111,7 @@ describe('<ProfilePage />', () => {
   test('keeps blocked erasure explicit after the two-part destructive confirmation', async () => {
     prepare({ 'privacy/erase': () => jsonResponse({ code: 'erasure_preflight_blocked' }, 409) });
     render(<ProfilePage />);
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await confirmErasure();
     expect(await screen.findByRole('alert')).toHaveTextContent('Cancellazione bloccata');
     expect(screen.queryByText('Cancellazione completata.')).not.toBeInTheDocument();
@@ -109,7 +130,7 @@ describe('<ProfilePage />', () => {
     localStorage.setItem('profileStore', '{}');
     sessionStorage.setItem('questionnaire-draft:old', 'private draft');
     render(<ProfilePage />);
-    await screen.findByText('Feedback evento');
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await confirmErasure();
     await screen.findByText(new RegExp(String(text).replaceAll('.', '\\.')));
     expect(logout).toHaveBeenCalledWith('/');
@@ -124,6 +145,7 @@ describe('<ProfilePage />', () => {
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(async () => { throw new Error('offline'); }), renewTokens: vi.fn() });
     prepare({ 'privacy/erase': () => jsonResponse({ status: 'awaiting_manual_identity_removal' }, 202) });
     render(<ProfilePage />);
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await confirmErasure();
     expect(await screen.findByRole('alert')).toHaveTextContent('chiudi la scheda');
     expect(screen.getByRole('status')).toHaveTextContent('non è ancora completata');
@@ -133,6 +155,7 @@ describe('<ProfilePage />', () => {
   test.each([401, 403])('does not present a failed export (%s) as successful', async status => {
     prepare({ 'privacy/export': () => jsonResponse({}, status) });
     render(<ProfilePage />);
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await user().click(screen.getByRole('button', { name: 'Esporta i miei dati' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(status === 401 ? 'Accedi di nuovo' : 'non autorizzata');
   });
@@ -147,6 +170,7 @@ describe('<ProfilePage />', () => {
     vi.stubGlobal('URL', Object.assign(class extends URL {}, { createObjectURL, revokeObjectURL }));
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     render(<ProfilePage />);
+    await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await user().click(screen.getByRole('button', { name: 'Esporta i miei dati' }));
     await screen.findByText(/Esportazione scaricata/);
     expect(createObjectURL).toHaveBeenCalledOnce();
@@ -159,8 +183,9 @@ describe('<ProfilePage />', () => {
     let failed = true;
     prepare({ 'notifications/consents': () => failed ? jsonResponse({}, 503) : jsonResponse(consents) });
     render(<ProfilePage />);
+    expect(await screen.findByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato');
+    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
     await screen.findByRole('alert');
-    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato');
     expect(screen.getByRole('button', { name: 'Revoca riepilogo mensile' })).toBeEnabled();
     failed = false;
     await user().click(screen.getByRole('button', { name: 'Riprova evidenze e cronologia' }));
@@ -174,6 +199,7 @@ describe('<ProfilePage />', () => {
     render(<ProfilePage />);
     await screen.findByRole('alert');
     expect(screen.queryByRole('textbox', { name: 'Nome' })).not.toBeInTheDocument();
+    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
     expect(screen.getByText(/consenso attuale · versione old-v1/)).toBeInTheDocument();
   });
 
@@ -232,7 +258,9 @@ describe('<ProfilePage />', () => {
 
   test('profile editing is independent of unavailable website records', async () => {
     prepare({ 'privacy/data': () => jsonResponse({}, 503) }); render(<ProfilePage />);
+    await user().click(screen.getByRole('tab', { name: 'Dati condivisi' }));
     await screen.findByRole('alert');
+    await user().click(screen.getByRole('tab', { name: 'Account' }));
     expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue(personal.identity.firstName);
     expect(screen.getByRole('button', { name: 'Modifica dati personali' })).toBeEnabled();
   });
@@ -246,9 +274,11 @@ describe('<ProfilePage />', () => {
     });
     render(<ProfilePage />);
     const controls = user();
+    await controls.click(screen.getByRole('tab', { name: 'Dati condivisi' }));
     await controls.click(await screen.findByRole('button', { name: 'Carica altri dati' }));
     await screen.findByText('Seconda pagina');
     expect(screen.getByText('Feedback evento')).toBeInTheDocument();
+    await controls.click(screen.getByRole('tab', { name: 'Notifiche' }));
     await controls.click(screen.getByRole('button', { name: 'Carica altra cronologia' }));
     await screen.findByText(/Annunci eventi · Revoca · versione v2/);
     expect(screen.getByText(/Annunci eventi · Revoca · versione v2/)).toHaveTextContent('In attesa');

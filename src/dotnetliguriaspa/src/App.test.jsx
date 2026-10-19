@@ -115,6 +115,7 @@ test('ordinary authenticated accounts can use the public personal area even with
     'notifications/consents': { current: [], history: [], hasMore: false },
   });
   render(<App />, { route: '/area-personale' });
+  await userEvent.click(await screen.findByRole('tab', { name: 'Dati condivisi' }));
   await screen.findByText('Nessun record attribuibile disponibile.');
   expect(screen.getByRole('heading', { name: 'Area personale' })).toBeInTheDocument();
   expect(screen.queryByRole('navigation', { name: 'Sezioni' })).not.toBeInTheDocument();

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Button } from 'react-aria-components';
+import { Button, Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
 import { useOidc } from '@axa-fr/react-oidc';
-import { PageHeader, Panel, TextInput, btn } from '../ui';
+import { PageHeader, Panel, TextInput, btn, focusRing } from '../ui';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
 import { clearPrivateBrowserState } from '../../questionnaire/drafts';
 import { ConsentData, PersonalData, PersonalIdentity, useAccountRequest } from '../../account/accountApi';
@@ -11,6 +11,7 @@ import { accountReturnPath } from '../../account/returnPath';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 
 type Subscription = { version: string; monthlyUpcomingEvents: boolean; eventAnnouncements: boolean };
+const tabCls = `-mb-px inline-flex min-h-11 cursor-pointer items-center border-b-[3px] border-transparent px-4 font-bold text-muted transition-colors data-[hovered]:text-navy data-[selected]:border-navy data-[selected]:text-navy ${focusRing}`;
 const purposeLabel = (purpose: string) => ({
   'monthly-upcoming-events': 'Riepilogo mensile', 'event-announcements': 'Annunci eventi',
 })[purpose] ?? purpose;
@@ -113,7 +114,14 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
     <PageHeader title="Area personale" description="Account, dati condivisi, consensi e diritti privacy." />
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
     {message && <p role="status" className="mt-4 rounded-xl bg-cyan-50 p-4">{message}</p>}
-    <div className="mt-6 grid gap-6">
+    <Tabs defaultSelectedKey="account" className="mt-6">
+      <TabList aria-label="Sezioni dell'area personale" className="flex gap-1 overflow-x-auto border-b border-line">
+        <Tab id="account" className={tabCls}>Account</Tab>
+        <Tab id="data" className={tabCls}>Dati condivisi</Tab>
+        <Tab id="notifications" className={tabCls}>Notifiche</Tab>
+        <Tab id="privacy" className={tabCls}>Privacy</Tab>
+      </TabList>
+      <TabPanel id="account" className="mt-5 outline-none">
       <Panel labelledBy="profile-account" className="space-y-4 p-6">
         <h2 id="profile-account" className="text-lg font-bold">Account Identity Provider</h2>
         <p>Nome e cognome sono salvati direttamente nell’Identity Provider. Non ne conserviamo una copia nel sito.
@@ -145,6 +153,8 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
         }}>Aggiorna dati personali</Button>
         <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Modifica account e sicurezza (nuova scheda)</a>
       </Panel>
+      </TabPanel>
+      <TabPanel id="data" className="mt-5 outline-none">
       <Panel labelledBy="profile-data" className="space-y-4 p-6">
         <h2 id="profile-data" className="text-lg font-bold">Dati condivisi con il sito</h2>
         <ResourceStatus name="dati condivisi" {...personal} reload={reloadPersonal} />
@@ -163,8 +173,10 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
           setRecordOffset(value => value + 50);
         })}>Carica altri dati</Button>}
       </Panel>
+      </TabPanel>
+      <TabPanel id="notifications" className="mt-5 outline-none">
       <Panel labelledBy="profile-notifications" className="space-y-4 p-6">
-        <h2 id="profile-notifications" className="text-lg font-bold">Avvisi sugli eventi</h2>
+        <h2 id="profile-notifications" className="text-lg font-bold">Notifiche</h2>
         <ResourceStatus name="preferenze avvisi" {...subscription} />
         <p>Consenso facoltativo e separato dai questionari; per iscriversi serve un’email verificata.
           Versione dell'informativa: {subscription.data?.version ?? 'non disponibile'}.
@@ -198,6 +210,8 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
           })}>Carica altra cronologia</Button>}
         </>}
       </Panel>
+      </TabPanel>
+      <TabPanel id="privacy" className="mt-5 outline-none">
       <Panel labelledBy="profile-privacy" className="space-y-4 p-6">
         <h2 id="profile-privacy" className="text-lg font-bold">Esportazione e cancellazione</h2>
         <ResourceStatus name="stato privacy" {...privacy} />
@@ -222,6 +236,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
         <Button className={btn.danger} isDisabled={busy || !acknowledged || confirmation !== 'ELIMINA'}
           onPress={() => void erase()}>Cancella definitivamente il mio account</Button>
       </Panel>
-    </div>
+      </TabPanel>
+    </Tabs>
   </>;
 }
