@@ -289,8 +289,8 @@ public sealed class EventbriteIntegrationService(
             ["capacity"] = workshop.EventbriteTicketCapacity
         };
         var timezone = GetConfiguredTimeZone();
-        var salesStart = ConvertSalesTime(workshop.EventbriteSalesStart, timezone);
-        var salesEnd = ConvertSalesTime(workshop.EventbriteSalesEnd, timezone);
+        var (salesStart, salesEnd) = EventbriteSalesTimes.ToUtc(
+            workshop.EventbriteSalesStart, workshop.EventbriteSalesEnd, timezone);
         if (salesStart is not null)
         {
             ticketClass["sales_start"] = salesStart;
@@ -299,30 +299,7 @@ public sealed class EventbriteIntegrationService(
         {
             ticketClass["sales_end"] = salesEnd;
         }
-        if (salesStart is not null && salesEnd is not null &&
-            StringComparer.Ordinal.Compare(salesStart, salesEnd) >= 0)
-        {
-            throw new ArgumentException("Eventbrite ticket sales must end after they start.");
-        }
         return ticketClass;
-    }
-
-    private static string? ConvertSalesTime(string? value, TimeZoneInfo timezone)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-        if (!DateTime.TryParseExact(value, "yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var localTime))
-        {
-            throw new ArgumentException("Eventbrite ticket sales times must use the local date and time format.");
-        }
-        if (timezone.IsInvalidTime(localTime) || timezone.IsAmbiguousTime(localTime))
-        {
-            throw new ArgumentException("The Eventbrite ticket sales time is ambiguous or invalid for the configured timezone.");
-        }
-        return TimeZoneInfo.ConvertTimeToUtc(localTime, timezone)
-            .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
     }
 
     private static bool IsReady(Workshop workshop) =>

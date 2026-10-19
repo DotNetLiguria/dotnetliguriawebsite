@@ -2,6 +2,8 @@ namespace DotNetLiguriaCore.Model;
 
 public class QuestionnaireSummary
 {
+    [MongoDB.Bson.Serialization.Attributes.BsonIgnore]
+    public EventAuthorizationView? Authorization { get; set; }
     public Guid QuestionnaireId { get; set; }
     public string Title { get; set; } = string.Empty;
     public QuestionnaireStatus Status { get; set; }

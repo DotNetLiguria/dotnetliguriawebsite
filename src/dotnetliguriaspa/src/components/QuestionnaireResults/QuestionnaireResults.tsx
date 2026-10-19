@@ -14,6 +14,8 @@ import { createQuestionnaireAdminApi, publicQuestionnaireUrl } from '../../quest
 import { formatDate, formatDateTime } from '../../questionnaire/format';
 import { allQuestions } from '../../questionnaire/rules';
 import type { Questionnaire, QuestionnaireResponse, QuestionnaireStatistics } from '../../questionnaire/types';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { hasPermission, canPerform } from '../../account/permissions';
 
 interface ResultsData {
   questionnaire: Questionnaire;
@@ -41,6 +43,10 @@ const Stat: FC<{ label: string; children: React.ReactNode; large?: boolean }> = 
 );
 
 const QuestionnaireResults: FC = () => {
+  const { capabilities } = useAccountCapabilities();
+  const canStats = hasPermission(capabilities, 'questionnaire-results.read');
+  const canResponses = hasPermission(capabilities, 'questionnaire-responses.read');
+  const canDefinition = hasPermission(capabilities, 'questionnaires.read');
   const { id = '' } = useParams<{ id: string }>();
   const [params, setParams] = useSearchParams();
   const { fetch } = useOidcFetch();
@@ -58,19 +64,24 @@ const QuestionnaireResults: FC = () => {
     let alive = true;
     setData(current => (current?.questionnaire.questionnaireId === id ? current : null));
     setRefreshing(true);
-    Promise.all([api.get(id), api.statistics(id), api.responses(id)])
+    const emptyQuestionnaire: Questionnaire = { questionnaireId: id, title: 'Questionario', status: 'Draft', respondentMode: 'Anonymous',
+      onePerEmail: false, displayMode: 'SinglePage', sections: [], version: 1, createdAt: '', updatedAt: '', origin: 'Web', responseCount: 0 };
+    const emptyStats: QuestionnaireStatistics = { questionnaireId: id, title: 'Questionario', responseCount: 0, firstResponseAt: null, lastResponseAt: null, responsesPerDay: [], questions: [] };
+    Promise.all([canDefinition ? api.get(id) : Promise.resolve(emptyQuestionnaire),
+      canStats ? api.statistics(id) : Promise.resolve(emptyStats),
+      canResponses ? api.responses(id) : Promise.resolve([])])
       .then(([questionnaire, stats, responses]) => {
         if (!alive) return;
-        setData({ questionnaire, stats, responses });
+        setData({ questionnaire: canDefinition ? questionnaire : { ...questionnaire, title: stats.title || 'Questionario' }, stats, responses });
         setError(null);
       })
       .catch((err: unknown) => { if (alive) setError(errorText(err, 'Impossibile caricare i risultati.')); })
       .finally(() => { if (alive) setRefreshing(false); });
     return () => { alive = false; };
-  }, [api, id, version]);
+  }, [api, id, version, canDefinition, canStats, canResponses]);
 
   const questions = useMemo(() => new Map((data ? allQuestions(data.questionnaire) : []).map(q => [q.id, q])), [data]);
-  const tab = params.get('vista') === 'risposte' ? 'risposte' : 'riepilogo';
+  const tab = canResponses && (params.get('vista') === 'risposte' || !canStats) ? 'risposte' : 'riepilogo';
   const setTab = (next: string) => {
     const nextParams = new URLSearchParams(params);
     if (next === 'risposte') nextParams.set('vista', 'risposte'); else nextParams.delete('vista');
@@ -142,11 +153,11 @@ const QuestionnaireResults: FC = () => {
         actions={(
           <>
             <Button isDisabled={refreshing} onPress={reload} className={btn.ghost}><Icon name="refresh" />{refreshing ? 'Aggiornamento…' : 'Aggiorna'}</Button>
-            <Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/edit`} className={btn.ghost}><AdminIcon name="pencil" />Modifica</Link>
+            {canDefinition && <Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/edit`} className={btn.ghost}><AdminIcon name="pencil" />Modifica</Link>}
             {questionnaire.status === 'Published' && (
               <ExternalLink href={publicQuestionnaireUrl(questionnaire.questionnaireId)} className={`${btn.secondary} gap-1.5`}>Apri il link pubblico</ExternalLink>
             )}
-            <Button isDisabled={exporting || stats.responseCount === 0} onPress={() => void exportCsv()} className={btn.primary}>
+            <Button isDisabled={exporting || (canStats && stats.responseCount === 0) || !canPerform(capabilities, 'questionnaire-responses.export', questionnaire.workshopId ? questionnaire : undefined)} onPress={() => void exportCsv()} className={btn.primary}>
               <AdminIcon name="download" />{exporting ? 'Esportazione…' : 'Esporta CSV'}
             </Button>
           </>
@@ -155,7 +166,7 @@ const QuestionnaireResults: FC = () => {
 
       {error && <div className="mt-5"><LoadError message={error} onRetry={reload} /></div>}
 
-      <Panel className="mt-6 p-5 sm:p-6" labelledBy="results-numbers">
+      {canStats && <Panel className="mt-6 p-5 sm:p-6" labelledBy="results-numbers">
         <h2 id="results-numbers" className="sr-only">Numeri in sintesi</h2>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
           <Stat label="Risposte" large>{stats.responseCount}</Stat>
@@ -163,15 +174,15 @@ const QuestionnaireResults: FC = () => {
           <Stat label="Ultima risposta">{formatDate(stats.lastResponseAt) || '—'}</Stat>
           <Stat label="Domande">{stats.questions.length}</Stat>
         </dl>
-      </Panel>
+      </Panel>}
 
-      <Tabs selectedKey={tab} onSelectionChange={key => setTab(String(key))} className="mt-6">
+      {(canStats || canResponses) && <Tabs selectedKey={tab} onSelectionChange={key => setTab(String(key))} className="mt-6">
         <TabList aria-label="Sezioni dei risultati" className="flex gap-1 border-b border-line">
-          <Tab id="riepilogo" className={tabCls}>Riepilogo</Tab>
-          <Tab id="risposte" className={tabCls}>Risposte ({responses.length})</Tab>
+          {canStats && <Tab id="riepilogo" className={tabCls}>Riepilogo</Tab>}
+          {canResponses && <Tab id="risposte" className={tabCls}>Risposte ({responses.length})</Tab>}
         </TabList>
 
-        <TabPanel id="riepilogo" className="mt-5 outline-none">
+        {canStats && <TabPanel id="riepilogo" className="mt-5 outline-none">
           {stats.responseCount === 0 ? (
             <Panel>
               <EmptyState
@@ -196,12 +207,12 @@ const QuestionnaireResults: FC = () => {
               ))}
             </div>
           )}
-        </TabPanel>
+        </TabPanel>}
 
-        <TabPanel id="risposte" className="mt-5 outline-none">
-          <ResponsesPanel questionnaire={questionnaire} responses={responses} onDelete={deleteResponse} />
-        </TabPanel>
-      </Tabs>
+        {canResponses && <TabPanel id="risposte" className="mt-5 outline-none">
+          {canResponses && <ResponsesPanel questionnaire={questionnaire} responses={responses} onDelete={deleteResponse} />}
+        </TabPanel>}
+      </Tabs>}
     </>
   );
 };

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
+using DotNetLiguriaCore.Services.Access;
 
 namespace DotNetLiguriaCore.Services.Privacy;
 
@@ -10,7 +11,8 @@ public sealed class PrivacyCoordinator(
     IIdentityAccountAdmin identities,
     IPrivacySnapshotStore snapshots,
     IOptions<PrivacyOptions> options,
-    IRetentionPolicyStore? retentionPolicy = null)
+    IRetentionPolicyStore? retentionPolicy = null,
+    IAccessAuditStore? accessAudit = null)
 {
     private readonly PrivacyOperationGate _gate = gate;
     private readonly IErasureJournal _journal = journal;
@@ -19,6 +21,7 @@ public sealed class PrivacyCoordinator(
     private readonly IPrivacySnapshotStore _snapshots = snapshots;
     private readonly PrivacyOptions _options = options.Value;
     private readonly IRetentionPolicyStore? _retentionPolicy = retentionPolicy;
+    private readonly IAccessAuditStore? _accessAudit = accessAudit;
 
     // Must be checked inside the same gate lease as every account-linked application write.
     public async Task EnsureAccountActiveAsync(AccountReference account, CancellationToken cancellationToken = default)
@@ -42,6 +45,9 @@ public sealed class PrivacyCoordinator(
         using var lease = await _gate.EnterAsync(cancellationToken);
         var profile = await _identities.GetAsync(account, cancellationToken);
         var responses = await _store.ExportAsync(account, cancellationToken);
+        var accessAudit = _accessAudit is null
+            ? Array.Empty<BsonDocument>()
+            : await _accessAudit.ExportAccountAsync(account, cancellationToken);
         return new
         {
             inventoryVersion = ErasureFieldInventory.Version,
@@ -53,6 +59,7 @@ public sealed class PrivacyCoordinator(
             },
             // Extended JSON preserves the existing BSON data without resolving any other user's identity.
             responses = responses.Select(document => document.ToJson()).ToArray(),
+            accessAudit = accessAudit.Select(document => document.ToJson()).ToArray(),
             warning = "Unattributable legacy data requires a separately approved inventory; this export is not proof of absence."
         };
     }
@@ -187,6 +194,8 @@ public sealed class PrivacyCoordinator(
         operation = operation with { Stage = "identity_disabled" };
         await _journal.SaveAsync(operation, cancellationToken);
         await _store.EraseAsync(account, cancellationToken);
+        if (_accessAudit is not null)
+            await _accessAudit.EraseAccountAsync(account, cancellationToken);
         operation = operation with { Stage = "application_erased" };
         await _journal.SaveAsync(operation, cancellationToken);
         await _snapshots.PurgeForErasureUnderGateAsync(cancellationToken);

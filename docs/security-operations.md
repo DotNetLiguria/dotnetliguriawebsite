@@ -33,6 +33,11 @@ See `hardening.md` for task evidence and `privacy-backend.md` for endpoint contr
 
 ## Keycloak configuration checklist
 
+The task-permission model and breaking authorization cutover are documented in
+[`authorization.md`](authorization.md). Its explicit client role-scope mappings
+and **Full Scope Allowed = OFF** requirement supersede the legacy administrator
+role assignment instructions below.
+
 * Realm issuer: `https://hello.vevy.com/realms/DotNetLiguria`. Keep validated
   issuer/audience/signature/lifetime checks; an audience is not a privilege.
   `Privacy:Issuer` must match `AuthServer:Authority` exactly at startup.
@@ -45,14 +50,13 @@ See `hardening.md` for task evidence and `privacy-backend.md` for endpoint contr
   do not add localhost or port 3443 as a production token destination.
 * `DotNetLiguriaCore`: confidential backend client and expected API audience.
   Load its secret at runtime. Audit audience mappers separately from privileges.
-* Administrative roles are case-sensitive realm roles or roles under the exact
-  `DotNetLiguriaCore` namespace, not another client's roles. Dedicated Boolean
-  privilege claims must be issuer-controlled and exactly true.
-* Configure explicit `privacyadmin` / `notificationadmin` assignments or change
-  the corresponding server role options. UI hints are not authorization.
-  Dashboard access additionally requires the configured `WebDevAdmin`
-  privilege. A board record or a specialized role alone does not grant dashboard
-  access. Do not broaden API policies to compensate for missing assignments.
+* Configure exact `DotNetLiguriaCore` leaf permissions and the restricted
+  multivalued `permissions` access-token mapper. Legacy realm-role/Boolean
+  administrator grants do not authorize the new policies.
+* Disable Full Scope Allowed for SPA, backend and relevant service clients.
+  Explicitly permit the assigned roles through client role-scope mappings;
+  assignments alone are insufficient. Specialists enter only their permitted
+  dashboard tasks without an umbrella website administrator role.
 * Restore and destructive privacy operations require `acr` equal to `mfa` or
   `hwk` and one numeric `auth_time` no more than 300 seconds old. Ensure these
   issuer-controlled claims are present in **access tokens**, not only ID tokens.

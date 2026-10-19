@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using DotNetLiguriaCore.Services.Access;
 using DotNetLiguriaCore.Services.Notifications;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -18,7 +19,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
         var known = new HashSet<string>(_options.AssessedNonAccountCollections, StringComparer.Ordinal)
         {
             _settings.QuestionnaireCollectionName, _settings.QuestionnaireResponseCollectionName,
-            "NotificationCampaigns", MongoConsentHistoryStore.CollectionName
+            "NotificationCampaigns", MongoConsentHistoryStore.CollectionName, MongoAccessAuditStore.CollectionName
         };
         using var names = await _database.ListCollectionNamesAsync(cancellationToken: cancellationToken);
         foreach (var name in await names.ToListAsync(cancellationToken))

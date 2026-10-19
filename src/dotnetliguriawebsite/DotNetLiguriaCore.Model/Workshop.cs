@@ -6,6 +6,8 @@ namespace DotNetLiguriaCore.Model
     {
         [BsonId]
         public Guid WorkshopId { get; set; }
+        [BsonIgnore]
+        public EventAuthorizationView? Authorization { get; set; }
         public string? Title { get; set; }
         public string? Description { get; set; }
         

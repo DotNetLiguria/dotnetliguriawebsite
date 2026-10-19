@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PermissionGate, useCan } from '../../account/PermissionGate';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Form, Heading } from 'react-aria-components';
 import { AdminIcon } from '../icons';
@@ -117,6 +118,7 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
   onChanged: () => void;
   onDeleted: () => void;
 }) {
+  const can = useCan();
   const api = useAdminFetch();
   const [mode, setMode] = useState(initialMode);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -142,7 +144,7 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
-        {mode === 'edit' ? (
+        {mode === 'edit' && can('board.manage') ? (
           <BoardForm member={member} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} />
         ) : (
           <>
@@ -204,8 +206,8 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
               </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-              <Button onPress={() => setConfirmDelete(true)} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
-              <Button onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
+              <Button isDisabled={!can('board.delete')} onPress={() => setConfirmDelete(true)} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
+              <Button isDisabled={!can('board.manage')} onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
             </div>
           </>
         )}
@@ -224,6 +226,7 @@ interface RowsProps {
 const menuItems = (member: AdminBoardMember, onToggle: (member: AdminBoardMember) => void): RowMenuItem[] => [
   {
     id: 'toggle',
+    permission: 'board.manage',
     label: isVisible(member) ? 'Nascondi dal sito' : 'Mostra sul sito',
     icon: <LocalIcon name={isVisible(member) ? 'eyeOff' : 'eye'} />,
     onAction: () => onToggle(member),
@@ -315,6 +318,7 @@ function BoardCards({ members, busy, onMove, onToggle }: RowsProps) {
 }
 
 export default function BoardPage() {
+  const can = useCan();
   const { id } = useParams<{ id?: string }>();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -324,7 +328,7 @@ export default function BoardPage() {
   const members = useMemo(() => (load.state === 'ready' ? byOrder(load.data) : null), [load]);
   // Locked from the first write until the reloaded list arrives, so that no move is planned on stale positions.
   const [lockedOn, setLockedOn] = useState<unknown>(null);
-  const busy = lockedOn === load;
+  const busy = lockedOn === load || !can('board.manage');
   const [announcement, setAnnouncement] = useState('');
   const refocus = useRef<{ id: string; delta: -1 | 1 } | null>(null);
 
@@ -375,7 +379,7 @@ export default function BoardPage() {
         description={members ? `${plural(members.length, 'membro', 'membri')}. L'ordine dell'elenco è quello della sezione Team del sito.` : undefined}
         actions={
           <>
-            <Link to="/admin/board/new" className={btn.primary}><AdminIcon name="plus" />Nuovo membro</Link>
+            <PermissionGate permission="board.manage"><Link to="/admin/board/new" className={btn.primary}><AdminIcon name="plus" />Nuovo membro</Link></PermissionGate>
             <a href="/#team" target="_blank" rel="noopener noreferrer" className={btn.secondary}>Vedi il team sul sito<span className="sr-only"> (si apre in una nuova scheda)</span><AdminIcon name="external" /></a>
           </>
         }
@@ -406,7 +410,7 @@ export default function BoardPage() {
               <Heading slot="title" className="text-2xl font-bold">Nuovo membro del board</Heading>
               <Button slot="close" aria-label="Chiudi" className={btn.icon}><AdminIcon name="x" /></Button>
             </div>
-            <div className="p-5 sm:p-6">
+            <div className="p-5 sm:p-6" inert={!can('board.manage')}>
               <BoardForm
                 initialOrder={(members ?? []).reduce((order, member) => Math.max(order, member.order ?? 0), 0) + 1}
                 onCancel={close}

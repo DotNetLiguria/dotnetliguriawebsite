@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { canPerform, hasAllPermissions } from '../../account/permissions';
 import { Button, Disclosure, DisclosureGroup, DisclosurePanel, Heading } from 'react-aria-components';
 import { AdminIcon } from '../icons';
 import { Badge, Panel, TextAreaInput, TextInput, btn } from '../ui';
@@ -60,6 +62,12 @@ interface TicketSales { totalCapacity: number; sold: number; pending: number; re
 
 export function AgendaModule({ page, activePage }: { page: EventPage; activePage: AgendaPage | null }) {
   const { workshop, speakers, api } = page;
+  const { capabilities } = useAccountCapabilities();
+  const canManage = canPerform(capabilities, 'events.manage', workshop);
+  const canTicketRead = canPerform(capabilities, 'eventbrite.read', workshop);
+  const canTicketManage = canPerform(capabilities, 'eventbrite.manage', workshop);
+  const canTicketPublish = canPerform(capabilities, 'eventbrite.publish', workshop);
+  const canImport = canManage && hasAllPermissions(capabilities, ['events.read', 'speakers.read', 'speakers.manage']);
   const [state, setState] = useState<AgendaDraftState>(() => stateOf(workshop).state);
   const { talks, tracks, items } = state;
   const [eventbriteSales, setEventbriteSales] = useState<TicketSales | null>(null);
@@ -105,6 +113,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   const message = (text: string, error = false) => notify(text, error ? { kind: 'error' } : undefined);
 
   const handleImport = async () => {
+    if (!canImport) return;
     if (importSource === 'none') return;
     setBusy(true);
     try {
@@ -193,6 +202,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
 
   /** The previous handleSave: the page's checks, then one PUT of the whole record; the record then reads update-pending. */
   const handleSave = async (): Promise<boolean> => {
+    if (!canManage) return false;
     const problem = agendaProblem(state, activePage ?? 'registration');
     if (problem) {
       message(problem, true);
@@ -205,6 +215,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   };
 
   const handleSetEventbriteCapacity = async () => {
+    if (!canTicketManage) return;
     setBusy(true);
     try {
       page.replace(await api<EventRecord>(`/Eventbrite/SetTicketCapacity/${encodeURIComponent(workshop.workshopId)}`, { method: 'PUT', body: JSON.stringify({ capacity: state.eventbriteTicketCapacity }) }));
@@ -216,7 +227,27 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
     }
   };
 
+  const handleSaveEventbriteConfiguration = async () => {
+    if (!canTicketManage) return;
+    setBusy(true);
+    try {
+      await api(`/Eventbrite/Configuration/${encodeURIComponent(workshop.workshopId)}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          salesStart: state.eventbriteSalesStart || null,
+          salesEnd: state.eventbriteSalesEnd || null,
+          ...(!workshop.eventbriteTicketClassId ? { ticketCapacity: state.eventbriteTicketCapacity } : {}),
+        }),
+      });
+      if (!await page.refresh()) throw new Error('Configurazione salvata, ma aggiornamento non verificato. Ricarica l’evento.');
+      message(workshop.eventbriteTicketClassId ? 'Periodo di vendita Eventbrite salvato.' : 'Periodo di vendita e quantità iniziale Eventbrite salvati.');
+    } catch (error) {
+      message(detailMessage(error, 'Impossibile salvare il periodo di vendita Eventbrite'), true);
+    } finally { setBusy(false); }
+  };
+
   const handleRefreshEventbriteSales = async () => {
+    if (!canTicketRead) return;
     setRefreshingSales(true);
     try {
       setEventbriteSales(await api<TicketSales>(`/Eventbrite/TicketSales/${encodeURIComponent(workshop.workshopId)}`));
@@ -229,9 +260,10 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   };
 
   const handleSyncEventbrite = async () => {
+    if (!canTicketManage) return;
     setSyncing(true);
     try {
-      if (!await handleSave()) return;
+      if (canManage && !await handleSave()) return;
       const updated = await api<EventRecord>(`/Eventbrite/Sync/${encodeURIComponent(workshop.workshopId)}`, { method: 'POST' });
       page.replace(updated);
       message(updated.eventbriteEventId
@@ -245,6 +277,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   };
 
   const handlePublishEventbrite = async () => {
+    if (!canTicketPublish) return;
     setPublishing(true);
     try {
       await api(`/Eventbrite/Publish/${encodeURIComponent(workshop.workshopId)}`, { method: 'POST' });
@@ -276,11 +309,11 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
           </Notice>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextInput label="URL di prenotazione e cancellazione del posto" value={state.bookingServiceUrl} onChange={bookingServiceUrl => set({ bookingServiceUrl })} />
-          <NumberInput label="Biglietti gratuiti Eventbrite disponibili" min={minimumCapacity} value={String(state.eventbriteTicketCapacity)} onChange={value => set({ eventbriteTicketCapacity: Math.max(0, Number.parseInt(value, 10) || 0) })} description={`Separati dalla capienza della sede. Aumenta questo valore per liberare altri biglietti; totale attualmente sincronizzato: ${synced}.`} />
-          <TextInput label="Inizio vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesStart} onChange={eventbriteSalesStart => set({ eventbriteSalesStart })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
-          <TextInput label="Fine vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesEnd} onChange={eventbriteSalesEnd => set({ eventbriteSalesEnd })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
-          <div className="sm:col-span-2"><TextAreaInput label="Note per i partecipanti" rows={2} value={state.attendeeNotes} onChange={attendeeNotes => set({ attendeeNotes })} /></div>
+          <TextInput isDisabled={!canManage} label="URL di prenotazione e cancellazione del posto" value={state.bookingServiceUrl} onChange={bookingServiceUrl => set({ bookingServiceUrl })} />
+          <fieldset disabled={!canTicketManage} className="min-w-0 border-0 p-0"><NumberInput label="Biglietti gratuiti Eventbrite disponibili" min={minimumCapacity} value={String(state.eventbriteTicketCapacity)} onChange={value => set({ eventbriteTicketCapacity: Math.max(0, Number.parseInt(value, 10) || 0) })} description={`Separati dalla capienza della sede. Aumenta questo valore per liberare altri biglietti; totale attualmente sincronizzato: ${synced}.`} /></fieldset>
+          <TextInput isDisabled={!canTicketManage} label="Inizio vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesStart} onChange={eventbriteSalesStart => set({ eventbriteSalesStart })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
+          <TextInput isDisabled={!canTicketManage} label="Fine vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesEnd} onChange={eventbriteSalesEnd => set({ eventbriteSalesEnd })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
+          <div className="sm:col-span-2"><TextAreaInput isDisabled={!canManage} label="Note per i partecipanti" rows={2} value={state.attendeeNotes} onChange={attendeeNotes => set({ attendeeNotes })} /></div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-sm">
@@ -289,22 +322,23 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
           </p>
           {workshop.eventbriteEventUrl && <ExternalLink href={workshop.eventbriteEventUrl} className={btn.ghost}>Apri l'evento Eventbrite</ExternalLink>}
           {workshop.eventbriteEventId && (
-            <Button onPress={() => void handleRefreshEventbriteSales()} isDisabled={refreshingSales || saving} className={btn.secondary}><EventIcon name="refresh" />{refreshingSales ? 'Aggiornamento delle vendite dei biglietti…' : 'Aggiorna le vendite live dei biglietti'}</Button>
+            <Button onPress={() => void handleRefreshEventbriteSales()} isDisabled={refreshingSales || saving || !canTicketRead} className={btn.secondary}><EventIcon name="refresh" />{refreshingSales ? 'Aggiornamento delle vendite dei biglietti…' : 'Aggiorna le vendite live dei biglietti'}</Button>
           )}
           {eventbriteSales && (
             <p role="status" className="w-full rounded-xl bg-cyan-50 p-4 text-cyan-700">
               Biglietti Eventbrite — venduti: {eventbriteSales.sold}, in sospeso: {eventbriteSales.pending}, capienza totale: {eventbriteSales.totalCapacity}, rimanenti: {eventbriteSales.remaining}. Aggiornato {new Date(eventbriteSales.refreshedAt).toLocaleString('it-IT')}.
             </p>
           )}
-          <Button onPress={() => void handleSave()} isDisabled={saving || syncing} className={btn.primary}>Salva iscrizione e agenda</Button>
+          <Button onPress={() => void handleSave()} isDisabled={saving || syncing || !canManage} className={btn.primary}>Salva iscrizione e agenda</Button>
+          <Button onPress={() => void handleSaveEventbriteConfiguration()} isDisabled={saving || !canTicketManage} className={btn.secondary}>{workshop.eventbriteTicketClassId ? 'Salva periodo vendite Eventbrite' : 'Salva periodo vendite e quantità iniziale Eventbrite'}</Button>
           {workshop.eventbriteEventId && state.eventbriteTicketCapacity > synced && (
-            <Button onPress={() => void handleSetEventbriteCapacity()} isDisabled={saving} className={btn.secondary}><EventIcon name="ticket" />Salva capienza biglietti</Button>
+            <Button onPress={() => void handleSetEventbriteCapacity()} isDisabled={saving || !canTicketManage} className={btn.secondary}><EventIcon name="ticket" />Salva capienza biglietti</Button>
           )}
-          <Button onPress={() => void handleSyncEventbrite()} isDisabled={saving || syncing || readinessIssues.length > 0} className={btn.secondary}>
+          <Button onPress={() => void handleSyncEventbrite()} isDisabled={saving || syncing || readinessIssues.length > 0 || !canTicketManage} className={btn.secondary}>
             {syncing ? 'Sincronizzazione…' : workshop.eventbriteEventId ? 'Sincronizza/Aggiorna Eventbrite' : 'Crea bozza Eventbrite'}
           </Button>
           {workshop.eventbriteEventId && !workshop.eventbritePublished && !confirmPublish && (
-            <Button onPress={() => setConfirmPublish(true)} isDisabled={saving || publishing} className={btn.primary}>{publishing ? 'Pubblicazione…' : 'Pubblica su Eventbrite'}</Button>
+            <Button onPress={() => setConfirmPublish(true)} isDisabled={saving || publishing || !canTicketPublish} className={btn.primary}>{publishing ? 'Pubblicazione…' : 'Pubblica su Eventbrite'}</Button>
           )}
           {confirmPublish && (
             <div className="w-full">
@@ -316,13 +350,14 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
         </div>
       </Panel>
 
+      <fieldset disabled={!canManage} className="contents">
       <Panel hidden={activePage !== 'talks'} labelledBy="talk-pool-title" className="space-y-4 p-5 sm:p-6">
         <PanelTitle id="talk-pool-title" title="Talk pool" />
         <h3 className="font-bold">Importa talk</h3>
         <div className="grid items-end gap-3 md:grid-cols-[1fr_2fr_auto]">
           <SelectInput label="Importa da" items={IMPORT_SOURCES} selectedKey={importSource} onSelectionChange={key => setImportSource(key === 'sessionize' ? 'sessionize' : 'none')} />
           {importSource === 'sessionize' && <TextInput label="ID Sessionize" value={sessionizeId} onChange={setSessionizeId} placeholder="ID evento" />}
-          {importSource === 'sessionize' && <Button onPress={() => void handleImport()} isDisabled={saving || !sessionizeId.trim()} className={btn.secondary}><AdminIcon name="download" />Importa talk</Button>}
+          {importSource === 'sessionize' && <Button onPress={() => void handleImport()} isDisabled={saving || !sessionizeId.trim() || !canImport} className={btn.secondary}><AdminIcon name="download" />Importa talk</Button>}
         </div>
         <hr className="border-line" />
         <h3 className="font-bold">Tracks</h3>
@@ -362,7 +397,9 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
         </ul>
         <div><Button onPress={() => void handleSave()} isDisabled={saving} className={btn.primary}>Salva talk pool</Button></div>
       </Panel>
+      </fieldset>
 
+      <fieldset disabled={!canManage} className="contents">
       <Panel hidden={activePage !== 'schedule'} labelledBy="schedule-title" className="space-y-4 p-5 sm:p-6">
         <PanelTitle id="schedule-title" title="Orari della track" />
         <div className="grid gap-3 sm:grid-cols-3">
@@ -410,6 +447,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
         </div>
         <div><Button onPress={() => void handleSave()} isDisabled={saving} className={btn.primary}>Salva agenda</Button></div>
       </Panel>
+      </fieldset>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { jsonResponse } from '../../test-utils';
 import type { VenueModel } from '../../models/VenueModel';
 import type { EventFile, EventRecord, EventSpeaker } from './eventModel';
+import { PERMISSIONS } from '../../account/permissions';
 
 // Test data and a recording fake API for the event screens (not a test file itself).
 
@@ -10,6 +11,7 @@ export const eventFixture = (overrides: Partial<EventRecord> = {}): EventRecord 
   isExternalEvent: false, externalRegistration: false, externalRegistrationLink: '',
   location: { name: 'Genova', address: 'Via del Porto 1', coordinates: '44.4056,8.9463', maximumSpaces: 150 },
   tracks: [], talks: [], agendaTracks: [], agendaItems: [], materials: [], photos: [],
+  authorization: { isPast: false, allowedActions: [...PERMISSIONS] },
   ...overrides,
 });
 
@@ -35,6 +37,14 @@ export function serveEvent(initial: EventRecord, routes: Record<string, Answer> 
   const store = { record: initial, files: [...(options.files ?? [])] };
   const calls: ApiCall[] = [];
   const defaults: Record<string, Answer> = {
+    '/Workshop/Publication/': (_url: string, init?: RequestInit) => {
+      store.record = { ...store.record, published: (JSON.parse(String(init?.body)) as { published: boolean }).published };
+      return new Response(null, { status: 204 });
+    },
+    '/Workshop/Homepage/': (_url: string, init?: RequestInit) => {
+      store.record = { ...store.record, in_homepage: (JSON.parse(String(init?.body)) as { selected: boolean }).selected };
+      return new Response(null, { status: 204 });
+    },
     '/Workshop/Update/': (_url: string, init?: RequestInit) => {
       if (options.failUpdate) return options.failUpdate;
       store.record = JSON.parse(String(init?.body)) as EventRecord;

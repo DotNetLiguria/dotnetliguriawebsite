@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Endpoints;
+using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -14,79 +15,58 @@ namespace DotNetLiguriaCore.Tests;
 public sealed class AccountCapabilitiesTests
 {
     [Theory]
-    [InlineData("", false)]
-    [InlineData("dnl-webdevadmin", false)]
-    [InlineData("feedbackadmin", false)]
-    [InlineData("board-member", false)]
-    public async Task UnscopedRoleClaimsDoNotGrantAdministrativeCapabilities(string role, bool expected) =>
-        await AssertCapabilitiesAsync(new(ClaimTypes.Role, role), expected);
+    [InlineData("dnl-webdevadmin", "true")]
+    [InlineData("realm_access", "{\"roles\":[\"dnl-webdevadmin\"]}")]
+    [InlineData("resource_access", "{\"DotNetLiguriaCore\":{\"roles\":[\"feedbackadmin\"]}}")]
+    [InlineData("roles", "backupadmin")]
+    public async Task LegacyGrantsDoNotUnlockTheDashboard(string type, string value)
+    {
+        var result = await CapabilitiesAsync([new Claim(type, value)]);
+        Assert.False(result.GetProperty("canAccessAdmin").GetBoolean());
+        Assert.Empty(result.GetProperty("permissions").EnumerateArray());
+    }
 
     [Theory]
-    [InlineData("dnl-webdevadmin", "true", true)]
-    [InlineData("dnl-webdevadmin", "True", true)]
-    [InlineData("dnl-webdevadmin", "false", false)]
-    [InlineData("dnl-webdevadmin", "False", false)]
-    [InlineData("dnl-webdevadmin", "", false)]
-    [InlineData("dnl-webdevadmin", "1", false)]
-    [InlineData("dnl-webdevadmin", "dnl-webdevadmin", false)]
-    [InlineData("realm_access", "{\"roles\":[\"dnl-webdevadmin\"]}", true)]
-    [InlineData("resource_access", "{\"DotNetLiguriaCore\":{\"roles\":[\"dnl-webdevadmin\"]}}", true)]
-    [InlineData("resource_access", "{\"other-client\":{\"roles\":[\"dnl-webdevadmin\"]}}", false)]
-    [InlineData("roles", "[\"dnl-webdevadmin\"]", false)]
-    [InlineData("roles0", "dnl-webdevadmin", false)]
-    public async Task BooleanClaimAndKeycloakRolesAreEvaluatedByTheSamePolicyAsWebsiteApis(string type, string value, bool expected) =>
-        await AssertCapabilitiesAsync(new(type, value), expected);
-
-    [Fact]
-    public async Task ActualJwtBooleanClaimGrantsWebsiteAdministration()
+    [InlineData("questionnaires.manage", true)]
+    [InlineData("backups.read", true)]
+    [InlineData("events.past.manage", false)]
+    public async Task SpecialistsDoNotNeedAnUmbrellaAdministratorRole(string permission, bool enter)
     {
-        var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler();
-        var token = handler.CreateToken(new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
-        {
-            Claims = new Dictionary<string, object> { ["dnl-webdevadmin"] = true }
-        });
-        var claim = Assert.Single(handler.ReadJsonWebToken(token).Claims, claim => claim.Type == "dnl-webdevadmin");
-        Assert.Equal("true", claim.Value);
-        await AssertCapabilitiesAsync(claim, true);
+        var result = await CapabilitiesAsync([new Claim("permissions", permission)], permission);
+        Assert.Equal(1, result.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(enter, result.GetProperty("canAccessAdmin").GetBoolean());
+        Assert.Equal(permission, Assert.Single(result.GetProperty("permissions").EnumerateArray()).GetString());
+        Assert.False(result.TryGetProperty("websiteAdmin", out _));
     }
 
     [Fact]
-    public async Task DotNetBooleanClaimGrantsWebsiteAdministration() =>
-        await AssertCapabilitiesAsync(new Claim("dnl-webdevadmin", bool.TrueString, ClaimValueTypes.Boolean), true);
+    public async Task AssignedButOutOfScopePermissionIsNotRestoredFromLiveDirectory()
+    {
+        var result = await CapabilitiesAsync([], "backups.restore");
+        Assert.Empty(result.GetProperty("permissions").EnumerateArray());
+    }
 
-    private static async Task AssertCapabilitiesAsync(Claim claim, bool expected, bool feedbackAdmin = false)
+    private static async Task<JsonElement> CapabilitiesAsync(Claim[] claims, params string[] live)
     {
         var builder = WebApplication.CreateSlimBuilder();
-        builder.Services.Configure<WebDevAdminAuthorizationOptions>(_ => { });
-        builder.Services.Configure<QuestionnaireAuthorizationOptions>(_ => { });
-        builder.Services.Configure<BackupAuthorizationOptions>(_ => { });
-        builder.Services.AddSingleton<IAuthorizationHandler, WebDevAdminHandler>();
-        builder.Services.AddSingleton<IAuthorizationHandler, FeedbackAdminHandler>();
-        builder.Services.AddSingleton<IAuthorizationHandler, BackupAdminHandler>();
-        builder.Services.AddAuthorizationBuilder()
-            .AddPolicy(WebDevAdminAuthorizationOptions.PolicyName, policy => policy.AddRequirements(new WebDevAdminRequirement()))
-            .AddPolicy(QuestionnaireAuthorizationOptions.PolicyName, policy => policy.AddRequirements(new FeedbackAdminRequirement()))
-            .AddPolicy(BackupAuthorizationOptions.PolicyName, policy => policy.AddRequirements(new BackupAdminRequirement()))
-            .AddPolicy("PrivacyAdministrator", policy => policy.RequireRole("privacyadmin"))
-            .AddPolicy("NotificationAdministrator", policy => policy.RequireRole("notificationadmin"));
+        builder.Services.AddPermissionAuthorization();
+        builder.Services.Configure<PrivacyOptions>(options => options.Issuer = TestPermissionDirectory.Issuer);
+        builder.Services.AddSingleton<IPermissionDirectory>(new TestPermissionDirectory(live));
         await using var app = builder.Build();
         app.MapAccountEndpoints();
+        using var scope = app.Services.CreateScope();
         var endpoint = Assert.Single(((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints).OfType<RouteEndpoint>());
         Assert.Contains(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(), data => data.AuthenticationSchemes == "Bearer");
         var context = new DefaultHttpContext
         {
-            RequestServices = app.Services,
-            User = new ClaimsPrincipal(new ClaimsIdentity([claim], "Bearer"))
+            RequestServices = scope.ServiceProvider,
+            User = TestPermissionDirectory.Principal(claims),
         };
         context.Response.Body = new MemoryStream();
         await endpoint.RequestDelegate!(context);
         context.Response.Body.Position = 0;
         using var result = await JsonDocument.ParseAsync(context.Response.Body, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(expected, result.RootElement.GetProperty("websiteAdmin").GetBoolean());
-        Assert.Equal(feedbackAdmin, result.RootElement.GetProperty("feedbackAdmin").GetBoolean());
-        Assert.False(result.RootElement.GetProperty("privacyAdmin").GetBoolean());
-        Assert.False(result.RootElement.GetProperty("backupAdmin").GetBoolean());
         Assert.Contains("no-store", context.Response.Headers.CacheControl.ToString());
-        Assert.DoesNotContain("example.test", result.RootElement.ToString());
+        return result.RootElement.Clone();
     }
 }

@@ -8,6 +8,7 @@ import { notify } from '../toasts';
 import type { VenueModel } from '../../models/VenueModel';
 import { NumberInput, SelectInput, useEventApi } from './eventKit';
 import { detailMessage, isGuid, locationFromVenue, parseRooms, statusMessage } from './eventModel';
+import { useCan } from '../../account/PermissionGate';
 
 // New event: the previous AdminWorkshopCreate, texts translated literally. Title, description, date, a saved
 // venue, location name and address are required (one message); the venue's fields are copied onto the event
@@ -28,6 +29,7 @@ const EMPTY: Draft = {
 };
 
 export default function EventCreatePage() {
+  const can = useCan();
   const navigate = useNavigate();
   const api = useEventApi();
   const [venues, setVenues] = useState<VenueModel[]>([]);
@@ -36,13 +38,14 @@ export default function EventCreatePage() {
   const [saving, setSaving] = useState(false);
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
   useEffect(() => {
+    if (!can('venues.read')) { setLoadingVenues(false); return; }
     let alive = true;
     api<VenueModel[]>('/Venue')
       .then(data => { if (alive) setVenues(data ?? []); })
       .catch((error: unknown) => { if (alive) notify(statusMessage(error, 'Impossibile caricare le sedi', 'Errore nel caricamento delle sedi'), { kind: 'error' }); })
       .finally(() => { if (alive) setLoadingVenues(false); });
     return () => { alive = false; };
-  }, [api]);
+  }, [api, can]);
 
   const pickVenue = (venueId: string | null) => {
     const venue = venues.find(item => item.venueId === venueId);
@@ -56,7 +59,7 @@ export default function EventCreatePage() {
 
   const submit = async () => {
     const selectedVenue = venues.find(venue => venue.venueId === draft.venueId);
-    if (!draft.title || !draft.description || !draft.eventDate || !selectedVenue || !draft.name || !draft.address) {
+    if (!draft.title || !draft.description || !draft.eventDate || (can('venues.read') && !selectedVenue) || !draft.name || !draft.address) {
       notify(MISSING_FIELDS_MESSAGE, { kind: 'error' });
       return;
     }
@@ -79,13 +82,13 @@ export default function EventCreatePage() {
           bookingServiceUrl: draft.booking,
           externalRegistration: Boolean(draft.booking),
           externalRegistrationLink: draft.booking,
-          eventbriteTicketCapacity: Math.max(0, Number.parseInt(draft.tickets, 10) || 0),
+          eventbriteTicketCapacity: can('eventbrite.manage') ? Math.max(0, Number.parseInt(draft.tickets, 10) || 0) : 0,
           attendeeNotes: draft.notes,
         }),
       });
       const id = created?.workshopId ?? created?.WorkshopId;
       if (!isGuid(id)) throw new Error("L'evento è stato creato, ma il server non ha restituito un ID evento valido.");
-      navigate(`/admin/workshop/${id}`);
+      navigate(can('events.read') ? `/admin/workshop/${id}` : '/admin');
     } catch (submitError) {
       notify(detailMessage(submitError, "Impossibile creare l'evento", "Errore nella creazione dell'evento"), { kind: 'error' });
       setSaving(false);
@@ -99,7 +102,7 @@ export default function EventCreatePage() {
         <TextInput label="Titolo" value={draft.title} onChange={set('title')} placeholder="Inserisci il titolo dell'evento" />
         <div>
           <SelectInput label="Sede" isRequired items={venues.map(venue => ({ id: venue.venueId, label: clean(venue.name) }))} selectedKey={draft.venueId} onSelectionChange={pickVenue} placeholder="" isDisabled={loadingVenues || venues.length === 0} />
-          {!loadingVenues && venues.length === 0 && <p className="mt-1.5 text-sm text-muted">Aggiungi una sede in Venues / Sale eventi prima di creare un evento.</p>}
+          {!loadingVenues && venues.length === 0 && <p className="mt-1.5 text-sm text-muted">{can('venues.read') ? 'Aggiungi una sede in Venues / Sale eventi prima di creare un evento.' : 'La lettura delle sedi non è autorizzata. Inserisci manualmente nome e indirizzo qui sotto.'}</p>}
         </div>
         <h2 className="text-lg font-bold">Informazioni sulla sede</h2>
         <TextInput label="Nome" isRequired value={draft.name} onChange={set('name')} placeholder="Nome della sede" />

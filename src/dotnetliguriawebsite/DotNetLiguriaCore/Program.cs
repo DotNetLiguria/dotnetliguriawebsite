@@ -9,6 +9,7 @@ using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Questionnaires;
 using DotNetLiguriaCore.Services.Privacy;
+using DotNetLiguriaCore.Services.Access;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using DotNetLiguria.ServiceDefaults;
@@ -73,7 +74,8 @@ public class Program
                 if (origins.Length > 0)
                     policy.WithOrigins(origins);
                 policy.WithHeaders("Content-Type", "Authorization", "Accept", "X-Confirm-Erasure",
-                        "X-Confirm-Retention-Policy", "X-Confirm-Campaign")
+                        "X-Confirm-Retention-Policy", "X-Confirm-Campaign", "X-Admin-Request",
+                        "X-Confirm-Repair", "X-Confirm-Access-Change")
                     .WithExposedHeaders("X-Page-Offset", "X-Page-Limit", "X-Next-Offset")
                     .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
             });
@@ -101,9 +103,6 @@ public class Program
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.BackupFolder),
                 "DotNetLiguriaDatabase:BackupFolder must be configured.")
             .ValidateOnStart();
-        builder.Services.Configure<BackupAuthorizationOptions>(
-            builder.Configuration.GetSection(BackupAuthorizationOptions.SectionName));
-
         builder.Services.AddSingleton<WorkshopService>();
         builder.Services.AddSingleton<SpeakerService>();
         builder.Services.AddSingleton<BoardService>();
@@ -125,6 +124,7 @@ public class Program
         builder.Services.AddSingleton<QuestionnaireService>();
         builder.Services.AddSingleton<DatabaseBackupService>();
         builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
+        builder.Services.AddPermissionDirectory(builder.Configuration);
         builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
 
         var app = builder.Build();
@@ -169,6 +169,7 @@ public class Program
         app.MapPrivacyEndpoints();
         app.MapAccountEndpoints();
         app.MapNotificationEndpoints();
+        app.MapAccessEndpoints();
         app.MapServiceDefaults();
         app.MapFallback("/api/{**path}", () => Results.Problem(
             statusCode: StatusCodes.Status404NotFound, title: "ApiEndpointNotFound"));
@@ -335,11 +336,7 @@ public class Program
 
     private static void ConfigureAuthorization(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddHttpContextAccessor();
-        services.Configure<QuestionnaireAuthorizationOptions>(
-            configuration.GetSection(QuestionnaireAuthorizationOptions.SectionName));
-        services.Configure<WebDevAdminAuthorizationOptions>(
-            configuration.GetSection(WebDevAdminAuthorizationOptions.SectionName));
+        services.AddPermissionAuthorization();
         services.AddAuthorization(options =>
         {
             options.AddPolicy("mfa",
@@ -348,25 +345,9 @@ public class Program
             options.AddPolicy("hwk",
                 policy => policy.Requirements.Add(new OtpRequirement("hwk")));
 
-            // The SPA calls the API with a Keycloak bearer token.
-            options.AddPolicy(QuestionnaireAuthorizationOptions.PolicyName, policy => policy
-                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
-                .RequireAuthenticatedUser()
-                .AddRequirements(new FeedbackAdminRequirement()));
-            options.AddPolicy(WebDevAdminAuthorizationOptions.PolicyName, policy => policy
-                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
-                .RequireAuthenticatedUser()
-                .AddRequirements(new WebDevAdminRequirement()));
-            options.AddPolicy(BackupAuthorizationOptions.PolicyName, policy => policy
-                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme)
-                .RequireAuthenticatedUser()
-                .AddRequirements(new BackupAdminRequirement()));
         });
 
         services.AddScoped<IAuthorizationHandler, OtpRequirementHandler>();
-        services.AddSingleton<IAuthorizationHandler, FeedbackAdminHandler>();
-        services.AddSingleton<IAuthorizationHandler, WebDevAdminHandler>();
-        services.AddSingleton<IAuthorizationHandler, BackupAdminHandler>();
     }
 
     private static void ConfigureRateLimiting(IServiceCollection services)

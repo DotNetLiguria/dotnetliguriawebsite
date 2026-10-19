@@ -6,9 +6,6 @@ public sealed class PrivacyOptions
     public string AllowedIdentityHost { get; set; } = "hello.vevy.com";
     public string AdminClientId { get; set; } = "";
     public string AdminClientSecret { get; set; } = "";
-    public string AuthorizationClientId { get; set; } = "DotNetLiguriaCore";
-    public string AdministratorRole { get; set; } = "";
-    public string NotificationAdministratorRole { get; set; } = "";
     public string ConsentVersion { get; set; } = "";
     public bool ProtectedStorageApproved { get; set; }
     public bool ExternalCopiesErasureApproved { get; set; }

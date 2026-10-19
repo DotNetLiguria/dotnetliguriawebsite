@@ -1,15 +1,17 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { useOidc, useOidcUser } from '@axa-fr/react-oidc';
+import { useOidc, useOidcUser, useOidcAccessToken } from '@axa-fr/react-oidc';
 import { useAccountRequest } from './accountApi';
+import { PERMISSIONS, Permission } from './permissions';
+import { clearPrivateBrowserState } from '../questionnaire/drafts';
 
 export type AccountCapabilities = {
-  websiteAdmin: boolean; feedbackAdmin: boolean; backupAdmin: boolean; privacyAdmin: boolean; notificationAdmin: boolean;
+  schemaVersion: 1; permissions: Permission[]; canAccessAdmin: boolean;
 };
 type CapabilityState = { status: 'anonymous' | 'loading' | 'error' | 'revoked'; capabilities: null }
   | { status: 'ready'; capabilities: AccountCapabilities };
-type Context = CapabilityState & { retry: () => void; clear: () => void };
-const anonymous: Context = { status: 'anonymous', capabilities: null, retry: () => undefined, clear: () => undefined };
-const CapabilityContext = createContext<Context>(anonymous);
+type Context = CapabilityState & { retry: () => void; clear: () => void; refresh: () => void };
+const anonymous: Context = { status: 'anonymous', capabilities: null, retry: () => undefined, clear: () => undefined, refresh: () => undefined };
+export const CapabilityContext = createContext<Context>(anonymous);
 
 function CapabilityLoader({ children }: { children: React.ReactNode }) {
   const request = useAccountRequest();
@@ -22,15 +24,29 @@ function CapabilityLoader({ children }: { children: React.ReactNode }) {
     request('account/capabilities', { signal: controller.signal })
       .then(response => response.json())
       .then((value: unknown) => {
-        const keys = ['websiteAdmin', 'feedbackAdmin', 'backupAdmin', 'privacyAdmin', 'notificationAdmin'] as const;
-        if (!value || typeof value !== 'object' || keys.some(key => typeof (value as AccountCapabilities)[key] !== 'boolean'))
+        const candidate = value as AccountCapabilities | null;
+        if (!candidate || candidate.schemaVersion !== 1 || typeof candidate.canAccessAdmin !== 'boolean' ||
+          !Array.isArray(candidate.permissions) || candidate.permissions.some(permission => typeof permission !== 'string'))
           throw new Error('Invalid capabilities');
-        if (!controller.signal.aborted) setState({ status: 'ready', capabilities: value as AccountCapabilities });
+        const permissions = candidate.permissions.filter(permission => PERMISSIONS.includes(permission));
+        if (!controller.signal.aborted) setState({ status: 'ready', capabilities: {
+          schemaVersion: 1, permissions, canAccessAdmin: candidate.canAccessAdmin && permissions.some(permission => permission !== 'events.past.manage'),
+        } });
       })
       .catch(() => { if (!controller.signal.aborted) setState({ status: 'error', capabilities: null }); });
     return () => controller.abort();
   }, [request, attempt]);
-  return <CapabilityContext.Provider value={{ ...state, clear: () => {
+  useEffect(() => {
+    const invalidate = () => {
+      activeController.current?.abort();
+      clearPrivateBrowserState();
+      setState({ status: 'loading', capabilities: null });
+      setAttempt(value => value + 1);
+    };
+    window.addEventListener('admin-permissions-denied', invalidate);
+    return () => window.removeEventListener('admin-permissions-denied', invalidate);
+  }, []);
+  return <CapabilityContext.Provider value={{ ...state, refresh: () => setAttempt(value => value + 1), clear: () => {
     activeController.current?.abort();
     setState({ status: 'revoked', capabilities: null });
   }, retry: () => {
@@ -42,8 +58,9 @@ function CapabilityLoader({ children }: { children: React.ReactNode }) {
 export function AccountCapabilitiesProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useOidc();
   const { oidcUser } = useOidcUser();
+  const { accessToken } = useOidcAccessToken();
   if (!isAuthenticated) return <CapabilityContext.Provider value={anonymous}>{children}</CapabilityContext.Provider>;
-  return <CapabilityLoader key={String(oidcUser?.sub ?? '')}>{children}</CapabilityLoader>;
+  return <CapabilityLoader key={`${String(oidcUser?.sub ?? '')}:${accessToken ?? ''}`}>{children}</CapabilityLoader>;
 }
 
 export const useAccountCapabilities = () => useContext(CapabilityContext);

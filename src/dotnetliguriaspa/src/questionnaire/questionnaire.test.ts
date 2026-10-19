@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { hasFeedbackAdmin } from './adminAccess';
+import { hasPermission } from '../account/permissions';
 import { createQuestionnaireAdminApi, publicQuestionnaireApi, QuestionnaireApiError } from './api';
 import { changeQuestionType, newQuestion, parseOptionLines } from './factory';
 import { hasValue, isValidEmail, OTHER_OPTION_ID, visibleQuestionIds } from './rules';
@@ -143,20 +143,11 @@ describe('factory', () => {
   });
 });
 
-describe('hasFeedbackAdmin', () => {
-  it('accepts realm, client roles and claims', () => {
-    expect(hasFeedbackAdmin([{ realm_access: { roles: ['feedbackadmin'] } }])).toBe(true);
-    expect(hasFeedbackAdmin([{ resource_access: { DotNetLiguriaCore: { roles: ['feedbackadmin'] } } }])).toBe(true);
-    expect(hasFeedbackAdmin([null, { feedbackadmin: 'true' }])).toBe(true);
-    expect(hasFeedbackAdmin([{ feedbackadmin: 'false', roles: ['member'] }])).toBe(false);
-  });
-  it.each([
-    { realm_access: { roles: ['FeedbackAdmin'] } },
-    { resource_access: { spa: { roles: ['feedbackadmin'] } } },
-    { roles: { nested: ['feedbackadmin'] } },
-    { feedbackadmin: 'yes' }, { feedbackadmin: 1 }, { FeedbackAdmin: true },
-  ])('rejects foreign-client, nested and loosely truthy privileges %j', payload => {
-    expect(hasFeedbackAdmin([payload])).toBe(false);
+describe('questionnaire permissions', () => {
+  it('uses exact server permission IDs without implicit manage or role grants', () => {
+    expect(hasPermission({ permissions: ['questionnaires.read'] }, 'questionnaires.read')).toBe(true);
+    expect(hasPermission({ permissions: ['questionnaires.manage'] }, 'questionnaires.publish')).toBe(false);
+    expect(hasPermission({ permissions: ['Questionnaires.read', 'feedbackadmin'] }, 'questionnaires.read')).toBe(false);
   });
 });
 

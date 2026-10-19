@@ -11,6 +11,10 @@ Import `DotNetLiguriaCore.Services.Privacy` and
 `builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment)`.
 Map `app.MapPrivacyEndpoints()` and `app.MapNotificationEndpoints()`.
 Map `app.MapAccountEndpoints()` for authenticated policy-backed capability flags.
+The versioned capabilities now contain granular permission IDs rather than five
+administrator Booleans. See [`authorization.md`](authorization.md) for the
+replacement policies, live permission checks and mandatory Full Scope Allowed
+OFF with explicit role-scope mappings.
 Use the existing JWT validation and exception middleware; do not enable cookies
 on these routes. The unsubscribe capability is the only anonymous mutation.
 The wired bearer validation additionally checks the current Keycloak account,
@@ -45,9 +49,6 @@ Configure the following under `Privacy` through trusted server configuration:
 | `Issuer` | Exact canonical HTTPS `https://hello.vevy.com/realms/<realm>` matching validated JWT `iss`; no query, fragment, custom port or alternative path |
 | `AllowedIdentityHost` | Explicit approved fixed identity hostname; defaults to `hello.vevy.com` |
 | `AdminClientId`, `AdminClientSecret` | Dedicated least-privilege Keycloak service account; secret from runtime secret management only |
-| `AuthorizationClientId` | Explicit role namespace; defaults to `DotNetLiguriaCore` |
-| `AdministratorRole` | Explicit role required by `PrivacyAdministrator`; absent means access denied |
-| `NotificationAdministratorRole` | Explicit role required by `NotificationAdministrator`; absent means access denied |
 | `ConsentVersion` | Controller-approved current purpose/notice version |
 | `IdentityAttributePermissionsApproved` | Operator attestation that users cannot self-edit the server-controlled consent evidence and that those attributes cannot grant privileges |
 | `AutomaticIdentityDeletion` | Defaults to `true`; `false` disables automatic Keycloak deletion, not account disablement or website erasure |
@@ -60,6 +61,11 @@ Approval flags default to false. They are external gates, not encryption,
 filesystem ACL enforcement, proof of legal compliance or an external-copy deletion
 implementation. Configure persistent protected Data Protection keys separately;
 ephemeral/default unprotected keys are not a production solution.
+The obsolete `Privacy:AuthorizationClientId`, `Privacy:AdministratorRole` and
+`Privacy:NotificationAdministratorRole` settings have been removed from the
+options model. Remove stale copies from deployment configuration as well.
+Keep the active `Privacy:AdminClientId` and `Privacy:AdminClientSecret`: these
+remain separate from the new PermissionDirectory credentials.
 Exclude identity-admin HTTP URLs from telemetry: paths contain opaque subjects.
 The HTTP client disables redirects, cookies and HTTP-client loggers and never
 logs credentials, response bodies or recipient addresses.
@@ -166,7 +172,8 @@ HTTP 200 `{status:"completed"}`.
 
 Website-admin authorization is separate from authentication. The SPA's
 `/area-personale` is available to ordinary active accounts, while the dashboard
-requires the existing `WebDevAdmin` policy. `/admin/profile/` redirects to the
+requires at least one usable task permission, with each page/action independently
+authorized. `/admin/profile/` redirects to the
 personal area. Name edits are forwarded to Keycloak; email changes, password, MFA
 and email verification remain in the Keycloak account console. The capabilities endpoint
 uses the existing server policies, not board membership or an audience claim.
@@ -256,9 +263,9 @@ Default behavior is deliberately destructive, **not text anonymization**:
   There is no assessed safe aggregation implementation or arbitrary-text
   anonymity detector.
 
-The versioned field inventory and overrides are available to
-`PrivacyAdministrator` at `GET /api/privacy/admin/retention`.
-`PUT` the same path with a JSON field/action dictionary and
+The versioned field inventory and overrides require `privacy.retention.read`
+at `GET /api/privacy/admin/retention`. With `privacy.retention.manage` and
+recent MFA, `PUT` the same path with a JSON field/action dictionary and
 `X-Confirm-Retention-Policy: replace` to durably replace overrides. Arbitrary
 actions are accepted within size bounds, but every action except `delete`
 appears in the restricted blocking report. Policy is protected outside MongoDB
@@ -395,14 +402,14 @@ explicit. Withdrawals for already-disabled identities remove the Keycloak grant
 without recreating erased website history. New history is covered by the
 versioned inventory, export, full-record erasure and backup epoch protections.
 
-`NotificationAdministrator` can
+`notifications.preview` permits
 `POST /api/notifications/campaigns/preview` with `{purpose,eventIds}`.
 Monthly previews select published events in the coming month; event announcements
 require 1–20 explicit published upcoming event IDs. The response contains campaign
 ID, event IDs, eligible count, expiry and `dispatchAvailable:false`, not addresses.
 Campaign metadata expires for use after 30 minutes.
 
-`POST /api/notifications/campaigns/{id}/confirm` requires
+`POST /api/notifications/campaigns/{id}/confirm` requires `notifications.confirm` and
 `X-Confirm-Campaign: <id>`. It records confirmation and returns **503**
 `notification_dispatch_unavailable_no_approved_provider`. Nothing is sent.
 `INotificationRecipientPreparation.PrepareConfirmedRecipientsAsync` is a

@@ -2,7 +2,7 @@ namespace DotNetLiguriaCore.Services.Privacy;
 
 public static class ErasureFieldInventory
 {
-    public const int Version = 2;
+    public const int Version = 3;
     public static IReadOnlyList<string> DeletableFields { get; } =
     [
         "responses.AccountIssuer", "responses.AccountSubject", "responses.UniqueAccountKey",
@@ -15,7 +15,9 @@ public static class ErasureFieldInventory
         "questionnaires.PublishedAt", "questionnaires.Sections.*", "questionnaires.*",
         "notifications.CreatedBy", "notifications.AccountIssuer", "notifications.AccountSubject",
         "consentHistory.AccountIssuer", "consentHistory.AccountSubject", "consentHistory.*",
-        "audit.*", "unknown.*"
+        "AccessPermissionAudit.ActorIssuer", "AccessPermissionAudit.ActorSubject",
+        "AccessPermissionAudit.TargetIssuer", "AccessPermissionAudit.TargetSubject",
+        "AccessPermissionAudit.*", "audit.*", "unknown.*"
     ];
 
     public static string[] BlockingOverrides(PrivacyOptions options) =>

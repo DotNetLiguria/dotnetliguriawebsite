@@ -32,7 +32,7 @@ describe('<AdminShell />', () => {
     signedIn();
     const { unmount } = renderShell('/admin');
     const sections = await screen.findByRole('navigation', { name: 'Sezioni' });
-    expect(within(sections).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori', 'Sedi', 'Board', 'Questionari', 'Menu del sito', 'Backup e import', 'Privacy e avvisi']);
+    expect(within(sections).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori', 'Sedi', 'Board', 'Questionari', 'Menu del sito', 'Backup e import', 'Privacy e avvisi', 'Accessi utenti']);
     expect(within(sections).getByRole('link', { name: 'Panoramica' })).toHaveAttribute('aria-current', 'page');
     unmount();
 
@@ -97,7 +97,7 @@ describe('<AdminShell />', () => {
     expect(within(sheet).getByRole('link', { name: /Vedi il sito/ })).toHaveAttribute('target', '_blank');
   });
 
-  test.each([NO_CAPABILITIES, { ...ADMIN_CAPABILITIES, websiteAdmin: false }])('denies ordinary and specialized-only accounts without mounting pages or palette', async capabilities => {
+  test.each([NO_CAPABILITIES, { ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['events.past.manage'] }])('denies ordinary and modifier-only accounts without mounting pages or palette', async capabilities => {
     signedIn();
     mockApi({ 'account/capabilities': capabilities });
     renderShell('/admin');
@@ -125,7 +125,7 @@ describe('<AdminShell />', () => {
 
   test.each(['/admin/questionnaires', '/admin/import-export/', '/admin/privacy'])('filters specialized navigation and denies direct access %s', async route => {
     signedIn();
-    mockApi({ 'account/capabilities': { ...NO_CAPABILITIES, websiteAdmin: true } });
+    mockApi({ 'account/capabilities': { ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['events.read'] } });
     renderShell(route);
     await screen.findByRole('heading', { name: 'Accesso non autorizzato' });
     const sections = screen.getByRole('navigation', { name: 'Sezioni' });

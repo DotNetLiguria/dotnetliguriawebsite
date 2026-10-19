@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from 'react-aria-components';
 import { useOidcFetch } from '@axa-fr/react-oidc';
@@ -27,6 +27,8 @@ import { createQuestionnaireAdminApi, QuestionnaireApiError } from '../../questi
 import { questionTypeLabel } from '../../questionnaire/factory';
 import type { Questionnaire, QuestionnaireValidationError, QuestionType } from '../../questionnaire/types';
 import { validateDefinition } from '../../questionnaire/validation';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { canPerform, hasAnyPermission, RESULTS_PERMISSIONS } from '../../account/permissions';
 
 const SAVE_TEXT: Record<SaveStatus['kind'], string> = {
   saved: 'Salvato',
@@ -81,6 +83,7 @@ const dragAccessibility = { announcements: dragAnnouncements(describeDragId), sc
 export interface QuestionnaireDesignerProps { autosaveDelayMs?: number }
 
 const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs }) => {
+  const { capabilities } = useAccountCapabilities();
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { fetch } = useOidcFetch();
@@ -106,23 +109,36 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [dragType, setDragType] = useState<QuestionType | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const activeLoad = useRef<AbortController | null>(null);
 
   const blockedReason = useCallback((q: Questionnaire) => {
+    if (!canPerform(capabilities, 'questionnaires.manage', q.workshopId ? q : undefined))
+      return 'Sola lettura: manca il permesso di modifica o di gestione degli eventi passati.';
+    if (q.status === 'Published' && !canPerform(capabilities, 'questionnaires.publish', q.workshopId ? q : undefined))
+      return 'Sola lettura: per modificare un questionario pubblicato serve il permesso di pubblicazione.';
     if (q.status === 'Published' && validateDefinition(q, true).length > 0) {
       return 'Il questionario è pubblicato: le modifiche vengono salvate quando non ci sono errori.';
     }
     return validateDefinition(q, false).length > 0 ? 'Correggi gli errori evidenziati per salvare.' : null;
-  }, []);
-  const save = useCallback((q: Questionnaire) => api.update(q), [api]);
+  }, [capabilities]);
+  const save = useCallback(async (q: Questionnaire) => {
+    const saved = await api.update(q);
+    return saved.authorization ? saved : api.get(q.questionnaireId);
+  }, [api]);
   const { status: saveStatus, saveNow, reset } = useAutosave({ save, blockedReason, delayMs: autosaveDelayMs });
 
   const reload = useCallback(async () => {
+    activeLoad.current?.abort();
+    const controller = new AbortController();
+    activeLoad.current = controller;
     setLoadError(null);
     try {
-      const loaded = await api.get(id);
+      const loaded = await api.get(id, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       load(loaded);
       reset();
     } catch (err) {
+      if (controller.signal.aborted) return;
       setLoadError(err instanceof QuestionnaireApiError ? err.message : 'Impossibile caricare il questionario.');
     }
   }, [api, id, load, reset]);
@@ -130,10 +146,17 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
   useEffect(() => {
     useDesignerStore.setState({ questionnaire: null });
     void reload();
+    return () => {
+      activeLoad.current?.abort();
+      useDesignerStore.setState({ questionnaire: null, past: [], future: [] });
+    };
   }, [reload]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const current = useDesignerStore.getState().questionnaire;
+      if (!current || !canPerform(capabilities, 'questionnaires.manage', current.workshopId ? current : undefined)) return;
+      if (current.status === 'Published' && !canPerform(capabilities, 'questionnaires.publish', current.workshopId ? current : undefined)) return;
       if (!(e.ctrlKey || e.metaKey) || isEditableTarget(e.target)) return;
       const key = e.key.toLowerCase();
       if (key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
@@ -141,7 +164,7 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
+  }, [undo, redo, capabilities]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -178,7 +201,11 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
     );
   }
 
-  const locked = questionnaire.responseCount > 0;
+  const canManage = canPerform(capabilities, 'questionnaires.manage', questionnaire.workshopId ? questionnaire : undefined);
+  const canPublish = canPerform(capabilities, 'questionnaires.publish', questionnaire.workshopId ? questionnaire : undefined);
+  const canEdit = canManage && (questionnaire.status !== 'Published' || canPublish);
+  const canResults = hasAnyPermission(capabilities, RESULTS_PERMISSIONS);
+  const locked = questionnaire.responseCount > 0 || !canEdit;
   const status = questionnaire.status;
   const selectedQuestion = selection.kind === 'question' ? locateQuestion(questionnaire, selection.id)?.question : undefined;
   const selectedSection = selection.kind === 'section' ? questionnaire.sections.find(s => s.id === selection.id) : undefined;
@@ -188,8 +215,11 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
     setActionError(null);
     setBusy(true);
     try {
-      if (!(await saveNow())) throw new Error('Salva le modifiche prima di continuare.');
-      acknowledgeSave(await action(), true);
+      if (canEdit && !(await saveNow())) throw new Error('Salva le modifiche prima di continuare.');
+      const result = await action();
+      const updated = result.authorization ? result : await api.get(result.questionnaireId);
+      if (activeLoad.current?.signal.aborted) return false;
+      acknowledgeSave(updated, true);
       return true;
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Operazione non riuscita.');
@@ -273,7 +303,7 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
     <>
       <Button onPress={() => setPreviewOpen(true)} className={btn.ghost}><Icon name="eye" />{label('Anteprima')}</Button>
       <Button onPress={() => setShareOpen(true)} className={btn.ghost}><Icon name="share" />{label('Condividi')}</Button>
-      <Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/results`} className={btn.ghost}><Icon name="chart" />{label('Risultati')}</Link>
+      {canResults && <Link to={`/admin/questionnaires/${questionnaire.questionnaireId}/results`} className={btn.ghost}><Icon name="chart" />{label('Risultati')}</Link>}
     </>
   ) : (
     <RowMenu label="Altre azioni" items={[
@@ -281,7 +311,7 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
       { id: 'settings', label: 'Impostazioni', icon: <Icon name="sliders" className="size-5 text-muted" />, onAction: () => { select({ kind: 'questionnaire' }); setPropertiesOpen(true); } },
       { id: 'preview', label: 'Anteprima', icon: <Icon name="eye" className="size-5 text-muted" />, onAction: () => setPreviewOpen(true) },
       { id: 'share', label: 'Condividi', icon: <Icon name="share" className="size-5 text-muted" />, onAction: () => setShareOpen(true) },
-      { id: 'results', label: 'Risultati', icon: <Icon name="chart" className="size-5 text-muted" />, onAction: () => navigate(`/admin/questionnaires/${questionnaire.questionnaireId}/results`) },
+      { id: 'results', label: 'Risultati', isDisabled: !canResults, icon: <Icon name="chart" className="size-5 text-muted" />, onAction: () => navigate(`/admin/questionnaires/${questionnaire.questionnaireId}/results`) },
     ]} />
   );
 
@@ -328,13 +358,13 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
             <IconButton label="Ripeti" icon={<Icon name="redo" />} isDisabled={!canRedo} onPress={redo} />
             {secondaryActions}
             {status === 'Draft' && (
-              <Button isDisabled={busy} onPress={() => { setShowIssues(true); setActionError(null); setPublishOpen(true); }} className={`${btn.primary} ml-1`}>Pubblica</Button>
+              <Button isDisabled={busy || !canPublish} onPress={() => { setShowIssues(true); setActionError(null); setPublishOpen(true); }} className={`${btn.primary} ml-1`}>Pubblica</Button>
             )}
             {status === 'Published' && (
-              <Button isDisabled={busy} onPress={() => void runAction(() => api.close(questionnaire.questionnaireId)).then(ok => ok && notify('Questionario chiuso', { description: questionnaire.title }))} className={`${btn.secondary} ml-1`}>Chiudi</Button>
+              <Button isDisabled={busy || !canManage} onPress={() => void runAction(() => api.close(questionnaire.questionnaireId)).then(ok => ok && notify('Questionario chiuso', { description: questionnaire.title }))} className={`${btn.secondary} ml-1`}>Chiudi</Button>
             )}
             {(status === 'Closed' || status === 'Archived') && (
-              <Button isDisabled={busy} onPress={() => void runAction(() => api.reopen(questionnaire.questionnaireId)).then(ok => ok && notify('Questionario riaperto', { description: questionnaire.title }))} className={`${btn.secondary} ml-1`}>Riapri</Button>
+              <Button isDisabled={busy || !canPublish} onPress={() => void runAction(() => api.reopen(questionnaire.questionnaireId)).then(ok => ok && notify('Questionario riaperto', { description: questionnaire.title }))} className={`${btn.secondary} ml-1`}>Riapri</Button>
             )}
           </div>
         </div>
@@ -359,6 +389,8 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
 
       <p role="status" className="sr-only">{announcement}</p>
 
+      {!canEdit && <p className="mt-4" role="status">Sola lettura: manca il permesso di modifica, di pubblicazione del contenuto già pubblico o di gestione degli eventi passati.</p>}
+      <fieldset disabled={!canEdit} className="min-w-0 border-0 p-0">
       <DndContext
         sensors={sensors}
         collisionDetection={collision}
@@ -394,6 +426,7 @@ const QuestionnaireDesigner: FC<QuestionnaireDesignerProps> = ({ autosaveDelayMs
           )}
         </DragOverlay>
       </DndContext>
+      </fieldset>
 
       {!wide && (
         <>

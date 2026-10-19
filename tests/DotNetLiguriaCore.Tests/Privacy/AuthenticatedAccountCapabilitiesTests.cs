@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using DotNetLiguriaCore.Endpoints;
+using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Security;
 using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authentication;
@@ -47,6 +48,7 @@ public sealed class AuthenticatedAccountCapabilitiesTests
             typeof(DotNetLiguriaCore.Program).GetMethod(method, BindingFlags.NonPublic | BindingFlags.Static)!
                 .Invoke(null, [builder.Services, builder.Configuration]);
         builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
+        builder.Services.AddSingleton<IPermissionDirectory>(new TestPermissionDirectory("events.read"));
         using var client = new HttpClient(new PrivacyHttpHandler(request =>
         {
             Assert.Equal(_issuer + "/protocol/openid-connect/userinfo", request.RequestUri!.AbsoluteUri);
@@ -73,7 +75,7 @@ public sealed class AuthenticatedAccountCapabilitiesTests
         var token = new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
             Issuer = _issuer, Audience = "synthetic-audience",
-            Claims = new Dictionary<string, object> { ["sub"] = "synthetic-subject", ["dnl-webdevadmin"] = admin },
+            Claims = new Dictionary<string, object> { ["sub"] = "synthetic-subject", ["permissions"] = admin ? new[] { "events.read" } : Array.Empty<string>() },
             IssuedAt = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             NotBefore = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             Expires = new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
@@ -98,6 +100,6 @@ public sealed class AuthenticatedAccountCapabilitiesTests
         Assert.Equal(200, context.Response.StatusCode);
         context.Response.Body.Position = 0;
         using var body = await JsonDocument.ParseAsync(context.Response.Body, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(expected, body.RootElement.GetProperty("websiteAdmin").GetBoolean());
+        Assert.Equal(expected, body.RootElement.GetProperty("canAccessAdmin").GetBoolean());
     }
 }

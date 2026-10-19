@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config/apiConfig';
+import { permissionsDenied } from '../account/permissions';
 import type {
   CreateQuestionnaireRequest, PublicQuestionnaireView, Questionnaire, QuestionnaireProblem, QuestionnaireResponse,
   QuestionnaireStatistics, QuestionnaireSummary, SubmitQuestionnaireResponseRequest,
@@ -21,7 +22,7 @@ export class QuestionnaireApiError extends Error {
 function defaultMessage(status: number): string {
   switch (status) {
     case 401: return 'Sessione scaduta: effettua di nuovo il login.';
-    case 403: return 'Non hai i permessi per gestire i questionari (ruolo feedbackadmin).';
+    case 403: return 'Non hai il permesso richiesto per questa operazione sul questionario.';
     case 404: return 'Questionario non trovato.';
     case 429: return 'Troppe richieste: riprova tra qualche istante.';
     default: return `Errore del server (${status}).`;
@@ -35,6 +36,7 @@ async function request<T>(fetcher: FetchLike, path: string, init?: RequestInit):
     headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
   });
   if (!response.ok) {
+    if (response.status === 403) permissionsDenied();
     let problem: QuestionnaireProblem | undefined;
     try {
       const body = await response.json();
@@ -68,9 +70,13 @@ const json = (method: string, body?: unknown): RequestInit =>
 const base = '/Questionnaire';
 
 export function createQuestionnaireAdminApi(fetcher: FetchLike) {
+  const authenticatedFetch = fetcher;
+  fetcher = (input, init) => authenticatedFetch(input, {
+    ...init, cache: 'no-store', headers: { ...init?.headers, 'X-Admin-Request': 'true' },
+  });
   return {
     list: () => request<QuestionnaireSummary[]>(fetcher, base),
-    get: (id: string) => request<Questionnaire>(fetcher, `${base}/${id}`),
+    get: (id: string, init?: RequestInit) => request<Questionnaire>(fetcher, `${base}/${id}`, init),
     byWorkshop: (workshopId: string) => request<Questionnaire[]>(fetcher, `${base}/by-workshop/${workshopId}`),
     create: (body: CreateQuestionnaireRequest) => request<Questionnaire>(fetcher, base, json('POST', body)),
     update: (questionnaire: Questionnaire) =>
@@ -87,6 +93,7 @@ export function createQuestionnaireAdminApi(fetcher: FetchLike) {
       request<void>(fetcher, `${base}/${id}/responses/${responseId}`, json('DELETE')),
     exportCsv: async (id: string) => {
       const response = await fetcher(`${API_BASE_URL}${base}/${id}/export`);
+      if (response.status === 403) permissionsDenied();
       if (!response.ok) throw new QuestionnaireApiError(response.status);
       return response.blob();
     },

@@ -96,7 +96,8 @@ Its `QuestionarioTest` differs from A.1: `QuestionarioTestId`, `WorkshopId` and 
   Validation is a pure TypeScript module mirroring the server validator (no Zod: the rule set is
   small, shared with the designer checklist, and avoids a second schema language).
 - Storage: MongoDB collections `Questionnaire` and `QuestionnaireResponse`.
-- Admin: Keycloak role **or** claim `feedbackadmin` (names configurable).
+- Admin: granular definition, publication, statistics, individual-response and
+  export permission claims; see [authorization.md](authorization.md).
 
 ### B.2 Model (`DotNetLiguriaCore.Model/Questionnaires`)
 
@@ -173,9 +174,12 @@ client IP):
 | GET | `/by-workshop/{workshopId}` | open questionnaire of a workshop, else the latest published/closed |
 | POST | `/{id}/responses` | submit; server validation mirrors the client, honours visibility, 409 on duplicate email, honeypot field `website` |
 
-The admin policy accepts the configured role in `realm_access.roles`, `resource_access.*.roles`
-or `roles`, or a claim with the configured name (`QuestionnaireAuthorization:AdminRole` /
-`AdminClaim`, both default `feedbackadmin`).
+Administrative policies use exact permission values in the issuer-controlled
+`permissions` access-token array, intersected with current API-client assignments.
+Legacy administrator roles and Boolean claims are not fallback grants. Linked
+past-event writes and sensitive response access additionally require
+`events.past.manage`. Configure Full Scope Allowed OFF and explicit client
+role-scope mappings as described in [authorization.md](authorization.md).
 
 ### B.5 Public runner (`/q/:questionnaireId`, `/feedback/:workshopId`)
 
@@ -308,7 +312,8 @@ Existing database volumes and local database files are not deleted by source cle
 
 ### B.10 Open points
 
-- Create the `feedbackadmin` realm/client role (or claim mapper) in Keycloak and assign it.
+- Configure the reviewed questionnaire permission bundles and restricted mapper
+  in Keycloak, with Full Scope Allowed OFF and explicit role-scope mappings.
 - Decide a retention policy for historical personal data (SQL names/emails were collected
   without an explicit consent field); the migration copies them as-is.
 - Feedback grouping is heuristic: review ambiguous groups in the dry-run report.

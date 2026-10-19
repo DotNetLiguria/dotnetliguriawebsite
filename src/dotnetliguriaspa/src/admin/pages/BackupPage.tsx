@@ -10,8 +10,10 @@ import { notify } from '../toasts';
 import { API_BASE_URL } from '../../config/apiConfig';
 import { formatDate, formatTime } from '../../site/format';
 import { ConfirmDialog, ExtraIcon, Notice, Skeleton, plural, table } from './listUi';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { hasPermission, permissionsDenied } from '../../account/permissions';
 
-// Database backups kept on the server (role backupadmin): GET /Backup/snapshots, POST /Backup/export,
+// Database backups kept on the server: GET /Backup/snapshots, POST /Backup/export,
 // POST /Backup/import { snapshotId, confirmReplace: true } after an explicit confirmation.
 
 export interface BackupSnapshotInfo {
@@ -34,10 +36,10 @@ export async function readBackupError(response: Response, fallback: string) {
   try {
     const problem = await response.json() as { detail?: string; title?: string };
     if (response.status === 403 && problem.title !== 'RecentMfaRequired')
-      return 'Accesso negato. È richiesto il ruolo backupadmin.';
+      return 'Accesso negato. Manca il permesso richiesto per questa operazione sui backup.';
     return problem.detail ?? problem.title ?? `${fallback} (HTTP ${response.status}).`;
   } catch {
-    if (response.status === 403) return 'Accesso negato. È richiesto il ruolo backupadmin.';
+    if (response.status === 403) return 'Accesso negato. Manca il permesso richiesto per questa operazione sui backup.';
     return `${fallback} (HTTP ${response.status}).`;
   }
 }
@@ -46,6 +48,10 @@ const when = (iso: string) => `${formatDate(iso)}, ${formatTime(iso)}`;
 const contents = (s: BackupSnapshotInfo) => `${plural(s.collectionCount, 'raccolta', 'raccolte')} · ${plural(s.documentCount, 'documento', 'documenti')}`;
 
 export default function BackupPage() {
+  const { capabilities } = useAccountCapabilities();
+  const canRead = hasPermission(capabilities, 'backups.read');
+  const canCreate = hasPermission(capabilities, 'backups.create');
+  const canRestore = hasPermission(capabilities, 'backups.restore');
   const { login } = useOidc();
   const location = useLocation();
   const { fetch } = useOidcFetch();
@@ -57,11 +63,13 @@ export default function BackupPage() {
   const reload = useCallback(() => setVersion(v => v + 1), []);
 
   useEffect(() => {
+    if (!canRead) { setLoad({ state: 'ready', data: [] }); return; }
     let alive = true;
     setLoad(current => (current.state === 'ready' ? current : { state: 'loading' }));
     (async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/Backup/snapshots`);
+        const response = await fetch(`${API_BASE_URL}/Backup/snapshots`, { headers: { 'X-Admin-Request': 'true' } });
+        if (response.status === 403) permissionsDenied();
         if (!response.ok) throw new Error(await readBackupError(response, 'Impossibile caricare i backup'));
         const data = await response.json() as BackupSnapshotInfo[];
         if (alive) setLoad({ state: 'ready', data: [...data].sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc)) });
@@ -70,9 +78,10 @@ export default function BackupPage() {
       }
     })();
     return () => { alive = false; };
-  }, [fetch, version]);
+  }, [fetch, version, canRead]);
 
   const exportDatabase = async () => {
+    if (!canCreate) return;
     setBusy('export');
     setOutcome(null);
     try {
@@ -92,6 +101,7 @@ export default function BackupPage() {
   };
 
   const importDatabase = async (snapshot: BackupSnapshotInfo) => {
+    if (!canRestore) return;
     setBusy('import');
     setOutcome(null);
     try {
@@ -116,9 +126,9 @@ export default function BackupPage() {
     }
   };
 
-  const snapshots = load.state === 'ready' ? load.data : null;
+  const snapshots = canRead && load.state === 'ready' ? load.data : null;
   const createButton = (className: string) => (
-    <Button onPress={exportDatabase} isDisabled={busy !== null} className={className}>
+    <Button onPress={exportDatabase} isDisabled={busy !== null || !canCreate} className={className}>
       <AdminIcon name="database" />{busy === 'export' ? 'Creazione del backup…' : 'Crea backup'}
     </Button>
   );
@@ -129,7 +139,7 @@ export default function BackupPage() {
         title="Backup e import"
         description="I backup del database restano sul server. Importarne uno sostituisce tutti i dati correnti, dopo aver creato una copia di sicurezza automatica."
         actions={<>
-          <Button className={btn.secondary}
+          <Button isDisabled={!canRestore} className={btn.secondary}
             onPress={() => void login(accountReturnPath(location), { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
             Verifica MFA per il ripristino
           </Button>
@@ -177,7 +187,7 @@ export default function BackupPage() {
                           <td className={table.td}>{s.isSafetySnapshot && <Badge kind="planned">Di sicurezza</Badge>}</td>
                           <td className={table.td}>
                             <span className="flex justify-end">
-                              <Button onPress={() => setPending(s)} isDisabled={busy !== null} aria-label={`Ripristina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
+                              <Button onPress={() => setPending(s)} isDisabled={busy !== null || !canRestore} aria-label={`Ripristina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
                                 <ExtraIcon name="restore" />Ripristina…
                               </Button>
                             </span>
@@ -195,7 +205,7 @@ export default function BackupPage() {
                           <span className="block truncate font-mono text-xs text-muted">{s.snapshotId}</span>
                           {s.isSafetySnapshot && <span className="mt-1.5 block"><Badge kind="planned">Di sicurezza</Badge></span>}
                         </span>
-                        <Button onPress={() => setPending(s)} isDisabled={busy !== null} aria-label={`Ripristina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
+                        <Button onPress={() => setPending(s)} isDisabled={busy !== null || !canRestore} aria-label={`Ripristina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
                           <ExtraIcon name="restore" />Ripristina…
                         </Button>
                       </li>
@@ -217,7 +227,7 @@ export default function BackupPage() {
           <ul className="mt-2 space-y-3 text-sm leading-relaxed">
             <li><span className="font-bold">Crea backup</span> salva sul server una copia di tutte le raccolte del database.</li>
             <li><span className="font-bold">Ripristina</span> sostituisce tutti i dati correnti con quelli del backup scelto; prima viene creato automaticamente un backup di sicurezza.</li>
-            <li>Esegui backup e ripristino senza modifiche concorrenti ai dati. Servono i permessi di <span className="font-mono">backupadmin</span>.</li>
+            <li>Esegui backup e ripristino senza modifiche concorrenti ai dati. Lettura, creazione e ripristino richiedono permessi distinti.</li>
           </ul>
         </Panel>
       </div>

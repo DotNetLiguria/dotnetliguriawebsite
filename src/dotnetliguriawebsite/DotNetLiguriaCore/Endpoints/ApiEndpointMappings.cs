@@ -25,7 +25,10 @@ public static class ApiEndpointMappings
 
     public static IEndpointRouteBuilder MapApiEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var api = endpoints.MapGroup("/api").AddEndpointFilter<EditorInputFilter>();
+        var api = endpoints.MapGroup("/api")
+            .AddEndpointFilter<PermissionOperationFilter>()
+            .AddEndpointFilter<EditorInputFilter>()
+            .ApplyPermissions();
         MapBackupEndpoints(api);
         MapBoardEndpoints(api);
         MapCounterEndpoints(api);
@@ -45,7 +48,7 @@ public static class ApiEndpointMappings
     private static void MapBackupEndpoints(RouteGroupBuilder api)
     {
         var backup = api.MapGroup("/Backup").WithTags("Backup")
-            .RequireAuthorization(BackupAuthorizationOptions.PolicyName);
+            .RequireAuthorization();
 
         backup.MapGet("/snapshots", async (DatabaseBackupService backupService, CancellationToken cancellationToken) =>
             Results.Ok(await backupService.ListAsync(cancellationToken)));
@@ -104,7 +107,7 @@ public static class ApiEndpointMappings
         board.MapGet("/Get", async (bool? onlyActive, HttpContext context, BoardService boardService,
             IAuthorizationService authorizationService) =>
         {
-            if (await context.IsWebDevAdminAsync(authorizationService))
+            if (await context.HasAdministrativeReadAccessAsync(authorizationService))
             {
                 return Results.Ok(await boardService.GetAsync(onlyActive ?? false));
             }
@@ -115,7 +118,7 @@ public static class ApiEndpointMappings
         board.MapGet("/Get/{id}", async (Guid id, HttpContext context, BoardService boardService,
             IAuthorizationService authorizationService) =>
         {
-            var isAdmin = await context.IsWebDevAdminAsync(authorizationService);
+            var isAdmin = await context.HasAdministrativeReadAccessAsync(authorizationService);
             var item = await boardService.GetAsync(id);
             if (item is null || (!isAdmin && !item.IsActive))
             {
@@ -134,7 +137,7 @@ public static class ApiEndpointMappings
             newBoard.BoardId = Guid.NewGuid();
             await boardService.CreateAsync(newBoard);
             return Results.CreatedAtRoute("BoardGetById", new { id = newBoard.BoardId }, newBoard);
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         board.MapPut("/Update/{id}", async (Guid id, Board updateBoard, BoardService boardService) =>
         {
             var item = await boardService.GetAsync(id);
@@ -150,7 +153,7 @@ public static class ApiEndpointMappings
             updateBoard.BoardId = item.BoardId;
             await boardService.UpdateAsync(id, updateBoard);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         board.MapDelete("/Delete/{id}", async (Guid id, BoardService boardService) =>
         {
             if (await boardService.GetAsync(id) is null)
@@ -160,7 +163,7 @@ public static class ApiEndpointMappings
 
             await boardService.RemoveAsync(id);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static void MapCounterEndpoints(RouteGroupBuilder api)
@@ -195,7 +198,7 @@ public static class ApiEndpointMappings
         {
             await counterService.CreateAsync(newCounter);
             return Results.CreatedAtRoute("CounterGetById", new { id = newCounter.CounterId }, newCounter);
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         counter.MapPut("/Update/{id}", async (Guid id, Counter updatedCounter, CounterService counterService) =>
         {
             if (await counterService.GetAsync(id) is null)
@@ -205,13 +208,39 @@ public static class ApiEndpointMappings
 
             await counterService.UpdateAsync(id, updatedCounter);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static void MapEventbriteEndpoints(RouteGroupBuilder api)
     {
         var eventbrite = api.MapGroup("/Eventbrite").WithTags("Eventbrite")
-            .RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+            .RequireAuthorization();
+        eventbrite.MapPut("/Configuration/{id:guid}", async (
+            Guid id, EventbriteConfigurationRequest request, WorkshopService workshopService,
+            IOptions<EventbriteOptions> options) =>
+        {
+            var workshop = await workshopService.GetAsync(id);
+            if (workshop is null) return Results.NotFound();
+            try
+            {
+                var zone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZoneId);
+                _ = EventbriteSalesTimes.ToUtc(request.SalesStart, request.SalesEnd, zone);
+            }
+            catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
+            {
+                return Results.Problem(statusCode: 503, title: "Eventbrite timezone is unavailable",
+                    extensions: new Dictionary<string, object?> { ["code"] = "eventbrite_timezone_unavailable" });
+            }
+            catch (ArgumentException exception)
+            {
+                return Results.Problem(statusCode: 400, title: "Invalid Eventbrite sales window",
+                    detail: exception.Message,
+                    extensions: new Dictionary<string, object?> { ["code"] = "eventbrite_sales_window_invalid" });
+            }
+            request.ApplyTo(workshop);
+            await workshopService.UpdateEventbriteConfigurationAsync(workshop);
+            return Results.NoContent();
+        });
         eventbrite.MapPost("/Sync/{id:guid}", async (
             Guid id, WorkshopService workshopService, EventbriteIntegrationService integrationService,
             CancellationToken cancellationToken) =>
@@ -417,7 +446,7 @@ public static class ApiEndpointMappings
     private static void MapQuestionnaireEndpoints(RouteGroupBuilder api)
     {
         var questionnaire = api.MapGroup("/Questionnaire").WithTags("Questionnaire")
-            .RequireAuthorization(QuestionnaireAuthorizationOptions.PolicyName)
+            .RequireAuthorization()
             .AddEndpointFilter<PrivacyEndpointFilter>()
             .AddEndpointFilter<ActiveAccountWriteFilter>();
         questionnaire.MapGet("", async (QuestionnaireService service, WorkshopService workshopService, HttpContext context,
@@ -523,7 +552,7 @@ public static class ApiEndpointMappings
         speaker.MapGet("/Get", async (bool? onlyActive, HttpContext context, SpeakerService speakerService,
             IAuthorizationService authorizationService) =>
         {
-            if (await context.IsWebDevAdminAsync(authorizationService))
+            if (await context.HasAdministrativeReadAccessAsync(authorizationService))
             {
                 return Results.Ok(await speakerService.GetAsync(onlyActive ?? false));
             }
@@ -533,7 +562,7 @@ public static class ApiEndpointMappings
         speaker.MapGet("/Get/{id}", async (Guid id, HttpContext context, SpeakerService speakerService,
             IAuthorizationService authorizationService) =>
         {
-            var isAdmin = await context.IsWebDevAdminAsync(authorizationService);
+            var isAdmin = await context.HasAdministrativeReadAccessAsync(authorizationService);
             var item = await speakerService.GetAsync(id);
             if (item is null || (!isAdmin && !item.IsActive))
             {
@@ -554,7 +583,7 @@ public static class ApiEndpointMappings
             }
 
             return Results.CreatedAtRoute("SpeakerGetById", new { id = newSpeaker.WorkshopSpeakerId }, newSpeaker);
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         speaker.MapPut("/Update/{id}", async (Guid id, WorkshopSpeaker updatedSpeaker, SpeakerService speakerService) =>
         {
             var item = await speakerService.GetAsync(id);
@@ -573,7 +602,7 @@ public static class ApiEndpointMappings
             }
 
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         speaker.MapDelete("/Delete/{id}", async (Guid id, SpeakerService speakerService) =>
         {
             if (await speakerService.GetAsync(id) is null)
@@ -582,10 +611,10 @@ public static class ApiEndpointMappings
             }
             await speakerService.RemoveAsync(id);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         speaker.MapPost("/ReconcileDuplicates", async (SpeakerService speakerService) =>
             Results.Ok(new { removedSpeakers = await speakerService.ReconcileDuplicatesAsync() }))
-            .RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+            .RequireAuthorization();
         speaker.MapPost("/RepairLegacyTrackReferences", async (
             LegacySpeakerReferenceRepairService repairService,
             CancellationToken cancellationToken) =>
@@ -598,21 +627,28 @@ public static class ApiEndpointMappings
                 result.ReferencesUpdated,
                 result.UnmappedReferences,
             });
-        }).RequireAuthorization(BackupAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static void MapTopMenuEndpoints(RouteGroupBuilder api)
     {
         var topMenu = api.MapGroup("/TopMenu").WithTags("Top menu");
-        topMenu.MapGet("", async (bool? onlyActive, TopMenuService service) => Results.Ok(await service.GetAsync(onlyActive ?? false)));
-        topMenu.MapGet("/{id}", async (Guid id, TopMenuService service) =>
-            await service.GetAsync(id) is { } item ? Results.Ok(item) : Results.NotFound()).WithName("TopMenuGetById");
+        topMenu.MapGet("", async (bool? onlyActive, TopMenuService service, HttpContext context,
+            IAuthorizationService authorization) => Results.Ok(await service.GetAsync(
+                !await context.HasAdministrativeReadAccessAsync(authorization) || (onlyActive ?? false)))).AllowAnonymous();
+        topMenu.MapGet("/{id}", async (Guid id, TopMenuService service, HttpContext context,
+            IAuthorizationService authorization) =>
+        {
+            var item = await service.GetAsync(id);
+            return item is not null && (item.IsActive || await context.HasAdministrativeReadAccessAsync(authorization))
+                ? Results.Ok(item) : Results.NotFound();
+        }).AllowAnonymous().WithName("TopMenuGetById");
         topMenu.MapPost("", async (TopMenu item, TopMenuService service) =>
         {
             item.TopMenuElementId = Guid.NewGuid();
             await service.CreateAsync(item);
             return Results.CreatedAtRoute("TopMenuGetById", new { id = item.TopMenuElementId }, item);
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         topMenu.MapPut("/{id}", async (Guid id, TopMenu updated, TopMenuService service) =>
         {
             var item = await service.GetAsync(id);
@@ -624,7 +660,7 @@ public static class ApiEndpointMappings
             updated.TopMenuElementId = item.TopMenuElementId;
             await service.UpdateAsync(id, updated);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         topMenu.MapDelete("/{id}", async (Guid id, TopMenuService service) =>
         {
             if (await service.GetAsync(id) is null)
@@ -633,7 +669,7 @@ public static class ApiEndpointMappings
             }
             await service.RemoveAsync(id);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static void MapValuesEndpoints(RouteGroupBuilder api)
@@ -654,11 +690,11 @@ public static class ApiEndpointMappings
                 AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme,
             });
         values.MapPost("/Post", ([FromBody] string value) => Results.NoContent())
-            .RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+            .RequireAuthorization();
         values.MapPut("/Put/{id}", (int id, [FromBody] string value) => Results.NoContent())
-            .RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+            .RequireAuthorization();
         values.MapDelete("/Delete/{id}", (int id) => Results.NoContent())
-            .RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+            .RequireAuthorization();
     }
 
     private static void MapVenueEndpoints(RouteGroupBuilder api)
@@ -672,7 +708,7 @@ public static class ApiEndpointMappings
             item.VenueId = Guid.NewGuid();
             await service.CreateAsync(item);
             return Results.CreatedAtRoute("VenueGetById", new { id = item.VenueId }, item);
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         venue.MapPut("/{id}", async (Guid id, Venue updated, VenueService service) =>
         {
             var item = await service.GetAsync(id);
@@ -684,7 +720,7 @@ public static class ApiEndpointMappings
             updated.VenueId = item.VenueId;
             await service.UpdateAsync(id, updated);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         venue.MapDelete("/{id}", async (Guid id, VenueService service) =>
         {
             if (await service.GetAsync(id) is null)
@@ -693,7 +729,7 @@ public static class ApiEndpointMappings
             }
             await service.RemoveAsync(id);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static void MapWeatherForecastEndpoints(IEndpointRouteBuilder endpoints)
@@ -710,10 +746,39 @@ public static class ApiEndpointMappings
     private static void MapWorkshopEndpoints(RouteGroupBuilder api)
     {
         var workshop = api.MapGroup("/Workshop").WithTags("Workshop");
+        workshop.MapPut("/Publication/{id:guid}", async (Guid id, EventPublicationRequest request,
+            WorkshopService service) =>
+        {
+            var item = await service.GetAsync(id);
+            if (item is null) return Results.NotFound();
+            if (request.Published && item.EventDate is null)
+                return Results.Problem(statusCode: 400, title: "Event date required",
+                    extensions: new Dictionary<string, object?> { ["code"] = "event_date_required" });
+            item.Published = request.Published;
+            await service.UpdateAsync(id, item);
+            return Results.NoContent();
+        });
+        workshop.MapPut("/Homepage/{id:guid}", async (Guid id, HomepageSelectionRequest request,
+            HttpContext context, WorkshopService service, TimeProvider clock, IConfiguration configuration) =>
+        {
+            var item = await service.GetAsync(id);
+            if (item is null) return Results.NotFound();
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(configuration["Authorization:EventTimeZoneId"] ?? "Europe/Rome");
+            if (request.Selected)
+            {
+                foreach (var selected in (await service.GetAsync()).Where(value => value.In_homepage))
+                    if (EventPeriod.IsPast(selected, clock, zone))
+                        await PermissionOperationFilter.RequireAsync(context, "events.past.manage");
+                await service.ClearAllHomepageAsync();
+            }
+            item.In_homepage = request.Selected;
+            await service.UpdateAsync(id, item);
+            return Results.NoContent();
+        });
         workshop.MapGet("/Get", async (bool? onlyPublished, HttpContext context, WorkshopService workshopService,
             SpeakerService speakerService, WorkshopFileService workshopFileService, IAuthorizationService authorizationService) =>
         {
-            var isAdmin = await context.IsWebDevAdminAsync(authorizationService);
+            var isAdmin = await context.HasAdministrativeReadAccessAsync(authorizationService);
             var page = CollectionWindow.From(context);
             var items = await workshopService.GetAsync((onlyPublished ?? false) || !isAdmin, page);
             var speakers = items.Any(item => item.Tracks is { Count: > 0 }) ? await speakerService.GetAsync() : [];
@@ -730,7 +795,7 @@ public static class ApiEndpointMappings
         workshop.MapGet("/Get/{id}", async (Guid id, HttpContext context, WorkshopService workshopService,
             SpeakerService speakerService, WorkshopFileService workshopFileService, IAuthorizationService authorizationService) =>
         {
-            var isAdmin = await context.IsWebDevAdminAsync(authorizationService);
+            var isAdmin = await context.HasAdministrativeReadAccessAsync(authorizationService);
             var item = await workshopService.GetAsync(id);
             if (item is null || (!isAdmin && item.Published != true))
             {
@@ -800,7 +865,7 @@ public static class ApiEndpointMappings
             }
             await workshopService.CreateAsync(newWorkshop);
             return Results.CreatedAtRoute("WorkshopGetById", new { id = newWorkshop.WorkshopId }, newWorkshop);
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         workshop.MapPost("/PreviewSessionize/{id}", async (Guid id, SessionizeImportRequest request,
             WorkshopService workshopService, SpeakerService speakerService, SessionizeImportService importer,
             CancellationToken cancellationToken) =>
@@ -815,7 +880,7 @@ public static class ApiEndpointMappings
                 return import.Error;
             }
             return Results.Ok(await speakerService.GetSessionizeCollisionsAsync(import.Value!.Speakers));
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         workshop.MapPost("/ImportSessionize/{id}", async (Guid id, SessionizeImportRequest request,
             WorkshopService workshopService, SpeakerService speakerService, SessionizeImportService importer,
             CancellationToken cancellationToken) =>
@@ -862,7 +927,7 @@ public static class ApiEndpointMappings
             item.Talks = WorkshopTalkImportMerger.Merge(item.Talks ?? [], data.Talks);
             await workshopService.UpdateAsync(id, item);
             return Results.Ok(new { importedTalks = data.Talks.Count, importedSpeakers = imported.Count });
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         workshop.MapPut("/Update/{id}", async (Guid id, Workshop updated, WorkshopService workshopService) =>
         {
             var current = await workshopService.GetAsync(id);
@@ -904,7 +969,7 @@ public static class ApiEndpointMappings
                 await workshopService.UpdateEventbriteAsync(updated);
             }
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
         workshop.MapDelete("/Delete/{id}", async (Guid id, WorkshopService workshopService) =>
         {
             if (await workshopService.GetAsync(id) is null)
@@ -913,7 +978,7 @@ public static class ApiEndpointMappings
             }
             await workshopService.RemoveAsync(id);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static void MapWorkshopFileEndpoints(RouteGroupBuilder api)
@@ -927,7 +992,7 @@ public static class ApiEndpointMappings
             if (file is null || file.FullPath != $"/api/WorkshopFile/Download/{id:D}")
                 return Results.NotFound();
             var workshop = await workshops.GetAsync(file.WorkshopId);
-            if (workshop is null || (workshop.Published != true && !await context.IsWebDevAdminAsync(authorization)))
+            if (workshop is null || (workshop.Published != true && !await context.HasAdministrativeReadAccessAsync(authorization)))
                 return Results.NotFound();
             var path = storage.PathFor(file);
             if (!File.Exists(path)) return Results.NotFound();
@@ -949,7 +1014,7 @@ public static class ApiEndpointMappings
             {
                 return Results.NotFound();
             }
-            if (!await context.IsWebDevAdminAsync(authorizationService) && workshop.Published != true)
+            if (!await context.HasAdministrativeReadAccessAsync(authorizationService) && workshop.Published != true)
             {
                 return Results.NotFound();
             }
@@ -994,7 +1059,7 @@ public static class ApiEndpointMappings
             catch { File.Delete(storage.PathFor(asset)); throw; }
             await workshopService.UpdateImageAsync(workshopId, relativePath);
             return Results.Ok(new { fileName, filePath = relativePath, workshopId });
-        }).DisableAntiforgery().RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).DisableAntiforgery().RequireAuthorization();
         workshopFile.MapPost("/Upload", async (IFormFile file, [FromForm] Guid workshopId, [FromForm] int fileType,
             [FromForm] string? title, WorkshopService workshopService, WorkshopFileService workshopFileService,
             WorkshopAssetStorage storage, CancellationToken cancellationToken) =>
@@ -1045,7 +1110,7 @@ public static class ApiEndpointMappings
                 fileType,
                 workshopFileId = item.WorkshopFileId,
             });
-        }).DisableAntiforgery().RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).DisableAntiforgery().RequireAuthorization();
         workshopFile.MapDelete("/{workshopFileId}", async (Guid workshopFileId, WorkshopFileService workshopFileService,
             IWebHostEnvironment environment, WorkshopAssetStorage storage) =>
         {
@@ -1080,7 +1145,7 @@ public static class ApiEndpointMappings
             }
             await workshopFileService.DeleteAsync(workshopFileId);
             return Results.NoContent();
-        }).RequireAuthorization(WebDevAdminAuthorizationOptions.PolicyName);
+        }).RequireAuthorization();
     }
 
     private static async Task<(SessionizeImportData? Value, IResult? Error)> ImportSessionize(

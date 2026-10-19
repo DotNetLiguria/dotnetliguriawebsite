@@ -2,20 +2,21 @@ import React, { ReactElement } from 'react';
 import { render as testingRender, RenderOptions } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WorkshopModel } from './models/WorkshopModel';
-import { AccountCapabilities, AccountCapabilitiesProvider } from './account/AccountCapabilities';
+import { AccountCapabilities, AccountCapabilitiesProvider, CapabilityContext } from './account/AccountCapabilities';
+import { PERMISSIONS } from './account/permissions';
 export * from '@testing-library/react';
 
 export function render(ui: ReactElement, options?: RenderOptions & { route?: string; accountProvider?: boolean }) {
   const { route = '/', accountProvider = false, ...renderOptions } = options ?? {};
   return testingRender(<MemoryRouter initialEntries={[route]}>{accountProvider
-    ? <AccountCapabilitiesProvider>{ui}</AccountCapabilitiesProvider> : ui}</MemoryRouter>, renderOptions);
+    ? <AccountCapabilitiesProvider>{ui}</AccountCapabilitiesProvider> : <CapabilityContext.Provider value={{ status: 'ready', capabilities: ADMIN_CAPABILITIES, retry: () => undefined, clear: () => undefined, refresh: () => undefined }}>{ui}</CapabilityContext.Provider>}</MemoryRouter>, renderOptions);
 }
 
 export const NO_CAPABILITIES: AccountCapabilities = {
-  websiteAdmin: false, feedbackAdmin: false, backupAdmin: false, privacyAdmin: false, notificationAdmin: false,
+  schemaVersion: 1, permissions: [], canAccessAdmin: false,
 };
 export const ADMIN_CAPABILITIES: AccountCapabilities = {
-  websiteAdmin: true, feedbackAdmin: true, backupAdmin: true, privacyAdmin: true, notificationAdmin: true,
+  schemaVersion: 1, permissions: [...PERMISSIONS], canAccessAdmin: true,
 };
 
 export function makeWorkshop(overrides: Partial<WorkshopModel> = {}): WorkshopModel {

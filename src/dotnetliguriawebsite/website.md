@@ -36,8 +36,10 @@ root). Each set contains one Canonical Extended JSON Lines file per non-system
 collection and a manifest with collection options and index definitions. Files stay
 on the backend and are not downloaded by the browser.
 
-Configure the dedicated `BackupAuthorization:AdminRole` or `AdminClaim` (`backupadmin`
-by default) for the API token used by trusted administrators. Import validates all
+Assign `backups.read`, `backups.create` and `backups.restore` separately through
+the current application permission model; restore also requires recent MFA and
+explicit confirmation. See [authorization](../../docs/authorization.md).
+The former role/claim configuration sections are no longer supported. Import validates all
 snapshot files before making changes and creates a safety snapshot first. It then
 replaces the database's non-system collections; a failure during this multi-collection
 operation can leave a partial restore, so keep the safety snapshot and perform imports

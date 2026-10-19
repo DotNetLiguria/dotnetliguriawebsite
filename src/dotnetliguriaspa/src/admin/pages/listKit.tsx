@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Button, Dialog, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, Separator } from 'react-aria-components';
 import { AdminIcon, AdminIconName } from '../icons';
 import { EmptyState, btn, focusRing, linkFocus } from '../ui';
+import { useCan } from '../../account/PermissionGate';
+import type { Permission } from '../../account/permissions';
 
 // Building blocks shared by the ordered, record-card lists (Board, site menu): the same table/list
 // rows, move buttons, row menu and full-page-on-phones card as the rest of the admin.
@@ -109,6 +111,7 @@ export interface RowMenuItem {
   href?: string;
   /** Destructive: red, separated, and always last. */
   danger?: boolean;
+  permission?: Permission;
 }
 
 const menuItem = 'flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50 data-[disabled]:opacity-50';
@@ -116,6 +119,7 @@ const menuDanger = 'flex min-h-11 cursor-pointer items-center gap-3 rounded-lg p
 
 /** The "…" menu of a row; the destructive item, if any, goes last. */
 export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] }) {
+  const can = useCan();
   return (
     <MenuTrigger>
       <Button aria-label={label} className={iconButton}><AdminIcon name="more" /></Button>
@@ -127,6 +131,7 @@ export function RowMenu({ label, items }: { label: string; items: RowMenuItem[] 
               key={item.id}
               id={item.id}
               textValue={item.label}
+              isDisabled={!!item.permission && !can(item.permission)}
               onAction={item.onAction}
               href={item.href}
               target={item.href ? '_blank' : undefined}

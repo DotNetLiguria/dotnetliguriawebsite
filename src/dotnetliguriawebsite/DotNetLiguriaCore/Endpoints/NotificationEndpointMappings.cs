@@ -1,4 +1,5 @@
 using DotNetLiguriaCore.Services.Notifications;
+using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +12,8 @@ public static class NotificationEndpointMappings
 {
     public static IEndpointRouteBuilder MapNotificationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/notifications").AddEndpointFilter<PrivacyEndpointFilter>();
+        var group = endpoints.MapGroup("/api/notifications").AddEndpointFilter<PrivacyEndpointFilter>()
+            .AddEndpointFilter<PermissionOperationFilter>().ApplyPermissions();
         group.MapGet("/consents", async (int? offset, HttpContext context, NotificationService service,
             IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
             Results.Ok(await service.ConsentsAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer),
@@ -50,7 +52,7 @@ public static class NotificationEndpointMappings
             await service.UnsubscribeAsync(token, cancellationToken);
             return Results.NoContent();
         }).AllowAnonymous().DisableAntiforgery();
-        var admin = group.MapGroup("/campaigns").RequireAuthorization("NotificationAdministrator");
+        var admin = group.MapGroup("/campaigns").RequireAuthorization();
         admin.MapPost("/preview", async (NotificationCampaignRequest request, HttpContext context,
             NotificationService service, IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
         {

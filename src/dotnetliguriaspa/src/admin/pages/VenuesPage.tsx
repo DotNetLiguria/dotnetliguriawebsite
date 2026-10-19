@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PermissionGate, useCan } from '../../account/PermissionGate';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, Form } from 'react-aria-components';
 import { AdminIcon } from '../icons';
@@ -165,6 +166,7 @@ function VenueCard({ venue, events, initialMode, onModeChange, onChanged, onDele
   onChanged: () => void;
   onDeleted: () => void;
 }) {
+  const can = useCan();
   const api = useAdminFetch();
   const [mode, setModeState] = useState<CardMode>(initialMode);
   const setMode = (next: CardMode) => { setModeState(next); onModeChange(); };
@@ -195,7 +197,7 @@ function VenueCard({ venue, events, initialMode, onModeChange, onChanged, onDele
       </ModalHeader>
 
       <div className="space-y-5 p-5 sm:p-6">
-        {mode === 'edit' ? (
+        {mode === 'edit' && can('venues.manage') ? (
           <VenueForm venue={venue} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} />
         ) : (
           <>
@@ -224,7 +226,7 @@ function VenueCard({ venue, events, initialMode, onModeChange, onChanged, onDele
                 </ul>
               ) : <p className="mt-1 text-muted">Nessun evento in archivio con questo nome di sede.</p>}
             </div>
-            {mode === 'delete' ? (
+            {mode === 'delete' && can('venues.delete') ? (
               <div role="alert" className="rounded-xl border border-[#b42318] p-4">
                 <p className="font-bold text-[#b42318]">Eliminare {name}?</p>
                 <p className="text-sm text-muted">La sede non sarà più proposta quando crei un evento; gli eventi esistenti conservano i dati della sede già salvati.</p>
@@ -235,8 +237,8 @@ function VenueCard({ venue, events, initialMode, onModeChange, onChanged, onDele
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-                <Button onPress={() => setMode('delete')} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
-                <Button onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
+                <Button isDisabled={!can('venues.delete')} onPress={() => setMode('delete')} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
+                <Button isDisabled={!can('venues.manage')} onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
               </div>
             )}
           </>
@@ -301,9 +303,10 @@ function PastVenuesImport({ venues, onSaved }: { venues: PastVenue[]; onSaved: (
 }
 
 export default function VenuesPage() {
+  const can = useCan();
   const [params, setParams] = useSearchParams();
   const [venuesLoad, reloadVenues] = useAdminLoad<VenueModel[]>('/Venue');
-  const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
+  const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false', can('events.read'));
   const [query, setQuery] = useState('');
   const venues = venuesLoad.state === 'ready' ? venuesLoad.data : null;
   const workshops = useMemo(() => (workshopsLoad.state === 'ready' ? workshopsLoad.data : []), [workshopsLoad]);
@@ -335,7 +338,7 @@ export default function VenuesPage() {
       <PageHeader
         title="Sedi"
         description={description}
-        actions={<Link to={hrefFor('nuova')} className={btn.primary}><AdminIcon name="plus" />Aggiungi sede</Link>}
+        actions={<PermissionGate permission="venues.manage"><Link to={hrefFor('nuova')} className={btn.primary}><AdminIcon name="plus" />Aggiungi sede</Link></PermissionGate>}
       />
 
       {venuesLoad.state === 'error' && <div className="mt-6"><LoadError message={`Le sedi non sono disponibili (${venuesLoad.message}).`} onRetry={reloadVenues} /></div>}
@@ -397,8 +400,8 @@ export default function VenuesPage() {
                               <Link to={hrefFor(v.venueId, true)} aria-label={`Modifica ${name}`} className={btn.icon}><AdminIcon name="pencil" /></Link>
                               <RowMenu label={`Altre azioni per ${name}`} items={[
                                 { id: 'open', label: 'Apri la scheda', icon: <AdminIcon name="pin" className="size-5 text-muted" />, onAction: () => open(v.venueId) },
-                                { id: 'edit', label: 'Modifica', icon: <AdminIcon name="pencil" className="size-5 text-muted" />, onAction: () => open(v.venueId, 'modifica') },
-                                { id: 'delete', label: 'Elimina…', icon: <AdminIcon name="trash" />, destructive: true, onAction: () => open(v.venueId, 'elimina') },
+                                { id: 'edit', label: 'Modifica', isDisabled: !can('venues.manage'), icon: <AdminIcon name="pencil" className="size-5 text-muted" />, onAction: () => open(v.venueId, 'modifica') },
+                                { id: 'delete', label: 'Elimina…', isDisabled: !can('venues.delete'), icon: <AdminIcon name="trash" />, destructive: true, onAction: () => open(v.venueId, 'elimina') },
                               ]} />
                             </span>
                           </td>
@@ -443,7 +446,7 @@ export default function VenuesPage() {
           <>
             <ModalHeader title="Nuova sede" />
             <div className="p-5 sm:p-6">
-              <VenueForm onCancel={close} onSaved={newId => { reloadVenues(); if (newId) open(newId); else close(); }} />
+              <PermissionGate permission="venues.manage"><VenueForm onCancel={close} onSaved={newId => { reloadVenues(); if (newId) open(newId); else close(); }} /></PermissionGate>
             </div>
           </>
         ) : selected ? (

@@ -7,6 +7,7 @@ import { AdminIcon } from './icons';
 import { AdminSpeaker, AdminWorkshop, clean, useAdminLoad } from './adminApi';
 import { formatDate } from '../site/format';
 import { useAccountCapabilities } from '../account/AccountCapabilities';
+import { hasPermission, hasAnyPermission, PRIVACY_PERMISSIONS, Permission } from '../account/permissions';
 
 interface Command {
   id: string;
@@ -14,12 +15,13 @@ interface Command {
   meta?: string;
   to: string;
   external?: boolean;
+  permission?: Permission;
 }
 
 const ACTIONS: Command[] = [
-  { id: 'new-event', label: 'Nuovo evento', meta: 'Crea', to: '/admin/workshop/create' },
-  { id: 'no-photo', label: 'Relatori senza foto', meta: 'Da sistemare', to: '/admin/speakers/?filtro=senza-foto' },
-  { id: 'venues', label: 'Sedi', meta: 'Vai', to: '/admin/venues/' },
+  { id: 'new-event', label: 'Nuovo evento', meta: 'Crea', to: '/admin/workshop/create', permission: 'events.manage' },
+  { id: 'no-photo', label: 'Relatori senza foto', meta: 'Da sistemare', to: '/admin/speakers/?filtro=senza-foto', permission: 'speakers.read' },
+  { id: 'venues', label: 'Sedi', meta: 'Vai', to: '/admin/venues/', permission: 'venues.read' },
   { id: 'personal', label: 'Area personale', meta: 'Account e consensi', to: '/area-personale' },
   { id: 'site', label: 'Vedi il sito', meta: 'Si apre in una nuova scheda', to: '/', external: true },
 ];
@@ -46,8 +48,8 @@ function PaletteContent({ close }: { close: () => void }) {
   const navigate = useNavigate();
   const { contains } = useFilter({ sensitivity: 'base' });
   const { capabilities } = useAccountCapabilities();
-  const [workshops] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
-  const [speakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get');
+  const [workshops] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false', hasPermission(capabilities, 'events.read'));
+  const [speakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get', hasPermission(capabilities, 'speakers.read'));
 
   const events: Command[] = workshops.state === 'ready'
     ? [...workshops.data].sort((a, b) => b.eventDate.localeCompare(a.eventDate)).map(w => ({
@@ -59,8 +61,9 @@ function PaletteContent({ close }: { close: () => void }) {
       id: `speaker-${s.workshopSpeakerId}`, label: clean(s.name), meta: 'Relatore', to: `/admin/speakers/${s.workshopSpeakerId}`,
     }))
     : [];
-  const actions = capabilities?.privacyAdmin || capabilities?.notificationAdmin
-    ? [...ACTIONS, { id: 'privacy', label: 'Privacy e avvisi', to: '/admin/privacy' }] : ACTIONS;
+  const permittedActions = ACTIONS.filter(action => !action.permission || hasPermission(capabilities, action.permission));
+  const actions = hasAnyPermission(capabilities, PRIVACY_PERMISSIONS)
+    ? [...permittedActions, { id: 'privacy', label: 'Privacy e avvisi', to: '/admin/privacy' }] : permittedActions;
   const all = [...actions, ...events, ...people];
 
   return (

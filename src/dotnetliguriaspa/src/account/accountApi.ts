@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../config/apiConfig';
+import { permissionsDenied } from './permissions';
 
 const messages: Record<string, string> = {
   recent_mfa_required: 'È richiesta una verifica MFA recente. Verifica MFA e conferma di nuovo.',
@@ -35,6 +36,7 @@ export function useAccountRequest() {
     if (!response.ok) {
       let code = '';
       try { code = (await response.json() as { code?: string }).code ?? ''; } catch { /* Non-JSON proxy failures. */ }
+      if (response.status === 403 && code !== 'recent_mfa_required' && /^(privacy\/admin|notifications\/campaigns|admin\/access)/.test(path)) permissionsDenied();
       throw new Error(response.status === 401 ? 'Accedi di nuovo al tuo account.'
         : messages[code] ?? (response.status === 403 ? 'Operazione non autorizzata.'
           : `Operazione non completata (${response.status}). Riprova o richiedi assistenza.`));

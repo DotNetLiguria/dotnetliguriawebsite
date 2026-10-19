@@ -93,7 +93,7 @@ describe('<DashboardPage />', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  test.each([ADMIN_CAPABILITIES, { ...NO_CAPABILITIES, websiteAdmin: true }])('privacy task counts require both website and privacy permissions', async capabilities => {
+  test.each([ADMIN_CAPABILITIES, { ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['events.read'] }])('privacy task counts require the privacy read permission', async capabilities => {
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
     mockApi({
       'account/capabilities': capabilities,
@@ -101,7 +101,7 @@ describe('<DashboardPage />', () => {
     });
     render(<DashboardPage />, { route: '/admin', accountProvider: true });
     await screen.findByRole('heading', { name: 'Nessun evento in programma' });
-    if (capabilities.privacyAdmin) {
+    if (capabilities.permissions.includes('privacy.operations.read')) {
       expect(await screen.findByRole('link', { name: '1 richiesta da verificare' })).toHaveAttribute('href', '/admin/privacy');
     } else {
       expect(screen.queryByRole('heading', { name: 'Richieste privacy pendenti' })).not.toBeInTheDocument();

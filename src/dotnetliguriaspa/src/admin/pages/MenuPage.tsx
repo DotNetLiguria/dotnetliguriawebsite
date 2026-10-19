@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PermissionGate, useCan } from '../../account/PermissionGate';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Form, Heading } from 'react-aria-components';
 import logo from '../../assets/logo/dotnet-liguria-storico.png';
@@ -70,6 +71,7 @@ function MenuCard({ item, position, count, initialMode, onChanged, onDeleted }: 
   onChanged: () => void;
   onDeleted: () => void;
 }) {
+  const can = useCan();
   const api = useAdminFetch();
   const [mode, setMode] = useState<Mode>(initialMode);
   const [busy, setBusy] = useState(false);
@@ -100,7 +102,7 @@ function MenuCard({ item, position, count, initialMode, onChanged, onDeleted }: 
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
-        {mode === 'edit' ? (
+        {mode === 'edit' && can('site-menu.manage') ? (
           <MenuForm item={item} defaultOrder={item.order} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} />
         ) : (
           <>
@@ -120,7 +122,7 @@ function MenuCard({ item, position, count, initialMode, onChanged, onDeleted }: 
             {!item.isActive && (
               <p className="rounded-xl bg-[#eef3f7] p-4 text-muted">La voce non compare nel menu del sito finché non la attivi.</p>
             )}
-            {mode === 'delete' ? (
+            {mode === 'delete' && can('site-menu.delete') ? (
               <div role="alert" className="rounded-xl border border-[#b42318] p-4">
                 <p className="font-bold text-[#b42318]">Eliminare {name}?</p>
                 <p className="text-sm text-muted">La voce sparisce dal menu del sito. Se vuoi solo nasconderla, disattivala dalla scheda.</p>
@@ -131,8 +133,8 @@ function MenuCard({ item, position, count, initialMode, onChanged, onDeleted }: 
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-                <Button onPress={() => setMode('delete')} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
-                <Button onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
+                <Button isDisabled={!can('site-menu.delete')} onPress={() => setMode('delete')} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
+                <Button isDisabled={!can('site-menu.manage')} onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
               </div>
             )}
           </>
@@ -176,11 +178,12 @@ const menuItems = (item: AdminMenuItem, { onToggle, onDelete }: Pick<RowsProps, 
   ...(isMenuUrl(item.url) ? [{ id: 'open', label: 'Apri sul sito', icon: <AdminIcon name="external" />, href: clean(item.url) }] : []),
   {
     id: 'toggle',
+    permission: 'site-menu.manage',
     label: item.isActive ? 'Disattiva' : 'Attiva',
     icon: <LocalIcon name={item.isActive ? 'eyeOff' : 'eye'} />,
     onAction: () => onToggle(item),
   },
-  { id: 'delete', label: 'Elimina…', icon: <AdminIcon name="trash" />, danger: true, onAction: () => onDelete(item) },
+  { id: 'delete', label: 'Elimina…', permission: 'site-menu.delete', icon: <AdminIcon name="trash" />, danger: true, onAction: () => onDelete(item) },
 ];
 
 const nameLink = `block font-bold leading-snug after:absolute after:inset-0 hover:underline ${linkFocus}`;
@@ -255,6 +258,7 @@ function MenuCards({ items, busy, onMove, ...actions }: RowsProps) {
 }
 
 export default function MenuPage() {
+  const can = useCan();
   const { id } = useParams<{ id?: string }>();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -264,7 +268,7 @@ export default function MenuPage() {
   const items = useMemo(() => (load.state === 'ready' ? byOrder(load.data) : null), [load]);
   // Locked from the first write until the reloaded list arrives, so that no move is planned on stale positions.
   const [lockedOn, setLockedOn] = useState<unknown>(null);
-  const busy = lockedOn === load;
+  const busy = lockedOn === load || !can('site-menu.manage');
   const [announcement, setAnnouncement] = useState('');
   const refocus = useRef<{ id: string; delta: -1 | 1 } | null>(null);
 
@@ -316,7 +320,7 @@ export default function MenuPage() {
       <PageHeader
         title="Menu del sito"
         description={items ? `${plural(items.length, 'voce', 'voci')}, ${activeCount} ${activeCount === 1 ? 'attiva' : 'attive'}. Le voci attive compaiono nell'intestazione del sito, in quest'ordine.` : undefined}
-        actions={<Link to="/admin/topmenu/new" className={btn.primary}><AdminIcon name="plus" />Nuova voce</Link>}
+        actions={<PermissionGate permission="site-menu.manage"><Link to="/admin/topmenu/new" className={btn.primary}><AdminIcon name="plus" />Nuova voce</Link></PermissionGate>}
       />
       <p role="status" aria-live="polite" className="sr-only">{announcement}</p>
 
@@ -351,7 +355,7 @@ export default function MenuPage() {
               {/* The form proposes the next free position, so it waits for the list. */}
               {load.state === 'loading'
                 ? <p role="status" className="py-6 text-center text-muted">Caricamento del menu…</p>
-                : <MenuForm defaultOrder={nextOrder} onCancel={close} onSaved={() => { reload(); close(); }} />}
+                : <PermissionGate permission="site-menu.manage"><MenuForm defaultOrder={nextOrder} onCancel={close} onSaved={() => { reload(); close(); }} /></PermissionGate>}
             </div>
           </>
         ) : selected ? (

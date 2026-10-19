@@ -6,7 +6,7 @@ import { AccountCapabilitiesProvider, useAccountCapabilities } from './AccountCa
 
 function Consumer() {
   const { status, capabilities } = useAccountCapabilities();
-  return <output>{status}:{String(capabilities?.websiteAdmin ?? false)}</output>;
+  return <output>{status}:{String(capabilities?.canAccessAdmin ?? false)}</output>;
 }
 const signedIn = () => vi.mocked(useOidc).mockReturnValue({
   isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn(),
@@ -18,7 +18,7 @@ test('anonymous capability provider never calls the authenticated endpoint', () 
   expect(fetch).not.toHaveBeenCalled();
 });
 
-test.each([{}, [], { ...ADMIN_CAPABILITIES, websiteAdmin: 'true' }])('malformed capability responses never grant access', async value => {
+test.each([{}, [], { ...ADMIN_CAPABILITIES, schemaVersion: 2 }, { ...ADMIN_CAPABILITIES, permissions: 'events.read' }])('malformed capability responses never grant access', async value => {
   signedIn(); mockApi({ 'account/capabilities': value });
   render(<Consumer />, { accountProvider: true });
   await screen.findByText('error:false');

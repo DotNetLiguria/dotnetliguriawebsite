@@ -119,7 +119,7 @@ export function Stepper(props: StepperProps) {
  * Indietro / Avanti like the previous Previous / Next; the last step saves ("Save changes"). While that save
  * runs, Indietro is disabled too, as Previous was.
  */
-export function StepNav({ current, busy, onMove, onSave }: { current: StepId; busy: boolean; onMove: (id: StepId) => void; onSave: () => void }) {
+export function StepNav({ current, busy, canSave = true, onMove, onSave }: { current: StepId; busy: boolean; canSave?: boolean; onMove: (id: StepId) => void; onSave: () => void }) {
   const index = stepIndexOf(current);
   const previous = STEPS[index - 1];
   const next = STEPS[index + 1];
@@ -131,7 +131,7 @@ export function StepNav({ current, busy, onMove, onSave }: { current: StepId; bu
       {next ? (
         <Button onPress={() => onMove(next.id)} className={btn.primary}>Avanti<span className="sr-only">: {next.label}</span><AdminIcon name="arrow" /></Button>
       ) : (
-        <Button onPress={onSave} isDisabled={busy} className={btn.primary}><AdminIcon name="check" />{busy ? 'Salvataggio…' : 'Salva modifiche'}</Button>
+        <Button onPress={onSave} isDisabled={busy || !canSave} className={btn.primary}><AdminIcon name="check" />{busy ? 'Salvataggio…' : 'Salva modifiche'}</Button>
       )}
     </div>
   );

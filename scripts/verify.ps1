@@ -77,6 +77,9 @@ if (!$NoFrontendChecks) {
     finally { Pop-Location }
 }
 
+Write-Host 'Keycloak provisioning: offline reconciliation tests'
+Invoke-CheckedProcess (Get-Command pwsh).Source @('-NoProfile', '-File', 'scripts/test-keycloak-setup.ps1') $root 30 | Out-Null
+
 $records = [System.Collections.Generic.List[object]]::new()
 $first = if ($Measure) { 0 } else { 1 }
 for ($run = $first; $run -le $Runs; $run++) {

@@ -7,6 +7,7 @@ import { btn, focusRing } from '../ui';
 import { clean, nameKey } from '../adminApi';
 import { inputCls } from './listUi';
 import { EventApiError, EventCoreValues, EventRecord, EventSpeaker } from './eventModel';
+import { permissionsDenied } from '../../account/permissions';
 
 // Building blocks of the event screens: an API hook that keeps the failed response for the wording of each
 // action, file pickers, the speaker picker and a few icons the shared kit does not have.
@@ -46,10 +47,11 @@ export interface EventPage {
 export function useEventApi() {
   const { fetch } = useOidcFetch();
   return useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
-    const headers: Record<string, string> = { Accept: 'application/json', ...(init.headers as Record<string, string> | undefined) };
+    const headers: Record<string, string> = { Accept: 'application/json', 'X-Admin-Request': 'true', ...(init.headers as Record<string, string> | undefined) };
     if (init.body && !(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
     if (!response.ok) {
+      if (response.status === 403) permissionsDenied();
       let body = '';
       try { body = await response.text(); } catch { /* no body */ }
       throw new EventApiError(response.status, response.headers.get('Content-Type') ?? '', body);

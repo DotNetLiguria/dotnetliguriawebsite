@@ -17,6 +17,7 @@ import EventPoster from '../EventPoster';
 import { ModalHeader, Notice, RecordModal } from './listUi';
 import { Caption, EventPage, FilePicker, InlineConfirm, PanelTitle, SelectInput } from './eventKit';
 import { EventFile, FILE_TYPE, locationFromVenue } from './eventModel';
+import { canPerform, hasPermission, hasAnyPermission, RESULTS_PERMISSIONS } from '../../account/permissions';
 
 // Steps 1 (Pubblicazione), 2 (Immagine dell'evento), 3 (Informazioni sull'evento), 4 (Sede), 9 (Materiali)
 // and 10 (Foto): the previous AdminWorkshopDetail sections, texts translated literally.
@@ -26,7 +27,8 @@ import { EventFile, FILE_TYPE, locationFromVenue } from './eventModel';
 const questionnaireTone: Record<QuestionnaireStatus, 'warn' | 'ok' | 'done'> = { Draft: 'warn', Published: 'ok', Closed: 'done', Archived: 'done' };
 
 /** Questionari collegati: the previous WorkshopQuestionnaires panel. */
-function WorkshopQuestionnaires({ workshopId }: { workshopId: string }) {
+function WorkshopQuestionnaires({ workshopId, canManage }: { workshopId: string; canManage: boolean }) {
+  const { capabilities } = useAccountCapabilities();
   const navigate = useNavigate();
   const { fetch } = useOidcFetch();
   const api = useMemo(() => createQuestionnaireAdminApi(fetch as FetchLike), [fetch]);
@@ -64,12 +66,12 @@ function WorkshopQuestionnaires({ workshopId }: { workshopId: string }) {
             <li key={q.questionnaireId} className="flex flex-wrap items-center gap-3">
               <Link to={`/admin/questionnaires/${q.questionnaireId}/edit`} className={`min-w-0 flex-1 rounded font-semibold text-cyan-700 underline ${linkFocus}`}>{q.title}</Link>
               <Badge kind={questionnaireTone[q.status]}>{statusLabels[q.status]}</Badge>
-              <Link to={`/admin/questionnaires/${q.questionnaireId}/results`} className={`rounded text-sm font-semibold text-cyan-700 underline ${linkFocus}`}>{q.responseCount} risposte</Link>
+              {hasAnyPermission(capabilities, RESULTS_PERMISSIONS) && <Link to={`/admin/questionnaires/${q.questionnaireId}/results`} className={`rounded text-sm font-semibold text-cyan-700 underline ${linkFocus}`}>{q.responseCount} risposte</Link>}
             </li>
           ))}
         </ul>
       )}
-      <Button onPress={() => void create()} isDisabled={busy} className={`mt-3 ${btn.secondary}`}><AdminIcon name="plus" />Crea questionario di feedback</Button>
+      <Button onPress={() => void create()} isDisabled={busy || !canManage} className={`mt-3 ${btn.secondary}`}><AdminIcon name="plus" />Crea questionario di feedback</Button>
     </div>
   );
 }
@@ -78,21 +80,34 @@ export function PublicationStep({ page }: { page: EventPage }) {
   const { capabilities } = useAccountCapabilities();
   const { workshop, values, edit } = page;
   const feedbackUrl = `${window.location.origin}/feedback/${workshop.workshopId}`;
+  const [publicationBusy, setPublicationBusy] = useState(false);
+  const updatePublication = async (kind: 'Publication' | 'Homepage', selected: boolean) => {
+    setPublicationBusy(true);
+    try {
+      await page.api(`/Workshop/${kind}/${encodeURIComponent(workshop.workshopId)}`, {
+        method: 'PUT', body: JSON.stringify(kind === 'Publication' ? { published: selected } : { selected }),
+      });
+      await page.refresh();
+      notify(kind === 'Publication' ? 'Pubblicazione aggiornata' : 'Homepage aggiornata');
+    } catch {
+      notify('Modifica non autorizzata o non completata. Ricarica i permessi e l’evento prima di riprovare.', { kind: 'error' });
+    } finally { setPublicationBusy(false); }
+  };
   return (
     <Panel labelledBy="publication-title" className="grid items-start gap-6 p-5 md:grid-cols-[5fr_7fr] sm:p-6">
       <div>
         <PanelTitle id="publication-title" title="Impostazioni di pubblicazione" />
         <div className="mt-3 space-y-2">
-          <SwitchInput isSelected={values.published} onChange={published => edit({ published })}>Pubblicato</SwitchInput>
-          <SwitchInput isSelected={values.inHomepage} onChange={inHomepage => edit({ inHomepage })}>Mostra in homepage</SwitchInput>
-          <SwitchInput isSelected={values.feedbackEnabled} onChange={feedbackEnabled => edit({ feedbackEnabled })}>Feedback abilitato</SwitchInput>
+          <SwitchInput isDisabled={publicationBusy || !canPerform(capabilities, 'events.publish', workshop)} isSelected={workshop.published === true} onChange={published => void updatePublication('Publication', published)}>Pubblicato</SwitchInput>
+          <SwitchInput isDisabled={publicationBusy || !canPerform(capabilities, 'events.homepage.manage', workshop)} isSelected={workshop.in_homepage === true} onChange={selected => void updatePublication('Homepage', selected)}>Mostra in homepage</SwitchInput>
+          <SwitchInput isDisabled={!canPerform(capabilities, 'questionnaires.publish', workshop) || !canPerform(capabilities, 'events.manage', workshop)} isSelected={values.feedbackEnabled} onChange={feedbackEnabled => edit({ feedbackEnabled })}>Feedback abilitato</SwitchInput>
         </div>
       </div>
       <div className="flex flex-col items-center text-center">
         <h2 className="text-lg font-bold">QR code del feedback</h2>
         <div className="mt-3 rounded-xl border border-line bg-white p-3"><QRCodeSVG value={feedbackUrl} size={150} level="H" /></div>
         <p className="mt-2 break-all text-sm text-muted">{feedbackUrl}</p>
-        {capabilities?.websiteAdmin && capabilities.feedbackAdmin && <WorkshopQuestionnaires workshopId={workshop.workshopId} />}
+        {hasPermission(capabilities, 'questionnaires.read') && <WorkshopQuestionnaires workshopId={workshop.workshopId} canManage={canPerform(capabilities, 'questionnaires.manage', workshop)} />}
       </div>
     </Panel>
   );
@@ -279,11 +294,12 @@ function AddFileDialog({ kind, accept, busy, onUpload }: { kind: FileKind; accep
 const fileLabel = (file: EventFile) => clean(file.title) || clean(file.fileName);
 
 export function MaterialsStep({ page }: { page: EventPage }) {
+  const { capabilities } = useAccountCapabilities();
   const { files, busy, upload, remove } = useEventFiles(page, 'material');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
     <Panel labelledBy="materials-title" className="p-5 sm:p-6">
-      <PanelTitle id="materials-title" title="Materiali" actions={<AddFileDialog kind="material" busy={busy} onUpload={upload} />} />
+      <PanelTitle id="materials-title" title="Materiali" actions={canPerform(capabilities, 'event-assets.manage', page.workshop) ? <AddFileDialog kind="material" busy={busy} onUpload={upload} /> : undefined} />
       {files.length > 0 ? (
         <ul className="mt-4 space-y-3">
           {files.map(file => (
@@ -298,7 +314,7 @@ export function MaterialsStep({ page }: { page: EventPage }) {
                     <span className="block text-sm text-muted">{file.fileName}</span>
                     <span className="block text-xs text-muted">Tipo file: {file.fileType}</span>
                   </span>
-                  <Button onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+                  <Button isDisabled={!canPerform(capabilities, 'event-assets.delete', page.workshop)} onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
                 </div>
               )}
             </li>
@@ -319,11 +335,12 @@ function PhotoImage({ src, title }: { src: string | null; title: string }) {
 }
 
 export function PhotosStep({ page }: { page: EventPage }) {
+  const { capabilities } = useAccountCapabilities();
   const { files, busy, upload, remove } = useEventFiles(page, 'photo');
   const [confirmId, setConfirmId] = useState<string | null>(null);
   return (
     <Panel labelledBy="photos-title" className="p-5 sm:p-6">
-      <PanelTitle id="photos-title" title="Foto" actions={<AddFileDialog kind="photo" accept={['image/*']} busy={busy} onUpload={upload} />} />
+      <PanelTitle id="photos-title" title="Foto" actions={canPerform(capabilities, 'event-assets.manage', page.workshop) ? <AddFileDialog kind="photo" accept={['image/*']} busy={busy} onUpload={upload} /> : undefined} />
       {files.length > 0 ? (
         <ul className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
           {files.map(file => (
@@ -338,7 +355,7 @@ export function PhotosStep({ page }: { page: EventPage }) {
                       <span className="block truncate font-bold">{file.title}</span>
                       <span className="block truncate text-xs text-muted">{file.fileName}</span>
                     </span>
-                    <Button onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
+                    <Button isDisabled={!canPerform(capabilities, 'event-assets.delete', page.workshop)} onPress={() => setConfirmId(file.workshopFileId)} aria-label={`Elimina: ${fileLabel(file)}`} className={btn.icon}><AdminIcon name="trash" /></Button>
                   </div>
                 </>
               )}

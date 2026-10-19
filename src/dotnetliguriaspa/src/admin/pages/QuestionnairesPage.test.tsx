@@ -160,7 +160,7 @@ describe('<QuestionnairesPage />', () => {
     let calls = 0;
     mockApi({ '/Questionnaire': () => (++calls === 1 ? new Response('', { status: 403 }) : jsonResponse(summaries)), '/Workshop/Get': workshops });
     renderAt('/admin/questionnaires');
-    expect(await screen.findByRole('alert')).toHaveTextContent(/ruolo feedbackadmin/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/permesso richiesto/);
     await user.click(screen.getByRole('button', { name: 'Riprova' }));
     expect(await screen.findByRole('table')).toBeInTheDocument();
   });

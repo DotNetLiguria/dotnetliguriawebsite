@@ -11,6 +11,8 @@ import {
 import { formatAnswer, formatDateTime } from '../../questionnaire/format';
 import { allQuestions } from '../../questionnaire/rules';
 import type { Questionnaire, QuestionnaireResponse, ResponseSource } from '../../questionnaire/types';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { canPerform } from '../../account/permissions';
 
 const when = (response: QuestionnaireResponse) => formatDateTime(response.submittedAt);
 
@@ -46,6 +48,8 @@ export interface ResponsesPanelProps {
 
 /** Every response: search, source filter, sortable columns, paging (a table from md, stacked cards on phones), detail and delete. */
 const ResponsesPanel: FC<ResponsesPanelProps> = ({ questionnaire, responses, onDelete }) => {
+  const { capabilities } = useAccountCapabilities();
+  const canDelete = canPerform(capabilities, 'questionnaire-responses.delete', questionnaire.workshopId ? questionnaire : undefined);
   const desktop = useIsDesktop();
   const questions = useMemo(() => allQuestions(questionnaire).filter(q => q.type !== 'InfoText'), [questionnaire]);
   const [query, setQuery] = useState('');
@@ -69,7 +73,7 @@ const ResponsesPanel: FC<ResponsesPanelProps> = ({ questionnaire, responses, onD
   const resetFilters = () => { setQuery(''); setSource(null); setPage(0); };
 
   const confirmDelete = async () => {
-    if (!toDelete) return;
+    if (!toDelete || !canDelete) return;
     setDeleting(true);
     try {
       await onDelete(toDelete);
@@ -148,7 +152,7 @@ const ResponsesPanel: FC<ResponsesPanelProps> = ({ questionnaire, responses, onD
                   <td className={`${table.td} text-muted`}>{sourceLabel(response.source)}</td>
                   <td className={table.td}>
                     <span className={table.actions}>
-                      <Button aria-label={`Elimina la risposta del ${when(response)}`} onPress={() => setToDelete(response)} className={miniIcon}><AdminIcon name="trash" /></Button>
+                      <Button isDisabled={!canDelete} aria-label={`Elimina la risposta del ${when(response)}`} onPress={() => setToDelete(response)} className={miniIcon}><AdminIcon name="trash" /></Button>
                     </span>
                   </td>
                 </tr>
@@ -168,7 +172,7 @@ const ResponsesPanel: FC<ResponsesPanelProps> = ({ questionnaire, responses, onD
                   )}
                   <p className="text-sm text-muted">{plural(response.answers.length, 'risposta data', 'risposte date')} · {sourceLabel(response.source)}</p>
                 </div>
-                <Button aria-label={`Elimina la risposta del ${when(response)}`} onPress={() => setToDelete(response)} className={miniIcon}><AdminIcon name="trash" /></Button>
+                <Button isDisabled={!canDelete} aria-label={`Elimina la risposta del ${when(response)}`} onPress={() => setToDelete(response)} className={miniIcon}><AdminIcon name="trash" /></Button>
               </li>
             ))}
           </ul>
@@ -228,7 +232,7 @@ const ResponsesPanel: FC<ResponsesPanelProps> = ({ questionnaire, responses, onD
             </p>
           )}
           <div className="mt-6 flex justify-end">
-            <Button onPress={() => { setToDelete(detail); setDetail(null); }} className={dangerGhost}><AdminIcon name="trash" />Elimina risposta</Button>
+            <Button isDisabled={!canDelete} onPress={() => { setToDelete(detail); setDetail(null); }} className={dangerGhost}><AdminIcon name="trash" />Elimina risposta</Button>
           </div>
         </div>
       </RecordModal>

@@ -91,6 +91,18 @@ namespace DotNetLiguriaCore.Services
             await _workshopsCollection.UpdateOneAsync(BsonCompatibility.CreateGuidFilter("_id", id), update);
         }
 
+        public async Task UpdateEventbriteConfigurationAsync(Workshop workshop)
+        {
+            var update = Builders<Workshop>.Update
+                .Set(value => value.EventbriteTicketCapacity, workshop.EventbriteTicketCapacity)
+                .Set(value => value.EventbriteSalesStart, workshop.EventbriteSalesStart)
+                .Set(value => value.EventbriteSalesEnd, workshop.EventbriteSalesEnd)
+                .Set(value => value.EventbriteSyncStatus, workshop.EventbriteSyncStatus)
+                .Set(value => value.EventbriteLastError, workshop.EventbriteLastError);
+            await _workshopsCollection.UpdateOneAsync(
+                BsonCompatibility.CreateGuidFilter("_id", workshop.WorkshopId), update);
+        }
+
         public async Task UpdateEventbriteAsync(Workshop workshop)
         {
             var update = Builders<Workshop>.Update

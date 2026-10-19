@@ -30,13 +30,8 @@ public class WriteEndpointAuthorizationTests
             {
                 var authorization = endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>();
                 Assert.NotEmpty(authorization);
-                var expectedPolicy = Route(endpoint).StartsWith("/api/Questionnaire", StringComparison.Ordinal)
-                    ? QuestionnaireAuthorizationOptions.PolicyName
-                    : Route(endpoint).StartsWith("/api/Backup", StringComparison.Ordinal) ||
-                      Route(endpoint) == "/api/Speaker/RepairLegacyTrackReferences"
-                        ? BackupAuthorizationOptions.PolicyName
-                        : WebDevAdminAuthorizationOptions.PolicyName;
-                Assert.Contains(authorization, data => data.Policy == expectedPolicy);
+                Assert.Contains(authorization, data => data.Policy is not null && PermissionCatalog.IsKnown(data.Policy));
+                Assert.DoesNotContain(authorization, data => data.Policy is "WebDevAdmin" or "FeedbackAdmin" or "DatabaseBackupAdmin");
             });
 
             var publicSubmission = Assert.Single(writeEndpoints, endpoint =>

@@ -9,16 +9,14 @@ public static class AccountEndpointMappings
 {
     public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/account/capabilities", async (HttpContext context, IAuthorizationService authorization) =>
+        endpoints.MapGet("/api/account/capabilities", async (HttpContext context, PermissionEvaluator evaluator) =>
         {
-            async Task<bool> Allowed(string policy) => (await authorization.AuthorizeAsync(context.User, policy)).Succeeded;
+            var permissions = await evaluator.GetAsync(context.User, context.RequestAborted);
             return Results.Ok(new
             {
-                websiteAdmin = await Allowed(WebDevAdminAuthorizationOptions.PolicyName),
-                feedbackAdmin = await Allowed(QuestionnaireAuthorizationOptions.PolicyName),
-                backupAdmin = await Allowed(BackupAuthorizationOptions.PolicyName),
-                privacyAdmin = await Allowed("PrivacyAdministrator"),
-                notificationAdmin = await Allowed("NotificationAdministrator")
+                schemaVersion = 1,
+                permissions = permissions.Order(StringComparer.Ordinal).ToArray(),
+                canAccessAdmin = PermissionCatalog.CanEnterAdmin(permissions),
             });
         }).RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme })
             .AddEndpointFilter<PrivacyEndpointFilter>();

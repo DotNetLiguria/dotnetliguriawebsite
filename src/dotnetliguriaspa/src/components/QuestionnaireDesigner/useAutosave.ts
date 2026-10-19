@@ -25,6 +25,11 @@ export function useAutosave({ save, blockedReason, delayMs = 1200 }: AutosaveOpt
   const [status, setStatus] = useState<SaveStatus>({ kind: 'saved' });
   const saving = useRef<Promise<boolean> | null>(null);
   const savedRef = useRef(0);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
 
   const saveNow = useCallback(async (): Promise<boolean> => {
     if (saving.current) await saving.current;
@@ -41,6 +46,7 @@ export function useAutosave({ save, blockedReason, delayMs = 1200 }: AutosaveOpt
     const run = (async () => {
       try {
         const saved = await save(current);
+        if (!active.current) return false;
         useDesignerStore.getState().acknowledgeSave(saved);
         savedRef.current = sentRevision;
         setSavedRevision(sentRevision);

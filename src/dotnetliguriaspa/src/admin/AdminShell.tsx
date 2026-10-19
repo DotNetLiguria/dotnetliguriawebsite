@@ -11,31 +11,32 @@ import { AdminToastRegion } from './toasts';
 import { clearPrivateBrowserState } from '../questionnaire/drafts';
 import { AccountCapabilities, useAccountCapabilities } from '../account/AccountCapabilities';
 import { accountReturnPath } from '../account/returnPath';
+import { hasAnyPermission, Permission, PRIVACY_PERMISSIONS, RESULTS_PERMISSIONS } from '../account/permissions';
 
-interface NavItem { label: string; to: string; icon: AdminIconName; match: string[]; end?: boolean; permission?: 'feedbackAdmin' | 'backupAdmin' | 'privacy' }
+interface NavItem { label: string; to: string; icon: AdminIconName; match: string[]; end?: boolean; permissions?: Permission[] }
 
 export const NAV: { group: string | null; items: NavItem[] }[] = [
   { group: null, items: [{ label: 'Panoramica', to: '/admin', icon: 'home', match: ['/admin'], end: true }] },
   { group: 'Eventi', items: [
-    { label: 'Eventi', to: '/admin/workshops/', icon: 'calendar', match: ['/admin/workshops', '/admin/workshop/', '/admin/events'] },
-    { label: 'Relatori', to: '/admin/speakers/', icon: 'mic', match: ['/admin/speakers'] },
-    { label: 'Sedi', to: '/admin/venues/', icon: 'pin', match: ['/admin/venues'] },
+    { label: 'Eventi', to: '/admin/workshops/', icon: 'calendar', match: ['/admin/workshops', '/admin/workshop/', '/admin/events'], permissions: ['events.read'] },
+    { label: 'Relatori', to: '/admin/speakers/', icon: 'mic', match: ['/admin/speakers'], permissions: ['speakers.read'] },
+    { label: 'Sedi', to: '/admin/venues/', icon: 'pin', match: ['/admin/venues'], permissions: ['venues.read'] },
   ] },
   { group: 'Community', items: [
-    { label: 'Board', to: '/admin/board/', icon: 'users', match: ['/admin/board'] },
-    { label: 'Questionari', to: '/admin/questionnaires', icon: 'clipboard', match: ['/admin/questionnaires', '/admin/feedbacks'], permission: 'feedbackAdmin' },
+    { label: 'Board', to: '/admin/board/', icon: 'users', match: ['/admin/board'], permissions: ['board.read'] },
+    { label: 'Questionari', to: '/admin/questionnaires', icon: 'clipboard', match: ['/admin/questionnaires', '/admin/feedbacks'], permissions: ['questionnaires.read'] },
   ] },
   { group: 'Sito', items: [
-    { label: 'Menu del sito', to: '/admin/topmenu/', icon: 'list', match: ['/admin/topmenu'] },
-    { label: 'Backup e import', to: '/admin/import-export/', icon: 'database', match: ['/admin/import-export', '/admin/downloads'], permission: 'backupAdmin' },
-    { label: 'Privacy e avvisi', to: '/admin/privacy', icon: 'user', match: ['/admin/privacy'], permission: 'privacy' },
+    { label: 'Menu del sito', to: '/admin/topmenu/', icon: 'list', match: ['/admin/topmenu'], permissions: ['site-menu.read'] },
+    { label: 'Backup e import', to: '/admin/import-export/', icon: 'database', match: ['/admin/import-export', '/admin/downloads'], permissions: ['backups.read', 'backups.create', 'backups.restore'] },
+    { label: 'Privacy e avvisi', to: '/admin/privacy', icon: 'user', match: ['/admin/privacy'], permissions: PRIVACY_PERMISSIONS },
+    { label: 'Accessi utenti', to: '/admin/access', icon: 'users', match: ['/admin/access'], permissions: ['access.users.read', 'access.audit.read'] },
   ] },
 ];
 const TABS = ['Panoramica', 'Eventi', 'Relatori'];
 
 const permitted = (item: NavItem, capabilities: AccountCapabilities) =>
-  !item.permission || (item.permission === 'privacy'
-    ? capabilities.privacyAdmin || capabilities.notificationAdmin : capabilities[item.permission]);
+  !item.permissions || hasAnyPermission(capabilities, item.permissions);
 
 const isActive = (item: NavItem, path: string) =>
   item.end ? path.replace(/\/+$/, '') === item.to : item.match.some(prefix => path.startsWith(prefix));
@@ -141,7 +142,7 @@ function SignIn() {
       <div className="w-full max-w-md rounded-3xl border border-line bg-white p-8 text-center">
         <Logo className="mx-auto h-16" />
         <h1 className="mt-6 text-2xl font-bold">Area riservata</h1>
-        <p className="mt-2 text-muted">Accedi per gestire account, consensi e privacy. Le funzioni di amministrazione richiedono ruoli specifici.</p>
+        <p className="mt-2 text-muted">Accedi per gestire account, consensi e privacy. Le funzioni di amministrazione richiedono permessi specifici.</p>
         <div className="mt-6 flex flex-col items-center gap-3">
           <Button onPress={() => login(accountReturnPath(location))} className={btn.primary}>Accedi</Button>
           <Link to="/" className={`inline-flex min-h-11 items-center font-semibold text-cyan-700 underline ${linkFocus}`}>Torna al sito</Link>
@@ -160,7 +161,7 @@ export default function AdminShell() {
   const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !capabilities?.websiteAdmin) return undefined;
+    if (!isAuthenticated || !capabilities?.canAccessAdmin) return undefined;
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
@@ -169,7 +170,7 @@ export default function AdminShell() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isAuthenticated, capabilities?.websiteAdmin]);
+  }, [isAuthenticated, capabilities?.canAccessAdmin]);
 
   if (!isAuthenticated) return <SignIn />;
   if (status === 'loading' || status === 'anonymous') return <main className="p-8" role="status">Verifica dei permessi in corso…</main>;
@@ -179,9 +180,13 @@ export default function AdminShell() {
     <Button className={btn.primary} onPress={retry}>Riprova verifica permessi</Button>
     <Link className={btn.secondary} to="/area-personale">Area personale</Link>
   </main>;
-  if (!capabilities?.websiteAdmin) return <main><AccessDenied /></main>;
+  if (!capabilities?.canAccessAdmin) return <main><AccessDenied /></main>;
   const nav = NAV.map(group => ({ ...group, items: group.items.filter(item => permitted(item, capabilities)) })).filter(group => group.items.length);
-  const restricted = NAV.flatMap(group => group.items).find(item => item.permission && isActive(item, pathname) && !permitted(item, capabilities));
+  const resultsRoute = /\/admin\/questionnaires\/[^/]+\/results/.test(pathname);
+  const createEventRoute = pathname === '/admin/workshop/create';
+  const restricted = NAV.flatMap(group => group.items).some(item => item.permissions && isActive(item, pathname) && !permitted(item, capabilities) && !(resultsRoute && hasAnyPermission(capabilities, RESULTS_PERMISSIONS)) && !(createEventRoute && hasAnyPermission(capabilities, ['events.manage'])))
+    || (pathname === '/admin/workshop/create' && !hasAnyPermission(capabilities, ['events.manage']))
+    || (resultsRoute && !hasAnyPermission(capabilities, RESULTS_PERMISSIONS));
 
   const tabItems = nav.flatMap(g => g.items).filter(i => TABS.includes(i.label));
   const moreActive = nav.flatMap(g => g.items).some(i => !TABS.includes(i.label) && isActive(i, pathname));

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { PermissionGate, useCan } from '../../account/PermissionGate';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Dialog, Form, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { AdminIcon } from '../icons';
@@ -84,6 +85,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
   onChanged: () => void;
   onDeleted: () => void;
 }) {
+  const can = useCan();
   const api = useAdminFetch();
   const [mode, setMode] = useState<'view' | 'edit' | 'delete'>('view');
   const [busy, setBusy] = useState(false);
@@ -169,7 +171,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
                 </ul>
               ) : <p className="mt-1 text-muted">Nessun talk in archivio.</p>}
             </div>
-            <SwitchInput isSelected={active} onChange={toggleActive}>Attivo</SwitchInput>
+            <SwitchInput isDisabled={!can('speakers.manage')} isSelected={active} onChange={toggleActive}>Attivo</SwitchInput>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div><dt className="font-semibold text-muted">Email</dt><dd className="break-all">{clean(speaker.email) || '—'}</dd></div>
               <div><dt className="font-semibold text-muted">Sessionize</dt><dd>{clean(speaker.sessionizeId) || 'Non collegato'}</dd></div>
@@ -185,8 +187,8 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-                <Button onPress={() => setMode('delete')} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
-                <Button onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
+                <Button isDisabled={!can('speakers.delete')} onPress={() => setMode('delete')} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
+                <Button isDisabled={!can('speakers.manage')} onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
               </div>
             )}
           </>
@@ -197,12 +199,13 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
 }
 
 export default function SpeakersPage() {
+  const can = useCan();
   const { id } = useParams<{ id?: string }>();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const api = useAdminFetch();
   const [speakersLoad, reloadSpeakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get');
-  const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
+  const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false', can('events.read'));
   const speakers = speakersLoad.state === 'ready' ? speakersLoad.data : null;
   const photos = useSpeakerPhotos(speakers);
   const [query, setQuery] = useState('');
@@ -244,8 +247,8 @@ export default function SpeakersPage() {
         description={speakers ? `${plural(speakers.length, 'relatore', 'relatori')}${photos ? `, ${speakers.length - missing.length} con foto` : ''}.` : undefined}
         actions={
           <>
-            {duplicateCount > 0 && <Button onPress={() => void reconcileDuplicates()} className={btn.secondary}><AdminIcon name="users" />Unisci doppioni</Button>}
-            <Link to={`/admin/speakers/new${listSearch}`} className={btn.primary}><AdminIcon name="plus" />Nuovo relatore</Link>
+            {duplicateCount > 0 && <Button isDisabled={!can('speakers.merge')} onPress={() => void reconcileDuplicates()} className={btn.secondary}><AdminIcon name="users" />Unisci doppioni</Button>}
+            <PermissionGate permission="speakers.manage"><Link to={`/admin/speakers/new${listSearch}`} className={btn.primary}><AdminIcon name="plus" />Nuovo relatore</Link></PermissionGate>
           </>
         }
       />
@@ -312,7 +315,7 @@ export default function SpeakersPage() {
                   <Button slot="close" aria-label="Chiudi" className={btn.icon}><AdminIcon name="x" /></Button>
                 </div>
                 <div className="p-5 sm:p-6">
-                  <SpeakerForm onCancel={close} onSaved={newId => { reloadSpeakers(); navigate(newId ? `/admin/speakers/${newId}` : '/admin/speakers/'); }} />
+                  <PermissionGate permission="speakers.manage"><SpeakerForm onCancel={close} onSaved={newId => { reloadSpeakers(); navigate(newId ? `/admin/speakers/${newId}` : '/admin/speakers/'); }} /></PermissionGate>
                 </div>
               </>
             ) : selected ? (

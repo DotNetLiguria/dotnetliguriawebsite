@@ -59,8 +59,9 @@ contracts. Obsolete workshop feedback endpoints and their services/DTOs are remo
 the old Feedback BSON shape and collection name remain only in DataMigration.
 
 Questionnaires live in the `Questionnaire` and `QuestionnaireResponse` collections.
-Admin endpoints (`api/Questionnaire`) require the `FeedbackAdmin` policy (Keycloak
-role or claim `feedbackadmin`); public endpoints (`api/PublicQuestionnaire`) are
+Admin endpoints (`api/Questionnaire`) require task-specific permission policies
+for definitions, publication, statistics, responses and export; see
+[authorization.md](authorization.md). Public endpoints (`api/PublicQuestionnaire`) are
 anonymous and rate limited. Definition/response validation, visibility rules,
 statistics and CSV export are pure services tested without MongoDB. The SPA serves
 the runner at `/q/:questionnaireId` and `/feedback/:workshopId` and lazy-loads the

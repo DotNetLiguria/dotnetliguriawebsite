@@ -88,6 +88,7 @@ export interface EventRecord extends AdminWorkshop {
   eventbriteSalesStart?: string | null;
   eventbriteSalesEnd?: string | null;
   eventbriteEventId?: string | null;
+  eventbriteTicketClassId?: string | null;
   eventbriteEventUrl?: string | null;
   eventbriteSyncStatus?: string | null;
   eventbriteLastError?: string | null;

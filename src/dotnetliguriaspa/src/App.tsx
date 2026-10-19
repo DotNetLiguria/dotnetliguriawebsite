@@ -8,6 +8,7 @@ import SpeakersPage from "./admin/pages/SpeakersPage";
 import EventsAdminPage from "./admin/pages/EventsAdminPage";
 import PersonalArea from './account/PersonalArea';
 import PrivacyAdministration from './admin/pages/PrivacyAdministration';
+import AccessPage from './admin/pages/AccessPage';
 import { AccountCapabilitiesProvider } from './account/AccountCapabilities';
 import VenuesPage from "./admin/pages/VenuesPage";
 import BackupPage from "./admin/pages/BackupPage";
@@ -55,6 +56,7 @@ function App() {
                 <Route element={<AdminShell />}>
                     <Route path='/admin' element={<DashboardPage />} />
                     <Route path='/admin/privacy' element={<PrivacyAdministration />} />
+                    <Route path='/admin/access' element={<AccessPage />} />
                     <Route path='/admin/board/' element={<BoardPage />} />
                     <Route path='/admin/board/:id' element={<BoardPage />} />
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />

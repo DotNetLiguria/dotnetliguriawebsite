@@ -62,7 +62,7 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
           }
         }}>
           <MenuItem id="personal" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Area personale</MenuItem>
-          {capabilities?.websiteAdmin && <MenuItem id="dashboard" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Dashboard</MenuItem>}
+          {capabilities?.canAccessAdmin && <MenuItem id="dashboard" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Dashboard</MenuItem>}
           <MenuItem id="logout" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Esci</MenuItem>
         </Menu>
       </Popover>

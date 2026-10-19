@@ -2,6 +2,7 @@ using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
+using DotNetLiguriaCore.Authorization;
 
 namespace DotNetLiguriaCore.Security;
 
@@ -20,6 +21,7 @@ public static class ActiveAccountAuthentication
                 context.Fail("Invalid account identity.");
                 return;
             }
+            PermissionClaims.ValidateToken(token);
             var account = AccountReference.FromPrincipal(context.Principal, options.Issuer);
             var gate = services.GetRequiredService<PrivacyOperationGate>();
             using var lease = await gate.EnterAsync(context.HttpContext.RequestAborted);

@@ -11,6 +11,8 @@ import { EventCoreValues, EventRecord, EventSpeaker, StepId, afterSave, buildWor
 import { ScrollTopButton, StepNav, Stepper } from './eventStepper';
 import { AgendaModule, TracksStep } from './eventAgenda';
 import { ImageStep, InfoStep, LocationStep, MaterialsStep, PhotosStep, PublicationStep } from './eventPanels';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { canPerform, hasPermission } from '../../account/permissions';
 
 // Event wizard: /admin/workshop/:id, the previous AdminWorkshopDetail ("Workshop Edit - {title}") with its ten
 // steps in the same order, the step in the URL hash. Steps 1, 3 and 4 edit the fields the previous page tracked
@@ -20,8 +22,10 @@ import { ImageStep, InfoStep, LocationStep, MaterialsStep, PhotosStep, Publicati
 type RecordLoad = 'loading' | 'ready' | 'failed';
 
 export default function EventDetailAdminPage() {
+  const { capabilities } = useAccountCapabilities();
   const { id = '' } = useParams<{ id: string }>();
   const location = useLocation();
+  const step = stepFromLocation(location.hash, location.search);
   const navigate = useNavigate();
   const api = useEventApi();
   const [load, setLoad] = useState<RecordLoad>('loading');
@@ -64,14 +68,14 @@ export default function EventDetailAdminPage() {
   // failure is reported and leaves the list empty.
   useEffect(() => {
     let alive = true;
-    api<EventSpeaker[]>('/Speaker/Get?onlyActive=true')
+    if (['tracks', 'talk-pool'].includes(step) && hasPermission(capabilities, 'speakers.read')) api<EventSpeaker[]>('/Speaker/Get?onlyActive=true')
       .then(data => { if (alive) setSpeakers(data ?? []); })
       .catch((error: unknown) => { if (alive) notify(statusMessage(error, 'Impossibile caricare i relatori'), { kind: 'error' }); });
-    api<VenueModel[]>('/Venue')
+    if (step === 'sede' && hasPermission(capabilities, 'venues.read')) api<VenueModel[]>('/Venue')
       .then(data => { if (alive) setVenues(data ?? []); })
       .catch((error: unknown) => { if (alive) notify(statusMessage(error, 'Impossibile caricare le sedi', 'Errore nel caricamento delle sedi'), { kind: 'error' }); });
     return () => { alive = false; };
-  }, [api]);
+  }, [api, capabilities, step]);
 
   // Reading the record again after a change: a failure is ignored, as before.
   const refresh = useCallback(async () => {
@@ -84,7 +88,6 @@ export default function EventDetailAdminPage() {
   }, [api, id, replace]);
 
   // Steps: the hash names the current one; everything up to the furthest step reached stays reachable.
-  const step = stepFromLocation(location.hash, location.search);
   const stepIndex = stepIndexOf(step);
   const [reached, setReached] = useState(stepIndex);
   useEffect(() => { setReached(value => Math.max(value, stepIndex)); }, [stepIndex]);
@@ -103,8 +106,17 @@ export default function EventDetailAdminPage() {
   // One whole-record PUT at a time, always built from the latest record.
   const save = useCallback<EventPage['save']>(async (build, messages) => {
     const latest = workshopRef.current;
-    if (!latest) return false;
+    if (!latest || !canPerform(capabilities, 'events.manage', latest)) return false;
     const body = build(latest);
+    const changes = Object.keys(body).filter(key => !['authorization', 'eventbriteSyncStatus'].includes(key)
+      && JSON.stringify(body[key as keyof EventRecord]) !== JSON.stringify(latest[key as keyof EventRecord]));
+    const needed = changes.map(key => key === 'published' ? 'events.publish' : key === 'in_homepage' ? 'events.homepage.manage'
+      : key === 'feedbackEnabled' ? 'questionnaires.publish' : key === 'image' ? 'event-assets.manage'
+        : key.startsWith('eventbrite') ? 'eventbrite.manage' : 'events.manage');
+    if (needed.some(permission => !canPerform(capabilities, permission, latest))) {
+      notify('Salvataggio non autorizzato: manca il permesso per una modifica o per un evento passato.', { kind: 'error' });
+      return false;
+    }
     setSaving(true);
     try {
       await api(`/Workshop/Update/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -117,7 +129,7 @@ export default function EventDetailAdminPage() {
     } finally {
       setSaving(false);
     }
-  }, [api, id, replace]);
+  }, [api, id, replace, capabilities]);
 
   const values: EventCoreValues | null = workshop ? { ...coreValuesOf(workshop), ...draft } : null;
   const edit = useCallback((patch: Partial<EventCoreValues>) => setDraft(current => ({ ...current, ...patch })), []);
@@ -152,6 +164,9 @@ export default function EventDetailAdminPage() {
     commitRecord: commit,
   };
   const modulePage = step === 'talk-pool' ? 'talks' : step === 'agenda' ? 'schedule' : step === 'iscrizione' ? 'registration' : null;
+  const required = step === 'immagine' || step === 'materiali' || step === 'foto' ? 'event-assets.manage' : 'events.manage';
+  const editable = canPerform(capabilities, required, workshop);
+  const assetsReadable = hasPermission(capabilities, 'event-assets.read');
 
   const content = (): React.ReactNode => {
     switch (step) {
@@ -159,8 +174,8 @@ export default function EventDetailAdminPage() {
       case 'informazioni': return <InfoStep page={page} />;
       case 'sede': return <LocationStep page={page} venues={venues} venueId={venueId} onVenue={setVenueId} />;
       case 'tracks': return <TracksStep page={page} />;
-      case 'materiali': return <MaterialsStep page={page} />;
-      case 'foto': return <PhotosStep page={page} />;
+      case 'materiali': return assetsReadable ? <MaterialsStep page={page} /> : <p>Per visualizzare i materiali serve il permesso di lettura degli allegati.</p>;
+      case 'foto': return assetsReadable ? <PhotosStep page={page} /> : <p>Per visualizzare le foto serve il permesso di lettura degli allegati.</p>;
       case 'talk-pool': case 'agenda': case 'iscrizione': return null;
       default: return <PublicationStep page={page} />;
     }
@@ -170,16 +185,18 @@ export default function EventDetailAdminPage() {
     <>
       <Link to="/admin/workshops/" className={`mb-2 inline-flex min-h-11 items-center gap-2 rounded-full font-semibold text-cyan-700 hover:underline ${linkFocus}`}><AdminIcon name="back" />Eventi</Link>
       <h1 ref={titleRef} tabIndex={-1} className="text-3xl font-bold leading-tight tracking-tight text-balance outline-none">Modifica evento - {clean(workshop.title)}</h1>
+      <p className="mt-2">{workshop.authorization ? workshop.authorization.isPast ? 'Evento passato' : 'Evento corrente' : 'Periodo dell’evento non verificato dal server'}</p>
+      {!editable && step !== 'pubblicazione' && <p role="status">Sola lettura: manca il permesso per questa azione o per la gestione degli eventi passati.</p>}
 
       <Stepper current={step} reached={reached} hrefFor={hrefFor} onSelect={goTo} />
 
       <div ref={stepArea} className="mt-6">
-        {content()}
+        <fieldset disabled={!editable && !['pubblicazione', 'materiali', 'foto'].includes(step)} className="min-w-0 border-0 p-0">{content()}</fieldset>
         {/* The module keeps its inputs across the steps: mounted always, shown on steps 6 to 8. */}
         <div hidden={modulePage === null}>
           <AgendaModule page={page} activePage={modulePage} />
         </div>
-        <StepNav current={step} busy={savingChanges} onMove={goTo} onSave={() => void saveChanges()} />
+        <StepNav current={step} busy={savingChanges} canSave={canPerform(capabilities, 'events.manage', workshop)} onMove={goTo} onSave={() => void saveChanges()} />
       </div>
       <ScrollTopButton onTop={() => titleRef.current?.focus({ preventScroll: true })} />
     </>

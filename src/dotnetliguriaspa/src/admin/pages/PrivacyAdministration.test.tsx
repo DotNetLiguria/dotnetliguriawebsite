@@ -13,16 +13,16 @@ const prepare = (capabilities = ADMIN_CAPABILITIES, extra: Parameters<typeof moc
 };
 
 test.each([
-  { ...NO_CAPABILITIES, websiteAdmin: true },
-  { ...ADMIN_CAPABILITIES, websiteAdmin: false },
-])('website-only and specialized-only accounts cannot load privacy administration', async capabilities => {
+  NO_CAPABILITIES,
+  { ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['events.read' as const] },
+])('accounts without privacy permissions cannot load privacy administration', async capabilities => {
   prepare(capabilities); render(<PrivacyAdministration />, { accountProvider: true });
   await screen.findByRole('heading', { name: 'Accesso non autorizzato' });
   expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/privacy/'))).toBe(false);
 });
 
 test('notification permission alone within website administration exposes no privacy task detail', async () => {
-  prepare({ ...NO_CAPABILITIES, websiteAdmin: true, notificationAdmin: true });
+  prepare({ ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['notifications.preview'] });
   render(<PrivacyAdministration />, { accountProvider: true });
   await screen.findByRole('heading', { name: 'Prepara avvisi' });
   expect(screen.queryByRole('heading', { name: 'Amministrazione privacy' })).not.toBeInTheDocument();
@@ -30,7 +30,7 @@ test('notification permission alone within website administration exposes no pri
 });
 
 test('a confirmed campaign with no provider never claims messages were sent', async () => {
-  prepare({ ...NO_CAPABILITIES, websiteAdmin: true, notificationAdmin: true }, {
+  prepare({ ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['notifications.preview', 'notifications.confirm'] }, {
     'notifications/campaigns/preview': { id: 'synthetic-campaign', recipientCount: 2, expiresAt: '2099-01-01' },
     'notifications/campaigns/synthetic-campaign/confirm': () => jsonResponse({ code: 'notification_dispatch_unavailable_no_approved_provider' }, 503),
   });
@@ -43,7 +43,7 @@ test('a confirmed campaign with no provider never claims messages were sent', as
 });
 
 test('lists only minimal operation data and requires an explicit recent-MFA identity request', async () => {
-  prepare({ ...NO_CAPABILITIES, websiteAdmin: true, privacyAdmin: true }, {
+  prepare({ ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['privacy.operations.read', 'privacy.operations.manage', 'privacy.identities.read'] }, {
     'operations/task-1/identity': () => jsonResponse({ code: 'recent_mfa_required' }, 403),
   });
   render(<PrivacyAdministration />, { route: '/admin/privacy?task=1#pending', accountProvider: true });

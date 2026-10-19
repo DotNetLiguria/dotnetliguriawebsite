@@ -2,7 +2,6 @@ using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Security;
 using DotNetLiguriaCore.Services.Notifications;
 using DotNetLiguriaCore.Services.Privacy.Notices;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace DotNetLiguriaCore.Services.Privacy;
@@ -14,7 +13,6 @@ public static class PrivacyServiceRegistration
     {
         services.Configure<PrivacyOptions>(configuration.GetSection("Privacy"));
         services.AddPrivacyAdminNotices(configuration);
-        var options = configuration.GetSection("Privacy").Get<PrivacyOptions>() ?? new PrivacyOptions();
         services.AddDataProtection();
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.TryAddSingleton(PrivacyOperationGate.Shared);
@@ -56,15 +54,7 @@ public static class PrivacyServiceRegistration
             AllowAutoRedirect = false, UseCookies = false, Credentials = null,
             ActivityHeadersPropagator = null
         }).RemoveAllLoggers();
-        services.AddAuthorizationBuilder()
-            .AddPolicy("PrivacyAdministrator", policy => policy
-                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme).RequireAuthenticatedUser()
-                .RequireAssertion(context => !string.IsNullOrWhiteSpace(options.AdministratorRole) &&
-                    AdminClaimMatcher.IsAuthorized(context.User, options.AdministratorRole, null, options.AuthorizationClientId)))
-            .AddPolicy("NotificationAdministrator", policy => policy
-                .AddAuthenticationSchemes(JwtBearerDefaults.AuthenticationScheme).RequireAuthenticatedUser()
-                .RequireAssertion(context => !string.IsNullOrWhiteSpace(options.NotificationAdministratorRole) &&
-                    AdminClaimMatcher.IsAuthorized(context.User, options.NotificationAdministratorRole, null, options.AuthorizationClientId)));
+        services.AddPermissionAuthorization();
         return services;
     }
 }

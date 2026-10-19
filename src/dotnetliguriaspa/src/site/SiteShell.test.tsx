@@ -59,7 +59,8 @@ describe('<SiteHeader />', () => {
     const logout = vi.fn(async () => undefined);
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout } as unknown as ReturnType<typeof useOidc>);
     localStorage.setItem('profileStore', '{}');
-    render(<SiteHeader />);
+    mockApi({ 'account/capabilities': NO_CAPABILITIES });
+    render(<SiteHeader />, { accountProvider: true });
     await user.click(screen.getByRole('button', { name: 'Ciao, Test User' }));
     expect(screen.getByRole('menuitem', { name: 'Area personale' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Dashboard' })).not.toBeInTheDocument();
@@ -82,7 +83,7 @@ describe('<SiteHeader />', () => {
     const greeting = screen.getByRole('button', { name: 'Ciao, Test User' });
     await controls.click(greeting);
     const menu = await screen.findByRole('menu', { name: 'Ciao, Test User' });
-    expect(within(menu).queryByRole('menuitem', { name: 'Dashboard' }) !== null).toBe(capabilities.websiteAdmin);
+    expect(within(menu).queryByRole('menuitem', { name: 'Dashboard' }) !== null).toBe(capabilities.canAccessAdmin);
     await controls.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     await waitFor(() => expect(greeting).toHaveFocus());

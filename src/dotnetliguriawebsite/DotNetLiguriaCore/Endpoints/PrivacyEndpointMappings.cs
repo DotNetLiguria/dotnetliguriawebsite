@@ -13,7 +13,9 @@ public static class PrivacyEndpointMappings
     {
         var group = endpoints.MapGroup("/api/privacy")
             .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme })
-            .AddEndpointFilter<PrivacyEndpointFilter>();
+            .AddEndpointFilter<PrivacyEndpointFilter>()
+            .AddEndpointFilter<PermissionOperationFilter>()
+            .ApplyPermissions();
         group.MapGet("/profile", async (HttpContext context, KeycloakProfileClient profiles,
             IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
             Results.Ok(await profiles.GetAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer),
@@ -41,7 +43,7 @@ public static class PrivacyEndpointMappings
             var status = await coordinator.EraseAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer), cancellationToken);
             return Results.Json(new { status }, statusCode: status == "completed" ? 200 : 202);
         });
-        var admin = group.MapGroup("/admin").RequireAuthorization("PrivacyAdministrator");
+        var admin = group.MapGroup("/admin").RequireAuthorization();
         admin.MapGet("/operations", async (PrivacyCoordinator coordinator, CancellationToken cancellationToken) =>
             Results.Ok((await coordinator.OperationsAsync(cancellationToken)).Select(operation => new
             {

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { PermissionGate } from '../../account/PermissionGate';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Input, Label, ListBox, ListBoxItem, Menu, MenuItem, MenuTrigger, Popover, SearchField, Select, SelectValue, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { AdminIcon } from '../icons';
@@ -117,7 +118,7 @@ export default function EventsAdminPage() {
       <PageHeader
         title="Eventi"
         description={load.state === 'ready' ? `${rows.length} ${rows.length === 1 ? 'evento' : 'eventi'}${first ? `, dal ${first} a oggi` : ''}${drafts ? ` · ${drafts} in bozza` : ''}.` : undefined}
-        actions={<Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link>}
+        actions={<PermissionGate permission="events.manage"><Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link></PermissionGate>}
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-2.5" role="search">
@@ -219,7 +220,7 @@ export default function EventsAdminPage() {
           ) : rows.length ? (
             <EmptyState icon="calendar" title="Nessun evento corrisponde ai filtri" actions={<Button onPress={reset} className={btn.secondary}>Azzera i filtri</Button>} />
           ) : (
-            <EmptyState icon="calendar" title="Ancora nessun evento" actions={<Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link>}>
+            <EmptyState icon="calendar" title="Ancora nessun evento" actions={<PermissionGate permission="events.manage"><Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link></PermissionGate>}>
               <p>Crea il primo evento: titolo, data e sede bastano per partire.</p>
             </EmptyState>
           )}

@@ -12,8 +12,10 @@ import { statusLabels } from '../../questionnaire/status';
 import type { CreateQuestionnaireRequest, QuestionnaireStatus, QuestionnaireSummary } from '../../questionnaire/types';
 import { formatDate } from '../../site/format';
 import { ConfirmDialog, ExtraIcon, ModalHeader, RecordModal, RowMenu, SearchBox, Skeleton, inputCls, pill, plural, table } from './listUi';
+import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import { canPerform, hasPermission, hasAnyPermission, RESULTS_PERMISSIONS } from '../../account/permissions';
 
-// Questionnaire list (role feedbackadmin) over src/questionnaire/api.ts; the designer and the results
+// Questionnaire list over src/questionnaire/api.ts; the designer and the results
 // keep their own screens at /admin/questionnaires/:id/edit and /:id/results.
 
 const STATUSES: QuestionnaireStatus[] = ['Draft', 'Published', 'Closed', 'Archived'];
@@ -105,6 +107,11 @@ function CreateForm({ workshops, busy, onCancel, onCreate }: {
 }
 
 export default function QuestionnairesPage() {
+  const { capabilities } = useAccountCapabilities();
+  const canManage = hasPermission(capabilities, 'questionnaires.manage');
+  const canResults = hasAnyPermission(capabilities, RESULTS_PERMISSIONS);
+  const canMutate = (item: QuestionnaireSummary, permission: 'questionnaires.manage' | 'questionnaires.delete') =>
+    canPerform(capabilities, permission, item.workshopId ? item : undefined);
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { fetch } = useOidcFetch();
@@ -112,7 +119,7 @@ export default function QuestionnairesPage() {
   const [load, setLoad] = useState<AdminLoad<QuestionnaireSummary[]>>({ state: 'loading' });
   const [version, setVersion] = useState(0);
   const reload = () => setVersion(v => v + 1);
-  const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
+  const [workshopsLoad] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false', params.has('nuovo') && canManage && hasPermission(capabilities, 'events.read'));
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [toDelete, setToDelete] = useState<QuestionnaireSummary | null>(null);
@@ -200,9 +207,9 @@ export default function QuestionnairesPage() {
 
   const menuFor = (item: QuestionnaireSummary) => (
     <RowMenu label={`Altre azioni per ${item.title}`} items={[
-      { id: 'duplicate', label: 'Duplica', icon: <ExtraIcon name="copy" className="size-5 text-muted" />, isDisabled: busy, onAction: () => void duplicate(item) },
-      { id: 'archive', label: 'Archivia', icon: <ExtraIcon name="archive" className="size-5 text-muted" />, isDisabled: busy || item.status === 'Archived', onAction: () => void archive(item) },
-      { id: 'delete', label: item.responseCount > 0 ? 'Elimina… (ha risposte)' : 'Elimina…', icon: <AdminIcon name="trash" />, destructive: true, isDisabled: busy || item.responseCount > 0, onAction: () => setToDelete(item) },
+      { id: 'duplicate', label: 'Duplica', icon: <ExtraIcon name="copy" className="size-5 text-muted" />, isDisabled: busy || !canMutate(item, 'questionnaires.manage'), onAction: () => void duplicate(item) },
+      { id: 'archive', label: 'Archivia', icon: <ExtraIcon name="archive" className="size-5 text-muted" />, isDisabled: busy || item.status === 'Archived' || !canMutate(item, 'questionnaires.manage'), onAction: () => void archive(item) },
+      { id: 'delete', label: item.responseCount > 0 ? 'Elimina… (ha risposte)' : 'Elimina…', icon: <AdminIcon name="trash" />, destructive: true, isDisabled: busy || item.responseCount > 0 || !canMutate(item, 'questionnaires.delete'), onAction: () => setToDelete(item) },
     ]} />
   );
 
@@ -211,7 +218,7 @@ export default function QuestionnairesPage() {
       <PageHeader
         title="Questionari"
         description={rows ? `${plural(rows.length, 'questionario', 'questionari')}, ${counts.Published} ${counts.Published === 1 ? 'pubblicato' : 'pubblicati'}.` : undefined}
-        actions={<Link to={createHref} className={btn.primary}><AdminIcon name="plus" />Nuovo questionario</Link>}
+        actions={canManage ? <Link to={createHref} className={btn.primary}><AdminIcon name="plus" />Nuovo questionario</Link> : undefined}
       />
 
       <div className="mt-6 flex flex-wrap items-center gap-2.5" role="search">
@@ -253,7 +260,7 @@ export default function QuestionnairesPage() {
                         </td>
                         <td className={`${table.td} text-muted`}>{clean(item.workshopTitle) || '—'}</td>
                         <td className={`${table.td} text-right tabular-nums`}>
-                          {item.responseCount > 0
+                          {item.responseCount > 0 && canResults
                             ? <Link to={resultsHref(item.questionnaireId)} className={`rounded font-semibold text-cyan-700 hover:underline ${linkFocus}`}>{item.responseCount}</Link>
                             : <span className="text-muted">0</span>}
                         </td>
@@ -261,7 +268,7 @@ export default function QuestionnairesPage() {
                         <td className={table.td}>
                           <span className={table.actions}>
                             <Link to={editHref(item.questionnaireId)} aria-label={`Modifica ${item.title}`} className={btn.icon}><AdminIcon name="pencil" /></Link>
-                            <Link to={resultsHref(item.questionnaireId)} aria-label={`Risultati di ${item.title}`} className={btn.icon}><ExtraIcon name="chart" /></Link>
+                            {canResults && <Link to={resultsHref(item.questionnaireId)} aria-label={`Risultati di ${item.title}`} className={btn.icon}><ExtraIcon name="chart" /></Link>}
                             {menuFor(item)}
                           </span>
                         </td>
@@ -278,7 +285,7 @@ export default function QuestionnairesPage() {
                       <span className="block text-sm text-muted">{clean(item.workshopTitle) || 'Nessun evento collegato'}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-2">
                         <StatusBadge status={item.status} />
-                        <Link to={resultsHref(item.questionnaireId)} className={`rounded text-sm font-semibold text-cyan-700 underline ${linkFocus}`}>{plural(item.responseCount, 'risposta', 'risposte')}</Link>
+                        {canResults && <Link to={resultsHref(item.questionnaireId)} className={`rounded text-sm font-semibold text-cyan-700 underline ${linkFocus}`}>{plural(item.responseCount, 'risposta', 'risposte')}</Link>}
                       </span>
                     </span>
                     {menuFor(item)}
@@ -299,7 +306,7 @@ export default function QuestionnairesPage() {
         </Panel>
       )}
 
-      <RecordModal isOpen={creating} onOpenChange={isOpen => { if (!isOpen) closeCreate(); }} label="Nuovo questionario">
+      <RecordModal isOpen={creating && canManage} onOpenChange={isOpen => { if (!isOpen) closeCreate(); }} label="Nuovo questionario">
         <ModalHeader title="Nuovo questionario" />
         <div className="p-5 sm:p-6">
           <CreateForm workshops={workshops} busy={busy} onCancel={closeCreate} onCreate={request => void create(request)} />

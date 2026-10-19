@@ -82,7 +82,7 @@ describe('<BackupPage />', () => {
     let calls = 0;
     mockApi({ '/Backup/snapshots': () => (++calls === 1 ? new Response('', { status: 403 }) : jsonResponse([])) });
     renderPage();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Accesso negato. È richiesto il ruolo backupadmin.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Accesso negato. Manca il permesso richiesto per questa operazione sui backup.');
     await user.click(screen.getByRole('button', { name: 'Riprova' }));
     expect(await screen.findByRole('heading', { name: 'Nessun backup sul server' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();

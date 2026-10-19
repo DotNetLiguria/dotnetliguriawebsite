@@ -162,7 +162,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
     renderAt('/admin/workshop/w1');
     await loaded();
     await user.click(screen.getByRole('switch', { name: 'Pubblicato' }));
-    expect(screen.getByRole('switch', { name: 'Pubblicato' })).not.toBeChecked();
+    await waitFor(() => expect(screen.getByRole('switch', { name: 'Pubblicato' })).not.toBeChecked());
     expect(screen.queryByText('Modifiche non salvate')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: "Avanti: Immagine dell'evento" }));
     await user.click(screen.getByRole('button', { name: "Avanti: Informazioni sull'evento" }));
@@ -245,9 +245,11 @@ describe('<EventDetailAdminPage /> wizard', () => {
     renderAt('/admin/workshop/w1#sede');
     await loaded();
     expect(await screen.findByText('Impossibile caricare le sedi (HTTP 500)')).toBeInTheDocument();
-    expect(await screen.findByText('Impossibile caricare i relatori (HTTP 503)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Copia dalla sede/ })).toBeDisabled();
     expect(screen.getByText('Nessuna sede disponibile da copiare.')).toBeInTheDocument();
+    expect(screen.queryByText('Impossibile caricare i relatori (HTTP 503)')).not.toBeInTheDocument();
+    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'Avanti: Tracks' }));
+    expect(await screen.findByText('Impossibile caricare i relatori (HTTP 503)')).toBeInTheDocument();
   });
 
   test('does not block the save of a legacy event with incomplete address or coordinates', async () => {
@@ -310,7 +312,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
 
   test('website administrator without feedback capability never loads linked questionnaire data', async () => {
     vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
-    const api = serveEvent(eventFixture(), { 'account/capabilities': { ...NO_CAPABILITIES, websiteAdmin: true } });
+    const api = serveEvent(eventFixture(), { 'account/capabilities': { ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['events.read'] } });
     renderAt('/admin/workshop/w1', true);
     await loaded();
     expect(screen.queryByRole('heading', { name: 'Questionari collegati' })).not.toBeInTheDocument();

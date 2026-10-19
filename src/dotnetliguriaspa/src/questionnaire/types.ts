@@ -1,4 +1,5 @@
 // Mirrors DotNetLiguriaCore.Model questionnaire contracts (camelCase JSON, enums as strings).
+import type { ResourceAuthorization } from '../account/permissions';
 
 export type QuestionnaireStatus = 'Draft' | 'Published' | 'Closed' | 'Archived';
 export type RespondentMode = 'Anonymous' | 'Identified' | 'Authenticated';
@@ -59,7 +60,7 @@ export interface QuestionnaireSection {
   questions: Question[];
 }
 
-export interface Questionnaire {
+export interface Questionnaire extends ResourceAuthorization {
   questionnaireId: string;
   title: string;
   description?: string | null;
@@ -134,7 +135,7 @@ export interface QuestionnaireProblem {
   errors: QuestionnaireValidationError[];
 }
 
-export interface QuestionnaireSummary {
+export interface QuestionnaireSummary extends ResourceAuthorization {
   questionnaireId: string;
   title: string;
   status: QuestionnaireStatus;

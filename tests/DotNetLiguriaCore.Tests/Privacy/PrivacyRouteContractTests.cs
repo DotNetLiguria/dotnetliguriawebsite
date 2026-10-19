@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using DotNetLiguriaCore.Endpoints;
+using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -83,7 +84,9 @@ public sealed class PrivacyRouteContractTests
         Assert.DoesNotContain("immutable-subject", body);
         Assert.DoesNotContain(_settings.Issuer, body);
         foreach (var endpoint in Endpoints(app).Where(endpoint => endpoint.RoutePattern.RawText!.Contains("/admin/")))
-            Assert.Contains(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(), data => data.Policy == "PrivacyAdministrator");
+            Assert.Contains(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(), data =>
+                data.Policy is not null && data.Policy.StartsWith("privacy.", StringComparison.Ordinal) &&
+                PermissionCatalog.IsKnown(data.Policy));
     }
 
     private WebApplication CreateApp()

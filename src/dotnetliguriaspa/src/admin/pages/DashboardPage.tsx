@@ -11,6 +11,7 @@ import EventPoster from '../EventPoster';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import { ErasureOperation } from '../../account/accountApi';
 import { useAccountResource } from '../../account/useAccountResource';
+import { hasPermission, canPerform } from '../../account/permissions';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -56,10 +57,12 @@ function EventHeader({ workshop, label }: { workshop: AdminWorkshop; label: Reac
 }
 
 function NextEvent({ workshop }: { workshop: AdminWorkshop }) {
+  const { capabilities } = useAccountCapabilities();
   const entries = programme(workshop);
   const sessions = sessionCount(entries);
   const to = eventLink(workshop);
-  const fix = (label: string, step: string) => <Link to={`${to}#${step}`} className={btn.ghost}>{label}</Link>;
+  const fix = (label: string, step: string) => canPerform(capabilities, step === 'pubblicazione' ? 'events.publish' : step === 'immagine' ? 'event-assets.manage' : 'events.manage', workshop)
+    ? <Link to={`${to}#${step}`} className={btn.ghost}>{label}</Link> : undefined;
   return (
     <Panel labelledBy="next-event">
       <EventHeader workshop={workshop} label={<Badge kind="planned">In programma</Badge>} />
@@ -90,9 +93,9 @@ function LatestEvent({ workshop }: { workshop: AdminWorkshop }) {
       <p id="latest-event" className="px-5 pt-3 text-muted sm:px-6">Dopo l'evento: cosa resta da fare.</p>
       <ul className="divide-y divide-line px-5 sm:px-6">
         <CheckRow done={sessions > 0} title="Agenda" detail={sessions ? `${sessionsLabel(sessions)} con ${plural(speakers, 'relatore', 'relatori')}` : 'Nessuna sessione'} />
-        <CheckRow done={materials > 0} title="Slide e materiali" detail={materials ? plural(materials, 'file caricato', 'file caricati') : 'Nessun materiale caricato: chi ha partecipato li cerca qui.'} action={materials ? undefined : <Link to={`${to}#materiali`} className={btn.secondary}><AdminIcon name="upload" />Carica materiali</Link>} />
-        <CheckRow done={photos > 0} title="Foto dell'evento" detail={photos ? plural(photos, 'foto', 'foto') : 'Nessuna foto.'} action={photos ? undefined : <Link to={`${to}#foto`} className={btn.ghost}>Carica foto</Link>} />
-        {capabilities?.feedbackAdmin && <CheckRow done={!!workshop.feedbackEnabled} title="Questionario di feedback" detail={workshop.feedbackEnabled ? 'Aperto' : "Non attivo: senza questionario non sappiamo com'è andata."} action={workshop.feedbackEnabled ? undefined : <Link to="/admin/questionnaires" className={btn.ghost}>Crea questionario</Link>} />}
+        <CheckRow done={materials > 0} title="Slide e materiali" detail={materials ? plural(materials, 'file caricato', 'file caricati') : 'Nessun materiale caricato: chi ha partecipato li cerca qui.'} action={materials || !canPerform(capabilities, 'event-assets.manage', workshop) ? undefined : <Link to={`${to}#materiali`} className={btn.secondary}><AdminIcon name="upload" />Carica materiali</Link>} />
+        <CheckRow done={photos > 0} title="Foto dell'evento" detail={photos ? plural(photos, 'foto', 'foto') : 'Nessuna foto.'} action={photos || !canPerform(capabilities, 'event-assets.manage', workshop) ? undefined : <Link to={`${to}#foto`} className={btn.ghost}>Carica foto</Link>} />
+        {hasPermission(capabilities, 'questionnaires.read') && <CheckRow done={!!workshop.feedbackEnabled} title="Questionario di feedback" detail={workshop.feedbackEnabled ? 'Aperto' : 'Non attivo.'} action={canPerform(capabilities, 'questionnaires.manage', workshop) ? <Link to="/admin/questionnaires" className={btn.ghost}>Crea questionario</Link> : undefined} />}
       </ul>
     </Panel>
   );
@@ -106,12 +109,13 @@ const dataOf = <T,>(load: AdminLoad<T>) => (load.state === 'ready' ? load.data :
 
 export default function DashboardPage() {
   const { oidcUser } = useOidcUser();
-  const [workshopsLoad, reloadWorkshops] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false');
-  const [speakersLoad, reloadSpeakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get');
-  const [boardLoad] = useAdminLoad<unknown[]>('/Board/Get');
-  const [venuesLoad] = useAdminLoad<AdminVenue[]>('/Venue');
-  const workshops = dataOf(workshopsLoad);
-  const speakers = dataOf(speakersLoad);
+  const { capabilities } = useAccountCapabilities();
+  const [workshopsLoad, reloadWorkshops] = useAdminLoad<AdminWorkshop[]>('/Workshop/Get?onlyPublished=false', hasPermission(capabilities, 'events.read'));
+  const [speakersLoad, reloadSpeakers] = useAdminLoad<AdminSpeaker[]>('/Speaker/Get', hasPermission(capabilities, 'speakers.read'));
+  const [boardLoad] = useAdminLoad<unknown[]>('/Board/Get', hasPermission(capabilities, 'board.read'));
+  const [venuesLoad] = useAdminLoad<AdminVenue[]>('/Venue', hasPermission(capabilities, 'venues.read'));
+  const workshops = hasPermission(capabilities, 'events.read') ? dataOf(workshopsLoad) : null;
+  const speakers = hasPermission(capabilities, 'speakers.read') ? dataOf(speakersLoad) : null;
   const photos = useSpeakerPhotos(speakers);
 
   const { next, latest, firstYear, withoutMaterials, recent, drafts } = useMemo(() => {
@@ -134,7 +138,7 @@ export default function DashboardPage() {
     return [...groups.values()].filter(g => g.length > 1);
   }, [speakers]);
   const missingPhotos = photos ? [...photos.values()].filter(p => !p).length : null;
-  const venues = dataOf(venuesLoad);
+  const venues = hasPermission(capabilities, 'venues.read') ? dataOf(venuesLoad) : null;
 
   const first = clean(oidcUser?.given_name as string | undefined) || clean(oidcUser?.name as string | undefined).split(' ')[0];
   const todos = [
@@ -149,7 +153,7 @@ export default function DashboardPage() {
       <PageHeader
         title={first ? `Ciao, ${first}` : 'Panoramica'}
         description="Il prossimo evento, quello appena concluso e le cose da sistemare."
-        actions={next ? <Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link> : undefined}
+        actions={next && hasPermission(capabilities, 'events.manage') ? <Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link> : undefined}
       />
       {workshopsLoad.state === 'error' && <div className="mt-6"><LoadError message={`Gli eventi non sono disponibili (${workshopsLoad.message}).`} onRetry={reloadWorkshops} /></div>}
       {speakersLoad.state === 'error' && <div className="mt-6"><LoadError message={`I relatori non sono disponibili (${speakersLoad.message}).`} onRetry={reloadSpeakers} /></div>}
@@ -162,7 +166,7 @@ export default function DashboardPage() {
               <EmptyState
                 icon="calendar"
                 title="Nessun evento in programma"
-                actions={<><Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link></>}
+                actions={hasPermission(capabilities, 'events.manage') ? <Link to="/admin/workshop/create" className={btn.primary}><AdminIcon name="plus" />Nuovo evento</Link> : undefined}
               >
                 <p id="no-next">Titolo, data e sede bastano per creare il prossimo incontro. L'agenda la completi dopo, anche importando i talk da Sessionize. Qui vedrai cosa manca prima di pubblicarlo.</p>
               </EmptyState>
@@ -189,7 +193,7 @@ export default function DashboardPage() {
                 ['Relatori', speakers ? `${speakers.length} · ${speakers.filter(s => s.isActive !== false).length} attivi` : undefined, '/admin/speakers/'],
                 ['Board', dataOf(boardLoad)?.length, '/admin/board/'],
                 ['Dal', firstYear ?? undefined, '/admin/workshops/'],
-              ] as const).map(([label, value, to]) => (
+              ] as const).filter(([label]) => hasPermission(capabilities, label === 'Relatori' ? 'speakers.read' : label === 'Board' ? 'board.read' : 'events.read')).map(([label, value, to]) => (
                 <li key={label}>
                   <Link to={to} className={`block rounded-xl px-3 py-2.5 hover:bg-cyan-50 ${linkFocus}`}>
                     <span className="block text-sm font-semibold text-muted">{label}</span>
@@ -225,7 +229,7 @@ export default function DashboardPage() {
 
 function PrivacyTasks() {
   const { capabilities } = useAccountCapabilities();
-  if (!capabilities?.websiteAdmin || !capabilities.privacyAdmin) return null;
+  if (!hasPermission(capabilities, 'privacy.operations.read')) return null;
   return <PendingPrivacyTasks />;
 }
 
