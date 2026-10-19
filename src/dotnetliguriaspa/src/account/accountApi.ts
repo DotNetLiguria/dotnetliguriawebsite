@@ -7,6 +7,8 @@ const messages: Record<string, string> = {
   recent_mfa_required: 'È richiesta una verifica MFA recente. Verifica MFA e conferma di nuovo.',
   erasure_preflight_blocked: 'Cancellazione bloccata: dati o regole di conservazione richiedono un intervento amministrativo.',
   identity_admin_not_configured: 'Il collegamento amministrativo all’Identity Provider non è configurato.',
+  identity_admin_unavailable: 'Il servizio amministrativo dell’Identity Provider non è raggiungibile o non è autorizzato. Riprova più tardi o richiedi assistenza.',
+  identity_admin_invalid_response: 'La risposta del servizio amministrativo dell’Identity Provider non è valida. Richiedi assistenza.',
   profile_edit_forbidden: 'L’Identity Provider non consente la modifica del profilo. Controlla i permessi del tuo account o usa la console dell’Identity Provider.',
   profile_session_expired: 'La sessione dell’Identity Provider è scaduta. Accedi di nuovo.',
   profile_update_invalid: 'Controlla nome e cognome prima di salvare.',

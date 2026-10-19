@@ -933,6 +933,29 @@ If it reverts, inspect browser Developer Tools -> Network locally:
 | Changes after restart | Inspect startup import/provisioning behavior |
 
 Missing scope mappings should not automatically re-enable full scope.
+
+### Personal area returns 503 `identity_admin_unavailable`
+
+The personal area (**Dati condivisi**, export, consents, erasure) reads the
+account through the privacy service client `dotnetliguria-privacy-admin`.
+If that client has **Full Scope Allowed = OFF** without explicit scope mappings,
+its service account still holds the `realm-management` roles, but they are
+filtered out of its token. The Keycloak admin API then answers 403, and the
+website reports 503 `identity_admin_unavailable`.
+
+Fix, without turning full scope back on:
+
+1. **Clients → dotnetliguria-privacy-admin → Client scopes →
+   dotnetliguria-privacy-admin-dedicated → Scope**.
+2. **Assign role → Filter by clients**, select `realm-management` and add the
+   roles already assigned to its service account: `view-users`,
+   `manage-users`, `query-users`, `view-clients`, `query-clients`.
+3. Reload **Dati condivisi**; no restart is needed because the website
+   requests a new service token on each call.
+
+Check with **Client scopes → Evaluate** on that client (user: its service
+account): the generated access token must contain those `realm-management`
+roles. Do not add any role the service account is not already assigned.
 The website does not modify this setting. Diagnose failed persistence instead
 of enabling it as a workaround. Do not share raw network exports, tokens or
 credentials.
