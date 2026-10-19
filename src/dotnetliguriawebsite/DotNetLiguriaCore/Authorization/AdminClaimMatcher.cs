@@ -16,7 +16,7 @@ public static class AdminClaimMatcher
 
         if (!string.IsNullOrWhiteSpace(claim) && user.Claims.Any(c =>
                 string.Equals(c.Type, claim, StringComparison.Ordinal) &&
-                string.Equals(c.Value, "true", StringComparison.Ordinal)))
+                bool.TryParse(c.Value, out var granted) && granted))
         {
             return true;
         }

@@ -1,10 +1,14 @@
 using System.Security.Claims;
+using System.Net;
+using System.Net.Http.Json;
 using DotNetLiguriaCore.Security;
 using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
 using Xunit;
 
 namespace DotNetLiguriaCore.Tests.Privacy;
@@ -19,13 +23,9 @@ public sealed class ActiveAccountAuthenticationTests
     [InlineData("deleted", true)]
     public async Task CryptographicallyValidTokensCannotOutliveDisabledOrDeletedAccounts(string state, bool rejected)
     {
-        var identities = new FakeIdentityAccountAdmin();
-        if (state != "deleted")
-            identities.Accounts["synthetic-subject"] = new IdentityAccount
-            {
-                Id = "synthetic-subject", Enabled = state == "enabled",
-            };
-        using var services = Provider(identities);
+        using var services = Provider(_ => state == "enabled"
+            ? new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { sub = "synthetic-subject" }) }
+            : new HttpResponseMessage(HttpStatusCode.Unauthorized));
         var context = Context(services);
         await ActiveAccountAuthentication.ValidateAsync(context);
         Assert.Equal(rejected, context.Result?.Failure is not null);
@@ -34,7 +34,7 @@ public sealed class ActiveAccountAuthenticationTests
     [Fact]
     public async Task IdentityOutageIsAnExplicit503WithoutLeakingExceptionsOrTreatingTokensAsValid()
     {
-        using var services = Provider(new FakeIdentityAccountAdmin { FailLookup = true });
+        using var services = Provider(_ => throw new HttpRequestException("synthetic-private-error"));
         var context = Context(services);
         context.Response.Body = new MemoryStream();
         await ActiveAccountAuthentication.ValidateAsync(context);
@@ -53,7 +53,7 @@ public sealed class ActiveAccountAuthenticationTests
     [Fact]
     public async Task OrdinaryChallengeReturnsJson401RatherThanAnOidcRedirect()
     {
-        using var services = Provider(new FakeIdentityAccountAdmin());
+        using var services = Provider(_ => throw new InvalidOperationException("Anonymous requests must not call Keycloak."));
         var context = Context(services);
         context.Response.Body = new MemoryStream();
         var challenge = new JwtBearerChallengeContext(context.HttpContext, context.Scheme,
@@ -65,11 +65,17 @@ public sealed class ActiveAccountAuthenticationTests
         Assert.False(context.Response.Headers.ContainsKey("Location"));
     }
 
-    private static ServiceProvider Provider(FakeIdentityAccountAdmin identities)
+    private static ServiceProvider Provider(Func<HttpRequestMessage, HttpResponseMessage> response)
     {
         var services = new ServiceCollection().AddLogging().AddProblemDetails();
-        services.Configure<PrivacyOptions>(options => options.Issuer = _issuer);
-        services.AddSingleton<IIdentityAccountAdmin>(identities);
+        services.Configure<PrivacyOptions>(options =>
+        {
+            options.Issuer = _issuer;
+            options.AllowedIdentityHost = "identity.example.test";
+        });
+        services.AddSingleton(provider => new KeycloakActiveAccountVerifier(
+            new HttpClient(new PrivacyHttpHandler(response)),
+            provider.GetRequiredService<IOptions<PrivacyOptions>>()));
         services.AddSingleton<PrivacyOperationGate>();
         return services.BuildServiceProvider();
     }
@@ -80,5 +86,6 @@ public sealed class ActiveAccountAuthenticationTests
     {
         Principal = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim("iss", _issuer), new Claim("sub", "synthetic-subject")], "Bearer")),
+        SecurityToken = new JsonWebToken(new JsonWebTokenHandler().CreateToken("{}")),
     };
 }

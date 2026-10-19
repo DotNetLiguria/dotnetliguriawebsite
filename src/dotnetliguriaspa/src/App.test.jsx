@@ -120,6 +120,27 @@ test('ordinary authenticated accounts can use the public personal area even with
   expect(screen.queryByRole('navigation', { name: 'Sezioni' })).not.toBeInTheDocument();
 });
 
+test('capability failures can be retried from the personal area without adding errors to the public header', async () => {
+  vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+  let available = false;
+  mockApi({
+    'account/capabilities': () => available ? jsonResponse(ADMIN_CAPABILITIES)
+      : jsonResponse({ code: 'identity_verification_unavailable' }, 503),
+    'privacy/data': { identity: null, records: [], hasMore: false, warning: '' },
+    'notifications/consents': { current: [], history: [], hasMore: false },
+  });
+  render(<App />, { route: '/area-personale' });
+  expect(await screen.findByText('Accesso alle funzioni riservate temporaneamente non disponibile.')).toBeInTheDocument();
+  const banner = screen.getByRole('banner');
+  expect(within(banner).queryByText(/non disponibile|riprova/i)).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Area personale' })).toBeInTheDocument();
+  available = true;
+  await userEvent.click(screen.getByRole('button', { name: 'Riprova verifica accesso' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Ciao, Test User' }));
+  expect(await screen.findByRole('menuitem', { name: 'Dashboard' })).toBeInTheDocument();
+  expect(screen.queryByText('Accesso alle funzioni riservate temporaneamente non disponibile.')).not.toBeInTheDocument();
+});
+
 test('admin data requests do not start until the server grants website access', async () => {
   vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
   let authorize;

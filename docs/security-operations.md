@@ -66,9 +66,13 @@ See `hardening.md` for task evidence and `privacy-backend.md` for endpoint contr
   disable/logout and delete permissions for this realm. Validate actual minimum
   permissions with synthetic users; do not grant realm-admin as a shortcut.
   Every authenticated API request verifies that its subject still exists and is
-  enabled, in addition to offline JWT validation. Missing identity-read
-  configuration or identity outages fail closed with JSON 503; disabled/deleted
-  identities are rejected even while an older token remains unexpired.
+  enabled, in addition to offline JWT validation. This live authentication check
+  calls the fixed issuer's UserInfo endpoint using the caller's validated access
+  token, not the identity-admin service account. Keep the `openid` scope and the
+  default JSON UserInfo response enabled for the SPA client. Identity outages
+  fail closed with JSON 503; disabled/deleted accounts and revoked sessions are
+  rejected even while an older token remains unexpired. Missing service-account
+  credentials block privacy operations, not ordinary login or capability reads.
 * Deletions initiated directly in Keycloak need reliable event delivery or an
   audited operator process invoking the MFA-protected reconciliation endpoint.
   An automatic Keycloak event listener is **not** included.

@@ -59,7 +59,6 @@ public sealed class NotificationService(
 
     public async Task<object> ConsentsAsync(AccountReference account, int offset, CancellationToken cancellationToken)
     {
-        EnsureConsentConfigured();
         if (offset is < 0 or > 10000)
             throw new PrivacyBlockedException("invalid_page_offset", StatusCodes.Status400BadRequest);
         using var lease = await _gate.EnterAsync(cancellationToken);

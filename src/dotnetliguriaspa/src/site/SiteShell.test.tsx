@@ -1,9 +1,15 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
-import { ADMIN_CAPABILITIES, NO_CAPABILITIES, mockApi, render, screen, within, waitFor } from '../test-utils';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, jsonResponse, mockApi, render, screen, within, waitFor } from '../test-utils';
 import SiteHeader from './SiteHeader';
 import SiteFooter from './SiteFooter';
+import { useAccountCapabilities } from '../account/AccountCapabilities';
+
+function CapabilityState() {
+  const { status } = useAccountCapabilities();
+  return <output data-testid="capability-state">{status}</output>;
+}
 
 const mainNav = () => screen.getByRole('navigation', { name: 'Principale' });
 
@@ -93,6 +99,28 @@ describe('<SiteHeader />', () => {
     await controls.click(within(navs[1]).getByRole('button', { name: 'Ciao, Test User' }));
     await controls.click(await screen.findByRole('menuitem', { name: 'Area personale' }));
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('unauthorized accounts have no administration or permission-status menu entry', async () => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    mockApi({ 'account/capabilities': NO_CAPABILITIES });
+    render(<SiteHeader />, { accountProvider: true });
+    const controls = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('account/capabilities'), expect.anything()));
+    await controls.click(screen.getByRole('button', { name: 'Ciao, Test User' }));
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Area personale', 'Esci']);
+    expect(screen.queryByText(/permessi|verifica.*non riuscita/i)).not.toBeInTheDocument();
+  });
+
+  test('capability failures do not add an administrative banner or dropdown entry to the public header', async () => {
+    vi.mocked(useOidc).mockReturnValue({ isAuthenticated: true, login: vi.fn(), logout: vi.fn(), renewTokens: vi.fn() });
+    mockApi({ 'account/capabilities': () => jsonResponse({ code: 'identity_verification_unavailable' }, 503) });
+    render(<><SiteHeader /><CapabilityState /></>, { accountProvider: true });
+    const controls = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    await waitFor(() => expect(screen.getByTestId('capability-state')).toHaveTextContent('error'));
+    expect(screen.queryByText(/verifica.*non riuscita|riprova verifica|permessi/i)).not.toBeInTheDocument();
+    await controls.click(screen.getByRole('button', { name: 'Ciao, Test User' }));
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Area personale', 'Esci']);
   });
 });
 

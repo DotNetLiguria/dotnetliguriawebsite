@@ -18,7 +18,42 @@ public sealed class AccountCapabilitiesTests
     [InlineData("dnl-webdevadmin", true)]
     [InlineData("feedbackadmin", false)]
     [InlineData("board-member", false)]
-    public async Task CapabilitiesUseExistingPoliciesAndDoNotEquateAuthenticationOrBoardMembershipWithAdmin(string role, bool expected)
+    public async Task CapabilitiesUseExistingPoliciesAndDoNotEquateAuthenticationOrBoardMembershipWithAdmin(string role, bool expected) =>
+        await AssertCapabilitiesAsync(new(ClaimTypes.Role, role), expected, role == "feedbackadmin");
+
+    [Theory]
+    [InlineData("dnl-webdevadmin", "true", true)]
+    [InlineData("dnl-webdevadmin", "True", true)]
+    [InlineData("dnl-webdevadmin", "false", false)]
+    [InlineData("dnl-webdevadmin", "False", false)]
+    [InlineData("dnl-webdevadmin", "", false)]
+    [InlineData("dnl-webdevadmin", "1", false)]
+    [InlineData("dnl-webdevadmin", "dnl-webdevadmin", false)]
+    [InlineData("realm_access", "{\"roles\":[\"dnl-webdevadmin\"]}", true)]
+    [InlineData("resource_access", "{\"DotNetLiguriaCore\":{\"roles\":[\"dnl-webdevadmin\"]}}", true)]
+    [InlineData("resource_access", "{\"other-client\":{\"roles\":[\"dnl-webdevadmin\"]}}", false)]
+    [InlineData("roles", "[\"dnl-webdevadmin\"]", true)]
+    public async Task BooleanClaimAndKeycloakRolesAreEvaluatedByTheSamePolicyAsWebsiteApis(string type, string value, bool expected) =>
+        await AssertCapabilitiesAsync(new(type, value), expected);
+
+    [Fact]
+    public async Task ActualJwtBooleanClaimGrantsWebsiteAdministration()
+    {
+        var handler = new Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler();
+        var token = handler.CreateToken(new Microsoft.IdentityModel.Tokens.SecurityTokenDescriptor
+        {
+            Claims = new Dictionary<string, object> { ["dnl-webdevadmin"] = true }
+        });
+        var claim = Assert.Single(handler.ReadJsonWebToken(token).Claims, claim => claim.Type == "dnl-webdevadmin");
+        Assert.Equal("true", claim.Value);
+        await AssertCapabilitiesAsync(claim, true);
+    }
+
+    [Fact]
+    public async Task DotNetBooleanClaimGrantsWebsiteAdministration() =>
+        await AssertCapabilitiesAsync(new Claim("dnl-webdevadmin", bool.TrueString, ClaimValueTypes.Boolean), true);
+
+    private static async Task AssertCapabilitiesAsync(Claim claim, bool expected, bool feedbackAdmin = false)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Services.Configure<WebDevAdminAuthorizationOptions>(_ => { });
@@ -40,14 +75,14 @@ public sealed class AccountCapabilitiesTests
         var context = new DefaultHttpContext
         {
             RequestServices = app.Services,
-            User = new ClaimsPrincipal(new ClaimsIdentity([new(ClaimTypes.Role, role)], "Bearer"))
+            User = new ClaimsPrincipal(new ClaimsIdentity([claim], "Bearer"))
         };
         context.Response.Body = new MemoryStream();
         await endpoint.RequestDelegate!(context);
         context.Response.Body.Position = 0;
         using var result = await JsonDocument.ParseAsync(context.Response.Body, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(expected, result.RootElement.GetProperty("websiteAdmin").GetBoolean());
-        Assert.Equal(role == "feedbackadmin", result.RootElement.GetProperty("feedbackAdmin").GetBoolean());
+        Assert.Equal(feedbackAdmin, result.RootElement.GetProperty("feedbackAdmin").GetBoolean());
         Assert.False(result.RootElement.GetProperty("privacyAdmin").GetBoolean());
         Assert.False(result.RootElement.GetProperty("backupAdmin").GetBoolean());
         Assert.Contains("no-store", context.Response.Headers.CacheControl.ToString());

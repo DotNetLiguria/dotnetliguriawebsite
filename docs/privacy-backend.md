@@ -17,8 +17,13 @@ The wired bearer validation additionally checks the current Keycloak account,
 under the shared gate, on every authenticated API request. Disabled/deleted
 accounts cannot retain access using an otherwise unexpired signed token.
 Identity verification outages return explicit JSON 503, not successful access or
-a misleading login redirect. This requires the configured identity-admin read
-permission for all authenticated API use; ordinary anonymous reads do not.
+a misleading login redirect. Live authentication uses the validated caller's
+access token at the fixed issuer's Keycloak UserInfo endpoint, which checks the
+current account and session. The response must identify the same subject.
+Ordinary login and capability checks do not require identity-admin service
+credentials. These credentials remain required for privacy/consent operations
+that read or modify accounts. Redirects, cookies and HTTP-client logging are
+disabled for both identity clients; unavailable verification never grants access.
 
 Every account-linked write, including questionnaire author edits, must hold
 `PrivacyOperationGate.EnterAsync(cancellationToken)` and then call
@@ -64,6 +69,90 @@ never an account lookup key. Service credentials must support reading users and
 attributes, updating only the necessary user fields, disabling/logging out and
 deleting the intended users. Validate the least supported Keycloak permissions
 with synthetic staging accounts before release.
+
+### Configure the Keycloak service account
+
+The personal area's `identity_admin_not_configured` error means the dedicated
+identity-admin client is missing or the fixed issuer/host configuration is invalid.
+The checked-in issuer is `https://hello.vevy.com/realms/DotNetLiguria`.
+`AuthServer:ClientSecret` belongs to the interactive backend login client: it does
+not configure `Privacy:AdminClientSecret`. Never put either secret in the SPA,
+`VITE_*` variables or committed configuration.
+
+1. In the **DotNetLiguria** realm (not `master`), create a dedicated OpenID Connect
+   client, for example `dotnetliguria-privacy-admin`.
+2. Enable **Client authentication** and **Service accounts roles**. Disable
+   **Standard flow**, **Implicit flow** and **Direct access grants**; this client
+   uses only `client_credentials`, with no browser login or redirect URI.
+3. Under **Service account roles**, assign permissions for the required Admin REST
+   operations. With the built-in `realm-management` client roles, `view-users`
+   supports profile reads and `query-users` supports directory enumeration.
+   `manage-users` supports user updates, disable/logout and deletion, but is
+   realm-wide and is **not** an attribute-only permission. Use supported
+   fine-grained admin permissions to restrict the managed users where possible;
+   verify GET user, list users, PUT user, POST user logout and DELETE user with
+   synthetic accounts. Do not assign `realm-admin` or `manage-realm`. Read-only
+   profile/history use does not require granting write/delete permissions.
+4. Ensure the client's role scope mappings include its assigned administrative
+   roles. Keycloak service-account token roles are the intersection of assigned
+   roles and permitted role scopes; assigning a role alone may not put it in the
+   token. Prefer explicit scopes rather than enabling unrestricted scope.
+5. Obtain the client secret from **Credentials** and store it in trusted backend
+   runtime configuration. Configure these keys on the **website project**:
+
+   | Configuration key | Value |
+   | --- | --- |
+   | `Privacy:Issuer` | `https://hello.vevy.com/realms/DotNetLiguria` (must equal `AuthServer:Authority`) |
+   | `Privacy:AllowedIdentityHost` | `hello.vevy.com` |
+   | `Privacy:AdminClientId` | `dotnetliguria-privacy-admin` (or the client ID you chose) |
+   | `Privacy:AdminClientSecret` | The dedicated client's secret, supplied by your secret manager |
+
+   For local development, use **Manage User Secrets** on
+   `src\dotnetliguriawebsite\DotNetLiguriaCore\DotNetLiguriaCore.csproj`.
+   A non-secret setting can also be written from the repository root:
+
+   ```powershell
+   dotnet user-secrets set "Privacy:AdminClientId" "dotnetliguria-privacy-admin" --project src\dotnetliguriawebsite\DotNetLiguriaCore\DotNetLiguriaCore.csproj
+   ```
+
+   Set `Privacy:AdminClientSecret` in that same project's user secrets without
+   printing it or putting it in shell history. User secrets are development-only,
+   not an encrypted production vault. Aspire launches this website in Development,
+   so its own user secrets are loaded; the AppHost currently forwards `AuthServer`
+   settings only, not `Privacy` settings. Putting these keys only in the AppHost's
+   user secrets is therefore insufficient. In production, inject the equivalent
+   `Privacy__AdminClientId` and `Privacy__AdminClientSecret` environment variables
+   through the hosting platform's secret management.
+6. Restart the website resource after configuring it. Sign in normally and retry
+   `GET /api/privacy/data?offset=0` and
+   `GET /api/notifications/consents?offset=0` from the personal area. The application
+   obtains its own service-account token; do not paste one into the SPA. A configured
+   client with rejected credentials or insufficient permissions returns
+   `identity_admin_unavailable`; check token issuance and the administrative role
+   scopes without logging tokens, secrets or user-response bodies.
+
+### Evidence/history reads versus consent changes
+
+`GET /api/notifications/consents` reads existing Keycloak evidence and stored
+history even when `IdentityAttributePermissionsApproved` is false or
+`ConsentVersion` is unset. Reading does not grant consent, rewrite identity
+attributes or invent historical entries. Existing pending history intents are
+still reconciled against the observed identity evidence. Identity-admin credentials
+and MongoDB availability remain required; dependency failures are not replaced
+with a misleading empty history.
+
+Subscription operations remain gated by `ConsentVersion` and
+`IdentityAttributePermissionsApproved`. Before enabling them, configure
+`dnl_notifications_monthly` and `dnl_notifications_events` in Keycloak's user
+profile so administrators can read/write them, users cannot edit them through
+registration/account/profile APIs, and neither attribute grants roles or privileges.
+Verify attribute persistence/readback with the service account and rejection of
+self-edits with a synthetic ordinary user. Only then attest
+`Privacy:IdentityAttributePermissionsApproved=true`, keeping the controller-approved
+`Privacy:ConsentVersion` (currently `2026-10`). Do not turn on this flag, storage
+approval or external-erasure approval just to hide an error.
+
+Reference: [Keycloak server administration guide: service accounts](https://www.keycloak.org/docs/latest/server_admin/index.html#_service_accounts).
 
 ## Erasure semantics
 

@@ -180,6 +180,46 @@ public sealed class NotificationServiceTests
         Assert.Empty(json.GetProperty("history").EnumerateArray());
     }
 
+    [Theory]
+    [InlineData(false, "2026-10")]
+    [InlineData(false, "")]
+    [InlineData(true, "")]
+    public async Task EvidenceAndHistoryRemainReadableWhenConsentChangesAreNotConfigured(bool approved, string version)
+    {
+        var account = AddAccount("subscriber");
+        Grant(account.Subject);
+        var evidence = _identities.Accounts[account.Subject].Attributes["dnl_notifications_events"][0];
+        _history.Entries.Add(new("existing", account.Issuer, account.Subject, "event-announcements",
+            _settings.ConsentVersion, _clock.Now, "grant", "completed"));
+        _settings.IdentityAttributePermissionsApproved = approved;
+        _settings.ConsentVersion = version;
+        var service = Service();
+
+        var json = JsonSerializer.SerializeToElement(await service.ConsentsAsync(account, 0, TestContext.Current.CancellationToken));
+
+        Assert.Single(json.GetProperty("current").EnumerateArray());
+        Assert.Equal("existing", Assert.Single(json.GetProperty("history").EnumerateArray()).GetProperty("Id").GetString());
+        Assert.False(json.GetProperty("hasMore").GetBoolean());
+        foreach (var optIn in new[] { true, false })
+        {
+            var error = await Assert.ThrowsAsync<PrivacyBlockedException>(() => service.SetSubscriptionAsync(account,
+                new("event-announcements", version, optIn), TestContext.Current.CancellationToken));
+            Assert.Equal("notification_consent_not_configured", error.Code);
+        }
+        Assert.Equal(evidence, _identities.Accounts[account.Subject].Attributes["dnl_notifications_events"][0]);
+        Assert.Single(_history.Entries);
+    }
+
+    [Fact]
+    public async Task ReadingConsentsStillReportsIdentityDependencyFailures()
+    {
+        var account = AddAccount("subscriber");
+        _settings.IdentityAttributePermissionsApproved = false;
+        _identities.FailLookup = true;
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            Service().ConsentsAsync(account, 0, TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task MalformedEvidenceIsReportedButDoesNotPreventWithdrawal()
     {

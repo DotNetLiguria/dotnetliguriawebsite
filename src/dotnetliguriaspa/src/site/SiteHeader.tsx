@@ -39,7 +39,7 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
   const { oidcUser } = useOidcUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const { capabilities, status, retry } = useAccountCapabilities();
+  const { capabilities } = useAccountCapabilities();
   const [logoutError, setLogoutError] = useState('');
   const pill = `inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 border-navy px-5 font-bold text-navy transition data-[hovered]:bg-navy data-[hovered]:text-white ${focusRing}`;
 
@@ -53,7 +53,6 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
       </Button>
       <Popover placement="bottom end" className="z-50 min-w-60 rounded-xl border border-line bg-white p-2 text-navy shadow-lift">
         <Menu aria-label="Account" className="outline-none" onAction={key => {
-          if (key === 'retry') { retry(); return; }
           onNavigate?.();
           if (key === 'personal') navigate('/area-personale');
           if (key === 'dashboard') navigate('/admin');
@@ -64,11 +63,11 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
         }}>
           <MenuItem id="personal" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Area personale</MenuItem>
           {capabilities?.websiteAdmin && <MenuItem id="dashboard" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Dashboard</MenuItem>}
-          {status === 'error' && <MenuItem id="retry" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 outline-none data-[focused]:bg-cyan-50">Permessi non disponibili: riprova</MenuItem>}
           <MenuItem id="logout" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50">Esci</MenuItem>
         </Menu>
       </Popover>
-    </MenuTrigger>{logoutError && <p role="alert" className="p-3 text-sm text-red-900">{logoutError}</p>}</>
+    </MenuTrigger>
+    {logoutError && <p role="alert" className="p-3 text-sm text-red-900">{logoutError}</p>}</>
   );
 }
 

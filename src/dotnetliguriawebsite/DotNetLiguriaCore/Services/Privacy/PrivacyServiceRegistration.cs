@@ -1,4 +1,5 @@
 using DotNetLiguriaCore.Authorization;
+using DotNetLiguriaCore.Security;
 using DotNetLiguriaCore.Services.Notifications;
 using DotNetLiguriaCore.Services.Privacy.Notices;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -28,6 +29,15 @@ public static class PrivacyServiceRegistration
         services.TryAddSingleton<NotificationService>();
         services.TryAddSingleton<IConsentHistoryStore, MongoConsentHistoryStore>();
         services.TryAddSingleton<INotificationRecipientPreparation>(provider => provider.GetRequiredService<NotificationService>());
+        services.AddHttpClient<KeycloakActiveAccountVerifier>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.MaxResponseContentBufferSize = 64 * 1024;
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false, UseCookies = false, Credentials = null,
+            ActivityHeadersPropagator = null
+        }).RemoveAllLoggers();
         services.AddHttpClient<IIdentityAccountAdmin, KeycloakIdentityAccountAdmin>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(20);

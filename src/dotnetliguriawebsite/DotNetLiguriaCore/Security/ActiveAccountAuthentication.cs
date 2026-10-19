@@ -1,6 +1,7 @@
 using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 namespace DotNetLiguriaCore.Security;
 
@@ -14,7 +15,7 @@ public static class ActiveAccountAuthentication
         {
             var services = context.HttpContext.RequestServices;
             var options = services.GetRequiredService<IOptions<PrivacyOptions>>().Value;
-            if (context.Principal is null)
+            if (context.Principal is null || context.SecurityToken is not JsonWebToken token)
             {
                 context.Fail("Invalid account identity.");
                 return;
@@ -22,9 +23,8 @@ public static class ActiveAccountAuthentication
             var account = AccountReference.FromPrincipal(context.Principal, options.Issuer);
             var gate = services.GetRequiredService<PrivacyOperationGate>();
             using var lease = await gate.EnterAsync(context.HttpContext.RequestAborted);
-            var profile = await services.GetRequiredService<IIdentityAccountAdmin>()
-                .GetAsync(account, context.HttpContext.RequestAborted);
-            if (profile is null || !profile.Enabled || profile.Id != account.Subject)
+            if (!await services.GetRequiredService<KeycloakActiveAccountVerifier>()
+                .IsActiveAsync(account, token.EncodedToken, context.HttpContext.RequestAborted))
                 context.Fail("Account disabled or deleted.");
         }
         catch (PrivacyBlockedException exception)
