@@ -1,6 +1,6 @@
 import React from 'react';
 import LegalPage, {
-  ControllerDetails, LegalExternalLink, LegalLink, LegalSection, LegalSubsection, LegalSummary, Placeholder,
+  ControllerDetails, LegalExternalLink, LegalLink, LegalSection, LegalSubsection, LegalSummary,
 } from './LegalPage';
 import { HOSTING_DETAILS } from './legalFacts';
 
@@ -56,8 +56,8 @@ export default function PrivacyPage() {
           </p>
           <p>
             Il browser conserva temporaneamente una bozza delle risposte nella memoria della scheda (sessionStorage),
-            con scadenza dopo 30 minuti senza modifiche. Puoi scartarla; viene rimossa dopo l'invio, all'uscita
-            dall'account o alla chiusura della scheda. Le vecchie bozze persistenti vengono eliminate, non recuperate.
+            con scadenza dopo 30 minuti senza modifiche. Puoi scartarla; viene rimossa dopo l'invio, lo scarto
+            o la chiusura della scheda. Le vecchie bozze persistenti vengono eliminate, non recuperate.
             Anche una bozza può contenere dati personali nel testo libero: vedi la <LegalLink to="/cookie">Cookie policy</LegalLink>.
           </p>
           <p>
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
           </p>
           <p>
             Nell’<LegalLink to="/area-personale">area personale</LegalLink> puoi leggere i dati attribuibili
-            al tuo account, gestire gli avvisi, esportare i dati e richiedere la cancellazione.
+            al tuo account, consultare la lista dei consensi, esportare i dati e richiedere la cancellazione.
             Nome e cognome si modificano nell’area personale, che inoltra le modifiche all’Identity Provider senza salvarli localmente.
             Email e sicurezza si modificano nella console dell’account dell’Identity Provider.
             L’accesso personale non concede funzioni di amministrazione.
@@ -83,24 +83,19 @@ export default function PrivacyPage() {
           <p>Base giuridica: legittimo interesse a gestire il sito in modo sicuro (art. 6, par. 1, lett. f).</p>
         </LegalSubsection>
 
-        <LegalSubsection title="Avvisi sugli eventi">
+        <LegalSubsection title="Comunicazioni sugli eventi">
           <p>
-            L'iscrizione agli avvisi è facoltativa, separata dal consenso ai questionari e riservata agli account
-            con email verificata. Il consenso e la sua revoca sono gestiti nell’Identity Provider. Non creiamo un elenco
-            permanente di indirizzi nel database applicativo e non iscriviamo automaticamente relatori o partecipanti.
+            Per fare parte della community è necessario ricevere email sui nuovi eventi. Questo è il requisito minimo
+            dell'account e non può essere revocato separatamente: se non vuoi più ricevere queste comunicazioni, puoi
+            cancellare definitivamente il tuo account dall'area personale.
           </p>
           <p>
-            Conserviamo nel database applicativo una cronologia delle modifiche successive all’attivazione
-            di questa funzione: riferimento immutabile all’account, finalità, versione dell’informativa,
-            data, adesione o revoca e stato operativo necessario a verificare la modifica.
-            Non vi copiamo nome, email, indirizzo IP o browser. Le evidenze di consensi già presenti
-            nell’Identity Provider sono mostrate separatamente, senza ricostruire una cronologia passata.
-            Le modifiche in attesa non equivalgono a consensi completati. Cronologia e modifiche
-            incompiute attribuibili all’account rientrano nell’esportazione e nella cancellazione.
+            La lista dei consensi dell'area personale riporta attualmente questo solo requisito; in futuro mostrerà
+            tutti i consensi che l'utente accetta di fornire a DotNetLiguria.
           </p>
           <p>
             Al momento non è configurato un servizio di invio: preparare un avviso non significa averlo inviato.
-            Prima di attivarlo devono essere approvati il fornitore, le informative e le modalità di disiscrizione.
+            Prima di attivarlo devono essere approvati il fornitore e le relative informative.
           </p>
         </LegalSubsection>
 
@@ -122,10 +117,9 @@ export default function PrivacyPage() {
         <LegalSubsection title="Iscrizione agli eventi e link esterni">
           <p>
             L'iscrizione agli eventi non avviene su questo sito: i pulsanti rimandano a una piattaforma esterna (per esempio
-            Eventbrite), che tratta i tuoi dati come titolare autonomo secondo la propria informativa.{' '}
-            <Placeholder>
-              indicare se e come DotNetLiguria riceve l'elenco degli iscritti dalla piattaforma e per quanto tempo lo conserva
-            </Placeholder>
+            Eventbrite), che tratta i tuoi dati come titolare autonomo secondo la propria informativa.
+            Conserviamo i dati degli iscritti agli eventi e non li cediamo a terze parti. I dati possono tuttavia
+            provenire da piattaforme terze, quali Eventbrite, alle cui informative privacy gli iscritti possono fare riferimento.
           </p>
           <p>
             Le pagine contengono anche link a mappe (OpenStreetMap, Google Maps) e ai profili pubblici di relatori e team. Sono
@@ -143,8 +137,8 @@ export default function PrivacyPage() {
           <li>Gli amministratori del sito, del team DotNetLiguria, autorizzati ad accedere ai dati necessari al loro compito.</li>
         </ul>
         <p>
-          Non vendiamo dati personali. <Placeholder>verificare e documentare localizzazione dei servizi,
-          responsabili e sub-responsabili, eventuali trasferimenti internazionali e relative garanzie</Placeholder>
+          Non vendiamo dati personali. I dati degli utenti DotNetLiguria sono conservati in servizi cloud che adottano
+          misure adeguate alla protezione dei dati personali, nel rispetto della normativa applicabile.
         </p>
       </LegalSection>
 
@@ -152,12 +146,12 @@ export default function PrivacyPage() {
         <ul>
           <li>Dati dimostrabilmente e irreversibilmente anonimi: possono essere conservati senza scadenza,
             previa approvazione delle finalità da parte del titolare. Rimuovere un identificativo non basta a renderli anonimi.</li>
-          <li>Risposte collegate all'account e altri dati identificabili: <Placeholder>periodo proporzionato alle finalità e criteri approvati dal titolare</Placeholder></li>
-          <li>Risposte raccolte prima dell'attuale sistema di questionari: <Placeholder>periodo o criterio di conservazione</Placeholder></li>
-          <li>Log tecnici del server: <Placeholder>durata di conservazione dei log, gestiti da Vevy Europe S.p.A.</Placeholder></li>
-          <li>Account dell'area riservata: <Placeholder>tempi di disattivazione o cancellazione degli account del team</Placeholder></li>
+          <li>Risposte collegate all'account e altri dati identificabili: conservati insieme alle preferenze dell'utente e gestibili dall'utente stesso nell'area personale.</li>
+          <li>Risposte raccolte prima dell'attuale sistema di questionari: conservate insieme alle preferenze dell'utente e gestibili dall'utente stesso nell'area personale.</li>
+          <li>Log tecnici del server: un anno.</li>
+          <li>Account dell'area riservata: conservati insieme alle preferenze dell'utente e gestibili dall'utente stesso nell'area personale.</li>
           <li>Dati di relatori e team: finché restano pubblicati. Li aggiorniamo o li rimuoviamo su richiesta.</li>
-          <li>Bozza del questionario: nella scheda del browser, massimo 30 minuti senza modifiche e comunque non oltre la chiusura della scheda.</li>
+          <li>Bozza del questionario: nella memoria della scheda del browser, massimo 30 minuti senza modifiche e comunque non oltre la chiusura della scheda.</li>
           <li>Copie di sicurezza: le copie interessate da una cancellazione devono essere eliminate o rese
             irreversibilmente anonime; le copie non interessate possono essere conservate. Copie esterne e
             precedenti esportazioni richiedono una verifica operativa separata.</li>

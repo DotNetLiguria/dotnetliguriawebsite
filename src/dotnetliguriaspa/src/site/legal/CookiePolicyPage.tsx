@@ -65,7 +65,7 @@ export default function CookiePolicyPage() {
               name="questionnaire-draft:…"
               where="sessionStorage della scheda del browser"
               purpose="Conserva temporaneamente le risposte non inviate. Il testo libero può contenere dati personali. Le vecchie bozze in localStorage vengono eliminate."
-              duration="30 minuti senza modifiche; cancellazione all'invio, allo scarto, all'uscita dall'account o alla chiusura della scheda."
+              duration="30 minuti senza modifiche; cancellazione all'invio, allo scarto o alla chiusura della scheda."
               setBy="DotNetLiguria, quando apri un questionario."
             />
           </ul>

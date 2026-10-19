@@ -5,16 +5,12 @@ import { useOidc } from '@axa-fr/react-oidc';
 import { PageHeader, Panel, TextInput, btn, focusRing } from '../ui';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
 import { clearPrivateBrowserState } from '../../questionnaire/drafts';
-import { ConsentData, PersonalData, PersonalIdentity, useAccountRequest } from '../../account/accountApi';
+import { PersonalData, PersonalIdentity, useAccountRequest } from '../../account/accountApi';
 import { useAccountResource } from '../../account/useAccountResource';
 import { accountReturnPath } from '../../account/returnPath';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 
-type Subscription = { version: string; monthlyUpcomingEvents: boolean; eventAnnouncements: boolean };
 const tabCls = `-mb-px inline-flex min-h-11 cursor-pointer items-center border-b-[3px] border-transparent px-4 font-bold text-muted transition-colors data-[hovered]:text-navy data-[selected]:border-navy data-[selected]:text-navy ${focusRing}`;
-const purposeLabel = (purpose: string) => ({
-  'monthly-upcoming-events': 'Riepilogo mensile', 'event-announcements': 'Annunci eventi',
-})[purpose] ?? purpose;
 const date = (value: string | null) => value && !Number.isNaN(Date.parse(value))
   ? new Intl.DateTimeFormat('it', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Non disponibile';
 
@@ -51,11 +47,8 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
   const request = useAccountRequest();
   const profile = useAccountResource<PersonalIdentity>('privacy/profile');
   const personal = useAccountResource<PersonalData>('privacy/data?offset=0');
-  const consents = useAccountResource<ConsentData>('notifications/consents?offset=0');
-  const subscription = useAccountResource<Subscription>('notifications/subscription/');
   const privacy = useAccountResource<{ status: string }>('privacy/status');
   const [recordOffset, setRecordOffset] = useState(0);
-  const [historyOffset, setHistoryOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -64,22 +57,12 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
   const [profileDraft, setProfileDraft] = useState<{ firstName: string; lastName: string } | null>(null);
   const account = `${getOidcPublicSettings().authority.replace(/\/+$/, '')}/account`;
   const reloadPersonal = () => { personal.setData(null); setRecordOffset(0); personal.reload(); };
-  const reloadConsents = () => { consents.setData(null); setHistoryOffset(0); consents.reload(); };
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError(''); setMessage('');
     try { await action(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Operazione non completata. Richiedi assistenza.'); }
     finally { setBusy(false); }
   };
-  const subscribe = (purpose: string, optIn: boolean) => run(async () => {
-    if (!subscription.data) throw new Error('Consensi non disponibili.');
-    await request('notifications/subscription/', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purpose, version: subscription.data.version, optIn }),
-    });
-    subscription.setData(null); subscription.reload(); reloadConsents(); reloadPersonal();
-    setMessage(optIn ? 'Preferenza accettata. Verifica lo stato nella cronologia dei consensi.' : 'Revoca accettata. Verifica lo stato nella cronologia dei consensi.');
-  });
   const saveProfile = () => run(async () => {
     if (!profileDraft) throw new Error('Nessuna modifica da salvare.');
     const response = await request('privacy/profile', {
@@ -89,7 +72,6 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
     profile.setData(saved);
     setProfileDraft(null);
     reloadPersonal();
-    subscription.reload();
     setMessage(saved.emailVerified ? 'Dati personali salvati nell’Identity Provider.'
       : 'Dati personali salvati nell’Identity Provider. L’email non è verificata: apri la console dell’Identity Provider per completare la verifica.');
   });
@@ -118,7 +100,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
       <TabList aria-label="Sezioni dell'area personale" className="flex gap-1 overflow-x-auto border-b border-line">
         <Tab id="account" className={tabCls}>Account</Tab>
         <Tab id="data" className={tabCls}>Dati condivisi</Tab>
-        <Tab id="notifications" className={tabCls}>Notifiche</Tab>
+        <Tab id="consents" className={tabCls}>Consensi</Tab>
         <Tab id="privacy" className={tabCls}>Privacy</Tab>
       </TabList>
       <TabPanel id="account" className="mt-5 outline-none">
@@ -174,41 +156,22 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
         })}>Carica altri dati</Button>}
       </Panel>
       </TabPanel>
-      <TabPanel id="notifications" className="mt-5 outline-none">
-      <Panel labelledBy="profile-notifications" className="space-y-4 p-6">
-        <h2 id="profile-notifications" className="text-lg font-bold">Notifiche</h2>
-        <ResourceStatus name="preferenze avvisi" {...subscription} />
-        <p>Consenso facoltativo e separato dai questionari; per iscriversi serve un’email verificata.
-          Versione dell'informativa: {subscription.data?.version ?? 'non disponibile'}.
-          Nessun servizio di invio degli avvisi è attualmente configurato.</p>
+      <TabPanel id="consents" className="mt-5 outline-none">
+      <Panel labelledBy="profile-consents" className="space-y-4 p-6">
+        <h2 id="profile-consents" className="text-lg font-bold">Lista dei consensi</h2>
+        <ul className="space-y-3">
+          <li className="rounded-xl border border-line p-4">
+            <label className="flex min-h-11 items-center gap-3 font-bold">
+              <input className="size-6" type="checkbox" checked disabled />
+              Email per nuovi eventi
+            </label>
+          </li>
+        </ul>
+        <p>
+          Questo consenso è il requisito minimo per fare parte della community e non può essere revocato.
+          Se non desideri ricevere queste email, puoi cancellarti definitivamente dalla community nella sezione Privacy.
+        </p>
         <Link className="inline-flex min-h-11 items-center font-bold underline" to="/privacy">Leggi l'informativa sulla privacy</Link>
-        <div className="flex flex-wrap gap-3">
-          <Button className={btn.secondary} isDisabled={busy || subscription.loading || !!subscription.error || !subscription.data}
-            onPress={() => void subscribe('monthly-upcoming-events', !subscription.data?.monthlyUpcomingEvents)}>
-            {subscription.data?.monthlyUpcomingEvents ? 'Revoca riepilogo mensile' : 'Iscriviti al riepilogo mensile'}
-          </Button>
-          <Button className={btn.secondary} isDisabled={busy || subscription.loading || !!subscription.error || !subscription.data}
-            onPress={() => void subscribe('event-announcements', !subscription.data?.eventAnnouncements)}>
-            {subscription.data?.eventAnnouncements ? 'Revoca annunci eventi' : 'Iscriviti agli annunci eventi'}
-          </Button>
-        </div>
-        <h3 className="font-bold">Consensi attuali e cronologia</h3>
-        <ResourceStatus name="evidenze e cronologia" {...consents} reload={reloadConsents} />
-        <p>Le evidenze attuali non ricostruiscono eventi passati. La cronologia registra solo le modifiche successive all’attivazione di questa funzione. Uno stato in attesa non conferma un consenso completato.</p>
-        {consents.data && <>
-          <ul>{consents.data.current.map(consent => <li key={consent.purpose}>{purposeLabel(consent.purpose)}: consenso attuale · versione {consent.version} · {date(consent.grantedAt)}</li>)}</ul>
-          {!consents.data.current.length && <p>Nessuna evidenza di consenso attuale disponibile.</p>}
-          <ol className="space-y-2">{consents.data.history.map(item => <li key={item.id} className="rounded-xl border border-line p-3">
-            {purposeLabel(item.purpose)} · {item.action === 'grant' ? 'Adesione' : 'Revoca'} · versione {item.version} · {date(item.occurredAt)} ·
-            {{ pending: ' In attesa', completed: ' Completata', superseded: ' Superata da una modifica successiva' }[item.status]}
-          </li>)}</ol>
-          {!consents.data.history.length && <p>Nessuna modifica registrata nella cronologia futura.</p>}
-          {consents.data.hasMore && <Button className={btn.secondary} isDisabled={busy || consents.loading} onPress={() => void run(async () => {
-            const next = await (await request(`notifications/consents?offset=${historyOffset + 50}`)).json() as ConsentData;
-            consents.setData(current => current ? { ...next, history: [...current.history, ...next.history] } : next);
-            setHistoryOffset(value => value + 50);
-          })}>Carica altra cronologia</Button>}
-        </>}
       </Panel>
       </TabPanel>
       <TabPanel id="privacy" className="mt-5 outline-none">

@@ -5,6 +5,7 @@ import PageMeta from '../PageMeta';
 import { Badge, LogoArc } from '../ui';
 import { formatDate } from '../format';
 import { LEGAL_PAGES, LEGAL_UPDATED } from './legalFacts';
+import privacyContact from '../../assets/legal/privacy-contact.svg';
 
 // Shared frame and building blocks of the privacy, terms and cookie pages.
 
@@ -65,26 +66,26 @@ export function LegalSummary({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Controller and contact details, shared by the three pages so that they are completed in one pass. */
+/** Controller and contact details, shared by the three legal pages. */
 export function ControllerDetails({ withDpo = false }: { withDpo?: boolean }) {
   return (
     <dl className="grid gap-3">
       <div>
         <dt className="font-bold text-navy">Titolare</dt>
-        <dd>DotNetLiguria, community .NET della Liguria</dd>
+        <dd>Raffaele Rialdi</dd>
       </div>
       <div>
         <dt className="font-bold text-navy">Dati dell'associazione</dt>
-        <dd><Placeholder>denominazione completa, forma giuridica, codice fiscale e sede legale</Placeholder></dd>
+        <dd>DotNetLiguria non è un'associazione formalmente costituita.</dd>
       </div>
       <div>
         <dt className="font-bold text-navy">Contatto</dt>
-        <dd><Placeholder>indirizzo email a cui scrivere per privacy e segnalazioni</Placeholder></dd>
+        <dd><img src={privacyContact} alt="Indirizzo email per privacy e segnalazioni" className="h-8 w-auto" /></dd>
       </div>
       {withDpo && (
         <div>
           <dt className="font-bold text-navy">Responsabile della protezione dei dati (DPO)</dt>
-          <dd><Placeholder>nominativo e contatto, oppure indicare che non è stato nominato</Placeholder></dd>
+          <dd>Raffaele Rialdi</dd>
         </div>
       )}
     </dl>

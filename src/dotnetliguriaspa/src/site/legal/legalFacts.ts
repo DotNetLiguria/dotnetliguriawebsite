@@ -2,7 +2,7 @@
 // appears on the pages as a "Da completare" placeholder instead of being invented.
 
 /** Date shown as "Ultimo aggiornamento" on the three legal pages (yyyy-mm-dd). */
-export const LEGAL_UPDATED = '2026-10-11';
+export const LEGAL_UPDATED = '2026-10-19';
 
 /** Hosting provider, also operator of the Keycloak sign-in service used by the admin area. */
 export const HOSTING = {

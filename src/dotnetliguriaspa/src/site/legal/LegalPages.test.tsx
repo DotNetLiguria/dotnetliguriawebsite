@@ -27,14 +27,14 @@ describe.each(pages)('$name page', ({ Page, route, title }) => {
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBeTruthy();
     expect(document.body).not.toHaveTextContent(/keycloak/i);
     const updated = screen.getByText(/Ultimo aggiornamento/);
-    expect(within(updated).getByText('11 ottobre 2026')).toHaveAttribute('datetime', '2026-10-11');
+    expect(within(updated).getByText('19 ottobre 2026')).toHaveAttribute('datetime', '2026-10-19');
   });
 
-  test('marks what the association still has to supply instead of inventing it', () => {
+  test('shows the controller and accessible image contact', () => {
     render(<Page />, { route });
-    expect(screen.getAllByText('Da completare').length).toBeGreaterThan(0);
-    expect(screen.getByText(/denominazione completa, forma giuridica, codice fiscale e sede legale/)).toBeInTheDocument();
-    expect(screen.getByText(/indirizzo email a cui scrivere/)).toBeInTheDocument();
+    expect(screen.getAllByText('Raffaele Rialdi').length).toBeGreaterThan(0);
+    expect(screen.getByText(/DotNetLiguria non è un'associazione formalmente costituita/)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Indirizzo email per privacy e segnalazioni' })).toBeInTheDocument();
   });
 
   test('keeps headings in order and sections labelled', () => {
@@ -62,7 +62,7 @@ describe('privacy page', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'I tuoi diritti' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /www\.garanteprivacy\.it/ })).toHaveAttribute('href', 'https://www.garanteprivacy.it');
     expect(screen.getByText(/Non facciamo profilazione/)).toBeInTheDocument();
-    expect(screen.getByText(/verificare e documentare localizzazione dei servizi/)).toBeInTheDocument();
+    expect(screen.getByText(/servizi cloud che adottano misure adeguate/)).toBeInTheDocument();
   });
 
   test('covers the questionnaire data, with consent as its basis', () => {
@@ -74,10 +74,11 @@ describe('privacy page', () => {
     expect(screen.getByText(/Base giuridica: il tuo consenso/)).toBeInTheDocument();
   });
 
-  test('asks for the retention periods it cannot know', () => {
+  test('states the retention periods and account-managed records', () => {
     render(<PrivacyPage />, { route: '/privacy' });
     const retention = screen.getByRole('region', { name: 'Per quanto tempo conserviamo i dati' });
-    expect(within(retention).getAllByText('Da completare')).toHaveLength(4);
+    expect(within(retention).getAllByText(/gestibili dall'utente stesso nell'area personale/)).toHaveLength(3);
+    expect(within(retention).getByText(/Log tecnici del server: un anno/)).toBeInTheDocument();
   });
 });
 

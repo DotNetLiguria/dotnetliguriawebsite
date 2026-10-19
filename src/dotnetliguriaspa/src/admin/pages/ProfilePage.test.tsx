@@ -1,25 +1,18 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
-import { jsonResponse, mockApi, render, screen, waitFor } from '../../test-utils';
+import { jsonResponse, mockApi, render, screen } from '../../test-utils';
 import ProfilePage from './ProfilePage';
 
-const subscription = { version: 'synthetic-v1', monthlyUpcomingEvents: true, eventAnnouncements: false };
 const personal = {
   identity: { firstName: 'Nome aggiornato', lastName: 'Cognome aggiornato', email: 'fresh@example.test', emailVerified: true },
   records: [{ kind: 'response', id: 'r1', title: 'Feedback evento', submittedAt: '2026-10-01T12:00:00Z', consentGiven: true, questionnaireVersion: 2 }],
   hasMore: false, warning: 'I dati legacy richiedono una verifica separata.',
 };
-const consents = {
-  current: [{ purpose: 'monthly-upcoming-events', version: 'old-v1', grantedAt: '2025-01-01T12:00:00Z' }],
-  history: [], hasMore: false,
-};
 const defaults = {
   'privacy/status': { status: 'no_pending_request' },
-  'notifications/subscription/': subscription,
   'privacy/data': personal,
   'privacy/profile': personal.identity,
-  'notifications/consents': consents,
 };
 const prepare = (extra: Parameters<typeof mockApi>[0] = {}) => mockApi({
   ...extra, ...Object.fromEntries(Object.entries(defaults).filter(([key]) => !(key in extra))),
@@ -47,9 +40,13 @@ describe('<ProfilePage />', () => {
     expect(screen.getByText(/Consenso questionario: prestato/)).toBeInTheDocument();
     expect(screen.getByText('I dati legacy richiedono una verifica separata.')).toBeInTheDocument();
 
-    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
-    expect(screen.getByText(/consenso attuale · versione old-v1/)).toBeInTheDocument();
-    expect(screen.getByText('Nessuna modifica registrata nella cronologia futura.')).toBeInTheDocument();
+    await user().click(screen.getByRole('tab', { name: 'Consensi' }));
+    expect(screen.getByRole('heading', { name: 'Lista dei consensi' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Email per nuovi eventi' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Email per nuovi eventi' })).toBeDisabled();
+    expect(screen.getByText(/requisito minimo per fare parte della community/)).toBeInTheDocument();
+    expect(screen.queryByText('Consensi attuali e cronologia')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /riepilogo mensile|annunci eventi/i })).not.toBeInTheDocument();
 
     await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     expect(screen.queryByRole('textbox', { name: 'Azienda' })).not.toBeInTheDocument();
@@ -59,45 +56,16 @@ describe('<ProfilePage />', () => {
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => init?.cache === 'no-store')).toBe(true);
   });
 
-  test('organizes the personal area into accessible tabs, including notifications', async () => {
+  test('organizes the personal area into accessible tabs, including consents', async () => {
     prepare(); render(<ProfilePage />);
     expect(screen.getByRole('tablist', { name: "Sezioni dell'area personale" })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Account' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('heading', { name: 'Account Identity Provider' })).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'Notifiche' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Lista dei consensi' })).not.toBeInTheDocument();
 
-    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
-    expect(screen.getByRole('tab', { name: 'Notifiche' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('heading', { name: 'Notifiche' })).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'Avvisi sugli eventi' })).not.toBeInTheDocument();
-  });
-
-  test('withdraws consent without sending email or identity and reloads evidence, history and personal data', async () => {
-    let optedIn = true;
-    prepare({ 'notifications/subscription/': (_url: string, init?: RequestInit) => {
-      if (init?.method === 'PUT') { optedIn = false; return new Response(null, { status: 204 }); }
-      return jsonResponse({ ...subscription, monthlyUpcomingEvents: optedIn });
-    } });
-    render(<ProfilePage />);
-    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
-    await user().click(await screen.findByRole('button', { name: 'Revoca riepilogo mensile' }));
-    await screen.findByText(/Revoca accettata/);
-    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('notifications/subscription/'), expect.objectContaining({
-      method: 'PUT', body: JSON.stringify({ purpose: 'monthly-upcoming-events', version: 'synthetic-v1', optIn: false }),
-    }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Iscriviti al riepilogo mensile' })).toBeEnabled());
-    for (const path of ['notifications/consents', 'privacy/data'])
-      expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes(path))).toHaveLength(2);
-  });
-
-  test('grants a separate event notice with current version and no additional account attributes', async () => {
-    prepare(); render(<ProfilePage />);
-    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
-    await user().click(screen.getByRole('button', { name: 'Iscriviti agli annunci eventi' }));
-    await screen.findByText(/Preferenza accettata/);
-    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('notifications/subscription/'), expect.objectContaining({
-      method: 'PUT', body: JSON.stringify({ purpose: 'event-announcements', version: 'synthetic-v1', optIn: true }),
-    }));
+    await user().click(screen.getByRole('tab', { name: 'Consensi' }));
+    expect(screen.getByRole('tab', { name: 'Consensi' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('heading', { name: 'Lista dei consensi' })).toBeVisible();
   });
 
   test('requests fresh MFA at current path/query/hash but never deletes just by requesting step-up', async () => {
@@ -179,28 +147,13 @@ describe('<ProfilePage />', () => {
     expect(JSON.stringify({ ...localStorage })).not.toContain('synthetic-private-export');
   });
 
-  test('shows independent consent errors without hiding fresh identity and retries only the failed service', async () => {
-    let failed = true;
-    prepare({ 'notifications/consents': () => failed ? jsonResponse({}, 503) : jsonResponse(consents) });
-    render(<ProfilePage />);
-    expect(await screen.findByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato');
-    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
-    await screen.findByRole('alert');
-    expect(screen.getByRole('button', { name: 'Revoca riepilogo mensile' })).toBeEnabled();
-    failed = false;
-    await user().click(screen.getByRole('button', { name: 'Riprova evidenze e cronologia' }));
-    await screen.findByText(/consenso attuale · versione old-v1/);
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).includes('privacy/data'))).toHaveLength(1);
-  });
-
   test('a failed fresh identity read does not fall back to stale OIDC names', async () => {
     prepare({ 'privacy/profile': () => jsonResponse({}, 503) });
     render(<ProfilePage />);
     await screen.findByRole('alert');
     expect(screen.queryByRole('textbox', { name: 'Nome' })).not.toBeInTheDocument();
-    await user().click(screen.getByRole('tab', { name: 'Notifiche' }));
-    expect(screen.getByText(/consenso attuale · versione old-v1/)).toBeInTheDocument();
+    await user().click(screen.getByRole('tab', { name: 'Consensi' }));
+    expect(screen.getByRole('checkbox', { name: 'Email per nuovi eventi' })).toBeChecked();
   });
 
   test('forwards only names and keeps email read-only even while editing', async () => {
@@ -265,12 +218,10 @@ describe('<ProfilePage />', () => {
     expect(screen.getByRole('button', { name: 'Modifica dati personali' })).toBeEnabled();
   });
 
-  test('pages records and future history with fixed offsets, keeping current evidence separate', async () => {
+  test('pages personal data records with a fixed offset', async () => {
     prepare({
       'privacy/data?offset=50': { ...personal, records: [{ ...personal.records[0], id: 'r2', title: 'Seconda pagina' }] },
       'privacy/data?offset=0': { ...personal, hasMore: true },
-      'notifications/consents?offset=50': { ...consents, history: [{ id: 'c2', purpose: 'event-announcements', version: 'v2', occurredAt: '2026-10-15T12:00:00Z', action: 'withdraw', status: 'pending' }] },
-      'notifications/consents?offset=0': { ...consents, hasMore: true },
     });
     render(<ProfilePage />);
     const controls = user();
@@ -278,11 +229,5 @@ describe('<ProfilePage />', () => {
     await controls.click(await screen.findByRole('button', { name: 'Carica altri dati' }));
     await screen.findByText('Seconda pagina');
     expect(screen.getByText('Feedback evento')).toBeInTheDocument();
-    await controls.click(screen.getByRole('tab', { name: 'Notifiche' }));
-    await controls.click(screen.getByRole('button', { name: 'Carica altra cronologia' }));
-    await screen.findByText(/Annunci eventi · Revoca · versione v2/);
-    expect(screen.getByText(/Annunci eventi · Revoca · versione v2/)).toHaveTextContent('In attesa');
-    expect(screen.getByText(/consenso attuale · versione old-v1/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Carica altra cronologia' })).not.toBeInTheDocument();
   });
 });
