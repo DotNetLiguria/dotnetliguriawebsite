@@ -4,8 +4,7 @@ using Microsoft.Extensions.Options;
 
 namespace DotNetLiguriaCore.Authorization;
 
-// Accepts the configured Keycloak role (realm or client role, flattened or as JSON claims)
-// or a dedicated claim whose value is not "false"/"0".
+// Accepts the configured realm/client-scoped role or a dedicated Boolean privilege claim.
 public class FeedbackAdminHandler(IOptions<QuestionnaireAuthorizationOptions> options)
     : AuthorizationHandler<FeedbackAdminRequirement>
 {

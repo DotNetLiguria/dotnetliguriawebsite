@@ -10,7 +10,7 @@ public class WebDevAdminHandlerTests
     public void WebDevAdminRoleDoesNotGrantQuestionnaireAdministration()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim("roles", "dnl-webdevadmin")],
+            [new Claim("realm_access", """{"roles":["dnl-webdevadmin"]}""")],
             "Bearer"));
 
         Assert.True(WebDevAdminHandler.IsWebDevAdmin(user, new WebDevAdminAuthorizationOptions()));
@@ -21,7 +21,7 @@ public class WebDevAdminHandlerTests
     public void FeedbackAdminRoleDoesNotGrantWebsiteAdministration()
     {
         var user = new ClaimsPrincipal(new ClaimsIdentity(
-            [new Claim("roles", "feedbackadmin")],
+            [new Claim("realm_access", """{"roles":["feedbackadmin"]}""")],
             "Bearer"));
 
         Assert.True(FeedbackAdminHandler.IsFeedbackAdmin(user, new QuestionnaireAuthorizationOptions()));

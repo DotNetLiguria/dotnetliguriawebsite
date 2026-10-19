@@ -10,7 +10,9 @@ public class BackupAdminHandlerTests
 {
     [Theory]
     [InlineData("realm_access", """{"roles":["backupadmin"]}""", true)]
-    [InlineData("roles", "backupadmin", true)]
+    [InlineData("resource_access", """{"DotNetLiguriaCore":{"roles":["backupadmin"]}}""", true)]
+    [InlineData("resource_access", """{"unrelated-client":{"roles":["backupadmin"]}}""", false)]
+    [InlineData("roles", "backupadmin", false)]
     [InlineData("backupadmin", "true", true)]
     [InlineData("backupadmin", "false", false)]
     [InlineData("roles", "feedbackadmin", false)]

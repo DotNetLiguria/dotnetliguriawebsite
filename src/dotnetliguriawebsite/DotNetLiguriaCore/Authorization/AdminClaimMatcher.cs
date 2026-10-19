@@ -5,8 +5,6 @@ namespace DotNetLiguriaCore.Authorization;
 
 public static class AdminClaimMatcher
 {
-    private static readonly string[] _flatRoleClaims = ["roles", "role", ClaimTypes.Role, "roles0", "roles1", "roles2"];
-
     public static bool IsAuthorized(ClaimsPrincipal user, string? role, string? claim, string clientId = "DotNetLiguriaCore")
     {
         if (user.Identity?.IsAuthenticated != true)
@@ -28,11 +26,6 @@ public static class AdminClaimMatcher
 
         foreach (var userClaim in user.Claims)
         {
-            if (_flatRoleClaims.Contains(userClaim.Type) && RoleValueMatches(userClaim.Value, role))
-            {
-                return true;
-            }
-
             if ((userClaim.Type == "realm_access" || userClaim.Type == "resource_access") &&
                 StructuredRoleMatches(userClaim.Value, role, userClaim.Type == "resource_access" ? clientId : null))
             {
@@ -41,17 +34,6 @@ public static class AdminClaimMatcher
         }
 
         return false;
-    }
-
-    private static bool RoleValueMatches(string value, string role)
-    {
-        var trimmed = value.TrimStart();
-        if (trimmed.StartsWith('[') || trimmed.StartsWith('{'))
-        {
-            return JsonContainsRole(value, role);
-        }
-
-        return string.Equals(value, role, StringComparison.Ordinal);
     }
 
     private static bool StructuredRoleMatches(string json, string role, string? clientId)
@@ -68,21 +50,6 @@ public static class AdminClaimMatcher
             return element.TryGetProperty("roles", out var roles) &&
                 roles.ValueKind == JsonValueKind.Array &&
                 roles.EnumerateArray().Any(value => value.ValueKind == JsonValueKind.String &&
-                    string.Equals(value.GetString(), role, StringComparison.Ordinal));
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
-    private static bool JsonContainsRole(string json, string role)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            return document.RootElement.ValueKind == JsonValueKind.Array &&
-                document.RootElement.EnumerateArray().Any(value => value.ValueKind == JsonValueKind.String &&
                     string.Equals(value.GetString(), role, StringComparison.Ordinal));
         }
         catch (JsonException)

@@ -15,11 +15,11 @@ public sealed class AccountCapabilitiesTests
 {
     [Theory]
     [InlineData("", false)]
-    [InlineData("dnl-webdevadmin", true)]
+    [InlineData("dnl-webdevadmin", false)]
     [InlineData("feedbackadmin", false)]
     [InlineData("board-member", false)]
-    public async Task CapabilitiesUseExistingPoliciesAndDoNotEquateAuthenticationOrBoardMembershipWithAdmin(string role, bool expected) =>
-        await AssertCapabilitiesAsync(new(ClaimTypes.Role, role), expected, role == "feedbackadmin");
+    public async Task UnscopedRoleClaimsDoNotGrantAdministrativeCapabilities(string role, bool expected) =>
+        await AssertCapabilitiesAsync(new(ClaimTypes.Role, role), expected);
 
     [Theory]
     [InlineData("dnl-webdevadmin", "true", true)]
@@ -32,7 +32,8 @@ public sealed class AccountCapabilitiesTests
     [InlineData("realm_access", "{\"roles\":[\"dnl-webdevadmin\"]}", true)]
     [InlineData("resource_access", "{\"DotNetLiguriaCore\":{\"roles\":[\"dnl-webdevadmin\"]}}", true)]
     [InlineData("resource_access", "{\"other-client\":{\"roles\":[\"dnl-webdevadmin\"]}}", false)]
-    [InlineData("roles", "[\"dnl-webdevadmin\"]", true)]
+    [InlineData("roles", "[\"dnl-webdevadmin\"]", false)]
+    [InlineData("roles0", "dnl-webdevadmin", false)]
     public async Task BooleanClaimAndKeycloakRolesAreEvaluatedByTheSamePolicyAsWebsiteApis(string type, string value, bool expected) =>
         await AssertCapabilitiesAsync(new(type, value), expected);
 

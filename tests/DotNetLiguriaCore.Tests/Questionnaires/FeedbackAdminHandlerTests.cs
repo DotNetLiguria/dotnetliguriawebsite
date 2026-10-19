@@ -17,10 +17,12 @@ public class FeedbackAdminHandlerTests
     [InlineData("feedbackadmin", "", false)]
     [InlineData("feedbackadmin", "arbitrary", false)]
     [InlineData("roles", "FeedbackAdmin", false)]
+    [InlineData("roles", "feedbackadmin", false)]
+    [InlineData("roles0", "feedbackadmin", false)]
+    [InlineData("roles1", "feedbackadmin", false)]
+    [InlineData("roles2", "feedbackadmin", false)]
+    [InlineData(ClaimTypes.Role, "feedbackadmin", false)]
     [InlineData("realm_access", """{"roles":["user"]}""", false)]
-    [InlineData("roles", "feedbackadmin", true)]
-    [InlineData("roles", """["feedbackadmin"]""", true)]
-    [InlineData(ClaimTypes.Role, "feedbackadmin", true)]
     [InlineData("feedbackadmin", "true", true)]
     [InlineData("feedbackadmin", "false", false)]
     [InlineData("realm_access", "not json", false)]
@@ -39,7 +41,9 @@ public class FeedbackAdminHandlerTests
     [Fact]
     public void RoleAndClaimNamesAreConfigurable()
     {
-        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("roles", "survey-editor")], "Bearer"));
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [new Claim("resource_access", """{"DotNetLiguriaCore":{"roles":["survey-editor"]}}""")],
+            "Bearer"));
 
         Assert.True(FeedbackAdminHandler.IsFeedbackAdmin(user, new QuestionnaireAuthorizationOptions { AdminRole = "survey-editor" }));
         Assert.False(FeedbackAdminHandler.IsFeedbackAdmin(user, new QuestionnaireAuthorizationOptions()));
