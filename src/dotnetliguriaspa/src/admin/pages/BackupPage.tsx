@@ -3,6 +3,7 @@ import { Button, ProgressBar } from 'react-aria-components';
 import { useOidc, useOidcFetch } from '@axa-fr/react-oidc';
 import { useLocation } from 'react-router-dom';
 import { accountReturnPath } from '../../account/returnPath';
+import { mfaStepUpExtras } from '../../account/mfaStepUp';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn } from '../ui';
 import { AdminLoad } from '../adminApi';
@@ -140,7 +141,7 @@ export default function BackupPage() {
         description="I backup del database restano sul server. Importarne uno sostituisce tutti i dati correnti, dopo aver creato una copia di sicurezza automatica."
         actions={<>
           <Button isDisabled={!canRestore} className={btn.secondary}
-            onPress={() => void login(accountReturnPath(location), { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
+            onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>
             Verifica MFA per il ripristino
           </Button>
           {createButton(btn.primary)}

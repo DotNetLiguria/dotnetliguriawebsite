@@ -1,6 +1,7 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
+import { useOidcIdToken } from '@axa-fr/react-oidc';
 import { render, screen, mockApi, jsonResponse, waitFor, fireEvent } from '../test-utils';
 import { CapabilityContext } from '../account/AccountCapabilities';
 import { Permission } from '../account/permissions';
@@ -16,6 +17,11 @@ const withPermissions = (permissions: Permission[], children: React.ReactNode) =
     status: 'ready', capabilities: { schemaVersion: 1, permissions, canAccessAdmin: true },
     retry: vi.fn(), clear: vi.fn(), refresh: vi.fn(),
   }}>{children}</CapabilityContext.Provider>;
+
+const mockSignIn = (payload: Record<string, unknown>) =>
+  vi.mocked(useOidcIdToken).mockReturnValue({ idToken: null, idTokenPayload: payload } as unknown as ReturnType<typeof useOidcIdToken>);
+
+beforeEach(() => mockSignIn({ acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) }));
 
 test('privacy-only overview never loads events, speakers, board or venues', async () => {
   mockApi({ 'privacy/admin/operations': [] });
@@ -138,6 +144,44 @@ test('access directory lists users immediately, pages without a filter and can c
   expect(screen.getByRole('textbox', { name: 'Cerca utenti' })).toHaveValue('');
 });
 
+test.each([
+  ['password only', { acr: 'pwd' }, /MFA non attiva per questo accesso \(livello: pwd\)/, false, true],
+  ['expired MFA', { acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 301 }, /MFA scaduta/, false, false],
+  ['recent MFA', { acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 60 }, /MFA attiva: puoi modificare i permessi per altri [34]:\d\d minuti/, true, false],
+] as const)('access page shows the MFA status first and gates changes (%s)', async (_name, payload, expected, enabled, setupLink) => {
+  mockSignIn(payload);
+  mockApi({
+    '/admin/access/permissions': { permissions: [{ id: 'events.read', delegable: true }] },
+    '/admin/access/users?': { users: [{ subject: 'other', username: 'Altro utente', enabled: true }], hasMore: false },
+    '/admin/access/users/other': { subject: 'other', directPermissions: [], inheritedPermissions: [], effectivePermissions: [], protectedTarget: false },
+  });
+  render(withPermissions(['access.users.read', 'access.permissions.grant', 'events.read'], <AccessPage />));
+  await userEvent.setup({ delay: null }).click(await screen.findByRole('button', { name: 'Altro utente' }));
+  expect(screen.getByRole('note')).toHaveTextContent(expected);
+  const headings = screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent);
+  expect(headings).toEqual(['1. Verifica MFA', '2. Seleziona un utente', '3. Permessi di Altro utente']);
+  expect(screen.getByRole('button', { name: enabled ? 'Ripeti la verifica MFA' : 'Verifica MFA per modificare gli accessi' })).toBeEnabled();
+  expect(await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' })).toHaveProperty('disabled', !enabled);
+  expect(screen.queryByText(/esegui prima la verifica MFA/) !== null).toBe(!enabled);
+  expect(screen.queryByRole('link', { name: 'Configura il secondo fattore nell’Area personale' }) !== null).toBe(setupLink);
+});
+
+test('audit history shows who made each change and the changed user without exposing only identifiers', async () => {
+  mockApi({ '/admin/access/audit?': { entries: [
+    { at: '2025-01-02T10:00:00Z', action: 'grant', permission: 'events.read', actorSubject: 'actor-id', actorUsername: 'operatore',
+      targetSubject: 'target-id', targetUsername: 'editor', outcome: 'verified', correlationId: 'ref-1' },
+    { at: '2025-01-02T10:05:00Z', action: 'revoke', permission: 'events.read', actorSubject: 'actor-id', actorUsername: 'operatore',
+      targetSubject: 'gone-id', targetUsername: null, outcome: 'intent', correlationId: 'ref-2' },
+  ] } });
+  render(withPermissions(['access.audit.read'], <AccessPage />));
+  const table = await screen.findByRole('table', { name: 'Cronologia modifiche ai permessi' });
+  expect(screen.getByRole('columnheader', { name: 'Eseguita da' })).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Utente modificato' })).toBeInTheDocument();
+  const rows = table.querySelectorAll('tbody tr');
+  expect(rows[0]).toHaveTextContent(/operatore.*actor-id.*editor.*target-id.*Concessione.*events\.read.*Verificata.*ref-1/);
+  expect(rows[1]).toHaveTextContent(/operatore.*Account non più disponibile.*gone-id.*Revoca.*Richiesta.*ref-2/);
+});
+
 test('permission checkboxes cancel without writing and confirm revocation without hiding inherited access', async () => {
   let direct = ['events.read'];
   mockApi({
@@ -168,6 +212,8 @@ test('permission checkboxes cancel without writing and confirm revocation withou
   expect(checkbox).not.toBeChecked();
   expect(screen.getByText('Ereditato (sola lettura)')).toBeInTheDocument();
   expect(screen.getByRole('table')).toHaveTextContent('Sì');
+  expect(screen.getByRole('columnheader', { name: 'Effettivo' })).toBeInTheDocument();
+  expect(screen.queryByText('Permessi effettivi')).not.toBeInTheDocument();
 });
 
 test('audit-only view explains and reloads permission change history without requesting users', async () => {
@@ -178,6 +224,112 @@ test('audit-only view explains and reloads permission change history without req
   await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'Ricarica cronologia modifiche' }));
   await waitFor(() => expect(vi.mocked(fetch).mock.calls).toHaveLength(2));
   expect(vi.mocked(fetch).mock.calls.every(([url]) => String(url).includes('/admin/access/audit?'))).toBe(true);
+});
+
+test.each([
+  [403, 'recent_mfa_required', /verifica MFA effettuata negli ultimi 5 minuti/],
+  [409, 'access_assignment_changed', /modificati da un altro operatore/],
+  [503, 'permission_directory_unavailable', /Identity Provider non è disponibile/],
+  [503, 'access_audit_unavailable', /bloccata prima dell’invio/],
+  [403, 'protected_access_target', /Questo account è protetto/],
+] as const)('failed access change (%s %s) preserves selection and table until a successful reload', async (status, code, explanation) => {
+  let failReload = false;
+  const invalidated = vi.fn();
+  window.addEventListener('admin-permissions-denied', invalidated);
+  mockApi({
+    '/admin/access/permissions': { permissions: [{ id: 'events.read', delegable: true }] },
+    '/admin/access/users?': { users: [{ subject: 'other', username: 'Altro utente', enabled: true }], hasMore: false },
+    '/admin/access/users/other/permissions/events.read': () => jsonResponse({ code }, status),
+    '/admin/access/users/other': () => failReload
+      ? jsonResponse({ code: 'permission_directory_unavailable' }, 503)
+      : jsonResponse({ subject: 'other', directPermissions: [], inheritedPermissions: [], effectivePermissions: [], protectedTarget: false }),
+  });
+  try {
+    render(withPermissions(['access.users.read', 'access.permissions.grant', 'events.read'], <AccessPage />));
+    const user = userEvent.setup({ delay: null });
+    await user.click(await screen.findByRole('button', { name: 'Altro utente' }));
+    const checkbox = await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' });
+    await waitFor(() => expect(checkbox).toBeEnabled());
+    await user.click(checkbox);
+    await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(explanation);
+    expect(screen.getByRole('alert').parentElement).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('alert').parentElement).toHaveClass('sticky');
+    expect(screen.getByRole('alert')).toHaveTextContent(code);
+    expect(screen.getByRole('button', { name: 'Altro utente' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(checkbox).not.toBeChecked();
+    expect(checkbox).toBeDisabled();
+    expect(invalidated).not.toHaveBeenCalled();
+    failReload = true;
+    await user.click(screen.getByRole('button', { name: 'Ricarica accessi selezionati' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('permission_directory_unavailable'));
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(checkbox).toBeDisabled();
+    failReload = false;
+    await user.click(screen.getByRole('button', { name: 'Ricarica accessi selezionati' }));
+    await waitFor(() => expect(checkbox).toBeEnabled());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+  } finally {
+    window.removeEventListener('admin-permissions-denied', invalidated);
+  }
+});
+
+test('failed post-write verification keeps the table without claiming success or retrying the mutation', async () => {
+  let written = false;
+  let verificationFails = true;
+  mockApi({
+    '/admin/access/permissions': { permissions: [{ id: 'events.read', delegable: true }] },
+    '/admin/access/users?': { users: [{ subject: 'other', username: 'Altro utente', enabled: true }], hasMore: false },
+    '/admin/access/users/other/permissions/events.read': () => {
+      written = true;
+      return jsonResponse({ changed: true, correlationId: 'uncertain' });
+    },
+    '/admin/access/users/other': () => written && verificationFails
+      ? jsonResponse({ code: 'permission_directory_unavailable' }, 503)
+      : jsonResponse({ subject: 'other', directPermissions: written ? ['events.read'] : [], inheritedPermissions: [], effectivePermissions: written ? ['events.read'] : [], protectedTarget: false }),
+  });
+  render(withPermissions(['access.users.read', 'access.permissions.grant', 'events.read'], <AccessPage />));
+  const user = userEvent.setup({ delay: null });
+  await user.click(await screen.findByRole('button', { name: 'Altro utente' }));
+  const checkbox = await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' });
+  await waitFor(() => expect(checkbox).toBeEnabled());
+  await user.click(checkbox);
+  await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+  await screen.findByRole('alert');
+  expect(screen.queryByText(/Modifica verificata/)).not.toBeInTheDocument();
+  expect(checkbox).not.toBeChecked();
+  expect(checkbox).toBeDisabled();
+  verificationFails = false;
+  await user.click(screen.getByRole('button', { name: 'Ricarica accessi selezionati' }));
+  await waitFor(() => expect(checkbox).toBeChecked());
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1);
+});
+
+test('permission confirmation visibly reports progress while the server is responding', async () => {
+  let finish: ((response: Response) => void) | undefined;
+  const response = new Promise<Response>(resolve => { finish = resolve; });
+  mockApi({
+    '/admin/access/permissions': { permissions: [{ id: 'events.read', delegable: true }] },
+    '/admin/access/users?': { users: [{ subject: 'other', username: 'Altro utente', enabled: true }], hasMore: false },
+    '/admin/access/users/other/permissions/events.read': () => response,
+    '/admin/access/users/other': { subject: 'other', directPermissions: [], inheritedPermissions: [], effectivePermissions: [], protectedTarget: false },
+  });
+  render(withPermissions(['access.users.read', 'access.permissions.grant', 'events.read'], <AccessPage />));
+  const user = userEvent.setup({ delay: null });
+  await user.click(await screen.findByRole('button', { name: 'Altro utente' }));
+  const checkbox = await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' });
+  await waitFor(() => expect(checkbox).toBeEnabled());
+  await user.click(checkbox);
+  await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('Modifica in corso');
+  expect(screen.getByRole('button', { name: 'Verifica in corso…' })).toBeDisabled();
+  finish?.(jsonResponse({ code: 'recent_mfa_required' }, 403));
+  expect(await screen.findByRole('alert')).toHaveTextContent('recent_mfa_required');
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('table')).toBeInTheDocument();
 });
 
 test('ticketing operators save local sales times independently of event content editing', async () => {

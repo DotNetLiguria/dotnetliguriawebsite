@@ -68,11 +68,29 @@ describe('<ProfilePage />', () => {
     expect(screen.getByRole('heading', { name: 'Lista dei consensi' })).toBeVisible();
   });
 
+  test.each([
+    ['Configura app di autenticazione (OTP)', 'CONFIGURE_TOTP'],
+    ['Registra chiave di sicurezza', 'webauthn-register'],
+  ])('%s starts Identity Provider enrollment and returns to the personal page without API writes', async (name, action) => {
+    prepare(); render(<ProfilePage />, { route: '/area-personale' });
+    expect(await screen.findByRole('note')).toHaveTextContent('non include una verifica MFA (livello: non indicato)');
+    await user().click(screen.getByRole('button', { name }));
+    expect(useOidc().login).toHaveBeenCalledWith('/area-personale', { kc_action: action });
+    expect(vi.mocked(fetch).mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
+  });
+
+  test('account MFA section requests a step-up sign-in without API writes', async () => {
+    prepare(); render(<ProfilePage />, { route: '/area-personale' });
+    await user().click(await screen.findByRole('button', { name: 'Verifica MFA ora' }));
+    expect(useOidc().login).toHaveBeenCalledWith('/area-personale', { acr_values: 'mfa' });
+    expect(vi.mocked(fetch).mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
+  });
+
   test('requests fresh MFA at current path/query/hash but never deletes just by requesting step-up', async () => {
     prepare(); render(<ProfilePage />, { route: '/area-personale?source=account#cancellazione' });
     await user().click(screen.getByRole('tab', { name: 'Privacy' }));
     await user().click(screen.getByRole('button', { name: 'Verifica MFA per la cancellazione' }));
-    expect(useOidc().login).toHaveBeenCalledWith('/area-personale?source=account#cancellazione', { acr_values: 'mfa', max_age: '0', prompt: 'login' });
+    expect(useOidc().login).toHaveBeenCalledWith('/area-personale?source=account#cancellazione', { acr_values: 'mfa' });
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/privacy/erase'))).toBe(false);
   });
 

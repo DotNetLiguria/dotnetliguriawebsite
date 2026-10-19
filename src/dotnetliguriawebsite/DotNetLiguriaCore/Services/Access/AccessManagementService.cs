@@ -158,7 +158,34 @@ public sealed class AccessManagementService(
             throw new PrivacyBlockedException("invalid_access_audit_page", StatusCodes.Status400BadRequest);
         var rows = await _audit.RecentAsync(first + max + 1, cancellationToken);
         var entries = rows.Skip(first).Take(max).ToArray();
-        return new(entries, first, max, rows.Count > first + max);
+        var usernames = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var subject in entries.SelectMany(entry => new[] { entry.ActorSubject, entry.TargetSubject }).Distinct(StringComparer.Ordinal))
+            usernames[subject] = await TryResolveUsernameAsync(subject, cancellationToken);
+        var views = entries.Select(entry => new AccessAuditView(entry.At, entry.Action, entry.Permission,
+            entry.ActorSubject, usernames.GetValueOrDefault(entry.ActorSubject),
+            entry.TargetSubject, usernames.GetValueOrDefault(entry.TargetSubject),
+            entry.Outcome, entry.CorrelationId)).ToArray();
+        return new(views, first, max, rows.Count > first + max);
+    }
+
+    // Names are display hints only: a deleted account or a directory outage must not hide the history.
+    private async Task<string?> TryResolveUsernameAsync(string subject, CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(subject, out var subjectGuid)) return null;
+        try
+        {
+            var (user, _) = await _directory.GetUserAsync(
+                new(_options.Issuer, subjectGuid.ToString("D")), cancellationToken);
+            return user.Username;
+        }
+        catch (PrivacyBlockedException)
+        {
+            return null;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
     }
 
     private async Task<bool> IsProtectedTargetAsync(

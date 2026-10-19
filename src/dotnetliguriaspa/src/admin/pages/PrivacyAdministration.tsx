@@ -6,6 +6,7 @@ import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import { ErasureOperation, useAccountRequest } from '../../account/accountApi';
 import { useAccountResource } from '../../account/useAccountResource';
 import { accountReturnPath } from '../../account/returnPath';
+import { mfaStepUpExtras } from '../../account/mfaStepUp';
 import { PageHeader, Panel, btn } from '../ui';
 import { hasPermission, hasAnyPermission, PRIVACY_PERMISSIONS } from '../../account/permissions';
 
@@ -61,7 +62,7 @@ function Administration() {
       <p>Qualsiasi conservazione non valutata blocca la cancellazione. I report non contengono valori personali.
         Il recupero di operazioni distruttive richiede una verifica MFA recente.</p>
       <Button className={btn.secondary} onPress={() => void login(accountReturnPath(location),
-        { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>Verifica MFA per il recupero</Button>
+        mfaStepUpExtras())}>Verifica MFA per il recupero</Button>
       <h3 className="font-bold">Richieste pendenti</h3>
       {operations.loading && <p role="status">Caricamento richieste pendenti…</p>}
       {operations.error && <p role="alert">Richieste pendenti non disponibili: {operations.error}</p>}

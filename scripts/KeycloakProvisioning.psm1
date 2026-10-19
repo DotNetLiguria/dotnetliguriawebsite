@@ -237,6 +237,27 @@ function New-KeycloakSetupPlan {
     if (!@($defaults | Where-Object { $_.name -ceq $scopeName }).Count) {
         Add-SetupAction $plan 'PUT' 'clients/{spa}/default-client-scopes/{scope}' $null 'Attach permission scope as SPA default'
     }
+    # With Full Scope Allowed OFF the SPA token must explicitly carry the account
+    # roles the Identity Provider Account API checks for the personal page.
+    $accountClient = Get-SetupMatch @(& $Request 'GET' 'clients?clientId=account' $null) 'clientId' 'account'
+    if (!$accountClient) { throw 'The standard account client is required for personal-page profile access.' }
+    $plan.Aliases.account = Assert-SetupId $accountClient
+    $selfServiceRoleNames = @('view-profile', 'manage-account')
+    $selfServiceRoles = foreach ($name in $selfServiceRoleNames) {
+        $role = & $Request 'GET' "clients/$($plan.Aliases.account)/roles/$name" $null
+        if (!$role -or $role.name -cne $name) { throw "Account client role $name not found." }
+        @{ id = (Assert-SetupId $role); name = $role.name; clientRole = $true; containerId = $plan.Aliases.account }
+    }
+    $currentSpaAccountScope = @(& $Request 'GET' "clients/$($plan.Aliases.spa)/scope-mappings/clients/$($plan.Aliases.account)" $null |
+        Where-Object { $_ })
+    if (@($currentSpaAccountScope | Where-Object { $_.name -cnotin $selfServiceRoleNames }).Count) {
+        throw 'SPA scope has additional account-client roles. Review manually.'
+    }
+    $missing = @($selfServiceRoles | Where-Object { $_.name -cnotin @($currentSpaAccountScope | ForEach-Object { $_.name }) })
+    if ($missing.Count) {
+        Add-SetupAction $plan 'POST' 'clients/{spa}/scope-mappings/clients/{account}' $missing `
+            'Scope SPA tokens to account view-profile/manage-account for the personal page'
+    }
     $rolesScope = Get-SetupMatch $scopes 'name' 'roles'
     if (!$rolesScope) { throw 'The standard roles client scope is required; restore it through approved provider configuration.' }
     $plan.Aliases.rolesScope = Assert-SetupId $rolesScope

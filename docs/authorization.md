@@ -480,11 +480,11 @@ Errors are problem JSON with a stable `code` extension. Subjects must be GUIDs.
 | Route | Policy | Request | Response |
 | --- | --- | --- | --- |
 | `GET /permissions` | any of `access.users.read`, `access.permissions.grant`, `access.permissions.revoke` | - | `{permissions:[{id,delegable}]}` |
-| `GET /users?search=&first=0&max=20` | `access.users.read` | `search` required, 1-100 chars, no control characters; `first` 0-10000; `max` 1-50 | `{users:[{issuer,subject,username,enabled,protectedTarget}],first,max,hasMore}`; `protectedTarget` is `true` for service accounts, otherwise `null` (resolved in detail) |
+| `GET /users?search=&first=0&max=20` | `access.users.read` | `search` optional, at most 100 chars, no control characters; blank lists all users through bounded pages; `first` 0-10000; `max` 1-50 | `{users:[{issuer,subject,username,enabled,protectedTarget}],first,max,hasMore}`; `protectedTarget` is `true` for service accounts, otherwise `null` (resolved in detail) |
 | `GET /users/{subject}` | `access.users.read` | - | `{issuer,subject,username,enabled,directPermissions,inheritedPermissions,effectivePermissions,protectedTarget,isSelf,canGrant,canRevoke,grantablePermissions,revocablePermissions}` |
 | `POST /users/{subject}/permissions/{permissionId}` | `access.users.read` + `access.permissions.grant` | header `X-Confirm-Access-Change: grant`; body `{expectedDirectPermissions:string[]}` | `{issuer,subject,directPermissions,inheritedPermissions,effectivePermissions,changed,correlationId}` |
 | `DELETE /users/{subject}/permissions/{permissionId}` | `access.users.read` + `access.permissions.revoke` | header `X-Confirm-Access-Change: revoke`; same body | same as POST |
-| `GET /audit?first=0&max=50` | `access.audit.read` | `first` 0-10000; `max` 1-100 | `{entries:[{at,action,permission,actorSubject,targetSubject,outcome,correlationId}],first,max,hasMore}`, newest first |
+| `GET /audit?first=0&max=50` | `access.audit.read` | `first` 0-10000; `max` 1-100 | `{entries:[{at,action,permission,actorSubject,actorUsername,targetSubject,targetUsername,outcome,correlationId}],first,max,hasMore}`, newest first; usernames resolved at read time (null when unavailable) |
 
 Mutation rules, all checked server-side:
 
@@ -512,6 +512,156 @@ target), `access_change_not_verified`/`access_change_unverified` (503),
 `invalid_access_search`, `invalid_access_target`, `invalid_access_audit_page`
 (400). Changes are serialized per target only inside one application instance.
 
+The **Accessi utenti** page loads the first unfiltered user page immediately
+(25 per page), offers previous/next navigation, and keeps search optional with
+**Mostra tutti** to clear the filter. Selecting a user displays a permission
+table with a direct-assignment checkbox, inherited status and effective status.
+Checking/unchecking opens a confirmation dialog; it does not bypass recent MFA,
+optimistic concurrency, delegation, self/protected-target restrictions or
+verified persistence. Inherited grants remain read-only and survive removal of
+a duplicate direct grant. The **Cronologia modifiche ai permessi** section
+explains its last 25 application-recorded grant/revoke operations and uses
+**Ricarica cronologia modifiche**; it does not represent provider-console edits.
+
+Failed permission changes keep the selected user and last-read permission
+table visible. The table is explicitly marked stale and further changes stay
+disabled until **Ricarica accessi selezionati** succeeds, including when a
+write may have succeeded but its follow-up verification failed. Failed reloads
+also preserve the table; mutations are never retried automatically.
+Errors retain the API code and explain MFA, concurrency conflicts, target
+restrictions, audit outages and provider failures. MFA/target restrictions do
+not invalidate the operator's capabilities; actual authorization denials still
+do. The reported live grant failure's original response code was unavailable,
+so its particular cause and a successful live grant remain unverified.
+Failure-recovery verification passed all 18 focused specialist tests and all
+539 frontend tests, plus typecheck and lint (four existing warnings).
+The rebuilt 35 SPA files match both website publish output and the local
+served `wwwroot`, without deleting historical files. The final HTTPS check
+could not run because the backend had stopped: no website process or 5443
+listener was present. Restart the backend to exercise the new recovery UX
+and capture the original grant failure code; no live grants were changed
+for this verification.
+The operator subsequently observed HTTP 403 on the grant POST, but its
+response code remains unavailable; status alone does not establish an MFA or
+permission cause. A further feedback update places a prominent, focusable,
+sticky result beside the selected permissions, shows progress in the
+confirmation dialog, explains disabled checkboxes and replaces silent
+confirmation exits with explicit errors. All 19 focused specialist tests,
+typecheck and lint passed (four existing lint warnings). The website was
+republished and the new bundle verified at HTTPS 5443; anonymous directory
+access still returns 401. A successful authenticated grant remains unverified.
+
+#### Recent-MFA prerequisite for grant/revoke
+
+Grant/revoke require an access token with `acr` = `mfa` or `hwk` and an
+`auth_time` no older than 300 seconds. **Verifica MFA per modificare gli
+accessi** requests only `acr_values=mfa` (see below for why `max_age=0` and
+`prompt=login` are not sent), but the
+Identity Provider can certify `mfa` only for accounts with a second factor
+(OTP or security key) and a step-up browser flow mapping that level.
+A read-only check (2026-10-19) found the recovery operator account signs in
+through the Google broker and has no Keycloak OTP credential, so step-up
+cannot yield `acr=mfa`; the resulting 403 `recent_mfa_required` is the
+intended fail-closed behavior, not a defect. The observed service-worker
+"Failed to fetch" on a `/admin/access` navigation is unrelated: the login
+callback navigates client-side, and the backend was continuously reachable.
+
+Operator fix (do not weaken the backend check): configure OTP for the
+operator account (Keycloak account console, or the user's **Configure OTP**
+required action), and confirm the realm's bound browser flow is the step-up
+flow whose level 2 condition requires OTP for brokered and local sign-ins,
+with the realm ACR→LoA map containing `mfa` (the discovery document already
+advertises `pwd`, `mfa`, `hwk`). The provisioning client cannot read
+authentication flows (HTTP 403), so the flow binding remains operator-verified.
+
+The page now shows the current sign-in level from the ID token `acr` claim
+and, when it is not `mfa`/`hwk`, links to **Area personale**. That page's
+**Secondo fattore di accesso (MFA)** section starts OTP or security-key
+enrollment through Keycloak application-initiated actions (`CONFIGURE_TOTP`,
+`webauthn-register`, both verified enabled in the realm).
+Enrollment alone does not raise the level: the default login requests
+`acr_values=pwd`. **Verifica MFA ora** (and every other MFA button, via the
+shared `account/mfaStepUp.ts`) requests only `acr_values=mfa`. It deliberately
+does not send `prompt=login`/`max_age=0`: forcing a full re-login shows the
+Google button again, and a brokered sign-in skips the realm OTP step. A real
+step-up reuses the session (level 1 satisfied) and asks only for OTP, refreshing
+`auth_time`; grant/revoke must follow
+within 5 minutes. If the level stays `pwd`, the realm browser flow (and, for
+brokered accounts such as Google, the identity provider's post-login flow) must
+require OTP for the `mfa` level, with the ACR-to-LoA mapping `mfa` = 2.
+Verified live: the SPA client overrides the browser flow with
+"Browser step-up with TOTP_RAF" and maps `pwd`=1, `mfa`=2, `hwk`=3. Google-brokered
+sign-ins bypass that flow's conditional OTP. Confirmed 2026-10-19 with a browser
+network trace: on step-up (`acr_values=mfa`) Keycloak sends a Google-linked user
+straight to `/broker/google/login`; Google answers silently (`prompt=none`) and
+`/broker/google/endpoint` returns to the SPA callback without running the
+browser flow's level-2 OTP Form, so `acr` stays `pwd`. The fix is the Google
+identity provider's **Post login flow**, with two Conditional subflows in order:
+
+1. Level 1: "Condition - Level of Authentication" (level 1) + "Allow access"
+   (both Required). The Google sign-in itself is the level-1 proof.
+2. Level 2: "Condition - Level of Authentication" (level 2, max age 300) +
+   "OTP Form" (both Required).
+
+The level-1 subflow is mandatory. Keycloak's `ConditionalLoaAuthenticator`
+returns `true` whenever no level has been reached yet in the current
+authentication. After a Google login no level is recorded, so a lone level-2
+condition matches on every login and always asks for OTP. Once level 1 is
+recorded, the level-2 condition matches only when `mfa` is requested
+(`pwd` → 1 < 2 is skipped). Keep Cookie and Username Password Form out of this
+flow. SSO is unaffected because the cookie stays in the client's browser flow.
+Step-by-step console instructions are in `docs\keycloak.md`, section 6G. Earlier analysis notes: a Google-only session has no recorded LoA, so the step-up
+re-runs the level-1 condition (Username Password Form, which also offers Google);
+completing it through Google ends the flow before the level-2 OTP Form.
+
+The 2026-10-19 permission-scope repair had also removed `account` client
+eligibility, so SPA tokens lost `aud=account` and the personal page failed with
+401 `profile_session_expired`. The provisioning tool now keeps a dedicated SPA
+scope mapping to exactly `account/view-profile` and `account/manage-account`.
+It was applied and verified with zero remaining operations; scope evaluation
+shows `aud` = DotNetLiguriaCore and account, account roles only, no realm
+roles. Full Scope Allowed remains OFF. 20 offline provisioning tests passed. The `recent_mfa_required` error explains the 5-minute window. This
+hint is UI-only; the backend remains authoritative. 21 focused specialist
+tests and typecheck passed; the rebuilt bundle was published, overlaid and
+verified at HTTPS 5443.
+
+The operator confirmed that a Google-brokered step-up asks for OTP. The first
+version of the flow lacked the level-1 subflow, so it also asked for OTP on every
+Google login; adding the level-1 subflow fixes that.
+
+#### Access page layout and MFA gating
+
+For operators holding grant or revoke, **Accessi utenti** is ordered as:
+
+1. **Verifica MFA** – a live status from the ID token (`acr`, `auth_time`),
+   refreshed every second: "MFA attiva … M:SS minuti", "MFA scaduta" or
+   "MFA non attiva per questo accesso (livello: X)".
+2. The step-up button (**Verifica MFA per modificare gli accessi**, or **Ripeti
+   la verifica MFA** while active) and, without a second factor, a link to the
+   personal area to configure it.
+3. **Seleziona un utente** – paged list and optional search.
+4. **Permessi di <utente>** – the permission table. Checkboxes stay disabled
+   until the MFA window is active, with an explicit explanation; a confirmation
+   that arrives after the window expires is refused locally without any request.
+
+The UI rule mirrors `RecentMfa` (`mfa`/`hwk`, at most 300 seconds) only as a
+hint; the backend remains authoritative and still returns 403
+`recent_mfa_required`. Read/audit-only operators see no MFA step and no step numbering.
+
+The audit table shows date, **Eseguita da** (actor), **Utente modificato**
+(target), operation, permission, outcome and reference. The server resolves
+actor and target subjects to usernames through the permission directory at
+read time; names are never written to `AccessPermissionAudit`. Unresolvable
+subjects (deleted account, directory outage, non-GUID) show **Account non più
+disponibile** with the subject underneath; directory failures never block the
+audit read.
+
+Verification: 23 focused specialist tests (including MFA status/order/gating
+and audit names), all 547 frontend tests, typecheck, lint and 19 backend
+Access tests (including name resolution without persistence) passed. The SPA
+was rebuilt, the website published, `dist` overlaid, and the new bundle
+verified at HTTPS 5443 after restarting Aspire; anonymous audit access returns
+401. Authenticated name display remains to be checked by the operator.
 ### Audit storage and privacy
 
 Mongo collection `AccessPermissionAudit` stores only `_id`, `At`, `Action`
@@ -621,6 +771,26 @@ these checks have been executed successfully.
   fresh MFA and live audit persistence remain unverified. Audit age-based
   retention and stronger multi-instance coordination remain explicit
   operator/deployment decisions.
+
+### User-directory and checkbox-table update
+
+The subsequent shared gate passed: 26 repository tests (6.52s), 536 backend
+tests (5.81s) and 533 frontend tests (96.76s). Added coverage checks unfiltered
+bounded pagination, optional search/reset, checkbox grant/revoke confirmation,
+cancellation, inherited/protected grants and audit-only history access.
+After adding the focus-managed confirmation modal, the 12 focused specialist
+tests and frontend typecheck passed again. Lint has no errors and four existing
+warnings. Production build retains the existing bundle-size warning.
+
+Final website/DataMigration publishing verified 35 SPA files and historical
+assets. Generated files were overlaid into the backend's served `wwwroot`
+without deletion. HTTPS 5443 serves the updated access-page index and bundle;
+the anonymous user-directory API returns 401. The running backend is managed
+by Visual Studio and was not stopped or detached from its debugger. It must be
+restarted to load the API change permitting unfiltered listing; authenticated
+browser listing and real permission writes after that restart remain
+unverified. No database migration or live permission mutation was used to test
+this UI change.
 
 ## Further improvements and boundaries
 

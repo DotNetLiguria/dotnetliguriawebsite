@@ -107,7 +107,7 @@ describe('<BackupPage />', () => {
     await screen.findByRole('heading', { name: 'Nessun backup sul server' });
     await userEvent.click(screen.getByRole('button', { name: /Verifica MFA/ }));
     expect(useOidc().login).toHaveBeenCalledWith('/admin/import-export/?source=privacy#restore', {
-      acr_values: 'mfa', max_age: '0', prompt: 'login',
+      acr_values: 'mfa',
     });
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/Backup/import'))).toBe(false);
   });

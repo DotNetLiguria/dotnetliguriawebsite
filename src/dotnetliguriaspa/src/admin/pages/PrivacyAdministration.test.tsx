@@ -56,7 +56,7 @@ test('lists only minimal operation data and requires an explicit recent-MFA iden
   await user.click(within(card).getByRole('button', { name: /Mostra identità/ }));
   await within(card).findByText(/È richiesta una verifica MFA recente/);
   await user.click(screen.getByRole('button', { name: 'Verifica MFA per il recupero' }));
-  expect(useOidc().login).toHaveBeenCalledWith('/admin/privacy?task=1#pending', { acr_values: 'mfa', max_age: '0', prompt: 'login' });
+  expect(useOidc().login).toHaveBeenCalledWith('/admin/privacy?task=1#pending', { acr_values: 'mfa' });
   expect(screen.queryByRole('heading', { name: 'Prepara avvisi' })).not.toBeInTheDocument();
 });
 

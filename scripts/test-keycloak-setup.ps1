@@ -32,7 +32,7 @@ function New-FakeProvider {
             $recoveryId = @{ id = $recoveryId; username = 'synthetic-recovery'; enabled = $true }
         }
     }
-    foreach ($entry in @(@('DotNetLiguriaCore', '1'), @('DotNetLiguriaSpa', '2'), @('realm-management', '3'))) {
+    foreach ($entry in @(@('DotNetLiguriaCore', '1'), @('DotNetLiguriaSpa', '2'), @('realm-management', '3'), @('account', '6'))) {
         $id = '00000000-0000-0000-0000-' + $entry[1].PadLeft(12, '0')
         $state.Clients[$id] = @{
             id = $id; clientId = $entry[0]; protocol = 'openid-connect'; enabled = $true
@@ -47,6 +47,14 @@ function New-FakeProvider {
     $state.ApiId = @($state.Clients.Values | Where-Object clientId -eq 'DotNetLiguriaCore')[0].id
     $state.SpaId = @($state.Clients.Values | Where-Object clientId -eq 'DotNetLiguriaSpa')[0].id
     $state.ManagementId = @($state.Clients.Values | Where-Object clientId -eq 'realm-management')[0].id
+    $state.AccountId = @($state.Clients.Values | Where-Object clientId -eq 'account')[0].id
+    foreach ($name in @('view-profile', 'manage-account', 'manage-account-links', 'delete-account')) {
+        $state.Counter++
+        $state.Roles[$state.AccountId] += @{
+            id = ([guid]::new("00000000-0000-0000-0000-$($state.Counter.ToString().PadLeft(12,'0'))")).ToString()
+            name = $name; clientRole = $true; composite = $false; containerId = $state.AccountId
+        }
+    }
     foreach ($name in @('view-users', 'query-users', 'view-clients', 'query-clients', 'manage-users')) {
         $state.Counter++
         $state.Roles[$state.ManagementId] += @{
@@ -220,6 +228,16 @@ Test-Case 'Apply is repeatable and preserves existing client configuration' {
     Assert-True ($provider.State.Roles[$provider.State.ApiId].Count -eq 52) 'Role catalogue mismatch'
     $scopeId = $second.Aliases.scope
     Assert-True ($provider.State.Scopes[$scopeId].attributes['display.on.consent.screen'] -eq 'false') 'Internal scope shows on consent'
+}
+Test-Case 'SPA tokens are scoped to exactly the personal-page account roles' {
+    $provider = New-FakeProvider
+    $plan = New-TestPlan $provider
+    $actions = @($plan.Actions | Where-Object Path -eq 'clients/{spa}/scope-mappings/clients/{account}')
+    Assert-True ($actions.Count -eq 1) 'Missing SPA account scope action'
+    Assert-True ((@($actions[0].Body | ForEach-Object { $_.name }) -join ',') -ceq 'view-profile,manage-account') 'Wrong account roles'
+    $path = "clients/$($provider.State.SpaId)/scope-mappings/clients/$($provider.State.AccountId)"
+    $provider.State.Mappings[$path] = @(@($provider.State.Roles[$provider.State.AccountId] | Where-Object name -eq 'delete-account'))
+    Assert-Fails { New-TestPlan $provider } 'additional account-client roles'
 }
 Test-Case 'Without explicit recovery flag the tool never grants user/group access' {
     $provider = New-FakeProvider

@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Button } from 'react-aria-components';
-import { useOidc, useOidcUser } from '@axa-fr/react-oidc';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, Dialog, Modal, ModalOverlay } from 'react-aria-components';
+import { useOidc, useOidcIdToken, useOidcUser } from '@axa-fr/react-oidc';
+import { Link, useLocation } from 'react-router-dom';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import { accountReturnPath } from '../../account/returnPath';
+import { mfaStepUpExtras } from '../../account/mfaStepUp';
 import { hasPermission, Permission } from '../../account/permissions';
-import { useAdminFetch, useAdminLoad } from '../adminApi';
+import { AdminApiError, useAdminFetch, useAdminLoad } from '../adminApi';
 import { PageHeader, Panel, btn } from '../ui';
 
 type AccessUser = { issuer: string; subject: string; username: string; enabled: boolean; protectedTarget: boolean | null; isSelf?: boolean };
@@ -15,16 +16,72 @@ type Grants = {
   grantablePermissions?: string[]; revocablePermissions?: string[];
 };
 type PermissionMetadata = { id: Permission; delegable: boolean };
-type AuditEntry = { at: string; action: string; permission: string; targetSubject: string; outcome: string; correlationId: string };
+type AuditEntry = {
+  at: string; action: string; permission: string; actorSubject: string; actorUsername?: string | null;
+  targetSubject: string; targetUsername?: string | null; outcome: string; correlationId: string;
+};
+
+const mfaWindowSeconds = 300;
+const actionLabels: Record<string, string> = { grant: 'Concessione', revoke: 'Revoca' };
+const outcomeLabels: Record<string, string> = { intent: 'Richiesta', verified: 'Verificata', unverified: 'Non verificata' };
+
+function AuditAccount({ username, subject }: { username?: string | null; subject: string }) {
+  return <>{username || 'Account non più disponibile'}<span className="block text-xs text-muted">{subject}</span></>;
+}
+
+function formatAuditTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('it-IT');
+}
+
+/** Mirrors the server's RecentMfa rule (acr mfa/hwk, auth_time within 5 minutes) as a UI hint only. */
+function useMfaWindow(payload: Record<string, unknown> | undefined) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const level = typeof payload?.acr === 'string' ? payload.acr : '';
+  const authTime = typeof payload?.auth_time === 'number' ? payload.auth_time : Number.NaN;
+  const strong = level === 'mfa' || level === 'hwk';
+  const remaining = strong && Number.isFinite(authTime) ? Math.floor(authTime + mfaWindowSeconds - now / 1000) : 0;
+  return { level, strong, remaining: Math.min(Math.max(remaining, 0), mfaWindowSeconds), active: remaining > 0 };
+}
+
+function accessError(reason: unknown) {
+  const explanations: Record<string, string> = {
+    access_assignment_changed: 'I permessi sono stati modificati da un altro operatore. Ricarica gli accessi prima di riprovare.',
+    protected_access_target: 'Questo account è protetto: i suoi permessi devono essere gestiti nell’Identity Provider.',
+    self_access_change_forbidden: 'Non puoi modificare i tuoi permessi.',
+    permission_not_delegable: 'Questo permesso non può essere delegato dal pannello.',
+    permission_remains_inherited: 'Il permesso è ereditato da un gruppo e non può essere revocato qui.',
+    permission_not_directly_assigned: 'Il permesso non è più assegnato direttamente. Ricarica gli accessi.',
+    access_target_unavailable: 'L’account non è disponibile per le modifiche.',
+    access_audit_unavailable: 'La cronologia non è disponibile: la modifica è stata bloccata prima dell’invio all’Identity Provider.',
+    permission_directory_unavailable: 'L’Identity Provider non è disponibile o ha rifiutato l’operazione. L’esito deve essere verificato ricaricando gli accessi.',
+    permission_directory_not_configured: 'Il servizio di gestione dei permessi non è configurato correttamente.',
+    access_change_not_verified: 'Non è stato possibile verificare la modifica. Ricarica gli accessi: non ripetere automaticamente l’operazione.',
+    access_change_unverified: 'L’esito della modifica è incerto. Ricarica gli accessi: non ripetere automaticamente l’operazione.',
+    recent_mfa_required: 'È richiesta una verifica MFA effettuata negli ultimi 5 minuti. Ripeti la verifica MFA (passo 1) e poi la modifica.',
+  };
+  if (reason instanceof AdminApiError) {
+    const explanation = explanations[reason.code] ?? reason.message;
+    return `${explanation}${reason.code ? ` (${reason.code})` : ''}`;
+  }
+  return reason instanceof Error ? reason.message : 'Modifica non completata.';
+}
 
 export default function AccessPage() {
   const { capabilities, refresh } = useAccountCapabilities();
   const { oidcUser } = useOidcUser();
   const { login } = useOidc();
+  const { idTokenPayload } = useOidcIdToken();
+  const mfa = useMfaWindow(idTokenPayload as Record<string, unknown> | undefined);
   const location = useLocation();
   const api = useAdminFetch();
   const canRead = hasPermission(capabilities, 'access.users.read');
   const canAudit = hasPermission(capabilities, 'access.audit.read');
+  const canChange = hasPermission(capabilities, 'access.permissions.grant') || hasPermission(capabilities, 'access.permissions.revoke');
   const [catalogue] = useAdminLoad<{ permissions: PermissionMetadata[] }>('/admin/access/permissions', canRead);
   const [audit, reloadAudit] = useAdminLoad<{ entries: AuditEntry[] }>('/admin/access/audit?first=0&max=25', canAudit);
   const [search, setSearch] = useState('');
@@ -36,10 +93,18 @@ export default function AccessPage() {
   const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState<AccessUser | null>(null);
   const [grants, setGrants] = useState<Grants | null>(null);
+  const [detailsVersion, setDetailsVersion] = useState(0);
+  const [needsReload, setNeedsReload] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [pending, setPending] = useState<{ permission: Permission; action: 'grant' | 'revoke' } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const feedback = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if ((error || message) && !pending) feedback.current?.focus();
+  }, [error, message, pending]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -60,12 +125,13 @@ export default function AccessPage() {
   useEffect(() => {
     if (!selected || !canRead) return;
     const controller = new AbortController();
-    setGrants(null); setPending(null); setError('');
+    setNeedsReload(true); setLoadingDetails(true); setPending(null); setError('');
     api<Grants>(`/admin/access/users/${encodeURIComponent(selected.subject)}`, { signal: controller.signal })
-      .then(value => { if (!controller.signal.aborted) setGrants(value); })
-      .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Accessi non disponibili.'); });
+      .then(value => { if (!controller.signal.aborted) { setGrants(value); setNeedsReload(false); } })
+      .catch(reason => { if (!controller.signal.aborted) setError(accessError(reason)); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingDetails(false); });
     return () => controller.abort();
-  }, [api, selected, canRead]);
+  }, [api, selected, canRead, detailsVersion]);
 
   const find = (value: string) => {
     setMessage(''); setFilter(value.trim()); setFirst(0); setListVersion(version => version + 1);
@@ -74,16 +140,30 @@ export default function AccessPage() {
   const self = grants?.isSelf || selected?.isSelf || grants?.subject === oidcUser?.sub;
   const protectedTarget = grants?.protectedTarget || selected?.protectedTarget;
   const available = (permission: PermissionMetadata, action: 'grant' | 'revoke') =>
-    !!grants && !self && !protectedTarget && permission.delegable && hasPermission(capabilities, permission.id)
+    !!grants && mfa.active && !self && !protectedTarget && permission.delegable && hasPermission(capabilities, permission.id)
     && hasPermission(capabilities, action === 'grant' ? 'access.permissions.grant' : 'access.permissions.revoke')
     && (action === 'grant' ? grants.canGrant !== false && (!grants.grantablePermissions || grants.grantablePermissions.includes(permission.id))
       : grants.canRevoke !== false && (!grants.revocablePermissions || grants.revocablePermissions.includes(permission.id)));
 
   const change = async () => {
-    if (!pending || !grants) return;
+    if (busy) return;
+    if (!pending || !grants || needsReload || loadingDetails) {
+      setPending(null);
+      setError('Gli accessi devono essere ricaricati prima della conferma. Nessuna modifica è stata inviata.');
+      return;
+    }
+    if (!mfa.active) {
+      setPending(null);
+      setError('La verifica MFA è scaduta o assente. Ripeti la verifica MFA (passo 1). Nessuna modifica è stata inviata.');
+      return;
+    }
     const metadata = catalogue.state === 'ready' ? catalogue.data.permissions.find(item => item.id === pending.permission) : undefined;
-    if (!metadata || !available(metadata, pending.action)) return;
-    setBusy(true); setError(''); setMessage('');
+    if (!metadata || !available(metadata, pending.action)) {
+      setPending(null);
+      setError('Questa modifica non è più consentita con i permessi attuali. Ricarica gli accessi. Nessuna modifica è stata inviata.');
+      return;
+    }
+    setBusy(true); setNeedsReload(true); setError(''); setMessage('');
     try {
       const result = await api<Grants & { changed: boolean; correlationId: string }>(
         `/admin/access/users/${encodeURIComponent(grants.subject)}/permissions/${encodeURIComponent(pending.permission)}`, {
@@ -95,20 +175,44 @@ export default function AccessPage() {
       const assigned = verified.directPermissions.includes(pending.permission);
       setGrants(verified);
       if (assigned !== (pending.action === 'grant')) throw new Error('Esito non verificato: ricarica gli accessi prima di riprovare.');
+      setNeedsReload(false);
       setMessage(`Modifica verificata. Riferimento: ${result.correlationId}. Le concessioni richiedono il rinnovo del token del destinatario.`);
       setPending(null); reloadAudit(); refresh();
     } catch (reason) {
       setPending(null);
-      setError(`${reason instanceof Error ? reason.message : 'Modifica non completata.'} Ricarica gli accessi: non ripetere automaticamente la modifica.`);
-      setGrants(null);
+      setError(accessError(reason));
+      reloadAudit();
     } finally { setBusy(false); }
   };
 
+  const minutes = Math.floor(mfa.remaining / 60);
+  const seconds = String(mfa.remaining % 60).padStart(2, '0');
+  const mfaStatus = mfa.active
+    ? `MFA attiva: puoi modificare i permessi per altri ${minutes}:${seconds} minuti.`
+    : mfa.strong
+      ? 'MFA scaduta: la verifica risale a più di 5 minuti fa. Ripetila per modificare i permessi.'
+      : `MFA non attiva per questo accesso (livello: ${mfa.level || 'non indicato'}). Le modifiche ai permessi sono bloccate.`;
+
   return <>
     <PageHeader title="Accessi utenti" description="Permessi diretti e di gruppo dell’applicazione. Nessuna modifica ai profili o ai gruppi dell’Identity Provider." />
-    {error && <p role="alert" className="mt-4">{error}</p>}
-    {message && <p role="status" className="mt-4">{message}</p>}
-    {canRead && <Panel className="mt-6 space-y-4 p-5">
+    {!canRead && (error || message) && <div ref={feedback} tabIndex={-1} className="mt-4 rounded-xl border p-4">
+      {error && <p role="alert">{error}</p>}
+      {message && <p role="status">{message}</p>}
+    </div>}
+    {canRead && canChange && <Panel labelledBy="access-mfa" className="mt-6 space-y-3 p-5">
+      <h2 id="access-mfa" className="text-lg font-bold">1. Verifica MFA</h2>
+      <p role="note" className={mfa.active ? 'font-semibold text-emerald-800' : 'font-semibold text-red-800'}>{mfaStatus}</p>
+      <p>Concedere o revocare permessi richiede una verifica MFA (codice OTP o chiave di sicurezza) effettuata negli ultimi 5 minuti.</p>
+      <div className="flex flex-wrap gap-3">
+        <Button className={mfa.active ? btn.secondary : btn.primary} isDisabled={busy}
+          onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>
+          {mfa.active ? 'Ripeti la verifica MFA' : 'Verifica MFA per modificare gli accessi'}
+        </Button>
+        {!mfa.strong && <Link className={btn.secondary} to="/area-personale">Configura il secondo fattore nell’Area personale</Link>}
+      </div>
+    </Panel>}
+    {canRead && <Panel labelledBy="access-users" className="mt-6 space-y-4 p-5">
+      <h2 id="access-users" className="text-lg font-bold">{canChange ? '2. ' : ''}Seleziona un utente</h2>
       <p>Tutti gli utenti, 25 per pagina. La ricerca è facoltativa.</p>
       <form onSubmit={event => { event.preventDefault(); find(search); }} className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 font-semibold">Cerca utenti<input className="min-h-11 rounded-lg border p-2" value={search} onChange={event => setSearch(event.target.value)} maxLength={100} /></label>
@@ -117,15 +221,26 @@ export default function AccessPage() {
       </form>
       {listing && <p role="status">Caricamento utenti…</p>}
       {!listing && !error && users.length === 0 && <p>Nessun utente trovato.</p>}
-      <ul>{users.map(user => <li key={user.subject}><Button className={btn.ghost} isDisabled={busy} aria-pressed={selected?.subject === user.subject} onPress={() => setSelected(user)}>{user.username || user.subject}{user.protectedTarget ? ' · Protetto' : ''}</Button></li>)}</ul>
+      <ul>{users.map(user => <li key={user.subject}><Button className={btn.ghost} isDisabled={busy} aria-pressed={selected?.subject === user.subject} onPress={() => {
+        if (selected?.subject !== user.subject) { setGrants(null); setPending(null); setMessage(''); }
+        setSelected(user);
+      }}>{user.username || user.subject}{user.protectedTarget ? ' · Protetto' : ''}</Button></li>)}</ul>
       <div className="flex flex-wrap items-center gap-3"><span>Pagina {Math.floor(first / 25) + 1}</span><Button className={btn.secondary} isDisabled={busy || listing || first === 0} onPress={() => setFirst(Math.max(0, first - 25))}>Precedenti</Button><Button className={btn.secondary} isDisabled={busy || listing || !hasMore} onPress={() => setFirst(first + 25)}>Successivi</Button></div>
-      {selected && <Button className={btn.secondary} isDisabled={busy} onPress={() => setSelected({ ...selected })}>Ricarica accessi selezionati</Button>}
+    </Panel>}
+    {canRead && (selected || error || message) && <Panel labelledBy="access-grants" className="mt-6 space-y-4 p-5">
+      <h2 id="access-grants" className="text-lg font-bold">{canChange ? '3. ' : ''}{selected ? `Permessi di ${selected.username || selected.subject}` : 'Permessi'}</h2>
+      {selected && <Button className={btn.secondary} isDisabled={busy || loadingDetails} onPress={() => setDetailsVersion(version => version + 1)}>Ricarica accessi selezionati</Button>}
+      {(error || message) && <div ref={feedback} tabIndex={-1} className="sticky top-2 z-10 rounded-xl border-2 border-cyan-700 bg-white p-4 shadow-lg focus:outline-2 focus:outline-cyan-700">
+        {error && <p role="alert"><strong>Modifica non completata. </strong>{error}</p>}
+        {message && <p role="status">{message}</p>}
+      </div>}
+      {loadingDetails && <p role="status">Caricamento permessi…</p>}
+      {grants && needsReload && !busy && !loadingDetails && <p role="status">La tabella mostra l’ultimo stato letto, non un esito confermato. Ricarica gli accessi selezionati prima di effettuare altre modifiche.</p>}
       {catalogue.state === 'error' && <p role="alert">{catalogue.message}</p>}
       {grants && <>
-        <h2 className="text-lg font-bold">Permessi di {selected?.username || grants.subject}</h2>
         {(self || protectedTarget) && <p>Account proprio o protetto: le modifiche non sono consentite.</p>}
+        {canChange && !mfa.active && !self && !protectedTarget && <p className="font-semibold">Modifiche bloccate: esegui prima la verifica MFA (passo 1).</p>}
         <p>Seleziona o deseleziona un permesso diretto, poi conferma la modifica. I permessi ereditati dai gruppi sono in sola lettura: revocare un permesso diretto non rimuove quello ereditato. Puoi delegare soltanto permessi consentiti che possiedi attualmente.</p>
-        <Button className={btn.secondary} onPress={() => void login(accountReturnPath(location), { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>Verifica MFA per modificare gli accessi</Button>
         <div className="overflow-x-auto"><table className="w-full text-left">
           <caption className="sr-only">Permessi di {selected?.username || grants.subject}</caption>
           <thead><tr><th scope="col" className="p-3">Permesso</th><th scope="col" className="p-3">Diretto</th><th scope="col" className="p-3">Da gruppi (sola lettura)</th><th scope="col" className="p-3">Effettivo</th></tr></thead>
@@ -138,27 +253,48 @@ export default function AccessPage() {
             <td className="p-3"><label className="inline-flex min-h-11 min-w-11 items-center justify-center">
               <span className="sr-only">Permesso diretto {permission.id}</span>
               <input type="checkbox" className="h-5 w-5 accent-cyan-700 focus-visible:outline-2 focus-visible:outline-offset-4" checked={direct}
-                disabled={busy || !!pending || !available(permission, action)}
+                disabled={busy || needsReload || loadingDetails || !!pending || !available(permission, action)}
                 onChange={() => setPending({ permission: permission.id, action })} />
             </label></td>
             <td className="p-3">{inherited ? 'Ereditato (sola lettura)' : 'No'}</td>
             <td className="p-3">{grants.effectivePermissions.includes(permission.id) ? 'Sì' : 'No'}</td>
           </tr>;
         })}</tbody></table></div>
-        <details><summary>Permessi effettivi</summary><ul>{grants.effectivePermissions.map(permission => <li key={permission}>{permission}</li>)}</ul></details>
       </>}
-      {pending && <section role="alertdialog" aria-label="Conferma modifica accessi" className="space-y-3 rounded-xl border p-4">
-        <p>Confermi {pending.action === 'grant' ? 'la concessione' : 'la revoca'} del permesso diretto {pending.permission}?</p>
-        <Button className={btn.danger} isDisabled={busy} onPress={() => void change()}>Conferma modifica</Button>
+      <ModalOverlay isOpen={!!pending} isDismissable={!busy} onOpenChange={open => { if (!open && !busy) setPending(null); }}
+        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
+        <Modal className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 text-navy shadow-xl">
+        <Dialog role="alertdialog" aria-label="Conferma modifica accessi" className="space-y-3 outline-none">
+        {pending && <>
+        <p>Confermi {pending.action === 'grant' ? 'la concessione' : 'la revoca'} del permesso diretto {pending.permission} a {selected?.username || grants?.subject}?</p>
+        {busy && <p role="status">Modifica in corso: attendo la risposta del server e la verifica dei permessi…</p>}
+        <Button className={btn.danger} isDisabled={busy} onPress={() => void change()}>{busy ? 'Verifica in corso…' : 'Conferma modifica'}</Button>
         <Button className={btn.secondary} isDisabled={busy} onPress={() => setPending(null)}>Annulla</Button>
-      </section>}
+        </>}
+        </Dialog></Modal>
+      </ModalOverlay>
     </Panel>}
-    {canAudit && <Panel className="mt-6 space-y-3 p-5">
-      <h2 className="text-lg font-bold">Cronologia modifiche ai permessi</h2>
-      <p>Ultime 25 operazioni di concessione o revoca registrate dall’applicazione, con esito e riferimento. Non è l’elenco degli utenti e non include le modifiche effettuate direttamente nell’Identity Provider.</p>
+    {canAudit && <Panel labelledBy="access-audit" className="mt-6 space-y-3 p-5">
+      <h2 id="access-audit" className="text-lg font-bold">Cronologia modifiche ai permessi</h2>
+      <p>Ultime 25 operazioni di concessione o revoca registrate dall’applicazione, con esito e riferimento. Non è l’elenco degli utenti e non include le modifiche effettuate direttamente nell’Identity Provider. I nomi sono letti dall’Identity Provider al momento della consultazione e non sono salvati nella cronologia.</p>
       <Button className={btn.secondary} onPress={reloadAudit}>Ricarica cronologia modifiche</Button>
       {audit.state === 'error' && <p role="alert">{audit.message}</p>}
-      {audit.state === 'ready' && <ul>{audit.data.entries.map((entry, index) => <li key={`${entry.correlationId}-${index}`}>{entry.at} · {entry.action} · {entry.permission} · {entry.targetSubject} · {entry.outcome} · {entry.correlationId}</li>)}</ul>}
+      {audit.state === 'ready' && audit.data.entries.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left">
+        <caption className="sr-only">Cronologia modifiche ai permessi</caption>
+        <thead><tr>
+          <th scope="col" className="p-3">Data</th><th scope="col" className="p-3">Eseguita da</th><th scope="col" className="p-3">Utente modificato</th>
+          <th scope="col" className="p-3">Operazione</th><th scope="col" className="p-3">Permesso</th><th scope="col" className="p-3">Esito</th><th scope="col" className="p-3">Riferimento</th>
+        </tr></thead>
+        <tbody className="divide-y divide-line">{audit.data.entries.map((entry, index) => <tr key={`${entry.correlationId}-${entry.outcome}-${index}`}>
+          <td className="p-3">{formatAuditTime(entry.at)}</td>
+          <td className="p-3"><AuditAccount username={entry.actorUsername} subject={entry.actorSubject} /></td>
+          <td className="p-3"><AuditAccount username={entry.targetUsername} subject={entry.targetSubject} /></td>
+          <td className="p-3">{actionLabels[entry.action] ?? entry.action}</td>
+          <td className="p-3">{entry.permission}</td>
+          <td className="p-3">{outcomeLabels[entry.outcome] ?? entry.outcome}</td>
+          <td className="p-3 text-xs">{entry.correlationId}</td>
+        </tr>)}</tbody>
+      </table></div>}
       {audit.state === 'ready' && audit.data.entries.length === 0 && <p>Nessuna modifica registrata.</p>}
     </Panel>}
   </>;

@@ -160,6 +160,27 @@ public sealed class AccessManagementServiceTests
     }
 
     [Fact]
+    public async Task AuditHistoryResolvesActorAndTargetUsernamesWithoutPersistingThem()
+    {
+        var (service, _, audit, actor) = Create(["access.users.read", "access.permissions.grant", "events.read"]);
+        await service.ChangePermissionAsync(actor, _targetSubject, "events.read", grant: true,
+            Array.Empty<string>(), "grant", CancellationToken.None);
+        const string deletedSubject = "44444444-4444-4444-4444-444444444444";
+        audit.Entries.Add(new("gone", _now.AddMinutes(-1), "revoke", "events.read",
+            Issuer, deletedSubject, Issuer, _targetSubject, "verified", "old"));
+
+        var page = await service.ReadAuditAsync(0, 25, CancellationToken.None);
+
+        var verified = page.Entries.First(entry => entry.Outcome == "verified" && entry.ActorSubject == _actorSubject);
+        Assert.Equal("operator", verified.ActorUsername);
+        Assert.Equal("editor", verified.TargetUsername);
+        var orphan = page.Entries.Single(entry => entry.ActorSubject == deletedSubject);
+        Assert.Null(orphan.ActorUsername);
+        Assert.Equal("editor", orphan.TargetUsername);
+        Assert.Equal(3, page.Entries.Count);
+    }
+
+    [Fact]
     public async Task MutationRequiresExplicitConfirmationAndRecentMfa()
     {
         var (service, _, audit, actor) = Create(["access.users.read", "access.permissions.grant", "events.read"]);

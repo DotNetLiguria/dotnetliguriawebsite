@@ -31,11 +31,13 @@ export interface AdminVenue {
 
 export class AdminApiError extends Error {
   readonly status: number;
+  readonly code: string;
 
-  constructor(status: number, message?: string) {
+  constructor(status: number, message?: string, code = '') {
     super(message ?? `Errore HTTP: ${status}`);
     this.name = 'AdminApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -53,8 +55,9 @@ export function useAdminFetch() {
         code = problem.code ?? problem.title ?? '';
       } catch { /* Reverse proxies may return a non-JSON failure. */ }
       const mfa = code === 'recent_mfa_required' || code === 'RecentMfaRequired';
-      if (response.status === 403 && !mfa) permissionsDenied();
-      throw new AdminApiError(response.status, mfa ? 'È richiesta una verifica MFA recente tramite l’Identity Provider.' : undefined);
+      const targetRestriction = ['protected_access_target', 'self_access_change_forbidden', 'permission_not_delegable'].includes(code);
+      if (response.status === 403 && !mfa && !targetRestriction) permissionsDenied();
+      throw new AdminApiError(response.status, mfa ? 'È richiesta una verifica MFA recente tramite l’Identity Provider.' : undefined, code);
     }
     const text = response.status === 204 ? '' : await response.text();
     return (text ? JSON.parse(text) : undefined) as T;

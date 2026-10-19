@@ -122,6 +122,16 @@ Do not attach provider administration roles such as `realm-admin` to the
 application permission scope. Service-account role assignments and eligibility
 belong to their separate service clients. Full Scope Allowed remains OFF.
 
+The repair also removes `account` client eligibility from this scope. The
+personal page needs that eligibility, so the tool always adds a separate
+dedicated SPA scope mapping to exactly the `account` client's `view-profile`
+and `manage-account` roles (Preview stops if other `account` roles are scoped).
+With these roles, the standard `roles` scope adds `aud=account`, so the
+Identity Provider Account API accepts the user's token. Users receive the
+roles from `default-roles-<realm>`; the tool never assigns them. Without this
+mapping the personal page shows "Accedi di nuovo al tuo account" and
+`/api/privacy/profile` returns 401 `profile_session_expired`.
+
 ### Remove obsolete dedicated SPA mappers
 
 Add `-RemoveLegacySpaMappers` to Preview, review the plan, then use the same
@@ -784,6 +794,89 @@ recent MFA authentication. Verify the deployed flow/step-up mechanism with
 synthetic accounts. Explicit application confirmation headers are also
 required for relevant sensitive actions; MFA does not replace them.
 
+Users enroll a second factor from the website's **Area personale → Account →
+Secondo fattore di accesso (MFA)**. Its buttons start Keycloak
+application-initiated actions (`kc_action=CONFIGURE_TOTP` or
+`kc_action=webauthn-register`) and return to the personal page. Keep the
+**Configure OTP** and **Webauthn Register** required actions enabled under
+**Authentication → Required actions**. Enrollment alone does not issue
+`acr=mfa`: the realm browser flow (and, for brokered Google sign-ins, the
+identity provider's post-login flow) must require the second factor when
+`mfa` is requested and map the `mfa` ACR to that level.
+
+### 6G. Configure MFA step-up for password and Google sign-ins
+
+Keycloak runs two different flows, and each needs its own setup:
+
+- **Password sign-in** runs the browser flow bound to the SPA client
+  (**Clients → DotNetLiguriaSpa → Advanced → Authentication flow overrides →
+  Browser Flow**, here "Browser step-up with TOTP_RAF").
+- **Google sign-in** never reaches that browser flow's OTP step. After Google
+  returns, Keycloak runs only the Google identity provider's **Post login flow**.
+
+On the SPA client (**Advanced → Advanced settings → ACR to LoA Mapping**) map
+`pwd` = 1, `mfa` = 2, `hwk` = 3. The website requests `acr_values=pwd` for
+ordinary sign-in and `acr_values=mfa` for **Verifica MFA**.
+
+**Browser flow (password sign-in), unchanged:**
+
+```
+Cookie                                             (Alternative)
+Auth flow                                          (Alternative)
+├─ 1st Condition Flow                              (Conditional)
+│   ├─ Condition - Level of Authentication [level 1]           (Required)
+│   └─ Username Password Form                                   (Required)
+└─ 2nd Condition Flow                              (Conditional)
+    ├─ Condition - Level of Authentication [level 2, max age 300] (Required)
+    └─ OTP Form                                                 (Required)
+```
+
+**Google post-login flow:**
+
+1. In **Authentication**, duplicate the browser step-up flow, for example as
+   "Browser step-up with TOTP_RAF (Google)".
+2. In the copy, delete **Cookie** (the cookie belongs only to the browser flow,
+   so SSO is unaffected).
+3. In the 1st Condition Flow, delete **Username Password Form**. Then add the
+   step **Allow access** and set it to Required. Keep the level-1 condition.
+4. Keep the 2nd Condition Flow as is (level 2, max age 300, OTP Form).
+5. Set the top-level **Auth flow** to Required.
+6. In **Identity providers → google → Advanced settings → Post login flow**,
+   select this copy and save. Leave **First login flow** unchanged.
+
+```
+Auth flow                                          (Required)
+├─ 1st Condition Flow                              (Conditional)
+│   ├─ Condition - Level of Authentication [level 1]           (Required)
+│   └─ Allow access                                             (Required)
+└─ 2nd Condition Flow                              (Conditional)
+    ├─ Condition - Level of Authentication [level 2, max age 300] (Required)
+    └─ OTP Form                                                 (Required)
+```
+
+Why each piece matters:
+
+- **Level-1 subflow is required.** "Condition - Level of Authentication"
+  matches whenever no level has been reached yet in the current authentication.
+  Without the level-1 subflow, the level-2 condition matches on every Google
+  login and always asks for OTP.
+- **Use Allow access, not Username Password Form.** That form renders the
+  login page again with the Google button. Choosing Google re-runs the
+  post-login flow, which causes an infinite loop. Allow access records level 1
+  silently, because the Google sign-in is the level-1 proof.
+- **Level 2** runs only when `mfa` is requested (`pwd` → level 1 < 2 is
+  skipped). Max age 300 matches the application's 5-minute MFA window.
+
+Expected behavior, to verify with a test account after every flow change:
+
+| Action | Password account | Google account |
+| --- | --- | --- |
+| Ordinary sign-in | Password, no OTP, `acr=pwd` | Google, no OTP, `acr=pwd` |
+| **Verifica MFA** with an SSO session | OTP only, `acr=mfa` | OTP only, `acr=mfa` |
+| **Verifica MFA** within 300 s of a previous OTP | No prompt, `acr=mfa` | No prompt, `acr=mfa` |
+
+Verify `acr` on **Area personale → Account** or **Accessi utenti**; both show
+the current level.
 ## 7. Renew sessions, verify and cut over
 
 Use synthetic accounts and approved staging infrastructure. Do not use real

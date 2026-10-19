@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button, Tab, TabList, TabPanel, Tabs } from 'react-aria-components';
-import { useOidc } from '@axa-fr/react-oidc';
+import { useOidc, useOidcIdToken } from '@axa-fr/react-oidc';
 import { PageHeader, Panel, TextInput, btn, focusRing } from '../ui';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
 import { clearPrivateBrowserState } from '../../questionnaire/drafts';
 import { PersonalData, PersonalIdentity, useAccountRequest } from '../../account/accountApi';
 import { useAccountResource } from '../../account/useAccountResource';
 import { accountReturnPath } from '../../account/returnPath';
+import { mfaStepUpExtras } from '../../account/mfaStepUp';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 
 const tabCls = `-mb-px inline-flex min-h-11 cursor-pointer items-center border-b-[3px] border-transparent px-4 font-bold text-muted transition-colors data-[hovered]:text-navy data-[selected]:border-navy data-[selected]:text-navy ${focusRing}`;
@@ -43,6 +44,9 @@ export default function ProfilePage() {
 
 function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'awaiting_manual_identity_removal') => void }) {
   const { login } = useOidc();
+  const { idTokenPayload } = useOidcIdToken();
+  const signInLevel = typeof idTokenPayload?.acr === 'string' ? idTokenPayload.acr : '';
+  const signedInWithMfa = signInLevel === 'mfa' || signInLevel === 'hwk';
   const location = useLocation();
   const request = useAccountRequest();
   const profile = useAccountResource<PersonalIdentity>('privacy/profile');
@@ -135,6 +139,22 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
         }}>Aggiorna dati personali</Button>
         <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Modifica account e sicurezza (nuova scheda)</a>
       </Panel>
+      <Panel labelledBy="profile-mfa" className="mt-5 space-y-4 p-6">
+        <h2 id="profile-mfa" className="text-lg font-bold">Secondo fattore di accesso (MFA)</h2>
+        <p>Alcune operazioni protette richiedono una verifica MFA recente. Configura un’app di autenticazione
+          (codice OTP) oppure una chiave di sicurezza: l’Identity Provider ti guiderà nella registrazione e poi ti
+          riporterà a questa pagina.</p>
+        <p role="note">{signedInWithMfa ? 'L’accesso corrente include una verifica MFA.'
+          : `L’accesso corrente non include una verifica MFA (livello: ${signInLevel || 'non indicato'}). Dopo aver configurato il secondo fattore usa “Verifica MFA ora”: l’accesso normale non lo richiede.`}</p>
+        <div className="flex flex-wrap gap-3">
+          <Button className={btn.primary} isDisabled={busy}
+            onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>Verifica MFA ora</Button>
+          <Button className={btn.secondary} isDisabled={busy}
+            onPress={() => void login(accountReturnPath(location), { kc_action: 'CONFIGURE_TOTP' })}>Configura app di autenticazione (OTP)</Button>
+          <Button className={btn.secondary} isDisabled={busy}
+            onPress={() => void login(accountReturnPath(location), { kc_action: 'webauthn-register' })}>Registra chiave di sicurezza</Button>
+        </div>
+      </Panel>
       </TabPanel>
       <TabPanel id="data" className="mt-5 outline-none">
       <Panel labelledBy="profile-data" className="space-y-4 p-6">
@@ -189,7 +209,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
           non sicure o copie esterne non verificate bloccano il completamento. Se serve una rimozione
           manuale dell’identità, la richiesta resta pendente fino alla verifica amministrativa.</p>
         <Button className={btn.secondary} isDisabled={busy}
-          onPress={() => void login(accountReturnPath(location), { acr_values: 'mfa', max_age: '0', prompt: 'login' })}>
+          onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>
           Verifica MFA per la cancellazione
         </Button>
         <label className="flex min-h-11 items-center gap-3"><input className="size-6" type="checkbox" checked={acknowledged}
