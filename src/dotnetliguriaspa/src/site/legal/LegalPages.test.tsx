@@ -25,6 +25,7 @@ describe.each(pages)('$name page', ({ Page, route, title }) => {
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
     expect(document.title).toBe(`${title} · DotNetLiguria`);
     expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBeTruthy();
+    expect(document.body).not.toHaveTextContent(/keycloak/i);
     const updated = screen.getByText(/Ultimo aggiornamento/);
     expect(within(updated).getByText('11 ottobre 2026')).toHaveAttribute('datetime', '2026-10-11');
   });
@@ -93,7 +94,7 @@ describe('terms page', () => {
 describe('cookie policy page', () => {
   test('lists every item the site can store, with purpose and duration', () => {
     render(<CookiePolicyPage />, { route: '/cookie' });
-    for (const name of [COOKIE_NOTICE_KEY, 'questionnaire-draft:…', 'Cookie di sessione di Keycloak', 'OidcServiceWorker.js', 'oidc.…']) {
+    for (const name of [COOKIE_NOTICE_KEY, 'questionnaire-draft:…', 'Cookie di sessione dell’Identity Provider', 'OidcServiceWorker.js', 'oidc.…']) {
       const item = screen.getByRole('heading', { level: 4, name }).closest('li')!;
       expect(within(item).getByText('Durata:')).toBeInTheDocument();
       expect(within(item).getByText('A cosa serve:')).toBeInTheDocument();

@@ -91,6 +91,7 @@ public sealed class PrivacyRouteContractTests
         _identities.Accounts["immutable-subject"] = new IdentityAccount { Id = "immutable-subject", Enabled = true };
         var builder = WebApplication.CreateSlimBuilder();
         builder.Services.AddAuthorization();
+        builder.Services.AddHttpClient<KeycloakProfileClient>();
         builder.Services.AddSingleton<TimeProvider>(_clock);
         builder.Services.AddSingleton<IErasureJournal>(_journal);
         builder.Services.AddSingleton(Options.Create(_settings));

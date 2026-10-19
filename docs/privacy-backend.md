@@ -167,10 +167,68 @@ HTTP 200 `{status:"completed"}`.
 Website-admin authorization is separate from authentication. The SPA's
 `/area-personale` is available to ordinary active accounts, while the dashboard
 requires the existing `WebDevAdmin` policy. `/admin/profile/` redirects to the
-personal area. Name/email/security editing stays in the Keycloak account console;
-the website edits only its notification preferences. The capabilities endpoint
+personal area. Name edits are forwarded to Keycloak; email changes, password, MFA
+and email verification remain in the Keycloak account console. The capabilities endpoint
 uses the existing server policies, not board membership or an audience claim.
 Narrower privacy/notification/questionnaire/backup API permissions remain separate.
+
+### Edit personal data without local persistence
+
+`GET /api/privacy/profile` and `PUT /api/privacy/profile` forward the authenticated
+caller's bearer token to the fixed issuer's Keycloak Account REST API. They never
+use the identity-admin service token to edit a profile. Reads are independent of
+the site's MongoDB records and identity-admin credentials.
+
+The PUT body permits only `{firstName,lastName}`; unknown fields (including
+`email`, account IDs, usernames, attributes, roles and `emailVerified`) are rejected.
+The caller cannot select another identity. The backend reads the current account,
+checks its immutable subject, preserves the current email, username and account attributes,
+forwards only the allowed changes, then reads back the persisted values. Keycloak
+remains responsible for user-profile permissions and required fields.
+Readback must preserve the email and its verification state as well as confirm the names.
+A failure or mismatched readback is explicit:
+an upstream success status alone is not reported as a confirmed save.
+
+The personal area offers **Modifica dati personali**, **Salva dati personali** and
+**Annulla modifiche**. Profile values and unsaved edits remain in component memory
+only, with no database, file, localStorage or sessionStorage copy. Responses use
+`no-store, private`; profile HTTP loggers and redirects are disabled. Updates share
+the erasure gate, and a pending erasure prevents profile changes. Keycloak itself
+may record profile-change events according to its audit configuration.
+
+For this feature, the realm's built-in **account** client must be enabled, and the
+ordinary user's access token must have the **account** audience and
+`resource_access.account.roles` containing **manage-account**. Configure these in
+the SPA login client's role scope mappings/audience mapper, retaining the backend's
+existing audience; do not grant users `realm-management` roles. Sign in again after
+changing token scopes. A read may use `view-profile`, but saving requires
+`manage-account`. Missing account audience can return 401; missing permissions
+return 403. No token exchange or additional login grant is needed.
+
+In **Realm settings -> User profile**, allow ordinary users to edit `firstName`,
+`lastName` and `email` where intended; keep notification evidence admin-only.
+Read-only/federated profiles and additional realm-required attributes can still
+cause Keycloak to reject an update. The site deliberately does not bypass those
+rules with administrator privileges: the Account Console remains available.
+Email is always read-only on the website, including in edit mode. The single
+**Modifica account e sicurezza** link opens the Account Console for email and
+security changes; the website never submits a new address. User-facing copy names
+the service **Identity Provider**, not its implementation.
+For verification-before-replacement, enable the supported **Update Email**
+required action in Keycloak and configure **Force Email Verification** (or the
+realm's **Verify email** policy), with working realm SMTP. Enable the `update-email`
+server feature if required by the installed Keycloak version. Do not make this
+action a default required action for every login. Validate the actual flow in
+staging: without verification enabled, merely opening the console does not
+guarantee verification-before-replacement. The website does not change these realm
+settings, send verification messages or claim that an email change completed.
+After returning, **Aggiorna dati personali** rereads Keycloak.
+
+With Google brokering, email changes do not change Google's address or the stable
+external identity link. Review the identity provider and mapper sync modes:
+`FORCE` can overwrite a locally changed profile on a later brokered login.
+Use the intended `IMPORT`/mapper policy rather than promising that an email
+change will survive all synchronization configurations.
 
 `GET /api/privacy/data?offset=0` returns a fresh identity projection and pages of
 50 attributable record summaries, with a legacy-coverage warning. The same

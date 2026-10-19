@@ -71,7 +71,7 @@ const QuestionnaireSettings: FC<{ workshopTitle?: string | null; errors: Record<
         }}
         options={[
           { value: 'Anonymous', label: 'Anonimi' },
-          { value: 'Authenticated', label: 'Autenticati', description: 'Accesso con Keycloak; nessun nome o email nelle risposte.' },
+          { value: 'Authenticated', label: 'Autenticati', description: 'Accesso con l’Identity Provider; nessun nome o email nelle risposte.' },
         ]}
       />
       {q.respondentMode !== 'Anonymous' && (

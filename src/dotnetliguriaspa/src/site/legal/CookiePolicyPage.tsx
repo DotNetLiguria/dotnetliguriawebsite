@@ -78,7 +78,7 @@ export default function CookiePolicyPage() {
           </p>
           <ul className="grid gap-4">
             <StorageItem
-              name="Cookie di sessione di Keycloak"
+              name="Cookie di sessione dell’Identity Provider"
               where="Cookie del dominio hello.vevy.com"
               purpose="Completare l'accesso e mantenere la sessione di accesso."
               duration="La durata della sessione di accesso, stabilita dal servizio di accesso."

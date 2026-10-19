@@ -5,7 +5,7 @@ import { useOidc } from '@axa-fr/react-oidc';
 import { PageHeader, Panel, TextInput, btn } from '../ui';
 import { getOidcPublicSettings } from '../../config/oidcConfig';
 import { clearPrivateBrowserState } from '../../questionnaire/drafts';
-import { ConsentData, PersonalData, useAccountRequest } from '../../account/accountApi';
+import { ConsentData, PersonalData, PersonalIdentity, useAccountRequest } from '../../account/accountApi';
 import { useAccountResource } from '../../account/useAccountResource';
 import { accountReturnPath } from '../../account/returnPath';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
@@ -32,7 +32,7 @@ export default function ProfilePage() {
   if (erased) return <section className="space-y-4">
     <h1 className="text-3xl font-bold">Richiesta di cancellazione</h1>
     <p role="status">{erased === 'completed' ? 'Cancellazione completata.'
-      : 'Richiesta accettata. I dati del sito sono stati rimossi e l’account è disabilitato. La rimozione dell’identità Keycloak richiede un intervento amministrativo: la cancellazione non è ancora completata.'}</p>
+      : 'Richiesta accettata. I dati del sito sono stati rimossi e l’account è disabilitato. La rimozione dell’identità nell’Identity Provider richiede un intervento amministrativo: la cancellazione non è ancora completata.'}</p>
     {logoutFailed && <p role="alert">La chiusura della sessione non è riuscita: chiudi la scheda.</p>}
     <Link className={btn.secondary} to="/">Torna al sito</Link>
   </section>;
@@ -48,6 +48,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
   const { login } = useOidc();
   const location = useLocation();
   const request = useAccountRequest();
+  const profile = useAccountResource<PersonalIdentity>('privacy/profile');
   const personal = useAccountResource<PersonalData>('privacy/data?offset=0');
   const consents = useAccountResource<ConsentData>('notifications/consents?offset=0');
   const subscription = useAccountResource<Subscription>('notifications/subscription/');
@@ -59,6 +60,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
   const [message, setMessage] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
+  const [profileDraft, setProfileDraft] = useState<{ firstName: string; lastName: string } | null>(null);
   const account = `${getOidcPublicSettings().authority.replace(/\/+$/, '')}/account`;
   const reloadPersonal = () => { personal.setData(null); setRecordOffset(0); personal.reload(); };
   const reloadConsents = () => { consents.setData(null); setHistoryOffset(0); consents.reload(); };
@@ -77,6 +79,19 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
     subscription.setData(null); subscription.reload(); reloadConsents(); reloadPersonal();
     setMessage(optIn ? 'Preferenza accettata. Verifica lo stato nella cronologia dei consensi.' : 'Revoca accettata. Verifica lo stato nella cronologia dei consensi.');
   });
+  const saveProfile = () => run(async () => {
+    if (!profileDraft) throw new Error('Nessuna modifica da salvare.');
+    const response = await request('privacy/profile', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profileDraft),
+    });
+    const saved = await response.json() as PersonalIdentity;
+    profile.setData(saved);
+    setProfileDraft(null);
+    reloadPersonal();
+    subscription.reload();
+    setMessage(saved.emailVerified ? 'Dati personali salvati nell’Identity Provider.'
+      : 'Dati personali salvati nell’Identity Provider. L’email non è verificata: apri la console dell’Identity Provider per completare la verifica.');
+  });
   const exportData = () => run(async () => {
     const response = await request('privacy/export');
     const url = URL.createObjectURL(await response.blob());
@@ -93,28 +108,46 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
     else if (response.status === 202 && result.status === 'awaiting_manual_identity_removal') onErased('awaiting_manual_identity_removal');
     else throw new Error('Esito della cancellazione non confermato. Richiedi assistenza.');
   });
-  const identity = personal.data?.identity;
+  const identity = profile.data;
   return <>
     <PageHeader title="Area personale" description="Account, dati condivisi, consensi e diritti privacy." />
     {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
     {message && <p role="status" className="mt-4 rounded-xl bg-cyan-50 p-4">{message}</p>}
     <div className="mt-6 grid gap-6">
       <Panel labelledBy="profile-account" className="space-y-4 p-6">
-        <h2 id="profile-account" className="text-lg font-bold">Account Keycloak</h2>
-        <p>Nome, cognome, email e sicurezza si modificano in Keycloak. Questi dati vengono riletti dal servizio, non dal token di accesso.</p>
-        <ResourceStatus name="dati personali" {...personal} reload={reloadPersonal} />
+        <h2 id="profile-account" className="text-lg font-bold">Account Identity Provider</h2>
+        <p>Nome e cognome sono salvati direttamente nell’Identity Provider. Non ne conserviamo una copia nel sito.
+          Il cambio email, la verifica dell’email, password e MFA si gestiscono nella console dell’Identity Provider.</p>
+        <ResourceStatus name="dati personali" {...profile} reload={() => { setProfileDraft(null); profile.reload(); }} />
         {identity && <>
-          <TextInput label="Nome" value={identity.firstName ?? ''} isReadOnly />
-          <TextInput label="Cognome" value={identity.lastName ?? ''} isReadOnly />
-          <TextInput label="Email" value={identity.email ?? ''} isReadOnly />
+          <form className="space-y-4" onSubmit={event => { event.preventDefault(); void saveProfile(); }}>
+            <TextInput label="Nome" value={profileDraft?.firstName ?? identity.firstName ?? ''}
+              maxLength={255} isReadOnly={!profileDraft} isDisabled={busy || profile.loading}
+              onChange={firstName => setProfileDraft(current => current && { ...current, firstName })} />
+            <TextInput label="Cognome" value={profileDraft?.lastName ?? identity.lastName ?? ''}
+              maxLength={255} isReadOnly={!profileDraft} isDisabled={busy || profile.loading}
+              onChange={lastName => setProfileDraft(current => current && { ...current, lastName })} />
+            <TextInput label="Email" type="email" value={identity.email ?? ''} isReadOnly
+              description="Per cambiare email usa Modifica account e sicurezza e completa la verifica richiesta nell’Identity Provider." />
+            {profileDraft ? <div className="flex flex-wrap gap-3">
+              <Button type="submit" className={btn.primary} isDisabled={busy || profile.loading || !!profile.error}>Salva dati personali</Button>
+              <Button type="button" className={btn.secondary} isDisabled={busy}
+                onPress={() => setProfileDraft(null)}>Annulla modifiche</Button>
+            </div> : <Button type="button" className={btn.primary} isDisabled={busy || profile.loading || !!profile.error}
+              onPress={() => { setError(''); setMessage(''); setProfileDraft({
+                firstName: identity.firstName ?? '', lastName: identity.lastName ?? '',
+              }); }}>Modifica dati personali</Button>}
+          </form>
           <p>Email {identity.emailVerified ? 'verificata' : 'non verificata'}.</p>
         </>}
-        {personal.data && !identity && <p>Identità aggiornata non disponibile. Apri Keycloak o riprova.</p>}
-        <Button className={btn.secondary} isDisabled={personal.loading} onPress={reloadPersonal}>Aggiorna dati personali</Button>
+        <Button className={btn.secondary} isDisabled={busy || profile.loading} onPress={() => {
+          setProfileDraft(null); profile.reload();
+        }}>Aggiorna dati personali</Button>
         <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Modifica account e sicurezza (nuova scheda)</a>
       </Panel>
       <Panel labelledBy="profile-data" className="space-y-4 p-6">
         <h2 id="profile-data" className="text-lg font-bold">Dati condivisi con il sito</h2>
+        <ResourceStatus name="dati condivisi" {...personal} reload={reloadPersonal} />
         <p>Mostriamo solo i dati attribuibili al tuo account e le evidenze di consenso effettivamente disponibili.</p>
         {personal.data?.warning && <p role="note">{personal.data.warning}</p>}
         {personal.data?.records.length === 0 && <p>Nessun record attribuibile disponibile.</p>}
@@ -173,7 +206,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
         <p>L'esportazione è personale e può contenere risposte sensibili. I dati legacy non attribuibili
           richiedono una verifica separata: un export non dimostra l'assenza di altri dati.</p>
         <Button className={btn.secondary} isDisabled={busy} onPress={() => void exportData()}>Esporta i miei dati</Button>
-        <p>La cancellazione è irreversibile: elimina il profilo Keycloak, le tue risposte e i questionari
+        <p>La cancellazione è irreversibile: elimina il profilo nell’Identity Provider, le tue risposte e i questionari
           che hai creato, comprese tutte le risposte di altre persone a quei questionari.
           Le copie di sicurezza interessate vengono eliminate. Dati non attribuibili, configurazioni
           non sicure o copie esterne non verificate bloccano il completamento. Se serve una rimozione

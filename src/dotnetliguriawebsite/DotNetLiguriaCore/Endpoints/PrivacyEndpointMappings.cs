@@ -1,5 +1,6 @@
 using DotNetLiguriaCore.Authorization;
 using DotNetLiguriaCore.Services.Privacy;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,14 @@ public static class PrivacyEndpointMappings
         var group = endpoints.MapGroup("/api/privacy")
             .RequireAuthorization(new AuthorizeAttribute { AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme })
             .AddEndpointFilter<PrivacyEndpointFilter>();
+        group.MapGet("/profile", async (HttpContext context, KeycloakProfileClient profiles,
+            IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
+            Results.Ok(await profiles.GetAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer),
+                await context.GetTokenAsync(JwtBearerDefaults.AuthenticationScheme, "access_token"), cancellationToken)));
+        group.MapPut("/profile", async (PersonalIdentityUpdate update, HttpContext context, KeycloakProfileClient profiles,
+            IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
+            Results.Ok(await profiles.UpdateAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer),
+                await context.GetTokenAsync(JwtBearerDefaults.AuthenticationScheme, "access_token"), update, cancellationToken)));
         group.MapGet("/status", async (HttpContext context, PrivacyCoordinator coordinator,
             IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
             Results.Ok(new { status = await coordinator.StatusAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer), cancellationToken) }));

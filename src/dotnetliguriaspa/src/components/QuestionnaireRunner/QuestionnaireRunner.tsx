@@ -213,7 +213,7 @@ const QuestionnaireRunner: FC<QuestionnaireRunnerProps> = ({ questionnaire, onSu
       </div>
 
       <p className="text-base text-muted">
-        {identified ? "Accesso verificato da Keycloak: nome ed email non sono salvati con le risposte." : "Questionario anonimo: non inserire dati personali nelle risposte."}
+        {identified ? "Accesso verificato dall’Identity Provider: nome ed email non sono salvati con le risposte." : "Questionario anonimo: non inserire dati personali nelle risposte."}
       </p>
 
       {shownPages.map(section => (

@@ -13,7 +13,7 @@ export default function PrivacyPage() {
     >
       <LegalSummary>
         <li>Il sito non usa strumenti di analisi, pubblicità o profilazione: non ti tracciamo.</li>
-        <li>I questionari possono essere anonimi o collegati al tuo account Keycloak. Nome, cognome ed email dell'account restano nel servizio di identità.</li>
+        <li>I questionari possono essere anonimi o collegati al tuo account nell’Identity Provider. Nome, cognome ed email dell'account restano nel servizio di identità.</li>
         <li>L'iscrizione agli eventi avviene su piattaforme esterne, con la loro informativa.</li>
         <li>Puoi esercitare i tuoi diritti in ogni momento scrivendo al titolare.</li>
       </LegalSummary>
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
 
         <LegalSubsection title="Questionari di feedback">
           <p>
-            Alcuni questionari sono anonimi; altri richiedono l'accesso con Keycloak e il consenso al trattamento.
+            Alcuni questionari sono anonimi; altri richiedono l'accesso con l’Identity Provider e il consenso al trattamento.
             Per i nuovi invii autenticati salviamo solo il riferimento immutabile all'account (emittente e soggetto),
             le risposte, la data e il consenso, non nome, cognome o email. Il riferimento resta un dato personale
             ed è usato anche per impedire invii duplicati quando previsto. Gli invii anonimi non sono collegati all'account,
@@ -68,15 +68,16 @@ export default function PrivacyPage() {
 
         <LegalSubsection title="Account e area riservata">
           <p>
-            Amministratori e partecipanti ai questionari autenticati accedono con Keycloak, il servizio di accesso
-            di Vevy Europe S.p.A. (hello.vevy.com). Nome, cognome ed email dell'account sono conservati in Keycloak,
+            Amministratori e partecipanti ai questionari autenticati accedono con l’Identity Provider, il servizio di accesso
+            di Vevy Europe S.p.A. (hello.vevy.com). Nome, cognome ed email dell'account sono conservati nell’Identity Provider,
             non nel database applicativo. L'applicazione usa riferimenti immutabili per autorizzazione e attribuzione.
             La sola visita delle pagine pubbliche non richiede l'accesso.
           </p>
           <p>
             Nell’<LegalLink to="/area-personale">area personale</LegalLink> puoi leggere i dati attribuibili
             al tuo account, gestire gli avvisi, esportare i dati e richiedere la cancellazione.
-            Nome, email e sicurezza si modificano nella console dell’account Keycloak.
+            Nome e cognome si modificano nell’area personale, che inoltra le modifiche all’Identity Provider senza salvarli localmente.
+            Email e sicurezza si modificano nella console dell’account dell’Identity Provider.
             L’accesso personale non concede funzioni di amministrazione.
           </p>
           <p>Base giuridica: legittimo interesse a gestire il sito in modo sicuro (art. 6, par. 1, lett. f).</p>
@@ -85,7 +86,7 @@ export default function PrivacyPage() {
         <LegalSubsection title="Avvisi sugli eventi">
           <p>
             L'iscrizione agli avvisi è facoltativa, separata dal consenso ai questionari e riservata agli account
-            con email verificata. Il consenso e la sua revoca sono gestiti in Keycloak. Non creiamo un elenco
+            con email verificata. Il consenso e la sua revoca sono gestiti nell’Identity Provider. Non creiamo un elenco
             permanente di indirizzi nel database applicativo e non iscriviamo automaticamente relatori o partecipanti.
           </p>
           <p>
@@ -93,7 +94,7 @@ export default function PrivacyPage() {
             di questa funzione: riferimento immutabile all’account, finalità, versione dell’informativa,
             data, adesione o revoca e stato operativo necessario a verificare la modifica.
             Non vi copiamo nome, email, indirizzo IP o browser. Le evidenze di consensi già presenti
-            in Keycloak sono mostrate separatamente, senza ricostruire una cronologia passata.
+            nell’Identity Provider sono mostrate separatamente, senza ricostruire una cronologia passata.
             Le modifiche in attesa non equivalgono a consensi completati. Cronologia e modifiche
             incompiute attribuibili all’account rientrano nell’esportazione e nella cancellazione.
           </p>
@@ -136,7 +137,7 @@ export default function PrivacyPage() {
       <LegalSection id="destinatari" title="A chi comunichiamo i dati">
         <ul>
           <li>
-            {HOSTING_DETAILS} ospita il sito e i dati e fornisce il servizio di accesso Keycloak per l'area riservata. Tratta i
+            {HOSTING_DETAILS} ospita il sito e i dati e fornisce il servizio di accesso Identity Provider per l'area riservata. Tratta i
             dati per nostro conto come responsabile del trattamento (art. 28 GDPR).
           </li>
           <li>Gli amministratori del sito, del team DotNetLiguria, autorizzati ad accedere ai dati necessari al loro compito.</li>
@@ -176,12 +177,12 @@ export default function PrivacyPage() {
           ogni richiesta deve essere valutata, senza presumere che l'assenza di un account garantisca l'anonimato.
         </p>
         <p>
-          La cancellazione dell'account richiede una verifica MFA recente e riguarda il profilo Keycloak, i dati
+          La cancellazione dell'account richiede una verifica MFA recente e riguarda il profilo nell’Identity Provider, i dati
           applicativi e le copie interessate. Configurazioni di conservazione non sicure o errori operativi
           impediscono di dichiararla conclusa; lo stato deve indicare il blocco e richiede intervento del titolare.
         </p>
         <p>
-          La rimozione dell’identità Keycloak è automatica quando configurata e disponibile. Se occorre
+          La rimozione dell’identità nell’Identity Provider è automatica quando configurata e disponibile. Se occorre
           rimuoverla manualmente, dopo aver verificato la disabilitazione dell’account e rimosso i dati
           del sito e le copie interessate, la richiesta viene accettata ma resta pendente.
           Solo gli amministratori autorizzati possono consultare il riferimento minimo emittente/soggetto

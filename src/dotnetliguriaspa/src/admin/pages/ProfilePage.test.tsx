@@ -18,6 +18,7 @@ const defaults = {
   'privacy/status': { status: 'no_pending_request' },
   'notifications/subscription/': subscription,
   'privacy/data': personal,
+  'privacy/profile': personal.identity,
   'notifications/consents': consents,
 };
 const prepare = (extra: Parameters<typeof mockApi>[0] = {}) => mockApi({
@@ -38,6 +39,9 @@ describe('<ProfilePage />', () => {
     expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato');
     expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveAttribute('readonly');
     expect(screen.getByRole('link', { name: /Modifica account e sicurezza/ })).toHaveAttribute('href', 'https://hello.vevy.com/realms/DotNetLiguria/account');
+    expect(screen.getAllByRole('link').filter(link => link.getAttribute('href') === 'https://hello.vevy.com/realms/DotNetLiguria/account')).toHaveLength(1);
+    expect(document.body).not.toHaveTextContent(/keycloak/i);
+    expect(screen.getByRole('heading', { name: 'Account Identity Provider' })).toBeInTheDocument();
     expect(screen.getByText('Feedback evento')).toBeInTheDocument();
     expect(screen.getByText(/Consenso questionario: prestato/)).toBeInTheDocument();
     expect(screen.getByText('I dati legacy richiedono una verifica separata.')).toBeInTheDocument();
@@ -166,11 +170,71 @@ describe('<ProfilePage />', () => {
   });
 
   test('a failed fresh identity read does not fall back to stale OIDC names', async () => {
-    prepare({ 'privacy/data': () => jsonResponse({}, 503) });
+    prepare({ 'privacy/profile': () => jsonResponse({}, 503) });
     render(<ProfilePage />);
     await screen.findByRole('alert');
     expect(screen.queryByRole('textbox', { name: 'Nome' })).not.toBeInTheDocument();
     expect(screen.getByText(/consenso attuale · versione old-v1/)).toBeInTheDocument();
+  });
+
+  test('forwards only names and keeps email read-only even while editing', async () => {
+    prepare({ 'privacy/profile': (_url: string, init?: RequestInit) => init?.method === 'PUT'
+      ? jsonResponse({ ...personal.identity, firstName: 'Nuovo nome' })
+      : jsonResponse(personal.identity) });
+    render(<ProfilePage />);
+    const controls = user();
+    await controls.click(await screen.findByRole('button', { name: 'Modifica dati personali' }));
+    const name = screen.getByRole('textbox', { name: 'Nome' });
+    const email = screen.getByRole('textbox', { name: /^Email/ });
+    expect(name).not.toHaveAttribute('readonly');
+    await controls.clear(name);
+    await controls.type(name, 'Nuovo nome');
+    expect(email).toHaveAttribute('readonly');
+    expect(email).toHaveValue(personal.identity.email);
+    expect(screen.getByRole('link', { name: 'Modifica account e sicurezza (nuova scheda)' }))
+      .toHaveAttribute('href', 'https://hello.vevy.com/realms/DotNetLiguria/account');
+    expect(screen.getByRole('link', { name: 'Modifica account e sicurezza (nuova scheda)' }))
+      .toHaveAttribute('rel', 'noopener noreferrer');
+    await controls.click(screen.getByRole('button', { name: 'Salva dati personali' }));
+    await screen.findByText(/Dati personali salvati nell’Identity Provider/);
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('privacy/profile'), expect.objectContaining({
+      method: 'PUT', body: JSON.stringify({ firstName: 'Nuovo nome', lastName: 'Cognome aggiornato' }),
+    }));
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Nuovo nome');
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveAttribute('readonly');
+    expect(screen.getByText('Email verificata.')).toBeInTheDocument();
+    expect(JSON.stringify({ ...localStorage, ...sessionStorage })).not.toContain(personal.identity.email);
+  });
+
+  test('cancels edits without sending a write or retaining a draft', async () => {
+    prepare(); render(<ProfilePage />);
+    const controls = user();
+    await controls.click(await screen.findByRole('button', { name: 'Modifica dati personali' }));
+    await controls.type(screen.getByRole('textbox', { name: 'Nome' }), ' modificato');
+    await controls.click(screen.getByRole('button', { name: 'Annulla modifiche' }));
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue(personal.identity.firstName);
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
+  });
+
+  test('keeps rejected edits in memory and does not claim successful persistence', async () => {
+    prepare({ 'privacy/profile': (_url: string, init?: RequestInit) => init?.method === 'PUT'
+      ? jsonResponse({ code: 'profile_update_rejected' }, 400) : jsonResponse(personal.identity) });
+    render(<ProfilePage />);
+    const controls = user();
+    await controls.click(await screen.findByRole('button', { name: 'Modifica dati personali' }));
+    await controls.type(screen.getByRole('textbox', { name: 'Nome' }), ' modificato');
+    await controls.click(screen.getByRole('button', { name: 'Salva dati personali' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Identity Provider ha rifiutato i dati');
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Nome aggiornato modificato');
+    expect(screen.queryByText(/Dati personali salvati/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Salva dati personali' })).toBeEnabled();
+  });
+
+  test('profile editing is independent of unavailable website records', async () => {
+    prepare({ 'privacy/data': () => jsonResponse({}, 503) }); render(<ProfilePage />);
+    await screen.findByRole('alert');
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue(personal.identity.firstName);
+    expect(screen.getByRole('button', { name: 'Modifica dati personali' })).toBeEnabled();
   });
 
   test('pages records and future history with fixed offsets, keeping current evidence separate', async () => {

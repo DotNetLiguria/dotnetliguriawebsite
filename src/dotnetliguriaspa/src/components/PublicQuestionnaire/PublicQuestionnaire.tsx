@@ -81,7 +81,7 @@ const PublicQuestionnaire: FC = () => {
       content = requiresLogin && !isAuthenticated ? (
         <div className={panel}>
           <h1 className="text-3xl font-bold">{q.title}</h1>
-          <p className="mt-3">Questo questionario richiede l'accesso con Keycloak. Nome ed email non vengono salvati con le risposte.</p>
+          <p className="mt-3">Questo questionario richiede l'accesso con l’Identity Provider. Nome ed email non vengono salvati con le risposte.</p>
           <button type="button" className="mt-5 rounded-full bg-navy px-6 py-3 font-bold text-white"
             onClick={() => void login(accountReturnPath(location))}>Accedi per compilare</button>
         </div>
