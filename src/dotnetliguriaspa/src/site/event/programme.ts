@@ -3,7 +3,9 @@ import { clean } from '../format';
 
 export interface ProgrammeSpeaker {
   name: string;
+  workshopSpeakerId?: string | null;
   imageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
   biography?: string;
 }
 
@@ -74,7 +76,7 @@ function fromAgenda(workshop: SiteWorkshop): ProgrammeEntry[] {
       speakers: isTalk
         ? (talk!.speakers ?? [])
           .filter(speaker => clean(speaker.name))
-          .map(speaker => ({ name: clean(speaker.name), imageUrl: speaker.imageUrl, biography: clean(speaker.biography) }))
+          .map(speaker => ({ name: clean(speaker.name), workshopSpeakerId: speaker.workshopSpeakerId, imageUrl: speaker.imageUrl, photoFallbackDisabled: speaker.photoFallbackDisabled, biography: clean(speaker.biography) }))
         : [],
     });
   }
@@ -123,7 +125,10 @@ export function programmeSpeakers(entries: ProgrammeEntry[]) {
       const known = speakers.get(speaker.name);
       if (known) {
         known.sessions += 1;
-        known.imageUrl ??= speaker.imageUrl;
+        if (speaker.photoFallbackDisabled) {
+          known.imageUrl = speaker.imageUrl;
+          known.photoFallbackDisabled = true;
+        } else if (!known.photoFallbackDisabled) known.imageUrl ??= speaker.imageUrl;
         known.biography ||= speaker.biography;
       } else {
         speakers.set(speaker.name, { ...speaker, sessions: 1 });

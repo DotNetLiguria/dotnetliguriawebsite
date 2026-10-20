@@ -89,7 +89,21 @@ try {
                 throw 'Recovery account does not have the full effective application catalogue.'
             }
         }
+        $board = & $runtimeRequest 'GET' "groups/$($plan.Aliases.boardGroup)" $null
+        if (!$board -or $board.id -cne $plan.Aliases.boardGroup -or $board.path -cne '/Board members') {
+            throw 'Runtime credential cannot inspect the configured top-level Board group.'
+        }
+        $boardRoles = @(& $runtimeRequest 'GET' "groups/$($plan.Aliases.boardGroup)/role-mappings/clients/$($plan.Aliases.api)/composite" $null)
+        $expectedBoard = @($fixture.groups | Where-Object name -ceq 'Board members' |
+            ForEach-Object { $_.clientRoles.DotNetLiguriaCore })
+        if (@(Compare-Object $expectedBoard @($boardRoles | ForEach-Object { $_.name })).Count) {
+            throw 'Runtime credential could not verify the exact Board baseline.'
+        }
+        $null = & $runtimeRequest 'GET' "groups/$($plan.Aliases.boardGroup)/role-mappings" $null
+        $null = & $runtimeRequest 'GET' "groups/$($plan.Aliases.boardGroup)/members?first=0&max=1&briefRepresentation=false" $null
+        $null = & $runtimeRequest 'GET' "users/$RecoveryUserId/groups?first=0&max=100" $null
         Write-Host 'Runtime client credentials and application-role inspection verified against the realm.'
+        Write-Host 'Runtime Board-group/member inspection verified read-only. Membership writes still require an explicitly approved interactive check.'
     } finally {
         if ($runtimeConnection) { $runtimeConnection.Client.Dispose() }
         $runtimeSecret = $null
@@ -100,6 +114,7 @@ try {
     Write-Host 'PermissionDirectory__ServiceClientSecret=<not displayed>'
     Write-Host 'PermissionDirectory__ApplicationClientId=DotNetLiguriaCore'
     Write-Host "PermissionDirectory__ProtectedGroupIds__0=$($plan.Aliases.recoveryGroup)"
+    Write-Host "PermissionDirectory__BoardGroupId=$($plan.Aliases.boardGroup)"
     if ($Mode -ne 'InstallLocalSecrets') {
         Write-Host 'To install credentials locally without displaying them, run Mode InstallLocalSecrets with the same arguments. Production requires your approved secret store.'
         return
@@ -117,6 +132,7 @@ try {
         'PermissionDirectory:ServiceClientId' = $RuntimeClientId
         'PermissionDirectory:ServiceClientSecret' = [string]$secretResponse.value
         'PermissionDirectory:ApplicationClientId' = 'DotNetLiguriaCore'
+        'PermissionDirectory:BoardGroupId' = $plan.Aliases.boardGroup
     }
     $protectedIds = @($existing.Keys | Where-Object { $_ -match '^PermissionDirectory:ProtectedGroupIds:\d+$' } |
         Sort-Object | ForEach-Object { $existing[$_] })

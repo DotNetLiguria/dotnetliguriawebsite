@@ -39,6 +39,11 @@ public static class PermissionDirectoryServiceRegistration
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<AccessEndpointFilter>();
         services.AddScoped<AccessManagementService>();
+        services.AddScoped<IBoardAccountStore>(provider => provider.GetRequiredService<BoardService>());
+        services.AddScoped<BoardAccountService>();
+        services.AddScoped<ISpeakerOnboardingDirectory>(provider => provider.GetRequiredService<KeycloakPermissionDirectory>());
+        services.AddScoped<ISpeakerAccountStore, MongoSpeakerAccountStore>();
+        services.AddScoped<SpeakerAccountService>();
         return services;
     }
 }

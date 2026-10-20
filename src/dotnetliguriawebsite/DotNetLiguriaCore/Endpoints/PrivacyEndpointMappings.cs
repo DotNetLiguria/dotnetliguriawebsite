@@ -34,10 +34,8 @@ public static class PrivacyEndpointMappings
             IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
             Results.Ok(await coordinator.DataAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer), offset ?? 0, cancellationToken)));
         group.MapPost("/erase", async (HttpContext context, PrivacyCoordinator coordinator,
-            IOptions<PrivacyOptions> options, TimeProvider clock, CancellationToken cancellationToken) =>
+            IOptions<PrivacyOptions> options, CancellationToken cancellationToken) =>
         {
-            if (!RecentMfa.IsSatisfied(context.User, clock))
-                return Results.Problem(statusCode: 403, title: "Recent MFA is required", extensions: new Dictionary<string, object?> { ["code"] = "recent_mfa_required" });
             if (context.Request.Headers["X-Confirm-Erasure"] != "erase-my-account")
                 return Results.BadRequest(new { code = "explicit_erasure_confirmation_required" });
             var status = await coordinator.EraseAsync(AccountReference.FromPrincipal(context.User, options.Value.Issuer), cancellationToken);

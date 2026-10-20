@@ -10,7 +10,7 @@ import SpeakerAvatar from '../SpeakerAvatar';
 import { ExternalLink, Icon, newTabLabel } from '../icons';
 import { Badge, LogoArc, PrimaryAction } from '../ui';
 import { API_BASE_URL } from '../../config/apiConfig';
-import { SiteFile, contentUrl, getSpeakers, getWorkshop } from '../siteApi';
+import { SiteFile, SiteSpeaker, contentUrl, getSpeakers, getWorkshop } from '../siteApi';
 import { clean, eventPhase, formatTimeRange, formatWeekday } from '../format';
 import { absoluteUrl, summarize } from '../seo';
 import { eventJsonLd } from '../structuredData';
@@ -58,8 +58,11 @@ export default function EventDetailPage() {
 
   const workshop = load.state === 'ready' ? load.data : null;
   const photoByName = useMemo(() => {
-    const map = new Map<string, string | null | undefined>();
-    if (speakerRecords.state === 'ready') for (const s of speakerRecords.data) map.set(clean(s.name).toLowerCase(), s.profileImageUrl);
+    const map = new Map<string, SiteSpeaker>();
+    if (speakerRecords.state === 'ready') for (const s of speakerRecords.data) {
+      map.set(s.workshopSpeakerId, s);
+      map.set(clean(s.name).toLowerCase(), s);
+    }
     return map;
   }, [speakerRecords]);
   const safeHtml = useMemo(() => (workshop?.blogHtml ? DOMPurify.sanitize(workshop.blogHtml, { USE_PROFILES: { html: true } }) : ''), [workshop]);
@@ -104,7 +107,15 @@ export default function EventDetailPage() {
   const span = programmeSpan(entries);
   const sessions = sessionCount(entries);
   const tracks = trackCount(workshop);
-  const speakers = programmeSpeakers(entries);
+  const speakers = programmeSpeakers(entries).map(speaker => {
+    const canonical = photoByName.get(speaker.workshopSpeakerId || speaker.name.toLowerCase());
+    return {
+      ...speaker,
+      imageUrl: speaker.photoFallbackDisabled ? speaker.imageUrl : canonical?.photoFallbackDisabled
+        ? canonical.profileImageUrl : speaker.imageUrl || canonical?.profileImageUrl,
+      photoFallbackDisabled: speaker.photoFallbackDisabled || canonical?.photoFallbackDisabled,
+    };
+  });
   // Practical notes ("bring your laptop") only matter before the event.
   const notes = phase.tone !== 'done' ? clean(workshop.attendeeNotes) : '';
   const image = contentUrl(workshop.image);
@@ -190,7 +201,7 @@ export default function EventDetailPage() {
                 {speakers.map(speaker => (
                   <li key={speaker.name} className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-card">
                     <div className="flex items-center gap-4">
-                      <SpeakerAvatar name={speaker.name} profileImageUrl={speaker.imageUrl || photoByName.get(speaker.name.toLowerCase())} />
+                      <SpeakerAvatar name={speaker.name} photoFallbackDisabled={speaker.photoFallbackDisabled} profileImageUrl={speaker.imageUrl} />
                       <div className="min-w-0">
                         <p className="text-lg font-bold leading-tight">{speaker.name}</p>
                         <p className="text-base text-muted">{sessionsLabel(speaker.sessions)}</p>

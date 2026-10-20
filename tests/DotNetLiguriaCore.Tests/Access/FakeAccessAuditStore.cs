@@ -7,12 +7,14 @@ namespace DotNetLiguriaCore.Tests.Access;
 internal sealed class FakeAccessAuditStore : IAccessAuditStore
 {
     public List<AccessAuditEntry> Entries { get; } = [];
+    public bool FailAppend { get; set; }
     public IReadOnlyList<BsonDocument> ExportDocuments { get; set; } = [];
     public AccountReference? ExportedAccount { get; private set; }
     public AccountReference? ErasedAccount { get; private set; }
 
     public Task AppendAsync(AccessAuditEntry entry, CancellationToken cancellationToken)
     {
+        if (FailAppend) throw new IOException("Audit unavailable");
         Entries.Add(entry);
         return Task.CompletedTask;
     }

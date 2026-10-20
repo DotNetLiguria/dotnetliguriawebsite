@@ -22,15 +22,19 @@ public sealed class PrivacyRouteContractTests
     private readonly FakeAccountPrivacyStore _data = new();
 
     [Fact]
-    public async Task ErasureRequiresRecentMfaAndExplicitConfirmation()
+    public async Task SelfErasureRequiresExplicitConfirmationButNotRecentMfa()
     {
         await using var app = CreateApp();
-        var noMfa = await InvokeAsync(app, "/api/privacy/erase", "POST", mfa: false, confirmation: "erase-my-account");
-        Assert.Equal(403, noMfa.Response.StatusCode);
-        var noConfirmation = await InvokeAsync(app, "/api/privacy/erase", "POST", mfa: true);
+        var noConfirmation = await InvokeAsync(app, "/api/privacy/erase", "POST", mfa: false);
         Assert.Equal(400, noConfirmation.Response.StatusCode);
         Assert.Empty(_journal.Operations);
         Assert.Equal(0, _data.Erasures);
+
+        var noMfa = await InvokeAsync(app, "/api/privacy/erase", "POST", mfa: false, confirmation: "erase-my-account");
+        Assert.Equal(200, noMfa.Response.StatusCode);
+        Assert.Equal("completed", (await ReadAsync(noMfa)).GetProperty("status").GetString());
+        Assert.Empty(_journal.Operations);
+        Assert.Equal(1, _data.Erasures);
     }
 
     [Fact]

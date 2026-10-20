@@ -23,7 +23,7 @@ public static class PermissionCatalog
         "privacy.operations.read", "privacy.operations.manage", "privacy.identities.read",
         "privacy.notifications.retry", "privacy.retention.read", "privacy.retention.manage",
         "notifications.preview", "notifications.confirm",
-        "access.users.read", "access.permissions.grant", "access.permissions.revoke", "access.audit.read",
+        "access.users.read", "access.users.create", "access.permissions.grant", "access.permissions.revoke", "access.audit.read",
     });
 
     private static readonly FrozenSet<string> _known = Ids.ToFrozenSet(StringComparer.Ordinal);

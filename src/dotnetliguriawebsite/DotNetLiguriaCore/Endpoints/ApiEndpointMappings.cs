@@ -116,7 +116,7 @@ public static class ApiEndpointMappings
 
     private static void MapBoardEndpoints(RouteGroupBuilder api)
     {
-        var board = api.MapGroup("/Board").WithTags("Board");
+        var board = api.MapGroup("/Board").WithTags("Board").AddEndpointFilter<PrivacyEndpointFilter>();
         board.MapGet("/Get", async (bool? onlyActive, HttpContext context, BoardService boardService,
             IAuthorizationService authorizationService) =>
         {
@@ -561,7 +561,7 @@ public static class ApiEndpointMappings
 
     private static void MapSpeakerEndpoints(RouteGroupBuilder api)
     {
-        var speaker = api.MapGroup("/Speaker").WithTags("Speaker");
+        var speaker = api.MapGroup("/Speaker").WithTags("Speaker").AddEndpointFilter<PrivacyEndpointFilter>();
         speaker.MapGet("/Get", async (bool? onlyActive, HttpContext context, SpeakerService speakerService,
             IAuthorizationService authorizationService) =>
         {
@@ -800,6 +800,7 @@ public static class ApiEndpointMappings
             foreach (var item in items)
             {
                 AddWorkshopSpeakers(item, speakers);
+                await speakerService.ApplyTalkPhotosAsync(item);
                 AddWorkshopFiles(item, files[item.WorkshopId]);
             }
             page?.WriteHeaders(context);
@@ -830,11 +831,17 @@ public static class ApiEndpointMappings
             await AddWorkshopFiles(item, workshopFileService);
             return Results.Ok(PublicWorkshopProjection.From(item));
         }).AllowAnonymous();
-        workshop.MapGet("/GetByYear/{year}", async (int year, WorkshopService workshopService, HttpContext context) =>
+        workshop.MapGet("/GetByYear/{year}", async (int year, WorkshopService workshopService, SpeakerService speakerService, HttpContext context) =>
         {
             if (year is < 1900 or > 9998) return Results.BadRequest("Anno non valido.");
             var page = CollectionWindow.From(context);
             var items = await workshopService.GetByYearAsync(year, page);
+            var speakers = await speakerService.GetAsync();
+            foreach (var item in items)
+            {
+                AddWorkshopSpeakers(item, speakers);
+                await speakerService.ApplyTalkPhotosAsync(item);
+            }
             page?.WriteHeaders(context);
             return Results.Ok(items.Select(PublicWorkshopProjection.From));
         }).AllowAnonymous();
@@ -1220,10 +1227,18 @@ public static class ApiEndpointMappings
     private static async Task AddWorkshopSpeakers(Workshop workshop, SpeakerService service)
     {
         AddWorkshopSpeakers(workshop, await service.GetAsync());
+        await service.ApplyTalkPhotosAsync(workshop);
     }
 
     private static void AddWorkshopSpeakers(Workshop workshop, IReadOnlyCollection<WorkshopSpeaker> speakers)
     {
+        var byId = speakers.ToDictionary(x => x.WorkshopSpeakerId);
+        foreach (var snapshot in (workshop.Talks ?? []).SelectMany(x => x.Speakers ?? []))
+            if (snapshot.WorkshopSpeakerId is Guid id && byId.TryGetValue(id, out var current) && current.PhotoFallbackDisabled)
+            {
+                snapshot.ImageUrl = current.ProfileImageUrl;
+                snapshot.PhotoFallbackDisabled = true;
+            }
         foreach (var track in workshop.Tracks ?? [])
         {
             if (track.Speakers is not { Count: > 0 })
@@ -1289,6 +1304,7 @@ public static class ApiEndpointMappings
         board.Name,
         board.Description,
         board.ProfileImageUrl,
+        board.PhotoFallbackDisabled,
         board.BlogHtml,
         board.LInkedinUrl,
         board.TwitterUrl,
@@ -1306,6 +1322,7 @@ public static class ApiEndpointMappings
         speaker.WorkshopSpeakerId,
         speaker.Name,
         speaker.ProfileImageUrl,
+        speaker.PhotoFallbackDisabled,
         speaker.IsActive,
         speaker.Description,
     };

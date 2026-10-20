@@ -6,6 +6,7 @@ export interface BoardProfileModel {
   email: string;
   imageUrl: string;
   profileImageUrl: string;
+  photoFallbackDisabled?: boolean;
   profileBio: string;
   shortBio?: string;
   description?: string;

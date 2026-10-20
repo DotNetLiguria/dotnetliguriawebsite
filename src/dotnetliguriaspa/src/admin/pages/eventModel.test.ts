@@ -3,7 +3,7 @@ import { eventFixture } from './eventFixtures';
 import {
   AgendaDraftState, EventApiError, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, autoFillSchedule, buildWorkshopUpdate,
   coreValuesOf, dateInputValue, detailMessage, eventbriteIssues, eventbriteStatusLabel, initAgenda, isPublished, moveItem,
-  parseRooms, problemMessage, registrationOf, setTrackCount, statusMessage, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave,
+  parseRooms, problemMessage, registrationOf, setTrackCount, statusMessage, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave, talkSpeakersFrom,
 } from './eventModel';
 
 const draft = (overrides: Partial<AgendaDraftState> = {}): AgendaDraftState => ({
@@ -15,6 +15,11 @@ const draft = (overrides: Partial<AgendaDraftState> = {}): AgendaDraftState => (
   items: [],
   bookingServiceUrl: '', eventbriteTicketCapacity: 0, eventbriteSalesStart: '', eventbriteSalesEnd: '', attendeeNotes: '',
   ...overrides,
+});
+
+it('preserves managed photo fallback policy when copying directory speakers into a talk', () => {
+  expect(talkSpeakersFrom([{ workshopSpeakerId: 'speaker-1', name: 'Ada', profileImageUrl: null, photoFallbackDisabled: true }]))
+    .toEqual([{ workshopSpeakerId: 'speaker-1', name: 'Ada', imageUrl: undefined, photoFallbackDisabled: true, biography: undefined }]);
 });
 
 describe('buildWorkshopUpdate', () => {

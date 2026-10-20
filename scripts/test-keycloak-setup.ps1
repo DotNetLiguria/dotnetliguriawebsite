@@ -27,7 +27,7 @@ function New-FakeProvider {
         Counter = 100; Writes = 0; Reads = 0; FailWrite = 0
         Clients = @{}; Scopes = @{}; Roles = @{}; Groups = @{}; Mappings = @{}
         Defaults = @{}; Optional = @{}; Mappers = @{}; Memberships = @{}
-        ScopeRealmMappings = @{}; ScopeClientMappings = @{}
+        ScopeRealmMappings = @{}; ScopeClientMappings = @{}; GroupRealmMappings = @{}
         Users = @{
             $recoveryId = @{ id = $recoveryId; username = 'synthetic-recovery'; enabled = $true }
         }
@@ -167,7 +167,16 @@ function New-FakeProvider {
             $state.Mappings[$Path] = @($current) + @($Body)
             return
         }
-        if ($Path -match '^groups\?search=') { return @($state.Groups.Values) }
+        if ($Path -match '^groups/([^/]+)/role-mappings$') {
+            $key = "groups/$($Matches[1])/role-mappings/clients/$($state.ApiId)"
+            $mapped = if ($state.Mappings.ContainsKey($key)) { @($state.Mappings[$key]) } else { @() }
+            $realm = if ($state.GroupRealmMappings.ContainsKey($Matches[1])) { @($state.GroupRealmMappings[$Matches[1]]) } else { @() }
+            return @{ realmMappings = $realm; clientMappings = @{ DotNetLiguriaCore = @{ id = $state.ApiId; mappings = $mapped } } }
+        }
+        if ($Path -match '^groups\?search=([^&]+)') {
+            $name = [uri]::UnescapeDataString($Matches[1])
+            return @($state.Groups.Values | Where-Object { $_.name -ceq $name })
+        }
         if ($Path -match '^groups/([^/]+)/members\?first=0&max=101$') {
             $groupId = $Matches[1]
             return @($state.Memberships.Keys | Where-Object { $groupId -cin $state.Memberships[$_] } |
@@ -185,7 +194,8 @@ function New-FakeProvider {
                 if ($state.Memberships.ContainsKey($id)) { return @($state.Memberships[$id] | ForEach-Object { $state.Groups[$_] }) }
                 return @()
             }
-            $state.Memberships[$id] = @($Matches[2])
+            $existing = if ($state.Memberships.ContainsKey($id)) { @($state.Memberships[$id]) } else { @() }
+            $state.Memberships[$id] = @($existing + $Matches[2] | Select-Object -Unique)
             return
         }
         if ($Path -match '^users/([^/]+)$') { return $state.Users[$Matches[1]] }
@@ -212,7 +222,7 @@ Test-Case 'Preview is read-only and plans the complete missing setup' {
     $provider = New-FakeProvider
     $plan = New-TestPlan $provider -Grant
     Assert-True ($provider.State.Writes -eq 0) 'Preview wrote to realm'
-    Assert-True (@($plan.Actions | Where-Object Label -like 'Create permission *').Count -eq 52) 'Missing role actions'
+    Assert-True (@($plan.Actions | Where-Object Label -like 'Create permission *').Count -eq 53) 'Missing role actions'
     Assert-True (@($plan.Actions | Where-Object Label -eq 'Create dedicated runtime permission client').Count -eq 1) 'Missing runtime client action'
 }
 Test-Case 'Apply is repeatable and preserves existing client configuration' {
@@ -225,7 +235,7 @@ Test-Case 'Apply is repeatable and preserves existing client configuration' {
     Assert-True (!$spa.fullScopeAllowed -and !$spa.consentRequired) 'SPA remained permissive'
     Assert-True ($spa.attributes.keep -eq 'unchanged') 'Unrelated client attributes changed'
     Assert-True ($spa.redirectUris[0] -eq 'https://localhost:5443/callback') 'Redirect changed'
-    Assert-True ($provider.State.Roles[$provider.State.ApiId].Count -eq 52) 'Role catalogue mismatch'
+    Assert-True ($provider.State.Roles[$provider.State.ApiId].Count -eq 53) 'Role catalogue mismatch'
     $scopeId = $second.Aliases.scope
     Assert-True ($provider.State.Scopes[$scopeId].attributes['display.on.consent.screen'] -eq 'false') 'Internal scope shows on consent'
 }
@@ -242,7 +252,37 @@ Test-Case 'SPA tokens are scoped to exactly the personal-page account roles' {
 Test-Case 'Without explicit recovery flag the tool never grants user/group access' {
     $provider = New-FakeProvider
     $plan = New-TestPlan $provider
-    Assert-True (@($plan.Actions | Where-Object { $_.Path -like 'groups/*/role-mappings/*' -or $_.Path -like "users/$recoveryId/groups/*" }).Count -eq 0) 'Implicit recovery grants'
+    Assert-True (@($plan.Actions | Where-Object { $_.Path -like 'groups/{recoveryGroup}/role-mappings/*' -or $_.Path -like "users/$recoveryId/groups/*" }).Count -eq 0) 'Implicit recovery grants'
+    Assert-True (@($plan.Actions | Where-Object { $_.Path -like 'users/*/groups/*' }).Count -eq 0) 'Implicit Board enrollment'
+}
+Test-Case 'Board group receives exactly the approved baseline and never enrolls users' {
+    $provider = New-FakeProvider
+    $plan = New-TestPlan $provider
+    Invoke-KeycloakSetupPlan -Plan $plan -Request $provider.Request
+    $next = New-TestPlan $provider
+    $id = $next.Aliases.boardGroup
+    Assert-True ($id -and $id -cne $next.Aliases.recoveryGroup) 'Missing separate Board group'
+    $roles = @($provider.State.Mappings["groups/$id/role-mappings/clients/$($provider.State.ApiId)"] | ForEach-Object { $_.name })
+    $expected = @('events.read', 'event-assets.read', 'speakers.read', 'venues.read', 'board.read', 'site-menu.read', 'questionnaires.read', 'questionnaire-results.read')
+    Assert-True ($roles.Count -eq 8 -and @(Compare-Object $roles $expected).Count -eq 0) 'Unexpected Board baseline'
+    Assert-True ($provider.State.Memberships.Count -eq 0) 'Provisioning enrolled users'
+    Assert-True ($next.Actions.Count -eq 0) 'Board setup is not idempotent'
+    $provider.State.Mappings["groups/$id/role-mappings/clients/$($provider.State.ApiId)"] +=
+        @($provider.State.Roles[$provider.State.ApiId] | Where-Object name -eq 'events.manage')
+    Assert-Fails { New-TestPlan $provider } 'unexpected permissions'
+}
+Test-Case 'Board group realm grants and nested groups fail preflight without writes' {
+    $provider = New-FakeProvider
+    $plan = New-TestPlan $provider
+    Invoke-KeycloakSetupPlan -Plan $plan -Request $provider.Request
+    $id = $plan.Aliases.boardGroup
+    $writes = $provider.State.Writes
+    $provider.State.GroupRealmMappings[$id] = @(@{ name = 'realm-admin' })
+    Assert-Fails { New-TestPlan $provider } 'unexpected realm roles'
+    $provider.State.GroupRealmMappings.Remove($id)
+    $provider.State.Groups[$id].path = '/parent/Board members'
+    Assert-Fails { New-TestPlan $provider } 'top-level group'
+    Assert-True ($provider.State.Writes -eq $writes) 'Drift preview changed the provider'
 }
 Test-Case 'Composite application roles fail during preflight before any write' {
     $provider = New-FakeProvider

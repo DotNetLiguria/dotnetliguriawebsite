@@ -7,6 +7,7 @@ export interface WorkshopTalkSpeakerModel {
   sessionizeId?: string;
   name: string;
   imageUrl?: string;
+  photoFallbackDisabled?: boolean;
   biography?: string;
 }
 

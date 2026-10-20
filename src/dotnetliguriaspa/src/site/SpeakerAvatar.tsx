@@ -2,8 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { photoCandidates } from './speakerPhotos';
 
 /** Round speaker portrait in the site's duotone style, with initials as fallback. */
-export default function SpeakerAvatar({ name, profileImageUrl, size = 'size-20' }: { name: string; profileImageUrl?: string | null; size?: string }) {
-  const sources = useMemo(() => photoCandidates(name, profileImageUrl), [name, profileImageUrl]);
+export default function SpeakerAvatar({ name, profileImageUrl, photoFallbackDisabled = false, size = 'size-20' }: { name: string; profileImageUrl?: string | null; photoFallbackDisabled?: boolean; size?: string }) {
+  const sources = useMemo(() => photoCandidates(name, profileImageUrl, photoFallbackDisabled), [name, profileImageUrl, photoFallbackDisabled]);
+  return <Portrait key={JSON.stringify(sources)} name={name} sources={sources} size={size} />;
+}
+
+function Portrait({ name, sources, size }: { name: string; sources: string[]; size: string }) {
   const [index, setIndex] = useState(0);
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 

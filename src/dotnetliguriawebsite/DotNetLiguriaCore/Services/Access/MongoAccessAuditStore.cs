@@ -114,7 +114,8 @@ public sealed class MongoAccessAuditStore : IAccessAuditStore
         { "TargetIssuer", entry.TargetIssuer },
         { "TargetSubject", entry.TargetSubject },
         { "Outcome", entry.Outcome },
-        { "CorrelationId", entry.CorrelationId }
+        { "CorrelationId", entry.CorrelationId },
+        { "GroupId", entry.GroupId is null ? BsonNull.Value : new BsonString(entry.GroupId) }
     };
 
     private static AccessAuditEntry ToEntry(BsonDocument document)
@@ -126,7 +127,8 @@ public sealed class MongoAccessAuditStore : IAccessAuditStore
                 document["Action"].AsString, document["Permission"].AsString,
                 document["ActorIssuer"].AsString, document["ActorSubject"].AsString,
                 document["TargetIssuer"].AsString, document["TargetSubject"].AsString,
-                document["Outcome"].AsString, document["CorrelationId"].AsString);
+                document["Outcome"].AsString, document["CorrelationId"].AsString,
+                document.TryGetValue("GroupId", out var groupId) && !groupId.IsBsonNull ? groupId.AsString : null);
         }
         catch (Exception exception) when (exception is KeyNotFoundException or InvalidCastException or FormatException)
         {

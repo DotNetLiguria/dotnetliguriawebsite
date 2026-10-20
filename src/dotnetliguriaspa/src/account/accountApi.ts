@@ -4,6 +4,21 @@ import { API_BASE_URL } from '../config/apiConfig';
 import { permissionsDenied } from './permissions';
 
 const messages: Record<string, string> = {
+  photo_changed_reload: 'La foto o la sua fonte è cambiata. Ricarica lo stato prima di riprovare.',
+  photo_source_unavailable: 'Questa fonte non è più disponibile o non è autorizzata. Ricarica le foto disponibili.',
+  photo_source_empty: 'La fonte selezionata non contiene una foto. Scegli un’altra fonte.',
+  account_photo_required: 'La foto account non è disponibile. Carica prima una foto account oppure scegli una copia fissa.',
+  confirm_board_unpublication: 'La rimozione richiede una conferma esplicita: le schede Board indicate verranno nascoste.',
+  board_photo_required_to_publish: 'Carica o seleziona una foto valida prima di pubblicare la scheda Board.',
+  photo_storage_limit: 'Spazio disponibile per le foto esaurito. Richiedi assistenza.',
+  photo_profile_limit: 'Il numero di profili collegati supera il limite verificabile. Richiedi assistenza.',
+  invalid_photo_upload: 'Carica una foto JPEG, PNG o WebP non vuota, fino a 5 MiB.',
+  unsupported_photo: 'Il formato della foto non è supportato. Usa JPEG, PNG o WebP.',
+  invalid_photo_data: 'Il file non è un’immagine valida o supera le dimensioni consentite. Scegli un’altra foto.',
+  invalid_photo_crop: 'Il ritaglio non è valido. Ricarica la foto e imposta un nuovo ritaglio.',
+  photo_missing: 'La foto non è disponibile. Ricarica lo stato o richiedi assistenza.',
+  photo_storage_not_configured: 'Il servizio foto non è ancora configurato. Richiedi assistenza.',
+  unsafe_photo_storage: 'Il servizio foto è bloccato dalle protezioni dello storage. Richiedi assistenza.',
   recent_mfa_required: 'È richiesta una verifica MFA recente. Verifica MFA e conferma di nuovo.',
   erasure_preflight_blocked: 'Cancellazione bloccata: dati o regole di conservazione richiedono un intervento amministrativo.',
   identity_admin_not_configured: 'Il collegamento amministrativo all’Identity Provider non è configurato.',

@@ -6,12 +6,13 @@ using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Driver;
 using DotNetLiguriaCore.Services.Privacy;
+using DotNetLiguriaCore.Services.Photos;
 
 namespace DotNetLiguriaCore.Services;
 
 public sealed class DatabaseBackupService : IPrivacySnapshotStore
 {
-    private const int _manifestVersion = 1;
+    private const int _manifestVersion = 2;
     private const int _insertBatchSize = 500;
     private static readonly Regex _snapshotIdPattern = new(
         @"^(?:safety-)?[0-9]{8}T[0-9]{9}Z-[a-f0-9]{8}$",
@@ -49,6 +50,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
     private readonly PrivacyOperationGate _operationGate;
     private readonly IErasureJournal? _erasureJournal;
     private readonly PrivacyOptions _privacyOptions;
+    private readonly PhotoSnapshotService? _photos;
 
     public DatabaseBackupService(
         IOptions<DotNetLiguriaDatabaseSettings> settings,
@@ -57,7 +59,8 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         ILogger<DatabaseBackupService> logger,
         PrivacyOperationGate? operationGate = null,
         IErasureJournal? erasureJournal = null,
-        IOptions<PrivacyOptions>? privacyOptions = null)
+        IOptions<PrivacyOptions>? privacyOptions = null,
+        PhotoSnapshotService? photos = null)
     {
         var databaseSettings = settings.Value;
         var client = new MongoClient(databaseSettings.ConnectionString);
@@ -68,6 +71,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         _operationGate = operationGate ?? PrivacyOperationGate.Shared;
         _erasureJournal = erasureJournal;
         _privacyOptions = privacyOptions?.Value ?? new PrivacyOptions();
+        _photos = photos;
     }
 
     public static bool IsValidSnapshotId(string? snapshotId) =>
@@ -129,9 +133,15 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
             snapshotEpoch.BsonType != BsonType.String || snapshotEpoch.AsString != epoch)
             throw new PrivacyBlockedException("snapshot_predates_privacy_boundary");
         await ValidateSnapshotFilesAsync(snapshotId, manifest, cancellationToken);
+        await PhotoSnapshotService.ValidateAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
+        if ((await PhotoSnapshotService.ReadAssetsAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken)).Count > 0 && _photos is null)
+            throw new InvalidDataException("Photo storage is required to restore this snapshot.");
 
         var safetySnapshot = await CreateSnapshotAsync(true, cancellationToken);
+        var previousAssets = _photos is null ? [] : await _photos.CurrentAssetsAsync(cancellationToken);
         await ReplaceDatabaseAsync(manifest, snapshotId, cancellationToken);
+        if (_photos is not null) await _photos.RestoreAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
+        if (_photos is not null) await _photos.RemoveReplacedAssetsAsync(previousAssets, cancellationToken);
         return new BackupRestoreResult(snapshotId, safetySnapshot);
     }
 
@@ -219,6 +229,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
 
         try
         {
+            if (_photos is not null) await _photos.PrepareAsync(cancellationToken);
             var collectionInfos = await GetCollectionInfosAsync(cancellationToken);
             var collectionManifest = new BsonArray();
             long totalDocumentCount = 0;
@@ -258,6 +269,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
                 { "collections", collectionManifest },
             };
             if (name is not null) manifest.Add("name", name);
+            if (_photos is not null) manifest.Add("photos", await _photos.CaptureAsync(temporaryPath, cancellationToken));
             ValidateManifest(manifest);
             await File.WriteAllTextAsync(
                 Path.Combine(temporaryPath, "manifest.json"),
@@ -360,7 +372,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
     {
         if (!manifest.TryGetValue("version", out var version) ||
             version.BsonType != BsonType.Int32 ||
-            version.AsInt32 != _manifestVersion ||
+            version.AsInt32 is not (1 or _manifestVersion) ||
             !manifest.TryGetValue("createdAtUtc", out var createdAt) ||
             createdAt.BsonType != BsonType.DateTime ||
             !manifest.TryGetValue("isSafetySnapshot", out var isSafetySnapshot) ||

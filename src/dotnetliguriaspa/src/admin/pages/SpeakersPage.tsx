@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PermissionGate, useCan } from '../../account/PermissionGate';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Dialog, Form, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
@@ -8,14 +8,24 @@ import { AdminApiError, AdminSpeaker, AdminWorkshop, clean, nameKey, useAdminFet
 import { notify } from '../toasts';
 import { formatDate } from '../../site/format';
 import { programme } from '../../site/event/programme';
+import PhotoEditor from '../../account/PhotoEditor';
+import SpeakerAccountPanel from './SpeakerAccountPanel';
 
 interface Talk { title: string; workshopId: string; event: string; date: string }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const pill = `inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-4 font-semibold text-navy transition-colors data-[hovered]:border-cyan-200 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white ${focusRing}`;
-const errorText = (error: unknown) => error instanceof AdminApiError
-  ? error.status === 409 ? 'Esiste già un relatore con questo nome.' : error.message
-  : 'Errore di rete';
+const errorText = (error: unknown) => {
+  if (!(error instanceof AdminApiError)) return 'Errore di rete';
+  const messages: Record<string, string> = {
+    speaker_photo_merge_requires_review: 'Le schede duplicate contengono foto gestite: verifica le foto e le relative fonti prima di unire i profili. L’unione automatica è bloccata.',
+    photo_changed_reload: 'La foto è cambiata. Ricarica la scheda e verifica la fonte prima di salvare di nuovo.',
+    board_photo_required_to_publish: 'Per pubblicare la scheda Board occorre prima caricare o selezionare una foto valida.',
+  };
+  return messages[error.code] ?? (error.detail || (error.status === 409
+    ? 'Operazione in conflitto con lo stato attuale. Ricarica e verifica nomi, collegamenti account e foto prima di riprovare.'
+    : error.message));
+};
 
 function talksBySpeaker(workshops: AdminWorkshop[]) {
   const map = new Map<string, Talk[]>();
@@ -35,10 +45,19 @@ const draftOf = (s?: AdminSpeaker): Draft => ({
   name: clean(s?.name), email: clean(s?.email), description: s?.description ?? '', profileImageUrl: s?.profileImageUrl ?? '', isActive: s?.isActive ?? true,
 });
 
-function SpeakerForm({ speaker, onCancel, onSaved }: { speaker?: AdminSpeaker; onCancel: () => void; onSaved: (id: string) => void }) {
+function SpeakerForm({ speaker, onCancel, onSaved, onPhotoChanged }: { speaker?: AdminSpeaker; onCancel: () => void; onSaved: (id: string) => void; onPhotoChanged?: () => void }) {
   const api = useAdminFetch();
   const [draft, setDraft] = useState<Draft>(() => draftOf(speaker));
   const [saving, setSaving] = useState(false);
+  const previousSpeaker = useRef(speaker);
+  useEffect(() => {
+    const previous = previousSpeaker.current;
+    previousSpeaker.current = speaker;
+    if (speaker && previous) setDraft(current => ({
+      ...current,
+      profileImageUrl: current.profileImageUrl === (previous.profileImageUrl ?? '') ? speaker.profileImageUrl ?? '' : current.profileImageUrl,
+    }));
+  }, [speaker]);
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
 
   const submit = async (event: React.FormEvent) => {
@@ -67,7 +86,9 @@ function SpeakerForm({ speaker, onCancel, onSaved }: { speaker?: AdminSpeaker; o
       <TextInput label="Nome" isRequired value={draft.name} onChange={set('name')} autoFocus validate={value => (clean(value) ? null : 'Il nome è obbligatorio.')} />
       <TextInput label="Email" type="email" value={draft.email} onChange={set('email')} description="Resta nell'amministrazione: non compare sul sito." />
       <TextAreaInput label="Biografia" rows={5} value={draft.description} onChange={set('description')} description="Due o tre righe in terza persona." />
-      <TextInput label="Foto" value={draft.profileImageUrl} onChange={set('profileImageUrl')} placeholder="speakers/nome_cognome.jpg oppure https://…" description="Percorso sotto /Contents o indirizzo completo. Il caricamento diretto della foto è da completare." />
+      <TextInput label="Foto (percorso storico)" value={draft.profileImageUrl} onChange={set('profileImageUrl')} placeholder="speakers/nome_cognome.jpg oppure https://…" description="Percorso sotto /Contents o indirizzo completo; applicato con Salva. Le foto gestite si modificano separatamente qui sotto." />
+      {speaker ? <PhotoEditor scope="speaker" id={speaker.workshopSpeakerId} onChanged={onPhotoChanged} />
+        : <p className="text-sm text-muted">Salva prima il relatore, poi carica o seleziona la foto nella scheda. Non sono necessari email o account.</p>}
       <SwitchInput isSelected={draft.isActive} onChange={set('isActive')}>Attivo</SwitchInput>
       <div className="flex flex-wrap justify-end gap-2 pt-2">
         <Button onPress={onCancel} className={btn.ghost}>Annulla</Button>
@@ -135,7 +156,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
 
       <div className="space-y-5 p-5 sm:p-6">
         {mode === 'edit' ? (
-          <SpeakerForm speaker={speaker} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} />
+          <SpeakerForm speaker={speaker} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} onPhotoChanged={onChanged} />
         ) : (
           <>
             {duplicates.length > 0 && (
@@ -149,7 +170,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
             {photo === null && (
               <div className="rounded-xl bg-[#fff4e5] p-4 text-[#8a4b00]">
                 <p className="font-bold">Manca la foto</p>
-                <p className="text-sm">Sul sito compare con le iniziali. Indica il percorso della foto in Modifica; il caricamento diretto è da completare.</p>
+                <p className="text-sm">Sul sito compare con le iniziali. Carica o seleziona una foto in Modifica, anche senza email o account.</p>
               </div>
             )}
             <div>
@@ -176,6 +197,7 @@ function SpeakerCard({ speaker, photo, talks, duplicates, onChanged, onDeleted }
               <div><dt className="font-semibold text-muted">Email</dt><dd className="break-all">{clean(speaker.email) || '—'}</dd></div>
               <div><dt className="font-semibold text-muted">Sessionize</dt><dd>{clean(speaker.sessionizeId) || 'Non collegato'}</dd></div>
             </dl>
+            <SpeakerAccountPanel speakerId={speaker.workshopSpeakerId} email={speaker.email} />
             {mode === 'delete' ? (
               <div role="alert" className="rounded-xl border border-[#b42318] p-4">
                 <p className="font-bold text-[#b42318]">Eliminare {name}?</p>

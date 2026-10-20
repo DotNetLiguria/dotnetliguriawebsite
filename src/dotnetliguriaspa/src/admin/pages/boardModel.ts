@@ -1,5 +1,5 @@
 import { clean } from '../adminApi';
-import { contentUrl } from '../../site/siteApi';
+import { profilePhotoUrl } from '../../site/speakerPhotos';
 
 /** A board member as serialized by DotNetLiguriaCore (field names, including the historic misspellings, are the API's). */
 export interface AdminBoardMember {
@@ -8,6 +8,8 @@ export interface AdminBoardMember {
   description?: string | null;
   email?: string | null;
   profileImageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
+  photoVersion?: string;
   shortBio?: string | null;
   fullBio?: string | null;
   blogHtml?: string | null;
@@ -51,6 +53,5 @@ export const linkError = (value: string) => (!clean(value) || isWebUrl(value) ? 
 export function boardPhoto(profileImageUrl?: string | null) {
   const path = clean(profileImageUrl);
   if (!path) return null;
-  if (/^https?:\/\//i.test(path)) return path;
-  return contentUrl(path.replace(/^\/?contents\//i, ''));
+  return profilePhotoUrl(path);
 }

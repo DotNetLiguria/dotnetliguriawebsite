@@ -39,13 +39,16 @@ that are no longer used, and compare actual indexes with the required indexes.
 
 ## Current organization
 
+Managed personal, Board and speaker photos use `ProfilePhotoSelections` and
+`ProfilePhotoAssets`, described below. They are not embedded image bytes.
+
 All application document identifiers are GUIDs serialized as MongoDB `_id`; MongoDB
 therefore provides the `_id_` unique index for every collection.
 
 | Collection | Stored shape and relationship | Assessment |
 |---|---|---|
 | `Workshop` | Event aggregate: metadata, publishing flags, HTML/text, external ticketing fields, embedded `Location`, tracks, talks, agenda, and `Materials`/`Photos` lists. Talks contain both a speaker ID and display snapshots such as name, image, and biography. | Correct aggregate boundary for an event page: it is normally fetched as a whole and does not need joins. Keep embedded schedules and talk snapshots. Monitor document size; image/file content must remain outside MongoDB. |
-| `Speaker` | Reusable speaker profile, email, Sessionize identifier, active flag, and normalized name. Talks/tracks refer to speakers and may duplicate display information. | Separate collection is appropriate because speaker profiles are reused. The duplicated talk data is a deliberate historical/read-model snapshot, but it must have an explicit synchronization policy. |
+| `Speaker` | Reusable speaker profile, private stable account association, email, Sessionize identifier, active flag, and normalized name. Talks/tracks refer to speakers and may duplicate display information. | Separate collection is appropriate. Managed photo selections override images in public read projections by stable speaker ID; archived names and biographies are not rewritten. |
 | `WorkshopFile` | File metadata and path/URL, type, and parent `WorkshopId`; binary content is not stored here. | Good separation of binary storage from document data. `Workshop.Materials` and `Workshop.Photos` are also serializable lists, so verify whether file metadata is being duplicated in both locations. Choose `WorkshopFile` as the source of truth and build response projections, or remove the redundant persisted representation after a migration. |
 | `Board` | Board-member profile, contact/social links, active flag, and display order. | Small independent content collection. |
 | `TopMenuElements` | Navigation label, URL, active flag, and display order. | Small independent content collection. |
@@ -53,6 +56,8 @@ therefore provides the `_id_` unique index for every collection.
 | `Counter` | Named integer counters. One workshop counter is updated atomically with `FindOneAndUpdate`. | Appropriate for low-cardinality counters. Name lookup is currently case-normalized in the query rather than stored/indexed. |
 | `Questionnaire` | Versioned questionnaire definition: lifecycle, respondent mode, consent text, open/close dates, optional workshop link, and embedded sections/questions/options. | Correct to embed a definition because it is read and versioned as one unit. Optimistic concurrency is used on `_id` plus `Version`. |
 | `QuestionnaireResponse` | One response per document: questionnaire/version link, UTC submission time, optional identified respondent, consent, source/idempotency keys, and embedded answers. | Correct separation from the definition: responses are unbounded and must not be embedded in `Questionnaire`. This is the collection most likely to grow materially. It can contain names, email addresses, and unstructured feedback. |
+| `ProfilePhotoSelections` | Unique scope key, optimistic version, source (`account`, `asset`, `none`), immutable asset reference or retained legacy URL. | Separate server-controlled selections prevent CRUD/import payloads from overwriting photo choices. Missing selection means legacy, not deliberate removal. |
+| `ProfilePhotoAssets` | Opaque asset ID, ownership/provenance, checksums for normalized variants. | Binaries reside in the protected persistent media directory, never in MongoDB or published static files. |
 
 `FileType` and `Feedback` appear in the data-migration configuration and legacy
 models. They are not configured as current website runtime collections. Treat them as
@@ -290,3 +295,118 @@ objectives are measurable.
 - Questionnaire index initialization: `src/dotnetliguriawebsite/DotNetLiguriaCore/Services/Questionnaires/MongoQuestionnaireStore.cs`
 - Logical snapshot and restore implementation: `src/dotnetliguriawebsite/DotNetLiguriaCore/Services/DatabaseBackupService.cs`
 - Legacy/migration-only collection contracts: `src/dotnetliguriawebsite/DataMigration`
+
+## Managed profile photos
+
+Personal photos are optional. A Board or speaker selection can follow the linked
+account photo, select an existing image as a fixed copy, or use a new independent
+upload. Fixed selections share immutable bytes, not future changes. Uploading a
+Board/speaker image never replaces the account photo. Account-only images require
+authenticated access; the media endpoint permits anonymous delivery only while a
+public editorial profile selects the asset.
+
+Board editors with `board.manage` and `speakers.read` can also select a fixed copy
+from matching speaker profiles, including profiles without a linked account.
+A speaker must have the same non-empty email (ignoring case and surrounding
+whitespace) or the same surname (ignoring case, accents and extra whitespace).
+Because profiles store a single full-name field, surname matching compares the
+last word and requires both names to contain at least two words. Matching only a
+first name is not sufficient. The server rechecks this match for previews and
+copies; suggestions are never applied automatically.
+This does not link accounts or change the speaker's photo. Historical speaker photos use the
+same shipped name-based fallback as the public speaker list; explicit photo
+removal still suppresses that fallback.
+
+The same reuse choices are available in the personal photo editor and speaker
+editor. Personal suggestions use the current name and email read server-side
+from the Identity Provider, not caller-supplied profile fields. Access to the
+admin dashboard and the source's `board.read` or `speakers.read` permission are
+required to list, preview or copy editorial photos, including linked/public
+profiles. Accounts without dashboard access can still upload or remove their
+own photo, but cannot select Board or speaker photos.
+
+New Board publication requires a photo. New profiles may be saved as drafts.
+Previously published legacy profiles are not hidden merely by enabling this
+feature. Removing a required photo explicitly confirms affected Board profiles
+and unpublishes them, without changing the account's Board group membership.
+Deliberate removal is stored as `none` so legacy/name-based fallbacks cannot
+resurrect an image.
+
+### Storage activation
+
+Profile/account links require the reviewed unique partial identity indexes on
+both Board and speaker collections. Set a protected
+`DOTNET_LIGURIA_PROFILE_MONGODB_URI` environment variable and run
+`pwsh -File scripts\configure-profile-account-indexes.ps1 -Mode Preview -DatabaseName <database>`.
+The preview prints counts, never account identities or the connection string.
+Resolve incomplete/duplicate links before a separately approved `-Mode Apply`.
+The application inspects these indexes and fails closed; it does not create them
+while saving a profile. This script has not been applied to real data as part of
+the photo feature.
+
+Speaker invitation setup is separate: an operator needs the explicitly
+provisioned, nondelegable `access.users.create` permission, working realm SMTP,
+enabled password/email required actions and an allowlisted invitation client/
+redirect. Existing accounts are linked without password resets. A failed or
+uncertain creation must be reconciled administratively, not repeated: durable
+`<SpeakerCollection>AccountOperations` records prevent duplicate creation.
+They are included in personal-data export/erasure when attributable by immutable
+issuer/subject. An unresolved identity operation blocks privacy preflight rather
+than attributing an account by an email guess.
+
+Set `ProfilePhotos:Enabled=true` and `ProfilePhotos:Root` to a dedicated absolute
+persistent directory outside the application/source/publish directory. The
+directory and its ancestors must not be symbolic links. Do not expose it through
+a web-server static mount. Grant only the application identity read/write access;
+encrypt the volume and include it in the controller's external-copy inventory.
+Do not reuse a directory containing other applications' files.
+Photo mutations also require the existing `Privacy:ProtectedStorageApproved`
+controller approval; enabling the photo feature does not grant that approval.
+
+Aspire supplies a persistent host directory under the current user's local
+application-data directory, `DotNetLiguria\ProfilePhotos`; override
+`ProfilePhotos:Root` in AppHost configuration where needed. Containers must mount
+a persistent volume at the configured absolute path. Missing/unsafe storage
+blocks photo writes explicitly; deployment does not import legacy photos.
+
+Uploads accept decoded JPEG/PNG/WebP up to 5 MiB, 8,192 pixels per dimension and
+16 million total pixels. Animated/invalid images and invalid crop coordinates
+are rejected. Orientation is normalized and metadata discarded; only 128/512
+pixel WebP variants remain. SkiaSharp and its matching Linux native assets are
+MIT-licensed; Windows/Linux native smoke checks are required when updating them.
+No arbitrary remote image is downloaded server-side.
+
+Writes use exclusive temporary files, immutable generated names, checksums and
+conditional MongoDB versions. Incomplete upload metadata remains attributable;
+successful mutations and the next coordinated backup remove only unreferenced
+managed assets. The bounded library has a 1,000-asset ceiling;
+photo mutations have a separate per-account 20/minute rate limit. A capacity or
+I/O error is not reported as a successful replacement.
+
+The current application uses the existing in-process privacy/backup operation
+gate: run one active application writer against this media/database pair. Do not
+scale to multiple writers without introducing a distributed operation lease.
+Asset IDs and selection versions still provide uniqueness/stale-write rejection,
+but are not a substitute for the cross-resource gate.
+
+### Media-aware snapshots and privacy
+
+New application snapshots use manifest version 2 and include a `photos` manifest,
+checksums and every retained asset's two variants. MongoDB records and media are
+captured under the shared operation gate; the safety snapshot includes both.
+Restore validates the complete manifest and media before replacing data. Version
+1 database-only snapshots remain readable, but restoring one with managed photo
+references and missing media is rejected. External `mongodump` alone is not a
+complete photo backup: coordinate the media volume with it.
+
+Personal export includes attributable selections, metadata and normalized image
+bytes (base64 in the JSON export, with an explicit bounded-size failure). Account
+erasure removes attributable assets and fixed role copies, detaches account
+links and suppresses legacy fallbacks. Unlinked speaker uploads are attributed
+to that profile until a confirmed account link is made. Profile association is
+never guessed by name. Public editorial names/biographies and unlinked shipped
+historical or remote pictures remain separate controller-managed retention
+boundaries; deleting managed photos is not a claim to erase external copies.
+The existing erasure journal and snapshot purge include media snapshots. Volume,
+reverse-proxy and browser copies remain subject to the external-copy approval;
+public media uses revalidation rather than long-lived immutable caching.

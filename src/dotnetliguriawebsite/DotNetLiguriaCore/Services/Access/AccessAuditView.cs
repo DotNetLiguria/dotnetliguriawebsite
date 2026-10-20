@@ -13,4 +13,5 @@ public sealed record AccessAuditView(
     string TargetSubject,
     string? TargetUsername,
     string Outcome,
-    string CorrelationId);
+    string CorrelationId,
+    string? GroupId = null);

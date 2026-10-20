@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DotNetLiguriaCore.Authorization;
+using DotNetLiguriaCore.Services.Access;
 using Xunit;
 
 namespace DotNetLiguriaCore.Tests;
@@ -30,6 +31,17 @@ public sealed class PermissionConfigurationTests
         Assert.NotNull(directory);
         using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory.FullName, "keycloak", "dev", "realm-dotnetliguria.json")));
         var realm = json.RootElement;
+        var board = Assert.Single(realm.GetProperty("groups").EnumerateArray(),
+            group => group.GetProperty("name").GetString() == BoardGroupPolicy.Name);
+        Assert.Equal(BoardGroupPolicy.Permissions.Order(),
+            board.GetProperty("clientRoles").GetProperty("DotNetLiguriaCore")
+                .EnumerateArray().Select(role => role.GetString()).Order());
+        Assert.Equal(8, BoardGroupPolicy.Permissions.Count);
+        Assert.All(BoardGroupPolicy.Permissions, permission =>
+        {
+            Assert.True(PermissionCatalog.IsKnown(permission));
+            Assert.EndsWith(".read", permission);
+        });
         Assert.All(realm.GetProperty("clients").EnumerateArray(), client =>
             Assert.False(client.GetProperty("fullScopeAllowed").GetBoolean()));
         var roles = realm.GetProperty("roles").GetProperty("client").GetProperty("DotNetLiguriaCore")

@@ -19,15 +19,22 @@ const gambaro: Member = {
 const baroni: Member = { boardId: 'b-baroni', name: 'Alberto Baroni', description: 'Consigliere', isActive: false, order: 3 };
 
 /** The API sends the visible members first and the hidden ones last; the page sorts by order. */
-function serve(initial: Member[] = [gambaro, rialdi, baroni], options: { failUpdates?: boolean } = {}) {
+function serve(initial: Member[] = [gambaro, rialdi, baroni], options: { failUpdates?: boolean; updateFailureCode?: string } = {}) {
   const db = initial.map(member => ({ ...member }));
   const writes: { id: string; method?: string; body: Member }[] = [];
   mockApi({
+    '/photos/board/': { version: '1', source: 'legacy', url: null, previewPath: null, hasAccount: false, candidates: [], affectedBoards: [] },
+    '/admin/board-accounts/': (url: string) => {
+      const id = url.split('/admin/board-accounts/')[1];
+      return jsonResponse({ boardId: id, email: db.find(member => member.boardId === id)?.email ?? null,
+        account: null, isMember: false, candidates: [] });
+    },
     '/Board/Update/': (url: string, init?: RequestInit) => {
       const id = url.split('/Board/Update/')[1];
       const body = JSON.parse(String(init?.body)) as Member;
       writes.push({ id, method: init?.method, body });
       if (options.failUpdates) return new Response(null, { status: 500 });
+      if (options.updateFailureCode) return jsonResponse({ code: options.updateFailureCode }, 409);
       db[db.findIndex(member => member.boardId === id)] = body;
       return new Response(null, { status: 204 });
     },
@@ -177,19 +184,52 @@ describe('<BoardPage />', () => {
     expect(within(card).getByText('Nascosto dal sito')).toBeInTheDocument();
   });
 
-  test('creates a board member from the dashboard and reloads the database list', async () => {
+  test('creates a hidden Board draft before photo selection and publication, then reloads the database list', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     const { writes } = serve([]);
     renderAt('/admin/board/new');
     const dialog = await screen.findByRole('dialog', { name: 'Nuovo membro del board' });
+    expect(within(dialog).getByRole('switch', { name: 'Visibile sul sito' })).not.toBeChecked();
+    expect(within(dialog).getByRole('switch', { name: 'Visibile sul sito' })).toBeDisabled();
+    expect(within(dialog).getByText(/Salva prima la bozza nascosta/)).toBeInTheDocument();
     await user.type(within(dialog).getByRole('textbox', { name: /Nome/ }), 'Grace Hopper');
     await user.click(within(dialog).getByRole('button', { name: 'Salva' }));
 
     await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toMatchObject({ id: 'b-new', method: 'POST', body: { name: 'Grace Hopper', isActive: true } });
+    expect(writes[0]).toMatchObject({ id: 'b-new', method: 'POST', body: { name: 'Grace Hopper', isActive: false } });
     expect(await screen.findByText('Membro creato')).toBeInTheDocument();
     await user.click(within(await screen.findByRole('dialog', { name: 'Grace Hopper' })).getByRole('button', { name: 'Chiudi la scheda' }));
     await waitFor(() => expect(rowNames()).toEqual(['Grace Hopper']));
+  });
+
+  test('photo changes refresh the saved record without dropping edits to the profile form', async () => {
+    let member: Member = { ...rialdi, photoVersion: 'photo-v1' };
+    const writes: Member[] = [];
+    mockApi({
+      '/admin/board-accounts/': { boardId: 'b-rialdi', email: null, account: null, isMember: false, candidates: [] },
+      '/photos/board/b-rialdi/select': () => {
+        member = { ...member, profileImageUrl: '/api/media/photos/new.webp', photoFallbackDisabled: true, photoVersion: 'photo-v2' };
+        return jsonResponse({ version: 'v2', source: 'account', url: null, previewPath: null, hasAccount: true, candidates: [], affectedBoards: [] });
+      },
+      '/photos/board/b-rialdi': { version: 'v1', source: 'legacy', url: null, previewPath: null, hasAccount: true,
+        candidates: [{ key: 'account:hash', version: 'account-v1', label: 'foto account', url: null, previewPath: null }], affectedBoards: [] },
+      '/Board/Update/': (_url: string, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as Member;
+        writes.push(body); member = body;
+        return new Response(null, { status: 204 });
+      },
+      '/Board/Get': () => jsonResponse([member]),
+    });
+    renderAt('/admin/board/b-rialdi?azione=modifica');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Ruolo' }), { target: { value: 'Ruolo non salvato' } });
+    await userEvent.setup({ delay: null }).click(await within(dialog).findByRole('button', { name: 'Segui la foto account' }));
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Foto (percorso storico)' })).toHaveValue('/api/media/photos/new.webp'));
+    expect(within(dialog).getByRole('textbox', { name: 'Ruolo' })).toHaveValue('Ruolo non salvato');
+    expect(writes).toHaveLength(0);
+    await userEvent.setup({ delay: null }).click(within(dialog).getByRole('button', { name: 'Salva' }));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({ description: 'Ruolo non salvato', profileImageUrl: '/api/media/photos/new.webp', photoFallbackDisabled: true, photoVersion: 'photo-v2' });
   });
 
   test('deletes a board member only after confirmation', async () => {
@@ -237,14 +277,27 @@ describe('<BoardPage />', () => {
     expect(within(card).getByRole('textbox', { name: 'Ruolo' })).toHaveValue('Consigliere e tesoriere');
   });
 
-  test('says when a member has no photo yet, and that the upload is still to be done', async () => {
+  test.each([
+    ['board_photo_required_to_publish', /Prima di pubblicare, salva la bozza/],
+    ['photo_changed_reload', /La foto è cambiata\. Ricarica la scheda/],
+  ])('explains photo publication/version conflict %s without dropping the draft', async (updateFailureCode, explanation) => {
+    serve(undefined, { updateFailureCode });
+    renderAt('/admin/board/b-rialdi?azione=modifica');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Ruolo' }), { target: { value: 'Ruolo non salvato' } });
+    await userEvent.setup({ delay: null }).click(within(dialog).getByRole('button', { name: 'Salva' }));
+    expect(await screen.findByText(explanation)).toBeInTheDocument();
+    expect(within(dialog).getByRole('textbox', { name: 'Ruolo' })).toHaveValue('Ruolo non salvato');
+  });
+
+  test('offers the shared photo editor when a member has no photo yet', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serve();
     renderAt('/admin/board/b-baroni');
     const card = await screen.findByRole('dialog', { name: 'Alberto Baroni' });
     expect(within(card).getByText('Manca la foto')).toBeInTheDocument();
     await user.click(within(card).getByRole('button', { name: 'Modifica' }));
-    expect(within(card).getByText(/caricamento diretto della foto è da completare/)).toBeInTheDocument();
+    expect(await within(card).findByLabelText(/File JPEG, PNG o WebP/)).toBeInTheDocument();
   });
 
   test('reports a failed load with a retry instead of an empty list', async () => {

@@ -10,6 +10,7 @@ using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Questionnaires;
 using DotNetLiguriaCore.Services.Privacy;
 using DotNetLiguriaCore.Services.Access;
+using DotNetLiguriaCore.Services.Photos;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using DotNetLiguria.ServiceDefaults;
@@ -75,7 +76,7 @@ public class Program
                     policy.WithOrigins(origins);
                 policy.WithHeaders("Content-Type", "Authorization", "Accept", "X-Confirm-Erasure",
                         "X-Confirm-Retention-Policy", "X-Confirm-Campaign", "X-Admin-Request",
-                        "X-Confirm-Repair", "X-Confirm-Access-Change")
+                        "X-Confirm-Repair", "X-Confirm-Access-Change", "X-Confirm-Board-Change", "X-Confirm-Speaker-Change")
                     .WithExposedHeaders("X-Page-Offset", "X-Page-Limit", "X-Next-Offset")
                     .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
             });
@@ -123,6 +124,13 @@ public class Program
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
         builder.Services.AddSingleton<QuestionnaireService>();
         builder.Services.AddSingleton<DatabaseBackupService>();
+        builder.Services.Configure<PhotoOptions>(builder.Configuration.GetSection("ProfilePhotos"));
+        builder.Services.AddSingleton<IPhotoStore, MongoPhotoStore>();
+        builder.Services.AddSingleton<PhotoStorage>();
+        builder.Services.AddSingleton<PhotoService>();
+        builder.Services.AddSingleton<PhotoLifecycle>();
+        builder.Services.AddSingleton<PhotoSnapshotService>();
+        builder.Services.AddSingleton<PhotoMutationAudit>();
         builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
         builder.Services.AddPermissionDirectory(builder.Configuration);
         builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
@@ -170,6 +178,8 @@ public class Program
         app.MapAccountEndpoints();
         app.MapNotificationEndpoints();
         app.MapAccessEndpoints();
+        app.MapPhotoEndpoints();
+        app.MapSpeakerAccountEndpoints();
         app.MapServiceDefaults();
         app.MapFallback("/api/{**path}", () => Results.Problem(
             statusCode: StatusCodes.Status404NotFound, title: "ApiEndpointNotFound"));
@@ -372,6 +382,14 @@ public class Program
                         PermitLimit = PublicQuestionnaireRateLimit.PermitLimit,
                         Window = PublicQuestionnaireRateLimit.Window,
                         QueueLimit = 0,
+                    }));
+            options.AddPolicy("api-writes", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    (context.User.FindFirst("iss")?.Value ?? "") + "|" +
+                    (context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
                     }));
         });
     }

@@ -30,26 +30,18 @@ public sealed class AccessManagementService(
             .ToArray();
 
     public async Task<AccessUserSearchPage> SearchUsersAsync(
-        string search, int first, int max, CancellationToken cancellationToken,
-        IReadOnlyCollection<string>? boardEmails = null)
+        string search, int first, int max, CancellationToken cancellationToken, bool boardOnly = false)
     {
         if (search.Length > 100 ||
             search.Any(char.IsControl) || first < 0 || first > 10000 || max is < 1 or > 50)
             throw new PrivacyBlockedException("invalid_access_search", StatusCodes.Status400BadRequest);
-        if (boardEmails is not null)
+        if (boardOnly)
         {
-            var boardUsers = new Dictionary<string, AccessUserSummary>(StringComparer.Ordinal);
             var query = search.Trim();
-            foreach (var email in boardEmails.Where(email => !string.IsNullOrWhiteSpace(email))
-                .Select(email => email.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
-            {
-                var matches = await _directory.FindUsersByEmailAsync(email, cancellationToken);
-                foreach (var user in matches.Where(user =>
-                    email.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                    user.Username?.Contains(query, StringComparison.OrdinalIgnoreCase) == true))
-                    boardUsers.TryAdd(user.Subject, user);
-            }
-            var matching = boardUsers.Values.OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+            var boardUsers = await _directory.GetBoardMembersAsync(cancellationToken);
+            var matching = boardUsers.Where(user => query.Length == 0 ||
+                    user.Username?.Contains(query, StringComparison.OrdinalIgnoreCase) == true)
+                .OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(user => user.Subject, StringComparer.Ordinal).Skip(first).Take(max + 1).ToArray();
             return new(matching.Take(max).ToArray(), first, max, matching.Length > max);
         }
@@ -182,7 +174,7 @@ public sealed class AccessManagementService(
         var views = entries.Select(entry => new AccessAuditView(entry.At, entry.Action, entry.Permission,
             entry.ActorSubject, usernames.GetValueOrDefault(entry.ActorSubject),
             entry.TargetSubject, usernames.GetValueOrDefault(entry.TargetSubject),
-            entry.Outcome, entry.CorrelationId)).ToArray();
+            entry.Outcome, entry.CorrelationId, entry.GroupId)).ToArray();
         return new(views, first, max, rows.Count > first + max);
     }
 

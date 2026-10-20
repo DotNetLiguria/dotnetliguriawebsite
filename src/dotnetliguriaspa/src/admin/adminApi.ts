@@ -18,6 +18,8 @@ export interface AdminSpeaker {
   email?: string | null;
   description?: string | null;
   profileImageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
+  photoVersion?: string;
   isActive?: boolean;
   sessionizeId?: string | null;
   [key: string]: unknown;
@@ -32,12 +34,14 @@ export interface AdminVenue {
 export class AdminApiError extends Error {
   readonly status: number;
   readonly code: string;
+  readonly detail: string;
 
-  constructor(status: number, message?: string, code = '') {
+  constructor(status: number, message?: string, code = '', detail = '') {
     super(message ?? `Errore HTTP: ${status}`);
     this.name = 'AdminApiError';
     this.status = status;
     this.code = code;
+    this.detail = detail;
   }
 }
 
@@ -50,14 +54,16 @@ export function useAdminFetch() {
     const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
     if (!response.ok) {
       let code = '';
+      let detail = '';
       try {
-        const problem = await response.json() as { code?: string; title?: string };
+        const problem = await response.json() as { code?: string; title?: string; detail?: string };
         code = problem.code ?? problem.title ?? '';
+        detail = typeof problem.detail === 'string' ? problem.detail : '';
       } catch { /* Reverse proxies may return a non-JSON failure. */ }
       const mfa = code === 'recent_mfa_required' || code === 'RecentMfaRequired';
       const targetRestriction = ['protected_access_target', 'self_access_change_forbidden', 'permission_not_delegable'].includes(code);
       if (response.status === 403 && !mfa && !targetRestriction) permissionsDenied();
-      throw new AdminApiError(response.status, mfa ? 'È richiesta una verifica MFA recente tramite l’Identity Provider.' : undefined, code);
+      throw new AdminApiError(response.status, mfa ? 'È richiesta una verifica MFA recente tramite l’Identity Provider.' : undefined, code, detail);
     }
     const text = response.status === 204 ? '' : await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
@@ -119,8 +125,8 @@ export function useSpeakerPhotos(speakers: AdminSpeaker[] | null) {
     if (!speakers) return;
     let alive = true;
     Promise.all(speakers.map(async speaker => {
-      const key = `${speaker.workshopSpeakerId}|${speaker.profileImageUrl ?? ''}|${speaker.name}`;
-      if (!photoCache.has(key)) photoCache.set(key, firstReachable(photoCandidates(speaker.name, speaker.profileImageUrl)));
+      const key = `${speaker.workshopSpeakerId}|${speaker.profileImageUrl ?? ''}|${speaker.name}|${!!speaker.photoFallbackDisabled}`;
+      if (!photoCache.has(key)) photoCache.set(key, firstReachable(photoCandidates(speaker.name, speaker.profileImageUrl, speaker.photoFallbackDisabled)));
       return [speaker.workshopSpeakerId, await photoCache.get(key)!] as const;
     })).then(entries => { if (alive) setPhotos(new Map(entries)); });
     return () => { alive = false; };

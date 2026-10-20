@@ -14,6 +14,27 @@ internal sealed class FakeAccessPermissionDirectory : IAccessPermissionDirectory
     private readonly Dictionary<string, string> _emails = new(StringComparer.Ordinal);
     public HashSet<string> ProtectedSubjects { get; } = new(StringComparer.Ordinal);
     public int Writes { get; private set; }
+    public HashSet<string> BoardSubjects { get; } = new(StringComparer.Ordinal);
+    public bool FailBoardWrite { get; set; }
+    public bool IgnoreBoardWrite { get; set; }
+
+    public Task<IReadOnlyList<AccessUserSummary>> GetBoardMembersAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<AccessUserSummary>>(_users.Values.Where(user => BoardSubjects.Contains(user.Subject)).ToArray());
+
+    public Task<bool> IsBoardMemberAsync(AccountReference account, CancellationToken cancellationToken) =>
+        Task.FromResult(BoardSubjects.Contains(account.Subject));
+
+    public Task ChangeBoardMembershipAsync(AccountReference account, bool join, CancellationToken cancellationToken)
+    {
+        if (FailBoardWrite) throw new HttpRequestException("Uncertain provider response");
+        Writes++;
+        if (!IgnoreBoardWrite)
+        {
+            if (join) BoardSubjects.Add(account.Subject);
+            else BoardSubjects.Remove(account.Subject);
+        }
+        return Task.CompletedTask;
+    }
 
     public void AddUser(
         AccessUserSummary user, IEnumerable<string>? direct = null,
@@ -32,6 +53,7 @@ internal sealed class FakeAccessPermissionDirectory : IAccessPermissionDirectory
         Validate(account);
         var effective = Get(_direct, account.Subject);
         effective.UnionWith(Get(_inherited, account.Subject));
+        if (BoardSubjects.Contains(account.Subject)) effective.UnionWith(BoardGroupPolicy.Permissions);
         return Task.FromResult<IReadOnlySet<string>>(effective.ToFrozenSet(StringComparer.Ordinal));
     }
 

@@ -17,11 +17,22 @@ type Grants = {
 type PermissionMetadata = { id: Permission; delegable: boolean };
 type AuditEntry = {
   at: string; action: string; permission: string; actorSubject: string; actorUsername?: string | null;
-  targetSubject: string; targetUsername?: string | null; outcome: string; correlationId: string;
+  targetSubject: string; targetUsername?: string | null; outcome: string; correlationId: string; groupId?: string | null;
 };
 
-const actionLabels: Record<string, string> = { grant: 'Concessione', revoke: 'Revoca' };
-const outcomeLabels: Record<string, string> = { intent: 'Richiesta', verified: 'Verificata', unverified: 'Non verificata' };
+const actionLabels: Record<string, string> = {
+  grant: 'Concessione', revoke: 'Revoca', 'board-link': 'Collegamento profilo Board',
+  'board-join': 'Aggiunta al gruppo Board', 'board-leave': 'Rimozione dal gruppo Board',
+  'account-photo-select': 'Scelta foto account', 'account-photo-upload': 'Caricamento foto account',
+  'board-photo-select': 'Scelta foto Board', 'board-photo-upload': 'Caricamento foto Board',
+  'speaker-photo-select': 'Scelta foto speaker', 'speaker-photo-upload': 'Caricamento foto speaker',
+  'speaker-link': 'Collegamento account speaker', 'speaker-create': 'Creazione account speaker',
+  'speaker-invite': 'Invio invito speaker',
+};
+const outcomeLabels: Record<string, string> = {
+  intent: 'Richiesta', verified: 'Verificata', unverified: 'Non verificata',
+  accepted: 'Accettata dall’Identity Provider (consegna non verificata)',
+};
 
 function AuditAccount({ username, subject }: { username?: string | null; subject: string }) {
   return <>{username || 'Account non più disponibile'}<span className="block text-xs text-muted">{subject}</span></>;
@@ -34,6 +45,9 @@ function formatAuditTime(value: string) {
 
 function accessError(reason: unknown) {
   const explanations: Record<string, string> = {
+    board_group_not_configured: 'Il gruppo Board non è configurato nell’Identity Provider. Completare il provisioning e ricaricare.',
+    board_group_unsafe: 'I permessi del gruppo Board richiedono un controllo amministrativo. L’elenco non può essere verificato.',
+    board_member_limit_exceeded: 'Il gruppo supera il limite verificabile. Richiedi un controllo amministrativo.',
     access_assignment_changed: 'I permessi sono stati modificati da un altro operatore. Ricarica gli accessi prima di riprovare.',
     protected_access_target: 'Questo account è protetto: i suoi permessi devono essere gestiti nell’Identity Provider.',
     self_access_change_forbidden: 'Non puoi modificare i tuoi permessi.',
@@ -176,7 +190,7 @@ export default function AccessPage() {
     {canRead && canChange && <MfaVerification mfa={mfa} busy={busy} title="1. Verifica MFA" />}
     {canRead && <Panel labelledBy="access-users" className="mt-6 space-y-4 p-5">
       <h2 id="access-users" className="text-lg font-bold">{canChange ? '2. ' : ''}Seleziona un utente</h2>
-      <p>{boardOnly ? 'Membri attivi del board, associati tramite email.' : 'Tutti gli utenti.'} 25 per pagina. La ricerca è facoltativa.</p>
+      <p>{boardOnly ? 'Account appartenenti al gruppo Board, indipendentemente dal profilo pubblico.' : 'Tutti gli utenti.'} 25 per pagina. La ricerca è facoltativa.</p>
       <form onSubmit={event => { event.preventDefault(); find(search); }} className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 font-semibold">Cerca utenti<input className="min-h-11 rounded-lg border p-2" value={search} onChange={event => setSearch(event.target.value)} maxLength={100} /></label>
         <Button type="submit" className={btn.primary} isDisabled={busy || listing}>Cerca</Button>
@@ -241,7 +255,7 @@ export default function AccessPage() {
     </Panel>}
     {canAudit && <Panel labelledBy="access-audit" className="mt-6 space-y-3 p-5">
       <h2 id="access-audit" className="text-lg font-bold">Cronologia modifiche ai permessi</h2>
-      <p>Ultime 25 operazioni di concessione o revoca registrate dall’applicazione, con esito e riferimento. Non è l’elenco degli utenti e non include le modifiche effettuate direttamente nell’Identity Provider. I nomi sono letti dall’Identity Provider al momento della consultazione e non sono salvati nella cronologia.</p>
+      <p>Ultime 25 operazioni su permessi, collegamenti account, appartenenza al Board, inviti e foto registrate dall’applicazione, con esito e riferimento. Non è l’elenco degli utenti e non include le modifiche effettuate direttamente nell’Identity Provider. I nomi sono letti dall’Identity Provider al momento della consultazione e non sono salvati nella cronologia.</p>
       <Button className={btn.secondary} onPress={reloadAudit}>Ricarica cronologia modifiche</Button>
       {audit.state === 'error' && <p role="alert">{audit.message}</p>}
       {audit.state === 'ready' && audit.data.entries.length > 0 && <div className="overflow-x-auto"><table className="w-full text-left">
@@ -255,7 +269,7 @@ export default function AccessPage() {
           <td className="p-3"><AuditAccount username={entry.actorUsername} subject={entry.actorSubject} /></td>
           <td className="p-3"><AuditAccount username={entry.targetUsername} subject={entry.targetSubject} /></td>
           <td className="p-3">{actionLabels[entry.action] ?? entry.action}</td>
-          <td className="p-3">{entry.permission}</td>
+          <td className="p-3">{entry.permission || (entry.groupId ? `Gruppo Board (${entry.groupId})` : '—')}</td>
           <td className="p-3">{outcomeLabels[entry.outcome] ?? entry.outcome}</td>
           <td className="p-3 text-xs">{entry.correlationId}</td>
         </tr>)}</tbody>

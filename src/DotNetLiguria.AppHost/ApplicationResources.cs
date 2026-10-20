@@ -19,6 +19,10 @@ public static class ApplicationResources
             .WithHttpsEndpoint(port: 5443)
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
             .WithEnvironment("DOTNET_LIGURIA_ASPIRE", "true")
+            .WithEnvironment("ProfilePhotos__Enabled", "true")
+            .WithEnvironment("ProfilePhotos__Root", builder.Configuration["ProfilePhotos:Root"] ??
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "DotNetLiguria", "ProfilePhotos"))
             .WithEnvironment("ASPNETCORE_HOSTINGSTARTUPEXCLUDEASSEMBLIES",
                 "Microsoft.WebTools.ApiEndpointDiscovery"
                 // Comment out the next line to re-enable Browser Link in Chrome.

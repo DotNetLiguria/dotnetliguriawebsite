@@ -42,26 +42,25 @@ public sealed class AccessManagementServiceTests
     }
 
     [Fact]
-    public async Task BoardFilterMatchesEmailsBeforeSearchAndPaginationWithoutDuplicates()
+    public async Task BoardFilterUsesGroupBeforeSearchAndPaginationWithoutProfileOrEmail()
     {
         var (service, directory, _, _) = Create(["access.users.read"]);
         directory.AddUser(new(Issuer, "board-z", "Zeta", true), email: "zeta@example.test");
         directory.AddUser(new(Issuer, "board-a", "Ada", true), email: "ada@example.test");
         directory.AddUser(new(Issuer, "outsider", "Aaron", true), email: "outside@example.test");
-        string[] emails = [" zeta@example.test ", "ADA@example.test", "ada@example.test", "", "missing@example.test"];
+        directory.BoardSubjects.UnionWith(["board-z", "board-a"]);
 
-        var first = await service.SearchUsersAsync("", 0, 1, CancellationToken.None, emails);
-        var second = await service.SearchUsersAsync("", 1, 1, CancellationToken.None, emails);
+        var first = await service.SearchUsersAsync("", 0, 1, CancellationToken.None, true);
+        var second = await service.SearchUsersAsync("", 1, 1, CancellationToken.None, true);
         Assert.Equal("Ada", Assert.Single(first.Users).Username);
         Assert.True(first.HasMore);
         Assert.Equal("Zeta", Assert.Single(second.Users).Username);
         Assert.False(second.HasMore);
-        var search = await service.SearchUsersAsync("zeta", 0, 25, CancellationToken.None, emails);
+        var search = await service.SearchUsersAsync("zeta", 0, 25, CancellationToken.None, true);
         Assert.Equal("Zeta", Assert.Single(search.Users).Username);
         Assert.False(search.HasMore);
-        var byEmail = await service.SearchUsersAsync("ada@", 0, 25, CancellationToken.None, emails);
-        Assert.Equal("Ada", Assert.Single(byEmail.Users).Username);
-        var empty = await service.SearchUsersAsync("", 0, 25, CancellationToken.None, []);
+        directory.BoardSubjects.Clear();
+        var empty = await service.SearchUsersAsync("", 0, 25, CancellationToken.None, true);
         Assert.Empty(empty.Users);
         Assert.False(empty.HasMore);
     }

@@ -41,6 +41,12 @@ public static class SpeakerIdentity
         }
 
         var canonical = ordered[0];
+        var accounts = ordered.Where(speaker => speaker.AccountSubject is not null)
+            .Select(speaker => (speaker.AccountIssuer, speaker.AccountSubject)).Distinct().ToArray();
+        if (accounts.Length > 1)
+            throw new InvalidOperationException("Cannot merge speakers linked to different accounts.");
+        // A linked canonical ID also owns any independently selected profile photo.
+        canonical = ordered.FirstOrDefault(speaker => speaker.AccountSubject is not null) ?? canonical;
         return new WorkshopSpeaker
         {
             WorkshopSpeakerId = canonical.WorkshopSpeakerId,
@@ -50,6 +56,8 @@ public static class SpeakerIdentity
             ProfileImageUrl = FirstValue(ordered, speaker => speaker.ProfileImageUrl),
             Description = FirstValue(ordered, speaker => speaker.Description),
             Email = FirstValue(ordered, speaker => speaker.Email),
+            AccountIssuer = canonical.AccountIssuer,
+            AccountSubject = canonical.AccountSubject,
             IsActive = ordered.Any(speaker => speaker.IsActive)
         };
     }
@@ -69,6 +77,8 @@ public static class SpeakerIdentity
             ProfileImageUrl = overwrite ? imported.ProfileImageUrl : existing.ProfileImageUrl,
             Description = overwrite ? imported.Description : existing.Description,
             Email = existing.Email,
+            AccountIssuer = existing.AccountIssuer,
+            AccountSubject = existing.AccountSubject,
             IsActive = overwrite ? imported.IsActive : existing.IsActive
         };
     }

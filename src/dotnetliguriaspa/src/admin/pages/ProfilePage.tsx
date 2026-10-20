@@ -10,6 +10,7 @@ import { useAccountResource } from '../../account/useAccountResource';
 import { accountReturnPath } from '../../account/returnPath';
 import { mfaStepUpExtras } from '../../account/mfaStepUp';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
+import PhotoEditor from '../../account/PhotoEditor';
 
 const tabCls = `-mb-px inline-flex min-h-11 cursor-pointer items-center border-b-[3px] border-transparent px-4 font-bold text-muted transition-colors data-[hovered]:text-navy data-[selected]:border-navy data-[selected]:text-navy ${focusRing}`;
 const date = (value: string | null) => value && !Number.isNaN(Date.parse(value))
@@ -139,6 +140,7 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
         }}>Aggiorna dati personali</Button>
         <a href={account} target="_blank" rel="noopener noreferrer" className={btn.secondary}>Modifica account e sicurezza (nuova scheda)</a>
       </Panel>
+      <div className="mt-5"><PhotoEditor scope="account" onChanged={reloadPersonal} /></div>
       <Panel labelledBy="profile-mfa" className="mt-5 space-y-4 p-6">
         <h2 id="profile-mfa" className="text-lg font-bold">Secondo fattore di accesso (MFA)</h2>
         <p>Alcune operazioni protette richiedono una verifica MFA recente. Configura un’app di autenticazione
@@ -208,13 +210,17 @@ function PersonalContent({ onErased }: { onErased: (status: 'completed' | 'await
           Le copie di sicurezza interessate vengono eliminate. Dati non attribuibili, configurazioni
           non sicure o copie esterne non verificate bloccano il completamento. Se serve una rimozione
           manuale dell’identità, la richiesta resta pendente fino alla verifica amministrativa.</p>
-        <Button className={btn.secondary} isDisabled={busy}
-          onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>
-          Verifica MFA per la cancellazione
-        </Button>
+        <div role="note" aria-label="Conferma finale della cancellazione" className="flex gap-3 rounded-xl border border-red-300 bg-red-50 p-4 text-red-900">
+          <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-red-700 font-bold">!</span>
+          <div className="space-y-1">
+            <p className="font-bold">Conferma finale: cancellazione di tutti i tuoi dati</p>
+            <p>Verranno eliminati definitivamente il tuo profilo, i tuoi dati e i questionari che hai creato,
+              incluse tutte le risposte inviate da altre persone. Questa operazione non può essere annullata.</p>
+          </div>
+        </div>
         <label className="flex min-h-11 items-center gap-3"><input className="size-6" type="checkbox" checked={acknowledged}
           onChange={event => setAcknowledged(event.target.checked)} />
-          Ho compreso l'eliminazione irreversibile dei questionari creati e di tutte le loro risposte.</label>
+          Confermo di voler cancellare tutti i miei dati, il profilo e i questionari creati con tutte le risposte.</label>
         <TextInput label="Scrivi ELIMINA per confermare" value={confirmation} onChange={setConfirmation} />
         <Button className={btn.danger} isDisabled={busy || !acknowledged || confirmation !== 'ELIMINA'}
           onPress={() => void erase()}>Cancella definitivamente il mio account</Button>

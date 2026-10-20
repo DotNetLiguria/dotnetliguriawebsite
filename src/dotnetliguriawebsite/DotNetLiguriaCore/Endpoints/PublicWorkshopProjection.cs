@@ -39,7 +39,7 @@ public static class PublicWorkshopProjection
             talk.WorkshopTalkId, talk.TrackId, talk.Title, talk.Abstract, talk.SessionType,
             Speakers = talk.Speakers?.Select(speaker => new
             {
-                speaker.WorkshopSpeakerId, speaker.Name, speaker.ImageUrl, speaker.Biography,
+                speaker.WorkshopSpeakerId, speaker.Name, speaker.ImageUrl, speaker.PhotoFallbackDisabled, speaker.Biography,
             }),
         }),
         AgendaTracks = workshop.AgendaTracks?.Select(track => new

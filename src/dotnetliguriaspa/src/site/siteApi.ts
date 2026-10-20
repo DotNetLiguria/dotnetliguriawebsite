@@ -23,6 +23,7 @@ export interface SiteTalkSpeaker {
   sessionizeId?: string | null;
   name?: string | null;
   imageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
   biography?: string | null;
 }
 
@@ -83,6 +84,7 @@ export interface SiteSpeaker {
   workshopSpeakerId: string;
   name: string;
   profileImageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
   description?: string | null;
 }
 
@@ -91,6 +93,7 @@ export interface SiteBoardMember {
   name: string;
   description?: string | null;
   profileImageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
   shortBio?: string | null;
   fullBio?: string | null;
   blogHtml?: string | null;

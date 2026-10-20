@@ -10,6 +10,7 @@ export interface EventTalkSpeaker {
   sessionizeId?: string | null;
   name?: string | null;
   imageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
   biography?: string | null;
 }
 
@@ -100,6 +101,7 @@ export interface EventSpeaker {
   workshopSpeakerId: string;
   name: string;
   profileImageUrl?: string | null;
+  photoFallbackDisabled?: boolean;
   description?: string | null;
   isActive?: boolean;
   sessionizeId?: string | null;
@@ -671,4 +673,7 @@ export const eventbriteStatusLabel = (workshop: EventRecord) => clean(workshop.e
 
 /** Talk speaker entries built from directory records (what the module stores on each talk). */
 export const talkSpeakersFrom = (speakers: EventSpeaker[]): EventTalkSpeaker[] =>
-  speakers.map(speaker => ({ workshopSpeakerId: speaker.workshopSpeakerId, name: speaker.name, imageUrl: speaker.profileImageUrl ?? undefined, biography: speaker.description ?? undefined }));
+  speakers.map(speaker => ({
+    workshopSpeakerId: speaker.workshopSpeakerId, name: speaker.name, imageUrl: speaker.profileImageUrl ?? undefined,
+    photoFallbackDisabled: speaker.photoFallbackDisabled, biography: speaker.description ?? undefined,
+  }));

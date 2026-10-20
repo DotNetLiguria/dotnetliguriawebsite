@@ -1,6 +1,8 @@
 ﻿using DotNetLiguriaCore.Model;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
+using DotNetLiguriaCore.Services.Photos;
+using DotNetLiguriaCore.Services.Privacy;
 
 namespace DotNetLiguriaCore.Services
 {
@@ -8,9 +10,14 @@ namespace DotNetLiguriaCore.Services
     {
         private readonly IMongoCollection<WorkshopSpeaker> _workshopSpeakersCollection;
         private readonly IMongoCollection<Workshop> _workshopsCollection;
+        private readonly PhotoService? _photos;
+        private readonly PrivacyOperationGate _gate;
 
-        public SpeakerService(IOptions<DotNetLiguriaDatabaseSettings> mongoDBDatabaseSettings)
+        public SpeakerService(IOptions<DotNetLiguriaDatabaseSettings> mongoDBDatabaseSettings, PhotoService? photos = null,
+            PrivacyOperationGate? gate = null)
         {
+            _photos = photos;
+            _gate = gate ?? PrivacyOperationGate.Shared;
             var mongoClient = new MongoClient(mongoDBDatabaseSettings.Value.ConnectionString);
 
             var mongoDatabase = mongoClient.GetDatabase(mongoDBDatabaseSettings.Value.DatabaseName);
@@ -27,6 +34,7 @@ namespace DotNetLiguriaCore.Services
 
             if (onlyActive)
             {
+                if (_photos is not null) foreach (var speaker in activeSpeakers) await _photos.ApplyAsync(speaker, default);
                 return activeSpeakers;
             }
 
@@ -34,14 +42,22 @@ namespace DotNetLiguriaCore.Services
                 .Find(x => x.IsActive == false)
                 .ReadBoundedAsync();
 
-            return activeSpeakers.Concat(inactiveSpeakers).ToList();
+            var result = activeSpeakers.Concat(inactiveSpeakers).ToList();
+            if (_photos is not null) foreach (var speaker in result) await _photos.ApplyAsync(speaker, default);
+            return result;
         }
 
-        public async Task<WorkshopSpeaker?> GetAsync(Guid id) =>
-            await _workshopSpeakersCollection.Find(x => x.WorkshopSpeakerId == id).FirstOrDefaultAsync();
+        public async Task<WorkshopSpeaker?> GetAsync(Guid id)
+        {
+            var speaker = await _workshopSpeakersCollection.Find(x => x.WorkshopSpeakerId == id).FirstOrDefaultAsync();
+            if (speaker is not null && _photos is not null) await _photos.ApplyAsync(speaker, default);
+            return speaker;
+        }
 
         public async Task<bool> CreateAsync(WorkshopSpeaker newSpeaker)
         {
+            newSpeaker.AccountIssuer = null;
+            newSpeaker.AccountSubject = null;
             newSpeaker.NormalizedName = SpeakerIdentity.NormalizeName(newSpeaker.Name);
             if (string.IsNullOrEmpty(newSpeaker.NormalizedName) || !await IsNameAvailableAsync(newSpeaker.NormalizedName, Guid.Empty))
             {
@@ -59,13 +75,17 @@ namespace DotNetLiguriaCore.Services
 
         public async Task<bool> UpdateAsync(Guid id, WorkshopSpeaker updatedSpeaker)
         {
+            if (_photos is not null && await _photos.HasSelectionAsync(PhotoTarget.SpeakerKey(id), default))
+                updatedSpeaker.ProfileImageUrl = (await _workshopSpeakersCollection.Find(x => x.WorkshopSpeakerId == id)
+                    .FirstOrDefaultAsync())?.ProfileImageUrl;
             updatedSpeaker.NormalizedName = SpeakerIdentity.NormalizeName(updatedSpeaker.Name);
             if (string.IsNullOrEmpty(updatedSpeaker.NormalizedName) || !await IsNameAvailableAsync(updatedSpeaker.NormalizedName, id))
             {
                 return false;
             }
 
-            await _workshopSpeakersCollection.ReplaceOneAsync(x => x.WorkshopSpeakerId == id, updatedSpeaker);
+            await _workshopSpeakersCollection.UpdateOneAsync(x => x.WorkshopSpeakerId == id,
+                ContentUpdate(updatedSpeaker));
             return true;
         }
 
@@ -103,9 +123,9 @@ namespace DotNetLiguriaCore.Services
                 {
                     var updatedSpeaker = SpeakerIdentity.ApplySessionize(existingSpeaker, importedSpeaker, overwrite);
 
-                    await _workshopSpeakersCollection.ReplaceOneAsync(
+                    await _workshopSpeakersCollection.UpdateOneAsync(
                         x => x.WorkshopSpeakerId == existingSpeaker.WorkshopSpeakerId,
-                        updatedSpeaker);
+                        ContentUpdate(updatedSpeaker));
                     importedSpeaker.WorkshopSpeakerId = existingSpeaker.WorkshopSpeakerId;
                     importedSpeaker.Email = updatedSpeaker.Email;
                     importedSpeaker.Name = updatedSpeaker.Name;
@@ -135,6 +155,7 @@ namespace DotNetLiguriaCore.Services
 
         public async Task<int> ReconcileDuplicatesAsync()
         {
+            using var lease = await _gate.EnterAsync();
             var existingSpeakers = await _workshopSpeakersCollection.Find(_ => true).ToListAsync();
             var duplicateMap = new Dictionary<Guid, Guid>();
             var canonicalSpeakers = new List<WorkshopSpeaker>();
@@ -144,6 +165,10 @@ namespace DotNetLiguriaCore.Services
                 .Where(speaker => !string.IsNullOrEmpty(SpeakerIdentity.NormalizeName(speaker.Name)))
                 .GroupBy(speaker => SpeakerIdentity.NormalizeName(speaker.Name)))
             {
+                if (group.Count() > 1 && _photos is not null)
+                    foreach (var item in group)
+                        if (await _photos.HasSelectionAsync(PhotoTarget.SpeakerKey(item.WorkshopSpeakerId), default))
+                            throw new PrivacyBlockedException("speaker_photo_merge_requires_review", 409);
                 var merged = SpeakerIdentity.Merge(group);
                 canonicalSpeakers.Add(merged);
                 foreach (var duplicate in group.Where(speaker => speaker.WorkshopSpeakerId != merged.WorkshopSpeakerId))
@@ -185,6 +210,8 @@ namespace DotNetLiguriaCore.Services
                     .Set(item => item.ProfileImageUrl, speaker.ProfileImageUrl)
                     .Set(item => item.Description, speaker.Description)
                     .Set(item => item.Email, speaker.Email)
+                    .Set(item => item.AccountIssuer, speaker.AccountIssuer)
+                    .Set(item => item.AccountSubject, speaker.AccountSubject)
                     .Set(item => item.IsActive, speaker.IsActive);
                 await _workshopSpeakersCollection.UpdateOneAsync(
                     item => item.WorkshopSpeakerId == speaker.WorkshopSpeakerId,
@@ -217,7 +244,25 @@ namespace DotNetLiguriaCore.Services
                 SpeakerIdentity.NormalizeName(speaker.Name) != normalizedName);
         }
 
-        public async Task RemoveAsync(Guid id) =>
+        private static UpdateDefinition<WorkshopSpeaker> ContentUpdate(WorkshopSpeaker speaker) =>
+            Builders<WorkshopSpeaker>.Update
+                .Set(x => x.Name, speaker.Name).Set(x => x.NormalizedName, speaker.NormalizedName)
+                .Set(x => x.SessionizeId, speaker.SessionizeId).Set(x => x.Description, speaker.Description)
+                .Set(x => x.Email, speaker.Email).Set(x => x.ProfileImageUrl, speaker.ProfileImageUrl)
+                .Set(x => x.IsActive, speaker.IsActive);
+
+        public async Task ApplyTalkPhotosAsync(Workshop workshop)
+        {
+            if (_photos is not null)
+                foreach (var snapshot in (workshop.Talks ?? []).SelectMany(x => x.Speakers ?? []))
+                    await _photos.ApplySnapshotAsync(snapshot, default);
+        }
+
+        public async Task RemoveAsync(Guid id)
+        {
+            using var lease = await _gate.EnterAsync();
+            if (_photos is not null) await _photos.RemoveProfileAsync(PhotoTarget.SpeakerKey(id), default);
             await _workshopSpeakersCollection.DeleteOneAsync(x => x.WorkshopSpeakerId == id);
+        }
     }
 }

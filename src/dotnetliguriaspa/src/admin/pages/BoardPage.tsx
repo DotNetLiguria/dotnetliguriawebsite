@@ -7,9 +7,18 @@ import { Avatar, Badge, EmptyState, LoadError, PageHeader, Panel, SwitchInput, T
 import { AdminApiError, clean, useAdminFetch, useAdminLoad } from '../adminApi';
 import { notify } from '../toasts';
 import { AdminBoardMember, LINKS, LinkKey, boardPhoto, isWebUrl, linkError } from './boardModel';
+import BoardAccountPanel from './BoardAccountPanel';
+import PhotoEditor from '../../account/PhotoEditor';
 import { LocalIcon, MissingCard, MoveButtons, RecordDialog, RowMenu, RowMenuItem, byOrder, iconLink, planMove, plural, restoreMoveFocus, revealOnRow, useIsDesktop } from './listKit';
 
-const errorText = (error: unknown) => (error instanceof AdminApiError ? error.message : 'Errore di rete');
+const errorText = (error: unknown) => {
+  if (!(error instanceof AdminApiError)) return 'Errore di rete';
+  const messages: Record<string, string> = {
+    board_photo_required_to_publish: 'Prima di pubblicare, salva la bozza e carica o seleziona una foto valida.',
+    photo_changed_reload: 'La foto è cambiata. Ricarica la scheda e verifica foto e visibilità prima di salvare di nuovo.',
+  };
+  return messages[error.code] ?? (error.detail || error.message);
+};
 const isVisible = (member: AdminBoardMember) => member.isActive !== false;
 const nameOf = (member: AdminBoardMember) => clean(member.name) || 'Senza nome';
 const roleOf = (member: AdminBoardMember) => clean(member.description);
@@ -24,23 +33,34 @@ type Draft = {
 const draftOf = (member?: AdminBoardMember): Draft => ({
   name: clean(member?.name), description: clean(member?.description), email: clean(member?.email),
   shortBio: member?.shortBio ?? '', fullBio: member?.fullBio ?? '', profileImageUrl: clean(member?.profileImageUrl),
-  order: String(member?.order ?? 0), isActive: member ? isVisible(member) : true,
+  order: String(member?.order ?? 0), isActive: member ? isVisible(member) : false,
   blogHtml: clean(member?.blogHtml), lInkedinUrl: clean(member?.lInkedinUrl), gitHubUrl: clean(member?.gitHubUrl),
   twitterUrl: clean(member?.twitterUrl), faceboookUrl: clean(member?.faceboookUrl), instagramUrl: clean(member?.instagramUrl),
 });
 
 const orderError = (value: string) => (/^\d+$/.test(value.trim()) ? null : 'Indica un numero intero, zero o maggiore.');
 
-/** One form, one save: the whole record goes back, with the fields the form does not show left as they were. */
-function BoardForm({ member, initialOrder = 0, onCancel, onSaved }: {
+/** Profile fields save together; photo operations apply independently and refresh only the saved photo state. */
+function BoardForm({ member, initialOrder = 0, onCancel, onSaved, onPhotoChanged }: {
   member?: AdminBoardMember;
   initialOrder?: number;
   onCancel: () => void;
   onSaved: (id: string) => void;
+  onPhotoChanged?: () => void;
 }) {
   const api = useAdminFetch();
   const [draft, setDraft] = useState<Draft>(() => ({ ...draftOf(member), order: String(member?.order ?? initialOrder) }));
   const [saving, setSaving] = useState(false);
+  const previousMember = useRef(member);
+  useEffect(() => {
+    const previous = previousMember.current;
+    previousMember.current = member;
+    if (member && previous) setDraft(current => ({
+      ...current,
+      profileImageUrl: current.profileImageUrl === clean(previous.profileImageUrl) ? clean(member.profileImageUrl) : current.profileImageUrl,
+      isActive: previous.isActive !== member.isActive ? isVisible(member) : current.isActive,
+    }));
+  }, [member]);
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => setDraft(d => ({ ...d, [key]: value }));
 
   const submit = async (event: React.FormEvent) => {
@@ -75,9 +95,12 @@ function BoardForm({ member, initialOrder = 0, onCancel, onSaved }: {
       <TextInput label="Nome" isRequired value={draft.name} onChange={set('name')} autoFocus validate={value => (clean(value) ? null : 'Il nome è obbligatorio.')} />
       <TextInput label="Ruolo" value={draft.description} onChange={set('description')} placeholder="Presidente, Consigliere…" description="Compare sotto il nome nella scheda del team sul sito." />
       <TextInput label="Email" type="email" value={draft.email} onChange={set('email')} />
+      {!member && <p className="text-sm text-muted">Salva prima il profilo; nella scheda potrai selezionare un account esistente dell’Identity Provider, collegarlo e confermare separatamente l’aggiunta al gruppo Board.</p>}
       <TextAreaInput label="Presentazione breve" rows={3} value={draft.shortBio} onChange={set('shortBio')} description="Compare nella scheda del team sul sito; se manca si usa la biografia completa." />
       <TextAreaInput label="Biografia completa" rows={5} value={draft.fullBio} onChange={set('fullBio')} />
-      <TextInput label="Foto" value={draft.profileImageUrl} onChange={set('profileImageUrl')} placeholder="profile/nome-cognome.jpg oppure https://…" description="Percorso sotto /Contents o indirizzo completo. Il caricamento diretto della foto è da completare." />
+      <TextInput label="Foto (percorso storico)" value={draft.profileImageUrl} onChange={set('profileImageUrl')} placeholder="profile/nome-cognome.jpg oppure https://…" description="Percorso sotto /Contents o indirizzo completo. Questo campo viene applicato con Salva; le foto gestite si modificano separatamente qui sotto." />
+      {member ? <PhotoEditor scope="board" id={member.boardId} onChanged={onPhotoChanged} />
+        : <p className="text-sm text-muted">Salva prima la bozza nascosta, poi carica o seleziona la foto nella scheda e infine attiva “Visibile sul sito”. La pubblicazione richiede una foto valida.</p>}
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold text-navy">Blog e social</legend>
         <p className="text-sm text-muted">Indirizzi completi che iniziano con https://. Sul sito compaiono solo quelli compilati.</p>
@@ -89,7 +112,7 @@ function BoardForm({ member, initialOrder = 0, onCancel, onSaved }: {
       </fieldset>
       <div className="grid items-start gap-4 sm:grid-cols-2">
         <TextInput label="Ordine" type="number" inputMode="numeric" isRequired value={draft.order} onChange={set('order')} validate={orderError} description="Il numero più basso viene per primo. Dall'elenco puoi anche usare le frecce." />
-        <div className="sm:pt-[1.625rem]"><SwitchInput isSelected={draft.isActive} onChange={set('isActive')}>Visibile sul sito</SwitchInput></div>
+        <div className="sm:pt-[1.625rem]"><SwitchInput isDisabled={!member} isSelected={draft.isActive} onChange={set('isActive')}>Visibile sul sito</SwitchInput></div>
       </div>
       <div className="flex flex-wrap justify-end gap-2 pt-2">
         <Button onPress={onCancel} className={btn.ghost}>Annulla</Button>
@@ -145,13 +168,13 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
 
       <div className="space-y-5 p-5 sm:p-6">
         {mode === 'edit' && can('board.manage') ? (
-          <BoardForm member={member} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} />
+          <BoardForm member={member} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} onPhotoChanged={onChanged} />
         ) : (
           <>
             {!photo && (
               <div className="rounded-xl bg-[#fff4e5] p-4 text-[#8a4b00]">
                 <p className="font-bold">Manca la foto</p>
-                <p className="text-sm">Sul sito compare con le iniziali. Indica il percorso della foto in Modifica; il caricamento diretto è da completare.</p>
+                <p className="text-sm">Carica o seleziona una foto in Modifica prima di pubblicare la scheda.</p>
               </div>
             )}
             <Detail title="Presentazione breve">{clean(member.shortBio) ? member.shortBio : none('Nessuna presentazione breve.')}</Detail>
@@ -179,10 +202,12 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
               <div><dt className="font-semibold text-muted">Email</dt><dd className="break-all">{clean(member.email) || '—'}</dd></div>
               <div><dt className="font-semibold text-muted">Posizione nel team</dt><dd>{position} di {count} (ordine {member.order ?? 0})</dd></div>
             </dl>
+            <BoardAccountPanel boardId={member.boardId} email={member.email} />
             {confirmDelete && (
               <div role="alert" className="rounded-xl border border-[#b42318] p-4">
                 <p className="font-bold text-[#b42318]">Eliminare {name}?</p>
                 <p className="text-sm text-muted">Il membro viene rimosso dal database e dalla sezione Team del sito.</p>
+                <p className="text-sm text-muted">Se l’account appartiene al gruppo Board, conserverà l’accesso anche dopo l’eliminazione della scheda. Rimuovilo prima dal gruppo se necessario.</p>
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
                   <Button onPress={() => setConfirmDelete(false)} className={btn.ghost} autoFocus>Annulla</Button>
                   <Button

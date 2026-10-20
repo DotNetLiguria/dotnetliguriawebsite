@@ -171,7 +171,10 @@ public class RepositoryStandardsTests
             Assert.DoesNotContain(project.Descendants("PackageReference"), reference =>
                 reference.Attribute("Include")?.Value is { } name &&
                 (name.Contains("WebAssembly", StringComparison.OrdinalIgnoreCase)
-                    || name.Contains("SkiaSharp", StringComparison.OrdinalIgnoreCase)
+                    || name.Contains("SkiaSharp", StringComparison.OrdinalIgnoreCase) &&
+                        (Path.GetRelativePath(root, path).Replace('\\', '/') !=
+                            "src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj" ||
+                         name is not ("SkiaSharp" or "SkiaSharp.NativeAssets.Linux.NoDependencies"))
                     || name.Contains("ZXing", StringComparison.OrdinalIgnoreCase)
                     || name.Contains("Playwright", StringComparison.OrdinalIgnoreCase)
                     || name.Contains("ApplicationInsights", StringComparison.OrdinalIgnoreCase)

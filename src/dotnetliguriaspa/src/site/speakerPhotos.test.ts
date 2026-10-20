@@ -15,4 +15,12 @@ describe('photoCandidates', () => {
     expect(photoCandidates('Alan Turing')).toEqual([]);
     expect(photoCandidates('Alan Turing', '/Uploads/speakers/alan.jpg')).toEqual([]);
   });
+
+  test('managed removal disables shipped fallback and managed media URLs bypass /Contents', () => {
+    expect(photoCandidates('Ada Lovelace', null, true)).toEqual([]);
+    expect(photoCandidates('Ada Lovelace', '/api/media/photos/photo.webp', true)).toEqual([
+      expect.stringMatching(/\/api\/media\/photos\/photo\.webp$/),
+    ]);
+    expect(photoCandidates('Ada Lovelace', '/api/media/photos/photo.webp', true)[0]).not.toContain('/Contents/');
+  });
 });

@@ -9,8 +9,8 @@ using Microsoft.Extensions.Options;
 
 namespace DotNetLiguriaCore.Services.Access;
 
-public sealed class KeycloakPermissionDirectory(HttpClient httpClient, IOptions<PermissionDirectoryOptions> options)
-    : IAccessPermissionDirectory
+public sealed partial class KeycloakPermissionDirectory(HttpClient httpClient, IOptions<PermissionDirectoryOptions> options)
+    : IAccessPermissionDirectory, ISpeakerOnboardingDirectory
 {
     private const int _maxRoleMappings = 512;
     private static readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web)
@@ -78,6 +78,109 @@ public sealed class KeycloakPermissionDirectory(HttpClient httpClient, IOptions<
                 users.Add(new(_options.Issuer, user.Subject, user.Username, user.Enabled));
         }
         return users;
+    }
+
+    public async Task<IReadOnlyList<AccessUserSummary>> GetBoardMembersAsync(CancellationToken cancellationToken)
+    {
+        var groupId = await ValidateBoardGroupAsync(cancellationToken);
+        var issuer = ValidateIssuer(_options);
+        var users = new Dictionary<string, AccessUserSummary>(StringComparer.Ordinal);
+        for (var first = 0; first <= 10000; first += 100)
+        {
+            using var response = await SendAdminAsync(HttpMethod.Get,
+                $"/admin{issuer.AbsolutePath}/groups/{groupId}/members?first={first}&max=100&briefRepresentation=false",
+                null, cancellationToken);
+            EnsureSuccess(response);
+            using var document = await ReadJsonAsync(response, cancellationToken);
+            var items = document.RootElement;
+            if (items.ValueKind != JsonValueKind.Array || items.GetArrayLength() > 100)
+                throw new PrivacyBlockedException("permission_directory_invalid_response");
+            foreach (var item in items.EnumerateArray())
+            {
+                var user = ParseUser(item);
+                if (user.IsServiceAccount) throw new PrivacyBlockedException("board_group_unsafe");
+                if (!users.TryAdd(user.Subject, new(_options.Issuer, user.Subject, user.Username, user.Enabled)))
+                    throw new PrivacyBlockedException("board_membership_changed", StatusCodes.Status409Conflict);
+            }
+            if (users.Count > 10000) throw new PrivacyBlockedException("board_member_limit_exceeded");
+            if (items.GetArrayLength() < 100) return users.Values.ToArray();
+        }
+        throw new PrivacyBlockedException("board_member_limit_exceeded");
+    }
+
+    public async Task<bool> IsBoardMemberAsync(AccountReference account, CancellationToken cancellationToken)
+    {
+        ValidateAccount(account);
+        var groupId = await ValidateBoardGroupAsync(cancellationToken);
+        var issuer = ValidateIssuer(_options);
+        using var response = await SendAdminAsync(HttpMethod.Get,
+            $"/admin{issuer.AbsolutePath}/users/{account.Subject}/groups?first=0&max=100",
+            null, cancellationToken);
+        EnsureSuccess(response);
+        using var document = await ReadJsonAsync(response, cancellationToken);
+        if (document.RootElement.ValueKind != JsonValueKind.Array || document.RootElement.GetArrayLength() >= 100)
+            throw new PrivacyBlockedException("permission_directory_invalid_response");
+        foreach (var group in document.RootElement.EnumerateArray())
+        {
+            if (!TryGetString(group, "id", out var id) || !Guid.TryParse(id, out _))
+                throw new PrivacyBlockedException("permission_directory_invalid_response");
+            if (id == groupId) return true;
+        }
+        return false;
+    }
+
+    public async Task ChangeBoardMembershipAsync(AccountReference account, bool join, CancellationToken cancellationToken)
+    {
+        ValidateAccount(account);
+        var groupId = await ValidateBoardGroupAsync(cancellationToken);
+        var issuer = ValidateIssuer(_options);
+        using var response = await SendAdminAsync(join ? HttpMethod.Put : HttpMethod.Delete,
+            $"/admin{issuer.AbsolutePath}/users/{account.Subject}/groups/{groupId}", null, cancellationToken);
+        EnsureSuccess(response);
+    }
+
+    private async Task<string> ValidateBoardGroupAsync(CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(_options.BoardGroupId, out var groupGuid) || groupGuid == Guid.Empty ||
+            _options.ProtectedGroupIds.Contains(groupGuid.ToString("D"), StringComparer.OrdinalIgnoreCase))
+            throw new PrivacyBlockedException("board_group_not_configured");
+        var groupId = groupGuid.ToString("D");
+        var issuer = ValidateIssuer(_options);
+        var path = $"/admin{issuer.AbsolutePath}/groups/{groupId}";
+        using var response = await SendAdminAsync(HttpMethod.Get, path, null, cancellationToken);
+        EnsureSuccess(response);
+        using var group = await ReadJsonAsync(response, cancellationToken);
+        if (!TryGetString(group.RootElement, "id", out var actualId) || actualId != groupId ||
+            !TryGetString(group.RootElement, "name", out var name) || name != BoardGroupPolicy.Name ||
+            !TryGetString(group.RootElement, "path", out var groupPath) || groupPath != "/" + BoardGroupPolicy.Name)
+            throw new PrivacyBlockedException("board_group_unsafe");
+        var clientId = await GetClientUuidAsync(cancellationToken);
+        using var mappingsResponse = await SendAdminAsync(HttpMethod.Get, path + "/role-mappings", null, cancellationToken);
+        EnsureSuccess(mappingsResponse);
+        using var mappings = await ReadJsonAsync(mappingsResponse, cancellationToken);
+        var root = mappings.RootElement;
+        if (root.ValueKind != JsonValueKind.Object ||
+            root.TryGetProperty("realmMappings", out var realmRoles) &&
+                (realmRoles.ValueKind != JsonValueKind.Array || realmRoles.GetArrayLength() != 0) ||
+            !root.TryGetProperty("clientMappings", out var clients) || clients.ValueKind != JsonValueKind.Object)
+            throw new PrivacyBlockedException("board_group_unsafe");
+        var found = false;
+        foreach (var client in clients.EnumerateObject())
+        {
+            if (!TryGetString(client.Value, "id", out var id) || id != clientId ||
+                !client.Value.TryGetProperty("mappings", out var roles) ||
+                !BoardGroupPolicy.Permissions.SetEquals(ParsePermissionRoles(roles, clientId, rejectUnknown: true)))
+                throw new PrivacyBlockedException("board_group_unsafe");
+            found = true;
+        }
+        if (!found) throw new PrivacyBlockedException("board_group_unsafe");
+        using var effectiveResponse = await SendAdminAsync(HttpMethod.Get,
+            path + $"/role-mappings/clients/{clientId}/composite", null, cancellationToken);
+        EnsureSuccess(effectiveResponse);
+        using var effective = await ReadJsonAsync(effectiveResponse, cancellationToken);
+        if (!BoardGroupPolicy.Permissions.SetEquals(ParsePermissionRoles(effective.RootElement, clientId, rejectUnknown: true)))
+            throw new PrivacyBlockedException("board_group_unsafe");
+        return groupId;
     }
 
     public async Task<(AccessUserSummary User, bool IsServiceAccount)> GetUserAsync(
@@ -174,12 +277,16 @@ public sealed class KeycloakPermissionDirectory(HttpClient httpClient, IOptions<
             throw new PrivacyBlockedException("access_target_not_found", StatusCodes.Status404NotFound);
         EnsureSuccess(response);
         using var document = await ReadJsonAsync(response, cancellationToken);
-        if (document.RootElement.ValueKind != JsonValueKind.Array ||
-            document.RootElement.GetArrayLength() > _maxRoleMappings)
+        return ParsePermissionRoles(document.RootElement, clientId);
+    }
+
+    private static IReadOnlySet<string> ParsePermissionRoles(JsonElement roles, string clientId, bool rejectUnknown = false)
+    {
+        if (roles.ValueKind != JsonValueKind.Array || roles.GetArrayLength() > _maxRoleMappings)
             throw new PrivacyBlockedException("permission_directory_invalid_response");
 
         var permissions = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var role in document.RootElement.EnumerateArray())
+        foreach (var role in roles.EnumerateArray())
         {
             if (role.ValueKind != JsonValueKind.Object ||
                 !TryGetString(role, "name", out var name) ||
@@ -191,7 +298,11 @@ public sealed class KeycloakPermissionDirectory(HttpClient httpClient, IOptions<
                 !role.TryGetProperty("composite", out var composite) ||
                 composite.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
                 throw new PrivacyBlockedException("permission_directory_invalid_response");
-            if (!PermissionCatalog.IsKnown(name)) continue;
+            if (!PermissionCatalog.IsKnown(name))
+            {
+                if (rejectUnknown) throw new PrivacyBlockedException("board_group_unsafe");
+                continue;
+            }
             if (composite.ValueKind != JsonValueKind.False)
                 throw new PrivacyBlockedException("permission_directory_invalid_role");
             permissions.Add(name);

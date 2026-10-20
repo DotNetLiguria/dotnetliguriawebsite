@@ -14,6 +14,14 @@ namespace DotNetLiguriaCore.Model
         public bool IsActive { get; set; }
         public string? Description { get; set; }
         public string? Email { get; set; }
+        [JsonIgnore]
+        public string? AccountIssuer { get; set; }
+        [JsonIgnore]
+        public string? AccountSubject { get; set; }
+        [BsonIgnore]
+        public bool PhotoFallbackDisabled { get; set; }
+        [BsonIgnore]
+        public string? PhotoVersion { get; set; }
         [BsonElement("NormalizedName")]
         [JsonIgnore]
         public string NormalizedName { get; set; } = string.Empty;

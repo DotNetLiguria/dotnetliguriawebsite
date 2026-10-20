@@ -63,6 +63,7 @@ describe('privacy page', () => {
     expect(screen.getByRole('link', { name: /www\.garanteprivacy\.it/ })).toHaveAttribute('href', 'https://www.garanteprivacy.it');
     expect(screen.getByText(/Non facciamo profilazione/)).toBeInTheDocument();
     expect(screen.getByText(/servizi cloud che adottano misure adeguate/)).toBeInTheDocument();
+    expect(screen.getByText(/La cancellazione del proprio account non richiede una verifica MFA recente/)).toBeInTheDocument();
   });
 
   test('covers the questionnaire data, with consent as its basis', () => {

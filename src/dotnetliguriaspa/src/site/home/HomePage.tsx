@@ -15,6 +15,7 @@ import { publicQuestionnaireApi } from '../../questionnaire/api';
 import { useLoad } from '../useLoad';
 import EventProgramme, { triggerLink } from '../event/EventProgramme';
 import EventInfoCard from '../event/EventInfoCard';
+import { profilePhotoUrl } from '../speakerPhotos';
 
 // Approved presentation copy of the current site.
 const ABOUT =
@@ -30,7 +31,7 @@ function useHashScroll(ready: boolean) {
 }
 
 function TeamCard({ member }: { member: SiteBoardMember }) {
-  const photo = contentUrl(member.profileImageUrl);
+  const photo = profilePhotoUrl(member.profileImageUrl);
   const bio = clean(member.shortBio) || clean(member.fullBio);
   const long = bio.length > 170;
   const preview = long ? `${bio.slice(0, bio.lastIndexOf(' ', 160))}…` : bio;

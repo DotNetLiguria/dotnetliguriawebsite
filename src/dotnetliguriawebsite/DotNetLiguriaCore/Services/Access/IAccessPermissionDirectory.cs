@@ -9,6 +9,9 @@ public interface IAccessPermissionDirectory : IPermissionDirectory
         string search, int first, int max, CancellationToken cancellationToken);
     Task<IReadOnlyList<AccessUserSummary>> FindUsersByEmailAsync(
         string email, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AccessUserSummary>> GetBoardMembersAsync(CancellationToken cancellationToken);
+    Task<bool> IsBoardMemberAsync(AccountReference account, CancellationToken cancellationToken);
+    Task ChangeBoardMembershipAsync(AccountReference account, bool join, CancellationToken cancellationToken);
     Task<(AccessUserSummary User, bool IsServiceAccount)> GetUserAsync(
         AccountReference account, CancellationToken cancellationToken);
     Task<PermissionAssignmentSnapshot> GetAssignmentsAsync(

@@ -6,5 +6,7 @@ public class WorkshopTalkSpeaker
     public string? SessionizeId { get; set; }
     public string? Name { get; set; }
     public string? ImageUrl { get; set; }
+    [MongoDB.Bson.Serialization.Attributes.BsonIgnore]
+    public bool PhotoFallbackDisabled { get; set; }
     public string? Biography { get; set; }
 }

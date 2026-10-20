@@ -12,4 +12,5 @@ public sealed record AccessAuditEntry(
     [property: JsonIgnore] string TargetIssuer,
     string TargetSubject,
     string Outcome,
-    string CorrelationId);
+    string CorrelationId,
+    string? GroupId = null);

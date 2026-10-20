@@ -17,7 +17,8 @@ description: "Use when validating changes, running fast unit tests, checking C# 
    requirements. Never call instructions alone enforcement. Do not deploy or migrate data.
 6. Run repository standards and backend/questionnaire/migration units from
    tests/RepositoryRules.Tests and tests/DotNetLiguriaCore.Tests. QR generation is
-   browser-side; no native imaging or legacy browser-test projects remain.
+   browser-side; profile-photo normalization uses the website's SkiaSharp
+   dependency. No separate native imaging or legacy browser-test projects remain.
 7. Run `pwsh -File scripts/verify-publish.ps1` after the shared gate for deployment
    changes. It checks website and DataMigration publish artifacts and static assets
    without running hosts.

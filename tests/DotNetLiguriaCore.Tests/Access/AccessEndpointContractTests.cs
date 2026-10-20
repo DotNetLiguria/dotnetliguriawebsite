@@ -15,12 +15,13 @@ public sealed class AccessEndpointContractTests
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.Services.AddSingleton<AccessManagementService>();
+        builder.Services.AddSingleton<BoardAccountService>();
         using var app = builder.Build();
         app.MapAccessEndpoints();
 
         var endpoints = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints).OfType<RouteEndpoint>().ToArray();
-        Assert.Equal(6, endpoints.Length);
+        Assert.Equal(9, endpoints.Length);
         var revoke = Assert.Single(endpoints, endpoint =>
             endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods.Contains("DELETE") == true);
         Assert.Equal("/api/admin/access/users/{subject}/permissions/{permissionId}", revoke.RoutePattern.RawText);

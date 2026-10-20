@@ -2,13 +2,107 @@
 
 Use this procedure for the **currently implemented, client-role-backed**
 authorization design. The application reads one multivalued `permissions` claim;
-52 Keycloak client roles supply its values. The alternative of backing that
+53 Keycloak client roles supply its values. The alternative of backing that
 claim with protected user attributes was discussed but **not implemented**.
 Changing only the mapper to attributes will not work: live checks still read
 client-role assignments.
 
 The architecture, permission meanings, delegation restrictions and rollout
 limitations are in [authorization.md](authorization.md).
+
+## Board membership rollout
+
+Preview/Apply/Verify also reconcile the separate top-level **Board members**
+group and its exact eight-role read-only baseline (see authorization.md).
+They do not enroll any users, including legacy MongoDB Board profiles.
+Unexpected group grants cause a reviewable failure rather than automatic removal.
+After an approved Apply, the output and explicit InstallLocalSecrets mode include
+`PermissionDirectory:BoardGroupId`; configure the immutable group UUID on every
+website instance. Do not replace this with a name or the recovery-group UUID.
+The existing runtime credential is used for bounded group/member inspection and
+joining/leaving; no additional realm/client administrator role is introduced.
+Verify these provider operations with the deployed Identity Provider version
+before enabling the workflow.
+
+Before the first profile/account link, a database operator must separately
+approve and create this index on the configured Board collection (shown here as
+`Board`). Do not run against real data without approval:
+
+```javascript
+db.Board.createIndex(
+  { AccountIssuer: 1, AccountSubject: 1 },
+  {
+    name: "board_account_identity_unique",
+    unique: true,
+    partialFilterExpression: {
+      AccountIssuer: { $type: "string" },
+      AccountSubject: { $type: "string" }
+    },
+    collation: { locale: "simple" }
+  }
+)
+```
+
+Legacy documents without links remain valid. The application only inspects this
+index; it does not create indexes, migrate data or auto-link profiles. Linking
+fails explicitly with `board_account_index_required` if the required constraint
+is absent. Resolve any pre-existing duplicate links deliberately, never by
+deleting public profiles as an automatic repair.
+
+### Speaker onboarding setup (separate approval)
+
+Provisioning Preview/Apply/Verify now includes the **53rd** application leaf role,
+`access.users.create`, and its explicit application scope mapping. Historical
+52-role live observations later in this document describe the earlier catalogue,
+not proof that the new permission is deployed. Preview and offline fixtures do
+not provision the live realm. Do not grant this nondelegable creation capability
+to ordinary speakers or implicitly through the Board baseline.
+
+Use a database operator's read-only preview first: inspect `getIndexes()` and
+aggregate non-null `AccountIssuer`/`AccountSubject` pairs on the configured
+speaker collection, grouping both fields and reporting only counts greater
+than one. Resolve duplicates explicitly before an approved setup. Apply the
+same partial unique `{AccountIssuer:1,AccountSubject:1}` index shown above to
+the configured **speaker** collection, with name `speaker_account_identity_unique`
+and simple collation. Missing constraints fail with `speaker_account_index_required`;
+neither application startup nor onboarding creates them automatically.
+
+Configure the permission-directory service (not the privacy-admin identity):
+
+```text
+PermissionDirectory:InvitationClientId = DotNetLiguriaCore
+PermissionDirectory:InvitationRedirectUri = <approved HTTPS application return URL>
+PermissionDirectory:AllowedInvitationRedirectUris:0 = <same exact URL>
+PermissionDirectory:InvitationLifespanSeconds = 1800
+```
+
+The client must equal `ApplicationClientId`; the redirect must be an exact
+member of the configured allowlist and also permitted by that Keycloak client.
+No caller-supplied redirect/client/lifetime is accepted. The lifetime range is
+300–86400 seconds. Unset/invalid configuration fails **before account creation**.
+Keep SMTP configured and enable required actions `UPDATE_PASSWORD` and
+`VERIFY_EMAIL`. Existing runtime provider `manage-users` authority is reused;
+no additional provider admin roles or realm-admin workaround is introduced.
+Validate the narrow operations against the deployed provider release before
+enabling onboarding. Do not reuse provisioning or privacy service credentials.
+
+The implementation follows the official
+[Keycloak Admin REST API users contract](https://www.keycloak.org/docs-api/latest/rest-api/index.html#_users):
+`POST /admin/realms/{realm}/users` returns 201 (unique username; 409 conflicts);
+`PUT .../users/{user-id}/execute-actions-email` sends required actions, accepts
+`client_id`, `redirect_uri`, and seconds-based `lifespan`, and returns 204.
+A successful send indicates provider acceptance, not confirmed mailbox delivery.
+There is no invitation Apply/provisioning step and no automatic retry. The
+application reserves every creation attempt durably before POST; after transport
+uncertainty an operator must inspect/reconcile rather than recreate blindly.
+
+For initial enrollment, save/correct the public profile email, open its Board
+card, verify MFA, confirm the discovered account (or search/select an existing
+account), confirm **Collega**, then separately **Aggiungi al gruppo Board**.
+Assign the organizational title through the ordinary **Ruolo** field.
+Removing the group leaves profile/title/link and independent grants unchanged.
+Existing linked accounts are intentionally not silently replaced by email edits.
+No live provisioning, index creation or enrollment is performed by code changes.
 
 ## Recommended: provision the existing realm with the setup tool
 
@@ -93,7 +187,7 @@ pwsh -File scripts\configure-keycloak.ps1 -Mode InstallLocalSecrets `
 ```
 
 `-GrantRecoveryAccess` is an explicit choice to give the named human account
-all 52 application permissions through the protected
+all 53 application permissions through the protected
 **Application recovery operators** group. It does not give that user Keycloak
 realm administration rights. The flag also checks these grants during Verify
 and InstallLocalSecrets. Without it, the tool does not manage human permission
@@ -264,7 +358,7 @@ roles from either namespace. Do not remove similarly named roles by pattern.
    in approved protected storage. Deleting a role removes its existing
    mappings; recreating the name alone does not restore assignments.
 3. Migrate affected users/groups to reviewed task bundles. There is no automatic
-   translation from a legacy administrator role to all 52 new permissions.
+   translation from a legacy administrator role to all 53 new permissions.
 4. Using an authorized realm operator, remove obsolete mapper/scope/composite
    references and delete only confirmed application-exclusive legacy roles.
    Preserve provider defaults, `realm-management`, `account`, `broker`, privacy
@@ -366,6 +460,7 @@ privacy.retention.manage
 notifications.preview
 notifications.confirm
 access.users.read
+access.users.create
 access.permissions.grant
 access.permissions.revoke
 access.audit.read
@@ -450,7 +545,7 @@ Inside **Client scopes -> dotnetliguria-permissions -> Scope**:
 
 1. Choose **Assign role**.
 2. Filter by client roles and select **DotNetLiguriaCore**.
-3. Select all 52 roles in step 1, then assign.
+3. Select all 53 roles in step 1, then assign.
 4. Confirm no foreign-client, legacy administrator or realm-management roles
    are in this application's permission scope allowlist.
 
@@ -688,6 +783,7 @@ made directly by an authorized Keycloak administrator.
 | Role | What you can do in the website |
 | --- | --- |
 | `access.users.read` | Find users and inspect their application permissions |
+| `access.users.create` | Explicit new speaker account creation and invitation/resend (nondelegable) |
 | `access.permissions.grant` | Give eligible permissions to another user |
 | `access.permissions.revoke` | Remove eligible direct permissions from another user |
 | `access.audit.read` | Read the permission-change audit |
@@ -715,7 +811,7 @@ grant/revoke eligible event-editor permissions, and edit current draft events.
 You cannot publish, delete or edit past events without additional permissions.
 
 If your own account intentionally needs every application task, assign all
-52 DotNetLiguriaCore roles from step 1 to this group instead. This is an
+53 DotNetLiguriaCore roles from step 1 to this group instead. This is an
 explicit full-access assignment, not a special administrator bypass. Choose
 it only if every member of this group should have all those powers. New roles
 will still need a deliberate assignment later.

@@ -1,10 +1,16 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { jsonResponse, mockApi, render, screen, waitFor, within } from '../../test-utils';
+import { jsonResponse, mockApi as mockRoutes, render, screen, waitFor, within } from '../../test-utils';
 import { resetPhotoCache } from '../adminApi';
 import { AdminToastRegion } from '../toasts';
 import SpeakersPage from './SpeakersPage';
+
+const mockApi = (routes: Parameters<typeof mockRoutes>[0]) => mockRoutes({
+  ...routes,
+  '/photos/speaker/': { version: '1', source: 'none', url: null, previewPath: null, hasAccount: false, candidates: [], affectedBoards: [] },
+  '/admin/speaker-accounts/': { speakerId: 's1', email: null, account: null, candidates: [], onboardingState: null },
+});
 
 const workshops = [
   { workshopId: 'w1', title: 'AI Generativa', eventDate: '2025-06-12T00:00:00+02:00', tracks: [
@@ -97,6 +103,23 @@ describe('<SpeakersPage />', () => {
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0]).toMatchObject({ workshopSpeakerId: 's-tucci', name: 'Giampaolo Tucci', email: 'gt@example.test', description: 'Architetto e speaker.', isActive: true });
     expect(await screen.findByText('Relatore aggiornato')).toBeInTheDocument();
+  });
+
+  test.each([
+    [{ code: 'speaker_photo_merge_requires_review' }, /schede duplicate contengono foto gestite/],
+    [{ code: 'linked_accounts_conflict', detail: 'Gli account collegati sono diversi. Verifica manuale richiesta.' }, /Gli account collegati sono diversi/],
+  ])('reports an actionable merge conflict, not a duplicate-name error: $code', async (problem, explanation) => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mockApi({
+      '/Speaker/ReconcileDuplicates': () => jsonResponse(problem, 409),
+      '/Speaker/Get': speakers, '/Workshop/Get': workshops, '/Contents/': contents,
+    });
+    renderAt('/admin/speakers/');
+    await screen.findByRole('button', { name: 'Unisci doppioni' });
+    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: 'Unisci doppioni' }));
+    expect(await screen.findByText(explanation)).toBeInTheDocument();
+    expect(screen.queryByText('Esiste già un relatore con questo nome.')).not.toBeInTheDocument();
+    confirm.mockRestore();
   });
 
   test('sorts by name on request and toggles the active state with one click', async () => {

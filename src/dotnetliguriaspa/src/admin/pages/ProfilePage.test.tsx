@@ -1,7 +1,7 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
-import { jsonResponse, mockApi, render, screen } from '../../test-utils';
+import { jsonResponse, mockApi, render, screen, within } from '../../test-utils';
 import ProfilePage from './ProfilePage';
 
 const personal = {
@@ -10,6 +10,7 @@ const personal = {
   hasMore: false, warning: 'I dati legacy richiedono una verifica separata.',
 };
 const defaults = {
+  'photos/account': { version: '1', source: 'none', url: null, previewPath: null, hasAccount: true, candidates: [], affectedBoards: [] },
   'privacy/status': { status: 'no_pending_request' },
   'privacy/data': personal,
   'privacy/profile': personal.identity,
@@ -20,7 +21,7 @@ const prepare = (extra: Parameters<typeof mockApi>[0] = {}) => mockApi({
 const user = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
 const confirmErasure = async () => {
   const controls = user();
-  await controls.click(screen.getByRole('checkbox', { name: /Ho compreso/ }));
+  await controls.click(screen.getByRole('checkbox', { name: /Confermo di voler cancellare tutti i miei dati/ }));
   await controls.type(screen.getByRole('textbox', { name: 'Scrivi ELIMINA per confermare' }), 'ELIMINA');
   await controls.click(screen.getByRole('button', { name: 'Cancella definitivamente il mio account' }));
 };
@@ -86,12 +87,18 @@ describe('<ProfilePage />', () => {
     expect(vi.mocked(fetch).mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
   });
 
-  test('requests fresh MFA at current path/query/hash but never deletes just by requesting step-up', async () => {
+  test('shows a final all-data deletion warning and does not request MFA to erase the account', async () => {
     prepare(); render(<ProfilePage />, { route: '/area-personale?source=account#cancellazione' });
     await user().click(screen.getByRole('tab', { name: 'Privacy' }));
-    await user().click(screen.getByRole('button', { name: 'Verifica MFA per la cancellazione' }));
-    expect(useOidc().login).toHaveBeenCalledWith('/area-personale?source=account#cancellazione', { acr_values: 'mfa' });
+    const warning = screen.getByRole('note', { name: 'Conferma finale della cancellazione' });
+    expect(warning).toHaveTextContent('Conferma finale: cancellazione di tutti i tuoi dati');
+    expect(warning).toHaveTextContent('incluse tutte le risposte inviate da altre persone');
+    expect(within(warning).getByText('!')).toBeVisible();
+    expect(within(warning).getByText('!')).toHaveClass('border-red-700');
+    expect(screen.getByRole('checkbox', { name: /Confermo di voler cancellare tutti i miei dati/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Verifica MFA per la cancellazione' })).not.toBeInTheDocument();
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes('/privacy/erase'))).toBe(false);
+    expect(useOidc().login).not.toHaveBeenCalled();
   });
 
   test('keeps blocked erasure explicit after the two-part destructive confirmation', async () => {

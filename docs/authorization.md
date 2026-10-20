@@ -230,11 +230,130 @@ not roles owned by DotNetLiguriaSpa.
 | `notifications.preview` | Prepare a campaign preview and recipient count. |
 | `notifications.confirm` | Confirm campaign preparation, not delivery. |
 | `access.users.read` | Bounded user lookup and application grant inspection. |
+| `access.users.create` | Explicit speaker-account creation and onboarding invitation/resend; nondelegable. Never grants application access. |
 | `access.permissions.grant` | Grant an eligible direct permission to another permitted target, subject to delegation checks and recent MFA. |
 | `access.permissions.revoke` | Remove an eligible direct permission, subject to the same restrictions. |
 | `access.audit.read` | Restricted access-assignment audit inspection. |
 
 ## Task bundles
+
+### Board membership
+
+Provisioning creates a separate top-level `Board members` group, with exactly
+`events.read`, `event-assets.read`, `speakers.read`, `venues.read`, `board.read`,
+`site-menu.read`, `questionnaires.read`, and `questionnaire-results.read`.
+There are no writes, raw response reads, ticketing integration, backups, privacy,
+maintenance or access-directory permissions in this baseline.
+Full Scope Allowed remains OFF; ordinary explicit application scope mappings
+govern which assigned permissions appear in renewed tokens. Live group lookups
+never restore permissions omitted from the operator's token.
+
+The Board page first saves public content, including the free-text **Ruolo**
+(`Description`). Operators can then discover an existing account by exact email
+or explicitly select one through the private directory, confirm its stable
+issuer/subject link, and separately confirm joining the fixed group.
+Profile saves cannot create or modify links or membership. Hidden and legacy
+unlinked profiles remain editable. Account email changes never switch links.
+There is no automatic enrollment or relinking.
+
+Bearer-only operations are under `/api/admin/board-accounts/{id}`:
+`GET` reads account state, `POST /link` confirms a new link and
+`POST /membership` joins/leaves. Linking requires `board.manage` and
+`access.users.read`, recent MFA and `X-Confirm-Board-Change: link`; it does
+not require grant authority or the Board baseline and never enrolls the user.
+Membership writes require `board.manage`, the appropriate
+`access.permissions.grant`/`revoke`, recent MFA and `X-Confirm-Board-Change`
+(`join` or `leave`). Discovery also requires `access.users.read`;
+reading account state additionally requires `board.read`. Joins require the
+operator's current possession of every baseline permission.
+Only this fixed group permits self/protected targets; arbitrary direct grants
+retain their existing restrictions. Runtime group validation rejects foreign,
+realm, composite, missing or extra roles and nested/replaced groups.
+
+Linking requires the separately approved partial unique MongoDB index described
+in [keycloak.md](keycloak.md). The index enforces identity uniqueness across
+application instances; ordinary content editing does not require it.
+Linking and photo attribution share the privacy-erasure operation gate; actor
+and target active-account/journal checks happen inside that lease. Membership
+changes retain their existing serialization. Expected
+link/member state rejects stale requests, but provider changes outside this
+application are not a distributed transaction. Audit intent precedes each write;
+readback must verify it. Failures leave explicit unverified state: reload and
+inspect, never assume rollback or automatically retry.
+Membership audit actions are `board-join`/`board-leave` with `GroupId`; profile
+linking uses `board-link`. These are not direct permission grants.
+
+Leaving changes only that group's membership. The public profile, title, stable
+link, direct grants and unrelated groups survive. Hiding or deleting a profile
+does not revoke membership. Renew the affected user's token/sign in again to
+obtain newly granted reads.
+
+Account privacy export includes only the private Board link, and erasure detaches
+it by exact issuer/subject with readback verification (inventory version 4).
+Historical public editorial profiles are retained, not inferred as disposable by
+email. Their content/contact retention remains a separate controller-approved
+policy boundary; this feature does not claim complete public-profile erasure.
+
+### Speaker account association and onboarding
+
+Bearer-only routes under `/api/admin/speaker-accounts/{id:guid}`:
+
+| Operation | Permissions | Confirmation/body |
+| --- | --- | --- |
+| `GET` | `speakers.read` + `access.users.read` | No mutation |
+| `POST /link` | `speakers.manage` + `access.users.read` | `link`; `{subject,expectedEmail}` |
+| `POST /create-and-invite` | Above + `access.users.create` | `create-and-invite`; `{expectedEmail}` |
+| `POST /resend-invitation` | Above + `access.users.create` | `resend-invitation`; `{subject,expectedEmail}` |
+
+Every mutation requires recent MFA and the exact action in
+`X-Confirm-Speaker-Change`. `access.users.create` is deliberately nondelegable;
+approved provider provisioning, not the access-grant UI, assigns it.
+Link returns 204. Other operations return
+`{speakerId,email,account,candidates,onboardingState}`; `account` and candidates
+use the existing private `AccessUserSummary` shape. Public speaker JSON never
+contains account issuer/subject. Discovery is read-only and never automatically
+links, creates an account or grants anything.
+
+Linking requires a unique exact case-insensitive email match, an enabled human,
+and the unchanged expected profile email. Ambiguous, disabled, service-account,
+stale and foreign-issuer selections fail closed. Both account identity fields
+are immutable through ordinary profile updates. A linked identity survives
+email changes. A separately approved partial unique identity index is mandatory
+for linking and creation (see keycloak.md); no runtime index creation occurs.
+
+Creation refuses any existing matching account: use explicit link instead.
+It creates only an enabled, unverified account, with `UPDATE_PASSWORD` and
+`VERIFY_EMAIL`; it never supplies temporary passwords, marks email verified,
+resets an existing matching account's password, joins groups or grants roles.
+The configured allowlisted client/redirect and bounded lifetime are passed to
+Keycloak `execute-actions-email`. SMTP and required actions must be operational
+before enabling this capability.
+
+Audit intent precedes each provider/link mutation; account and link readback
+must verify success. Durable per-profile creation reservations live in
+`<SpeakerCollectionName>AccountOperations`, separately from public profiles.
+Records retain the immutable `Issuer`/`Subject` (subject can be unknown after
+transport uncertainty), email, state and audit correlation. All speaker mutations
+hold the same application-local privacy gate as erasure, rechecking actor and
+target active-account/journal state inside it before account-linked writes.
+States `create-pending`/`create-uncertain`/`created-unverified` require deliberate
+operator reconciliation, never automatic or blind POST retries. An uncertain
+provider POST might already have created an account: reload discovery and
+inspect the provider, then explicitly link the unique verified account.
+This alone does not authorize resetting/inviting a pre-existing account.
+
+`created` means a provider account exists, not that email succeeded.
+Email failure preserves the new account and link and returns
+`invitation-failed`; an interrupted email attempt may remain `invitation-pending`.
+Only an explicit resend for the same linked account originally created by the
+recorded operation may retry. Resend includes only still-pending password action
+and email verification when not yet verified; a completed password is not reset.
+`invited`/audit `accepted` means provider acceptance, **not delivery**.
+Provider/link failures are audited `unverified`; no distributed transaction or
+delivery receipt is claimed. No live provider/database writes were needed to
+implement or unit-test this workflow.
+
+### Other task bundles
 
 Groups are conveniences, not additional privileges. Use independently
 composable groups; explicitly assign destructive/sensitive additions.
@@ -515,10 +634,12 @@ target), `access_change_not_verified`/`access_change_unverified` (503),
 `invalid_access_search`, `invalid_access_target`, `invalid_access_audit_page`
 (400). Changes are serialized per target only inside one application instance.
 
-The **Accessi utenti** page defaults to **Solo board** (25 per page), matching
-active Board records to Identity Provider accounts by exact, case-insensitive
-email. Missing email addresses or accounts do not match; this display filter
-does not grant permissions or infer authorization from a Board record. The API
+The **Accessi utenti** page defaults to **Solo board** (25 per page), listing
+direct members of the configured **Board members** Identity Provider group.
+MongoDB profiles, email, title and public visibility do not affect this filter.
+The bounded provider scan fails explicitly instead of silently truncating at
+10,000 members; searches match usernames before page slicing. Missing group
+configuration or unsafe group grants are errors, not empty results. The API
 uses `boardOnly=true` to filter before pagination; omitting it preserves the
 unfiltered API behavior. Search and paging retain the chosen filter, while
 **Mostra tutti** clears the search and shows all accounts. Selecting a user displays a permission

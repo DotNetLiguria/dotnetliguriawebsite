@@ -171,8 +171,8 @@ export default function PrivacyPage() {
           ogni richiesta deve essere valutata, senza presumere che l'assenza di un account garantisca l'anonimato.
         </p>
         <p>
-          La cancellazione dell'account richiede una verifica MFA recente e riguarda il profilo nell’Identity Provider, i dati
-          applicativi e le copie interessate. Configurazioni di conservazione non sicure o errori operativi
+          La cancellazione del proprio account non richiede una verifica MFA recente e riguarda il profilo nell’Identity Provider,
+          i dati applicativi e le copie interessate. Configurazioni di conservazione non sicure o errori operativi
           impediscono di dichiararla conclusa; lo stato deve indicare il blocco e richiede intervento del titolare.
         </p>
         <p>

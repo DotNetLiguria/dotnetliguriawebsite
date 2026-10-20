@@ -30,6 +30,38 @@ const renderAt = (id = ID) => render(
 );
 
 describe('<EventDetailPage />', () => {
+  test('canonical managed photo removal suppresses stale embedded URLs and shipped fallback by speaker ID', async () => {
+    mockApi({
+      [`/Workshop/Get/${ID}`]: workshop({
+        talks: [{ workshopTalkId: 'talk-1', title: 'Talk', speakers: [{
+          workshopSpeakerId: 's1', name: 'Andrea Merlin', imageUrl: 'https://old.example.test/photo.jpg', photoFallbackDisabled: false,
+        }] }],
+        agendaItems: [{ workshopAgendaItemId: 'i1', talkId: 'talk-1', itemType: 'talk', startTime: '2025-12-06T15:00:00Z', endTime: '2025-12-06T15:40:00Z' }],
+      }),
+      '/Speaker/Get': [{ workshopSpeakerId: 's1', name: 'Nome cambiato', profileImageUrl: null, photoFallbackDisabled: true }],
+    });
+    renderAt();
+    const speakers = await screen.findByRole('region', { name: 'Relatori' });
+    expect(speakers.querySelector('img')).not.toBeInTheDocument();
+    expect(within(speakers).getByText('AM')).toBeInTheDocument();
+  });
+
+  test('managed removal projected onto event speakers works without a separate speaker-directory response', async () => {
+    mockApi({
+      [`/Workshop/Get/${ID}`]: workshop({
+        talks: [{ workshopTalkId: 'talk-1', title: 'Talk', speakers: [{
+          workshopSpeakerId: 's1', name: 'Andrea Merlin', imageUrl: null, photoFallbackDisabled: true,
+        }] }],
+        agendaItems: [{ workshopAgendaItemId: 'i1', talkId: 'talk-1', itemType: 'talk', startTime: '2025-12-06T15:00:00Z', endTime: '2025-12-06T15:40:00Z' }],
+      }),
+      '/Speaker/Get': [],
+    });
+    renderAt();
+    const speakers = await screen.findByRole('region', { name: 'Relatori' });
+    expect(speakers.querySelector('img')).not.toBeInTheDocument();
+    expect(within(speakers).getByText('AM')).toBeInTheDocument();
+  });
+
   test('presents a past event with programme, speakers, materials and topics, without registration', async () => {
     mockApi({ [`/Workshop/Get/${ID}`]: workshop({ attendeeNotes: 'Porta il portatile.' }), '/Speaker/Get': [{ workshopSpeakerId: 's1', name: 'Andrea Merlin ', profileImageUrl: '/Uploads/speakers/old.jpg' }] });
     renderAt();

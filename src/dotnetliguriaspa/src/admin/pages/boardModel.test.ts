@@ -19,5 +19,7 @@ describe('board model helpers', () => {
     expect(boardPhoto('/profile/alberto-baroni.jpg')).toBe(expected);
     expect(boardPhoto('Contents/profile/alberto-baroni.jpg')).toBe(expected);
     expect(boardPhoto('https://cdn.example.test/a.jpg')).toBe('https://cdn.example.test/a.jpg');
+    expect(boardPhoto('/api/media/photos/a.webp')).toMatch(/\/api\/media\/photos\/a\.webp$/);
+    expect(boardPhoto('/api/media/photos/a.webp')).not.toContain('/Contents/');
   });
 });

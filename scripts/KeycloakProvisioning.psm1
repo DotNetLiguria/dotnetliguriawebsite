@@ -83,6 +83,7 @@ function New-KeycloakSetupPlan {
         throw 'Use a separate provisioning identity, not a privacy or interactive client.'
     }
     if ($RecoveryGroupName -cnotmatch '^[A-Za-z][A-Za-z0-9 _-]{0,99}$') { throw 'Invalid recovery group name.' }
+    if ($RecoveryGroupName -ceq 'Board members') { throw 'Recovery and Board groups must be separate.' }
     $plan = @{
         Actions = [System.Collections.Generic.List[object]]::new()
         Aliases = @{}; RuntimeClientId = $RuntimeClientId; RecoveryUserId = $RecoveryUserId.ToString('D')
@@ -116,7 +117,7 @@ function New-KeycloakSetupPlan {
         throw 'Recovery user must be an existing enabled human account.'
     }
     $catalogue = @($Fixture.roles.client.DotNetLiguriaCore | ForEach-Object { $_.name })
-    if ($catalogue.Count -ne 52 -or @($catalogue | Sort-Object -Unique).Count -ne $catalogue.Count) {
+    if ($catalogue.Count -ne 53 -or @($catalogue | Sort-Object -Unique).Count -ne $catalogue.Count) {
         throw 'Unexpected application catalogue. Review tool/fixture changes before provisioning.'
     }
     $existingRoles = @(& $Request 'GET' "clients/$($plan.Aliases.api)/roles?first=0&max=513" $null)
@@ -332,6 +333,51 @@ function New-KeycloakSetupPlan {
     $missing = @($providerRoles | Where-Object { $_.name -cnotin @($currentServiceScope | ForEach-Object { $_.name }) })
     if ($missing.Count) {
         Add-SetupAction $plan 'POST' 'clients/{runtime}/scope-mappings/clients/{management}' $missing 'Explicitly scope runtime provider roles'
+    }
+    $boardName = 'Board members'
+    $boardPermissions = @('events.read', 'event-assets.read', 'speakers.read', 'venues.read',
+        'board.read', 'site-menu.read', 'questionnaires.read', 'questionnaire-results.read')
+    $boardFixture = Get-SetupMatch @($Fixture.groups) 'name' $boardName
+    if (!$boardFixture -or
+        @(Compare-Object $boardPermissions @($boardFixture.clientRoles.DotNetLiguriaCore)).Count) {
+        throw 'Board fixture must contain exactly the approved read-only permissions.'
+    }
+    $boardQuery = 'groups?search=Board%20members&exact=true&first=0&max=101'
+    $boardGroups = @(& $Request 'GET' $boardQuery $null)
+    if ($boardGroups.Count -ge 101) { throw 'Board group search exceeded its bound.' }
+    $boardGroup = Get-SetupMatch $boardGroups 'name' $boardName
+    $boardMappings = @()
+    if ($boardGroup) {
+        if ((Get-SetupField $boardGroup 'path') -cne '/Board members') {
+            throw 'Board group must be a uniquely named top-level group.'
+        }
+        $plan.Aliases.boardGroup = Assert-SetupId $boardGroup
+        $allMappings = & $Request 'GET' "groups/$($plan.Aliases.boardGroup)/role-mappings" $null
+        if (@(Get-SetupField $allMappings 'realmMappings' @()).Count) {
+            throw 'Board group has unexpected realm roles. Review manually.'
+        }
+        $clientMappings = Get-SetupField $allMappings 'clientMappings' @{}
+        foreach ($key in $clientMappings.Keys) {
+            if ($clientMappings[$key].id -cne $plan.Aliases.api) {
+                throw 'Board group has foreign-client roles. Review manually.'
+            }
+        }
+        $boardMappings = @(& $Request 'GET' "groups/$($plan.Aliases.boardGroup)/role-mappings/clients/$($plan.Aliases.api)" $null)
+        if (@($boardMappings | Where-Object { $_.name -cnotin $boardPermissions }).Count) {
+            throw 'Board group has unexpected permissions. Review manually.'
+        }
+        $effectiveBoard = @(& $Request 'GET' "groups/$($plan.Aliases.boardGroup)/role-mappings/clients/$($plan.Aliases.api)/composite" $null)
+        if (@($effectiveBoard | Where-Object { $_.name -cnotin $boardPermissions -or (Get-SetupField $_ 'composite' $false) }).Count) {
+            throw 'Board group has unsafe effective permissions. Review manually.'
+        }
+    } else {
+        Add-SetupAction $plan 'POST' 'groups' @{ name = $boardName } 'Create Board members group' `
+            'boardGroup' $boardQuery 'name' $boardName
+    }
+    $missingBoard = @($roles | Where-Object { $_.name -cin $boardPermissions -and
+        $_.name -cnotin @($boardMappings | ForEach-Object { $_.name }) })
+    if ($missingBoard.Count) {
+        Add-SetupAction $plan 'POST' 'groups/{boardGroup}/role-mappings/clients/{api}' $missingBoard 'Grant exact Board read-only baseline'
     }
     $groupQuery = 'groups?search=' + [uri]::EscapeDataString($RecoveryGroupName) + '&exact=true&first=0&max=101'
     $groups = @(& $Request 'GET' $groupQuery $null)

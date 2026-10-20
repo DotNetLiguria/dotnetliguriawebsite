@@ -11,7 +11,7 @@ export const PERMISSIONS = [
   'maintenance.counters.read', 'maintenance.counters.manage', 'maintenance.speaker-references.repair', 'maintenance.diagnostics.manage',
   'privacy.operations.read', 'privacy.operations.manage', 'privacy.identities.read', 'privacy.notifications.retry',
   'privacy.retention.read', 'privacy.retention.manage', 'notifications.preview', 'notifications.confirm',
-  'access.users.read', 'access.permissions.grant', 'access.permissions.revoke', 'access.audit.read',
+  'access.users.read', 'access.users.create', 'access.permissions.grant', 'access.permissions.revoke', 'access.audit.read',
 ] as const;
 
 export type Permission = typeof PERMISSIONS[number];
