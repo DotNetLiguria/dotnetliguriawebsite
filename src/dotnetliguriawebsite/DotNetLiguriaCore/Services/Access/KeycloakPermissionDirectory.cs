@@ -56,6 +56,30 @@ public sealed class KeycloakPermissionDirectory(HttpClient httpClient, IOptions<
         return users;
     }
 
+    public async Task<IReadOnlyList<AccessUserSummary>> FindUsersByEmailAsync(
+        string email, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 320 || email.Any(char.IsControl))
+            throw new PrivacyBlockedException("invalid_access_search", StatusCodes.Status400BadRequest);
+        var issuer = ValidateIssuer(_options);
+        var path = $"/admin{issuer.AbsolutePath}/users?email={Uri.EscapeDataString(email.Trim())}&exact=true&first=0&max=51&briefRepresentation=false";
+        using var response = await SendAdminAsync(HttpMethod.Get, path, null, cancellationToken);
+        EnsureSuccess(response);
+        using var document = await ReadJsonAsync(response, cancellationToken);
+        if (document.RootElement.ValueKind != JsonValueKind.Array ||
+            document.RootElement.GetArrayLength() >= 51)
+            throw new PrivacyBlockedException("permission_directory_invalid_response");
+        var users = new List<AccessUserSummary>();
+        foreach (var item in document.RootElement.EnumerateArray())
+        {
+            var user = ParseUser(item);
+            if (!user.IsServiceAccount && TryGetString(item, "email", out var actualEmail) &&
+                string.Equals(actualEmail.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase))
+                users.Add(new(_options.Issuer, user.Subject, user.Username, user.Enabled));
+        }
+        return users;
+    }
+
     public async Task<(AccessUserSummary User, bool IsServiceAccount)> GetUserAsync(
         AccountReference account, CancellationToken cancellationToken)
     {

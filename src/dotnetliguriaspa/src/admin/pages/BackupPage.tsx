@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Button, ProgressBar } from 'react-aria-components';
-import { useOidc, useOidcFetch } from '@axa-fr/react-oidc';
-import { useLocation } from 'react-router-dom';
-import { accountReturnPath } from '../../account/returnPath';
-import { mfaStepUpExtras } from '../../account/mfaStepUp';
+import { useOidcFetch } from '@axa-fr/react-oidc';
+import { useMfaWindow } from '../../account/useMfaWindow';
+import MfaVerification from '../MfaVerification';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn } from '../ui';
 import { AdminLoad } from '../adminApi';
@@ -23,6 +22,7 @@ export interface BackupSnapshotInfo {
   collectionCount: number;
   documentCount: number;
   isSafetySnapshot: boolean;
+  name?: string | null;
 }
 
 export interface BackupRestoreResult {
@@ -53,14 +53,14 @@ export default function BackupPage() {
   const canRead = hasPermission(capabilities, 'backups.read');
   const canCreate = hasPermission(capabilities, 'backups.create');
   const canRestore = hasPermission(capabilities, 'backups.restore');
-  const { login } = useOidc();
-  const location = useLocation();
+  const mfa = useMfaWindow();
   const { fetch } = useOidcFetch();
   const [load, setLoad] = useState<AdminLoad<BackupSnapshotInfo[]>>({ state: 'loading' });
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
   const [pending, setPending] = useState<BackupSnapshotInfo | null>(null);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [name, setName] = useState('');
   const reload = useCallback(() => setVersion(v => v + 1), []);
 
   useEffect(() => {
@@ -86,10 +86,12 @@ export default function BackupPage() {
     setBusy('export');
     setOutcome(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/Backup/export`, { method: 'POST' });
+      const query = name.trim() ? `?name=${encodeURIComponent(name.trim())}` : '';
+      const response = await fetch(`${API_BASE_URL}/Backup/export${query}`, { method: 'POST' });
       if (!response.ok) throw new Error(await readBackupError(response, 'Esportazione non riuscita'));
       const snapshot = await response.json() as BackupSnapshotInfo;
-      setOutcome({ tone: 'ok', title: 'Backup creato', detail: `${when(snapshot.createdAtUtc)} · ${contents(snapshot)} · ${snapshot.snapshotId}` });
+      setOutcome({ tone: 'ok', title: 'Backup creato', detail: `${snapshot.name ? `${snapshot.name} · ` : ''}${when(snapshot.createdAtUtc)} · ${contents(snapshot)} · ${snapshot.snapshotId}` });
+      setName('');
       notify('Backup creato', { description: contents(snapshot) });
       reload();
     } catch (error) {
@@ -139,14 +141,19 @@ export default function BackupPage() {
       <PageHeader
         title="Backup e import"
         description="I backup del database restano sul server. Importarne uno sostituisce tutti i dati correnti, dopo aver creato una copia di sicurezza automatica."
-        actions={<>
-          <Button isDisabled={!canRestore} className={btn.secondary}
-            onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>
-            Verifica MFA per il ripristino
-          </Button>
-          {createButton(btn.primary)}
-        </>}
       />
+
+      {canRestore && <MfaVerification mfa={mfa} busy={busy !== null} />}
+      <Panel className="mt-6 space-y-3 p-5">
+        {canCreate && <>
+        <label className="grid gap-1 font-semibold">Nome del backup (facoltativo)
+          <input className="min-h-11 rounded-lg border border-line p-2" value={name} maxLength={120}
+            disabled={busy !== null} onChange={event => setName(event.target.value)} />
+        </label>
+        <p className="text-sm text-muted">Un nome per riconoscere il backup. Data e identificativo vengono aggiunti automaticamente.</p>
+        </>}
+        {createButton(btn.primary)}
+      </Panel>
 
       {busy && (
         <div className="mt-6 rounded-2xl border border-line bg-white p-4" role="status">
@@ -181,6 +188,7 @@ export default function BackupPage() {
                       {snapshots.map(s => (
                         <tr key={s.snapshotId} className={table.row}>
                           <td className={table.td}>
+                            {s.name && <span className="block break-words font-bold">{s.name}</span>}
                             <span className="block font-bold leading-snug">{when(s.createdAtUtc)}</span>
                             <span className="block font-mono text-xs text-muted">{s.snapshotId}</span>
                           </td>
@@ -201,6 +209,7 @@ export default function BackupPage() {
                     {snapshots.map(s => (
                       <li key={s.snapshotId} className="flex flex-wrap items-center gap-3 p-4">
                         <span className="min-w-0 flex-1">
+                          {s.name && <span className="block break-words font-bold">{s.name}</span>}
                           <span className="block font-bold leading-snug">{when(s.createdAtUtc)}</span>
                           <span className="block text-sm text-muted">{contents(s)}</span>
                           <span className="block truncate font-mono text-xs text-muted">{s.snapshotId}</span>
@@ -244,6 +253,7 @@ export default function BackupPage() {
       >
         {pending && (
           <>
+            {pending.name && <p className="break-words font-bold">{pending.name}</p>}
             <p>Importare il backup del <span className="font-bold">{when(pending.createdAtUtc)}</span> ({contents(pending)}) eliminerà e sostituirà tutte le raccolte correnti del database: eventi, relatori, sedi, board, menu del sito, questionari e risposte.</p>
             <p className="text-sm text-muted">Prima dell'importazione viene creato automaticamente un backup di sicurezza. Non modificare i dati durante l'operazione.</p>
             <p className="font-mono text-xs text-muted">{pending.snapshotId}</p>

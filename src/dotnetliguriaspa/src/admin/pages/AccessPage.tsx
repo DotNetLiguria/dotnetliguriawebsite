@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Dialog, Modal, ModalOverlay } from 'react-aria-components';
-import { useOidc, useOidcIdToken, useOidcUser } from '@axa-fr/react-oidc';
-import { Link, useLocation } from 'react-router-dom';
+import { useOidcUser } from '@axa-fr/react-oidc';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
-import { accountReturnPath } from '../../account/returnPath';
-import { mfaStepUpExtras } from '../../account/mfaStepUp';
+import { useMfaWindow } from '../../account/useMfaWindow';
+import MfaVerification from '../MfaVerification';
 import { hasPermission, Permission } from '../../account/permissions';
 import { AdminApiError, useAdminFetch, useAdminLoad } from '../adminApi';
 import { PageHeader, Panel, btn } from '../ui';
@@ -21,7 +20,6 @@ type AuditEntry = {
   targetSubject: string; targetUsername?: string | null; outcome: string; correlationId: string;
 };
 
-const mfaWindowSeconds = 300;
 const actionLabels: Record<string, string> = { grant: 'Concessione', revoke: 'Revoca' };
 const outcomeLabels: Record<string, string> = { intent: 'Richiesta', verified: 'Verificata', unverified: 'Non verificata' };
 
@@ -32,20 +30,6 @@ function AuditAccount({ username, subject }: { username?: string | null; subject
 function formatAuditTime(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('it-IT');
-}
-
-/** Mirrors the server's RecentMfa rule (acr mfa/hwk, auth_time within 5 minutes) as a UI hint only. */
-function useMfaWindow(payload: Record<string, unknown> | undefined) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const level = typeof payload?.acr === 'string' ? payload.acr : '';
-  const authTime = typeof payload?.auth_time === 'number' ? payload.auth_time : Number.NaN;
-  const strong = level === 'mfa' || level === 'hwk';
-  const remaining = strong && Number.isFinite(authTime) ? Math.floor(authTime + mfaWindowSeconds - now / 1000) : 0;
-  return { level, strong, remaining: Math.min(Math.max(remaining, 0), mfaWindowSeconds), active: remaining > 0 };
 }
 
 function accessError(reason: unknown) {
@@ -74,10 +58,7 @@ function accessError(reason: unknown) {
 export default function AccessPage() {
   const { capabilities, refresh } = useAccountCapabilities();
   const { oidcUser } = useOidcUser();
-  const { login } = useOidc();
-  const { idTokenPayload } = useOidcIdToken();
-  const mfa = useMfaWindow(idTokenPayload as Record<string, unknown> | undefined);
-  const location = useLocation();
+  const mfa = useMfaWindow();
   const api = useAdminFetch();
   const canRead = hasPermission(capabilities, 'access.users.read');
   const canAudit = hasPermission(capabilities, 'access.audit.read');
@@ -86,6 +67,7 @@ export default function AccessPage() {
   const [audit, reloadAudit] = useAdminLoad<{ entries: AuditEntry[] }>('/admin/access/audit?first=0&max=25', canAudit);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
+  const [boardOnly, setBoardOnly] = useState(true);
   const [listVersion, setListVersion] = useState(0);
   const [listing, setListing] = useState(false);
   const [first, setFirst] = useState(0);
@@ -111,7 +93,7 @@ export default function AccessPage() {
     setUsers([]); setHasMore(false); setSelected(null); setGrants(null); setPending(null);
     if (!canRead) return;
     setListing(true); setError('');
-    api<{ users: AccessUser[]; hasMore: boolean }>(`/admin/access/users?search=${encodeURIComponent(filter)}&first=${first}&max=25`, { signal: controller.signal })
+    api<{ users: AccessUser[]; hasMore: boolean }>(`/admin/access/users?search=${encodeURIComponent(filter)}&first=${first}&max=25&boardOnly=${boardOnly}`, { signal: controller.signal })
       .then(result => {
         if (!controller.signal.aborted) { setUsers(result.users); setHasMore(result.hasMore); }
       })
@@ -120,7 +102,7 @@ export default function AccessPage() {
       })
       .finally(() => { if (!controller.signal.aborted) setListing(false); });
     return () => controller.abort();
-  }, [api, canRead, filter, first, listVersion]);
+  }, [api, canRead, filter, first, boardOnly, listVersion]);
 
   useEffect(() => {
     if (!selected || !canRead) return;
@@ -185,39 +167,22 @@ export default function AccessPage() {
     } finally { setBusy(false); }
   };
 
-  const minutes = Math.floor(mfa.remaining / 60);
-  const seconds = String(mfa.remaining % 60).padStart(2, '0');
-  const mfaStatus = mfa.active
-    ? `MFA attiva: puoi modificare i permessi per altri ${minutes}:${seconds} minuti.`
-    : mfa.strong
-      ? 'MFA scaduta: la verifica risale a più di 5 minuti fa. Ripetila per modificare i permessi.'
-      : `MFA non attiva per questo accesso (livello: ${mfa.level || 'non indicato'}). Le modifiche ai permessi sono bloccate.`;
-
   return <>
     <PageHeader title="Accessi utenti" description="Permessi diretti e di gruppo dell’applicazione. Nessuna modifica ai profili o ai gruppi dell’Identity Provider." />
     {!canRead && (error || message) && <div ref={feedback} tabIndex={-1} className="mt-4 rounded-xl border p-4">
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
     </div>}
-    {canRead && canChange && <Panel labelledBy="access-mfa" className="mt-6 space-y-3 p-5">
-      <h2 id="access-mfa" className="text-lg font-bold">1. Verifica MFA</h2>
-      <p role="note" className={mfa.active ? 'font-semibold text-emerald-800' : 'font-semibold text-red-800'}>{mfaStatus}</p>
-      <p>Concedere o revocare permessi richiede una verifica MFA (codice OTP o chiave di sicurezza) effettuata negli ultimi 5 minuti.</p>
-      <div className="flex flex-wrap gap-3">
-        <Button className={mfa.active ? btn.secondary : btn.primary} isDisabled={busy}
-          onPress={() => void login(accountReturnPath(location), mfaStepUpExtras())}>
-          {mfa.active ? 'Ripeti la verifica MFA' : 'Verifica MFA per modificare gli accessi'}
-        </Button>
-        {!mfa.strong && <Link className={btn.secondary} to="/area-personale">Configura il secondo fattore nell’Area personale</Link>}
-      </div>
-    </Panel>}
+    {canRead && canChange && <MfaVerification mfa={mfa} busy={busy} title="1. Verifica MFA" />}
     {canRead && <Panel labelledBy="access-users" className="mt-6 space-y-4 p-5">
       <h2 id="access-users" className="text-lg font-bold">{canChange ? '2. ' : ''}Seleziona un utente</h2>
-      <p>Tutti gli utenti, 25 per pagina. La ricerca è facoltativa.</p>
+      <p>{boardOnly ? 'Membri attivi del board, associati tramite email.' : 'Tutti gli utenti.'} 25 per pagina. La ricerca è facoltativa.</p>
       <form onSubmit={event => { event.preventDefault(); find(search); }} className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1 font-semibold">Cerca utenti<input className="min-h-11 rounded-lg border p-2" value={search} onChange={event => setSearch(event.target.value)} maxLength={100} /></label>
         <Button type="submit" className={btn.primary} isDisabled={busy || listing}>Cerca</Button>
-        <Button className={btn.secondary} isDisabled={busy || listing} onPress={() => { setSearch(''); find(''); }}>Mostra tutti</Button>
+        <Button className={boardOnly ? btn.primary : btn.secondary} aria-pressed={boardOnly} isDisabled={busy || listing}
+          onPress={() => { setBoardOnly(value => !value); setFirst(0); setMessage(''); }}>Solo board</Button>
+        <Button className={btn.secondary} isDisabled={busy || listing} onPress={() => { setBoardOnly(false); setSearch(''); find(''); }}>Mostra tutti</Button>
       </form>
       {listing && <p role="status">Caricamento utenti…</p>}
       {!listing && !error && users.length === 0 && <p>Nessun utente trovato.</p>}

@@ -360,7 +360,10 @@ route-convention mapping, not combined with legacy-role authorization.
 - Questionnaire definition/lifecycle, aggregate statistics, raw-response
   access, export and response deletion use distinct policies.
 - Backup listing, creation and restore are separate. Restore retains the
-  existing privacy gates, confirmation and recent MFA.
+  existing privacy gates, confirmation and recent MFA. Creation accepts an
+  optional `name` query parameter (up to 120 characters, no control characters).
+  Names are display metadata in the snapshot manifest and list response, never
+  filesystem identifiers; older unnamed snapshots remain supported.
 - Privacy queue/report, identity reveal, recovery, notice retry and retention
   use separate policies. Ordinary personal-area routes retain their own
   authenticated-account ownership rules.
@@ -512,9 +515,13 @@ target), `access_change_not_verified`/`access_change_unverified` (503),
 `invalid_access_search`, `invalid_access_target`, `invalid_access_audit_page`
 (400). Changes are serialized per target only inside one application instance.
 
-The **Accessi utenti** page loads the first unfiltered user page immediately
-(25 per page), offers previous/next navigation, and keeps search optional with
-**Mostra tutti** to clear the filter. Selecting a user displays a permission
+The **Accessi utenti** page defaults to **Solo board** (25 per page), matching
+active Board records to Identity Provider accounts by exact, case-insensitive
+email. Missing email addresses or accounts do not match; this display filter
+does not grant permissions or infer authorization from a Board record. The API
+uses `boardOnly=true` to filter before pagination; omitting it preserves the
+unfiltered API behavior. Search and paging retain the chosen filter, while
+**Mostra tutti** clears the search and shows all accounts. Selecting a user displays a permission
 table with a direct-assignment checkbox, inherited status and effective status.
 Checking/unchecking opens a confirmation dialog; it does not bypass recent MFA,
 optimistic concurrency, delegation, self/protected-target restrictions or
@@ -636,9 +643,10 @@ For operators holding grant or revoke, **Accessi utenti** is ordered as:
 1. **Verifica MFA** – a live status from the ID token (`acr`, `auth_time`),
    refreshed every second: "MFA attiva … M:SS minuti", "MFA scaduta" or
    "MFA non attiva per questo accesso (livello: X)".
-2. The step-up button (**Verifica MFA per modificare gli accessi**, or **Ripeti
-   la verifica MFA** while active) and, without a second factor, a link to the
-   personal area to configure it.
+2. The step-up button **Verifica MFA**, without a personal-area configuration
+   link. The same status and step-up section appears at the top of **Backup e
+   import** for operators holding restore permission; it returns to the current
+   page, preserving its query and fragment.
 3. **Seleziona un utente** – paged list and optional search.
 4. **Permessi di <utente>** – the permission table. Checkboxes stay disabled
    until the MFA window is active, with an explicit explanation; a confirmation

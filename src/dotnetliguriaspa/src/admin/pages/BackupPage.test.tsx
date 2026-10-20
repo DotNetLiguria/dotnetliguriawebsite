@@ -15,6 +15,19 @@ const renderPage = () => render(<><BackupPage /><AdminToastRegion /></>, { route
 const alertsText = async () => (await screen.findAllByRole('alert')).map(alert => alert.textContent).join(' ');
 
 describe('<BackupPage />', () => {
+  test('places MFA verification before the backup name and every create button', async () => {
+    mockApi({ '/Backup/snapshots': [] });
+    renderPage();
+    await screen.findByRole('heading', { name: 'Nessun backup sul server' });
+    const mfa = screen.getByRole('button', { name: 'Verifica MFA' });
+    const name = screen.getByRole('textbox', { name: 'Nome del backup (facoltativo)' });
+    expect(mfa.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const create of screen.getAllByRole('button', { name: 'Crea backup' })) {
+      expect(mfa.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(name.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+  });
+
   test('lists the backups kept on the server and creates a new one', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let list = [snapshot, safety];
@@ -75,6 +88,32 @@ describe('<BackupPage />', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Importazione completata');
     expect(screen.getByRole('status')).toHaveTextContent('Backup di sicurezza creato: safety-20261011T081300000Z-abcdef01');
     await waitFor(() => expect(screen.queryByRole('alertdialog', { name: 'Sostituire tutti i dati?' })).not.toBeInTheDocument());
+  });
+
+  test('submits an optional trimmed backup name and displays it in desktop, mobile and restore confirmation', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const named = { ...snapshot, name: 'Before archive / import' };
+    let list = [snapshot];
+    mockApi({
+      '/Backup/snapshots': () => jsonResponse(list),
+      '/Backup/export': (url: string, init?: RequestInit) => {
+        expect(init?.method).toBe('POST');
+        expect(new URL(url).searchParams.get('name')).toBe(named.name);
+        list = [named];
+        return jsonResponse(named);
+      },
+    });
+    renderPage();
+    await screen.findByRole('table');
+    const input = screen.getByRole('textbox', { name: 'Nome del backup (facoltativo)' });
+    expect(input).toHaveAttribute('maxlength', '120');
+    await user.type(input, `  ${named.name}  `);
+    await user.click(screen.getByRole('button', { name: 'Crea backup' }));
+    await waitFor(() => expect(within(screen.getByRole('table')).getByText(named.name)).toBeInTheDocument());
+    expect(screen.getAllByText(named.name)).toHaveLength(2);
+    expect(input).toHaveValue('');
+    await user.click(within(screen.getByRole('table')).getByRole('button', { name: /Ripristina il backup/ }));
+    expect(await screen.findByRole('alertdialog', { name: 'Sostituire tutti i dati?' })).toHaveTextContent(named.name);
   });
 
   test('shows the authorization error from the server and retries', async () => {

@@ -81,6 +81,42 @@ public sealed class PrivacyStorageTests : IDisposable
         Assert.Equal("erasure_in_progress", exception.Code);
     }
 
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("Before archive import", false)]
+    [InlineData(null, true)]
+    public async Task SnapshotListingPreservesOptionalNamesAndLegacySafetySnapshots(string? name, bool safety)
+    {
+        var settings = Settings();
+        var journal = new FileErasureJournal(Options.Create(settings), Environment(), new EphemeralDataProtectionProvider());
+        var id = (safety ? "safety-" : "") + "20261011T081200000Z-0123abcd";
+        var path = Path.Combine(settings.BackupFolder, id);
+        Directory.CreateDirectory(path);
+        var manifest = new MongoDB.Bson.BsonDocument
+        {
+            { "version", 1 }, { "createdAtUtc", new DateTime(2026, 10, 11, 8, 12, 0, DateTimeKind.Utc) },
+            { "isSafetySnapshot", safety }, { "collections", new MongoDB.Bson.BsonArray() }
+        };
+        if (name is not null) manifest.Add("name", name);
+        await File.WriteAllTextAsync(Path.Combine(path, "manifest.json"),
+            MongoDB.Bson.BsonExtensionMethods.ToJson(manifest), TestContext.Current.CancellationToken);
+
+        var snapshot = Assert.Single(await Backup(settings, journal).ListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(name, snapshot.Name);
+        Assert.Equal(safety, snapshot.IsSafetySnapshot);
+        Assert.Equal(id, snapshot.SnapshotId);
+    }
+
+    [Fact]
+    public async Task InvalidBackupNamesAreRejectedBeforeAnyDatabaseOrStorageOperation()
+    {
+        var settings = Settings();
+        var journal = new FileErasureJournal(Options.Create(settings), Environment(), new EphemeralDataProtectionProvider());
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            Backup(settings, journal).CreateAsync(TestContext.Current.CancellationToken, new string('a', 121)));
+        Assert.False(Directory.Exists(settings.BackupFolder));
+    }
+
     [Fact]
     public async Task RuntimeRetentionOverridesAreDurableAndUnsafeFieldsAreReported()
     {

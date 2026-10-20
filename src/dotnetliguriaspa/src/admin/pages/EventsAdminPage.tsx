@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { PermissionGate } from '../../account/PermissionGate';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button, Input, Label, ListBox, ListBoxItem, Menu, MenuItem, MenuTrigger, Popover, SearchField, Select, SelectValue, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
+import { Button, Input, Label, ListBox, ListBoxItem, Menu, MenuItem, MenuTrigger, Popover, SearchField, Select, SelectValue, ToggleButton } from 'react-aria-components';
 import { AdminIcon } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn, focusRing, linkFocus } from '../ui';
 import { AdminWorkshop, clean, nameKey, speakerNamesOf, useAdminLoad } from '../adminApi';
@@ -16,8 +16,6 @@ type Sort = { key: SortKey; direction: 'ascending' | 'descending' };
 const pill = `inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-full border border-line bg-white px-4 font-semibold text-navy transition-colors data-[hovered]:border-cyan-200 data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white ${focusRing}`;
 const yearOf = (iso: string) => dayKey(iso).slice(0, 4);
 const PAGE = 25;
-// Few years fit as pills; a long archive (events since 2011) gets a compact select instead.
-const MAX_YEAR_PILLS = 5;
 
 interface Row {
   w: AdminWorkshop;
@@ -126,26 +124,20 @@ export default function EventsAdminPage() {
           <span className="pointer-events-none absolute inset-y-0 left-3.5 grid place-items-center text-muted"><AdminIcon name="search" /></span>
           <Input placeholder="Titolo, sede o relatore" className="min-h-11 w-full rounded-full border border-line bg-white pr-4 pl-11 text-base text-navy outline-none placeholder:text-[#6b8399] hover:border-cyan-200 focus:border-cyan-700 focus:ring-3 focus:ring-cyan-700/25 [&::-webkit-search-cancel-button]:hidden" />
         </SearchField>
-        {years.length > MAX_YEAR_PILLS && (
+        {years.length > 0 && (
           <Select aria-label="Anno" selectedKey={year} onSelectionChange={key => setYear(String(key ?? 'tutti'))} className="flex items-center gap-2">
             <Label className="sr-only">Anno</Label>
-            <Button className={`${pill} min-w-36 justify-between`}>
+            <Button className={`${pill} min-h-11 min-w-36 justify-between`}>
               <SelectValue />
               <AdminIcon name="chevron" className="size-4" />
             </Button>
             <Popover className="max-h-72 min-w-[var(--trigger-width)] overflow-y-auto rounded-xl border border-line bg-white p-1.5 shadow-lift outline-none">
               <ListBox className="outline-none">
-                <ListBoxItem id="tutti" textValue="Tutti gli anni" className="flex min-h-10 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50 data-[selected]:text-cyan-700">Tutti gli anni</ListBoxItem>
-                {years.map(y => <ListBoxItem key={y} id={y} textValue={y} className="flex min-h-10 cursor-pointer items-center rounded-lg px-3 font-semibold tabular-nums outline-none data-[focused]:bg-cyan-50 data-[selected]:text-cyan-700">{y}</ListBoxItem>)}
+                <ListBoxItem id="tutti" textValue="Tutti gli anni" className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold outline-none data-[focused]:bg-cyan-50 data-[selected]:text-cyan-700">Tutti gli anni</ListBoxItem>
+                {years.map(y => <ListBoxItem key={y} id={y} textValue={y} className="flex min-h-11 cursor-pointer items-center rounded-lg px-3 font-semibold tabular-nums outline-none data-[focused]:bg-cyan-50 data-[selected]:text-cyan-700">{y}</ListBoxItem>)}
               </ListBox>
             </Popover>
           </Select>
-        )}
-        {years.length > 1 && years.length <= MAX_YEAR_PILLS && (
-          <ToggleButtonGroup aria-label="Anno" selectionMode="single" disallowEmptySelection selectedKeys={[year]} onSelectionChange={keys => setYear(String([...keys][0] ?? 'tutti'))} className="flex flex-wrap gap-2">
-            <ToggleButton id="tutti" className={pill}>Tutti</ToggleButton>
-            {years.map(y => <ToggleButton key={y} id={y} className={pill}>{y}</ToggleButton>)}
-          </ToggleButtonGroup>
         )}
         <ToggleButton isSelected={onlyDrafts} onChange={setOnlyDrafts} className={pill}>Bozze{drafts > 0 && <span className="tabular-nums">{drafts}</span>}</ToggleButton>
         <ToggleButton isSelected={onlyFeatured} onChange={setOnlyFeatured} className={pill}>In evidenza</ToggleButton>

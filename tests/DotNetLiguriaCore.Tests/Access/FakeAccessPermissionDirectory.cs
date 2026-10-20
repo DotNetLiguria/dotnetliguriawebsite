@@ -11,18 +11,20 @@ internal sealed class FakeAccessPermissionDirectory : IAccessPermissionDirectory
     private readonly Dictionary<string, HashSet<string>> _direct = new(StringComparer.Ordinal);
     private readonly Dictionary<string, HashSet<string>> _inherited = new(StringComparer.Ordinal);
     private readonly HashSet<string> _serviceAccounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _emails = new(StringComparer.Ordinal);
     public HashSet<string> ProtectedSubjects { get; } = new(StringComparer.Ordinal);
     public int Writes { get; private set; }
 
     public void AddUser(
         AccessUserSummary user, IEnumerable<string>? direct = null,
-        IEnumerable<string>? inherited = null, bool serviceAccount = false)
+        IEnumerable<string>? inherited = null, bool serviceAccount = false, string? email = null)
     {
         _users[user.Subject] = user;
         _direct[user.Subject] = (direct ?? []).ToHashSet(StringComparer.Ordinal);
         _inherited[user.Subject] = (inherited ?? []).ToHashSet(StringComparer.Ordinal);
         if (serviceAccount) _serviceAccounts.Add(user.Subject);
         else _serviceAccounts.Remove(user.Subject);
+        if (email is not null) _emails[user.Subject] = email;
     }
 
     public Task<IReadOnlySet<string>> GetEffectiveAsync(AccountReference account, CancellationToken cancellationToken)
@@ -38,6 +40,12 @@ internal sealed class FakeAccessPermissionDirectory : IAccessPermissionDirectory
         Task.FromResult<IReadOnlyList<AccessUserSummary>>(_users.Values
             .Where(user => user.Username?.Contains(search, StringComparison.OrdinalIgnoreCase) == true)
             .Skip(first).Take(max).ToArray());
+
+    public Task<IReadOnlyList<AccessUserSummary>> FindUsersByEmailAsync(
+        string email, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<AccessUserSummary>>(_users.Values.Where(user =>
+            _emails.TryGetValue(user.Subject, out var actualEmail) &&
+            string.Equals(actualEmail, email, StringComparison.OrdinalIgnoreCase)).ToArray());
 
     public Task<(AccessUserSummary User, bool IsServiceAccount)> GetUserAsync(
         AccountReference account, CancellationToken cancellationToken)

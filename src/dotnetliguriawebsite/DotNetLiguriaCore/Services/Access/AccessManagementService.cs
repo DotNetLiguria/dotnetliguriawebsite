@@ -30,11 +30,29 @@ public sealed class AccessManagementService(
             .ToArray();
 
     public async Task<AccessUserSearchPage> SearchUsersAsync(
-        string search, int first, int max, CancellationToken cancellationToken)
+        string search, int first, int max, CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? boardEmails = null)
     {
         if (search.Length > 100 ||
             search.Any(char.IsControl) || first < 0 || first > 10000 || max is < 1 or > 50)
             throw new PrivacyBlockedException("invalid_access_search", StatusCodes.Status400BadRequest);
+        if (boardEmails is not null)
+        {
+            var boardUsers = new Dictionary<string, AccessUserSummary>(StringComparer.Ordinal);
+            var query = search.Trim();
+            foreach (var email in boardEmails.Where(email => !string.IsNullOrWhiteSpace(email))
+                .Select(email => email.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var matches = await _directory.FindUsersByEmailAsync(email, cancellationToken);
+                foreach (var user in matches.Where(user =>
+                    email.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    user.Username?.Contains(query, StringComparison.OrdinalIgnoreCase) == true))
+                    boardUsers.TryAdd(user.Subject, user);
+            }
+            var matching = boardUsers.Values.OrderBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(user => user.Subject, StringComparer.Ordinal).Skip(first).Take(max + 1).ToArray();
+            return new(matching.Take(max).ToArray(), first, max, matching.Length > max);
+        }
         var users = await _directory.SearchUsersAsync(search.Trim(), first, max + 1, cancellationToken);
         var pageUsers = users.Take(max).ToArray();
         return new(pageUsers, first, max, users.Count > max);

@@ -52,8 +52,21 @@ public static class ApiEndpointMappings
 
         backup.MapGet("/snapshots", async (DatabaseBackupService backupService, CancellationToken cancellationToken) =>
             Results.Ok(await backupService.ListAsync(cancellationToken)));
-        backup.MapPost("/export", async (DatabaseBackupService backupService, CancellationToken cancellationToken) =>
-            Results.Ok(await backupService.CreateAsync(cancellationToken)));
+        backup.MapPost("/export", async (string? name, DatabaseBackupService backupService,
+            ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
+        {
+            if (!DatabaseBackupService.IsValidSnapshotName(name))
+            {
+                loggerFactory.CreateLogger("DotNetLiguriaCore.Endpoints.Backup")
+                    .LogWarning("Rejected an invalid database backup name.");
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Nome del backup non valido",
+                    Detail = "Il nome può contenere al massimo 120 caratteri e non può contenere caratteri di controllo.",
+                });
+            }
+            return Results.Ok(await backupService.CreateAsync(cancellationToken, name));
+        });
         backup.MapPost("/import", async (
             BackupRestoreRequest request,
             DatabaseBackupService backupService,

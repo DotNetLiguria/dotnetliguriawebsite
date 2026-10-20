@@ -73,6 +73,9 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
     public static bool IsValidSnapshotId(string? snapshotId) =>
         snapshotId is not null && _snapshotIdPattern.IsMatch(snapshotId);
 
+    public static bool IsValidSnapshotName(string? name) =>
+        name is null || name.Length <= 120 && !name.Any(char.IsControl);
+
     public async Task<IReadOnlyList<BackupSnapshotInfo>> ListAsync(CancellationToken cancellationToken)
     {
         PrivacyStoragePaths.RejectLinks(_backupRoot);
@@ -101,11 +104,13 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         return snapshots.OrderByDescending(snapshot => snapshot.CreatedAtUtc).ToArray();
     }
 
-    public async Task<BackupSnapshotInfo> CreateAsync(CancellationToken cancellationToken)
+    public async Task<BackupSnapshotInfo> CreateAsync(CancellationToken cancellationToken, string? name = null)
     {
+        if (!IsValidSnapshotName(name))
+            throw new ArgumentException("A backup name must be at most 120 characters without control characters.", nameof(name));
         using var lease = await _operationGate.EnterAsync(cancellationToken);
         await EnsureOperationsAvailableAsync(cancellationToken);
-        return await CreateSnapshotAsync(false, cancellationToken);
+        return await CreateSnapshotAsync(false, cancellationToken, string.IsNullOrWhiteSpace(name) ? null : name.Trim());
     }
 
     public async Task<BackupRestoreResult?> RestoreAsync(string snapshotId, CancellationToken cancellationToken)
@@ -203,7 +208,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         File.Move(pending, path, true);
     }
 
-    private async Task<BackupSnapshotInfo> CreateSnapshotAsync(bool isSafetySnapshot, CancellationToken cancellationToken)
+    private async Task<BackupSnapshotInfo> CreateSnapshotAsync(bool isSafetySnapshot, CancellationToken cancellationToken, string? name = null)
     {
         PrivacyStoragePaths.RejectLinks(_backupRoot);
         Directory.CreateDirectory(_backupRoot);
@@ -252,6 +257,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
                 { "privacyEpoch", await GetEpochAsync(cancellationToken) },
                 { "collections", collectionManifest },
             };
+            if (name is not null) manifest.Add("name", name);
             ValidateManifest(manifest);
             await File.WriteAllTextAsync(
                 Path.Combine(temporaryPath, "manifest.json"),
@@ -266,7 +272,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
                 snapshotId,
                 collectionManifest.Count,
                 totalDocumentCount);
-            return new BackupSnapshotInfo(snapshotId, createdAtUtc, collectionManifest.Count, totalDocumentCount, isSafetySnapshot);
+            return ToSnapshotInfo(snapshotId, manifest);
         }
         finally
         {
@@ -364,6 +370,10 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         {
             throw new InvalidDataException("The backup manifest is missing required fields or uses an unsupported version.");
         }
+
+        if (manifest.TryGetValue("name", out var snapshotName) &&
+            (snapshotName.BsonType != BsonType.String || !IsValidSnapshotName(snapshotName.AsString)))
+            throw new InvalidDataException("The backup manifest contains an invalid name.");
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         var index = 0;
@@ -585,7 +595,8 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
             manifest["createdAtUtc"].AsBsonDateTime.ToUniversalTime(),
             collections.Count,
             documentCount,
-            manifest["isSafetySnapshot"].AsBoolean);
+            manifest["isSafetySnapshot"].AsBoolean,
+            manifest.TryGetValue("name", out var name) ? name.AsString : null);
     }
 
     private static bool AreValidIndexes(BsonArray indexes) =>

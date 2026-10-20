@@ -32,6 +32,46 @@ public sealed class KeycloakPermissionDirectoryTests
     }
 
     [Fact]
+    public async Task BoardEmailLookupUsesExactEncodedEmailAndExcludesUnrelatedOrServiceAccounts()
+    {
+        var handler = new AccessHttpMessageHandler((request, _) =>
+        {
+            var path = request.RequestUri!.PathAndQuery;
+            if (path.EndsWith("/protocol/openid-connect/token", StringComparison.Ordinal))
+                return Task.FromResult(AccessHttpMessageHandler.Json(HttpStatusCode.OK,
+                    """{"access_token":"service-token","expires_in":60}"""));
+            Assert.Equal("/admin/realms/test/users?email=board%2Bmember%40example.test&exact=true&first=0&max=51&briefRepresentation=false", path);
+            return Task.FromResult(AccessHttpMessageHandler.Json(HttpStatusCode.OK,
+                $$"""
+                [
+                  {"id":"{{_subject}}","username":"member","email":"BOARD+MEMBER@example.test","enabled":true},
+                  {"id":"dddddddd-dddd-dddd-dddd-dddddddddddd","username":"unrelated","email":"other@example.test","enabled":true},
+                  {"id":"eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee","username":"service","email":"board+member@example.test","enabled":true,"serviceAccountClientId":"service"}
+                ]
+                """));
+        });
+        var users = await CreateDirectory(handler).FindUsersByEmailAsync("board+member@example.test", CancellationToken.None);
+        Assert.Equal("member", Assert.Single(users).Username);
+    }
+
+    [Theory]
+    [InlineData("[]", null)]
+    [InlineData("{}", "permission_directory_invalid_response")]
+    public async Task BoardEmailLookupDistinguishesMissingUsersFromInvalidResponses(string response, string? expectedError)
+    {
+        var handler = new AccessHttpMessageHandler((request, _) => Task.FromResult(
+            AccessHttpMessageHandler.Json(HttpStatusCode.OK,
+                request.RequestUri!.AbsolutePath.EndsWith("/token", StringComparison.Ordinal)
+                    ? """{"access_token":"service-token","expires_in":60}""" : response)));
+        var directory = CreateDirectory(handler);
+        if (expectedError is null)
+            Assert.Empty(await directory.FindUsersByEmailAsync("board@example.test", CancellationToken.None));
+        else
+            Assert.Equal(expectedError, (await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
+                directory.FindUsersByEmailAsync("board@example.test", CancellationToken.None))).Code);
+    }
+
+    [Fact]
     public async Task EffectiveRolesAreReadOnlyFromTheFixedApplicationClientAndUnknownRolesAreIgnored()
     {
         var requests = new List<string>();

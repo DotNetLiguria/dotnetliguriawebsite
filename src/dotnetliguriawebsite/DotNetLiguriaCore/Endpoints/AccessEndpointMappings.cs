@@ -1,4 +1,5 @@
 using DotNetLiguriaCore.Authorization;
+using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Access;
 using DotNetLiguriaCore.Services.Privacy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -24,11 +25,14 @@ public static class AccessEndpointMappings
             return Results.Ok(new { permissions = access.Permissions() });
         });
 
-        group.MapGet("/users", async (string? search, int? first, int? max, HttpContext context,
-            AccessManagementService access, CancellationToken cancellationToken) =>
+        group.MapGet("/users", async (string? search, int? first, int? max, bool? boardOnly, HttpContext context,
+            AccessManagementService access, [FromServices] BoardService boardService, CancellationToken cancellationToken) =>
         {
             await PermissionOperationFilter.RequireAsync(context, "access.users.read");
-            return Results.Ok(await access.SearchUsersAsync(search ?? "", first ?? 0, max ?? 20, cancellationToken));
+            var boardEmails = boardOnly == true
+                ? (await boardService.GetAsync(onlyActive: true)).Select(member => member.Email).OfType<string>().ToArray()
+                : null;
+            return Results.Ok(await access.SearchUsersAsync(search ?? "", first ?? 0, max ?? 20, cancellationToken, boardEmails));
         }).RequireAuthorization("access.users.read");
 
         group.MapGet("/users/{subject}", async (string subject, HttpContext context,

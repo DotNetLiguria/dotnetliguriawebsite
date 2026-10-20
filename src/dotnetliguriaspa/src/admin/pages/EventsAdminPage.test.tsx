@@ -48,9 +48,14 @@ describe('<EventsAdminPage />', () => {
     expect(titles()).toEqual(['Bozza futura']);
     await user.clear(screen.getByRole('searchbox', { name: 'Cerca negli eventi' }));
 
-    await user.click(within(screen.getByRole('radiogroup', { name: 'Anno' })).getByRole('radio', { name: '2024' }));
+    expect(screen.queryByRole('radiogroup', { name: 'Anno' })).not.toBeInTheDocument();
+    const yearSelect = screen.getByRole('button', { name: /Tutti gli anni/ });
+    await user.click(yearSelect);
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['Tutti gli anni', '2099', '2025', '2024', '2023']);
+    await user.click(screen.getByRole('option', { name: '2024' }));
     expect(titles()).toEqual(['.NET Conf 2024']);
-    await user.click(within(screen.getByRole('radiogroup', { name: 'Anno' })).getByRole('radio', { name: 'Tutti' }));
+    await user.click(yearSelect);
+    await user.click(screen.getByRole('option', { name: 'Tutti gli anni' }));
     await user.click(screen.getByRole('button', { name: /Bozze/ }));
     expect(titles()).toEqual(['Bozza futura']);
     await user.click(screen.getByRole('button', { name: /Bozze/ }));
@@ -60,6 +65,15 @@ describe('<EventsAdminPage />', () => {
     await user.type(screen.getByRole('searchbox', { name: 'Cerca negli eventi' }), 'nessuno');
     await user.click(await screen.findByRole('button', { name: 'Azzera i filtri' }));
     expect(titles()).toHaveLength(4);
+  });
+
+  test('keeps the year dropdown even when only one year is loaded', async () => {
+    mockApi({ '/Workshop/Get?onlyPublished=false': [LIST[0]] });
+    render(<EventsAdminPage />);
+    await screen.findByRole('table');
+    await userEvent.setup({ delay: null }).click(screen.getByRole('button', { name: /Tutti gli anni/ }));
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual(['Tutti gli anni', '2023']);
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   });
 
   test('sorts by title and by sessions with accessible sort state', async () => {

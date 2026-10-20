@@ -5,4 +5,5 @@ public sealed record BackupSnapshotInfo(
     DateTime CreatedAtUtc,
     int CollectionCount,
     long DocumentCount,
-    bool IsSafetySnapshot);
+    bool IsSafetySnapshot,
+    string? Name = null);

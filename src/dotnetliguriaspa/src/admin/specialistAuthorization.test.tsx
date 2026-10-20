@@ -118,37 +118,46 @@ test('access changes send optimistic concurrency and explicit confirmation, then
   expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.read' })).toBeDisabled();
 });
 
-test('access directory lists users immediately, pages without a filter and can clear a search', async () => {
+test('access directory defaults to board members, preserves the filter across search and paging, and can show everyone', async () => {
   mockApi({
     '/admin/access/permissions': { permissions: [] },
     '/admin/access/users?': (url: string) => {
       const query = new URL(url).searchParams;
       const first = Number(query.get('first'));
       const filter = query.get('search') ?? '';
-      return jsonResponse({ users: [{ subject: `user-${first}`, username: filter || `Utente ${first}`, enabled: true }], hasMore: first === 0 });
+      const label = query.get('boardOnly') === 'true' ? 'Board' : 'Utente';
+      return jsonResponse({ users: [{ subject: `user-${first}`, username: filter || `${label} ${first}`, enabled: true }], hasMore: first === 0 });
     },
   });
   render(withPermissions(['access.users.read'], <AccessPage />));
   const user = userEvent.setup({ delay: null });
-  await screen.findByRole('button', { name: 'Utente 0' });
-  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/admin/access/users?search=&first=0&max=25'), expect.anything());
+  await screen.findByRole('button', { name: 'Board 0' });
+  expect(screen.getByRole('button', { name: 'Solo board' })).toHaveAttribute('aria-pressed', 'true');
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/admin/access/users?search=&first=0&max=25&boardOnly=true'), expect.anything());
   await user.click(screen.getByRole('button', { name: 'Successivi' }));
-  await screen.findByRole('button', { name: 'Utente 25' });
+  await screen.findByRole('button', { name: 'Board 25' });
   expect(screen.getByRole('button', { name: 'Successivi' })).toBeDisabled();
   await user.type(screen.getByRole('textbox', { name: 'Cerca utenti' }), 'mario');
   await user.click(screen.getByRole('button', { name: 'Cerca' }));
   await screen.findByRole('button', { name: 'mario' });
-  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('search=mario&first=0&max=25'), expect.anything());
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('search=mario&first=0&max=25&boardOnly=true'), expect.anything());
   await user.click(screen.getByRole('button', { name: 'Mostra tutti' }));
   await screen.findByRole('button', { name: 'Utente 0' });
   expect(screen.getByRole('textbox', { name: 'Cerca utenti' })).toHaveValue('');
+  expect(screen.getByRole('button', { name: 'Solo board' })).toHaveAttribute('aria-pressed', 'false');
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining('search=&first=0&max=25&boardOnly=false'), expect.anything());
+  await user.click(screen.getByRole('button', { name: 'Successivi' }));
+  await screen.findByRole('button', { name: 'Utente 25' });
+  await user.click(screen.getByRole('button', { name: 'Solo board' }));
+  await screen.findByRole('button', { name: 'Board 0' });
+  expect(screen.getByText('Pagina 1')).toBeInTheDocument();
 });
 
 test.each([
-  ['password only', { acr: 'pwd' }, /MFA non attiva per questo accesso \(livello: pwd\)/, false, true],
-  ['expired MFA', { acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 301 }, /MFA scaduta/, false, false],
-  ['recent MFA', { acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 60 }, /MFA attiva: puoi modificare i permessi per altri [34]:\d\d minuti/, true, false],
-] as const)('access page shows the MFA status first and gates changes (%s)', async (_name, payload, expected, enabled, setupLink) => {
+  ['password only', { acr: 'pwd' }, /MFA non attiva per questo accesso \(livello: pwd\)/, false],
+  ['expired MFA', { acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 301 }, /MFA scaduta/, false],
+  ['recent MFA', { acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 60 }, /MFA attiva: verifica valida per altri [34]:\d\d minuti/, true],
+] as const)('access page shows the MFA status first and gates changes (%s)', async (_name, payload, expected, enabled) => {
   mockSignIn(payload);
   mockApi({
     '/admin/access/permissions': { permissions: [{ id: 'events.read', delegable: true }] },
@@ -160,10 +169,25 @@ test.each([
   expect(screen.getByRole('note')).toHaveTextContent(expected);
   const headings = screen.getAllByRole('heading', { level: 2 }).map(heading => heading.textContent);
   expect(headings).toEqual(['1. Verifica MFA', '2. Seleziona un utente', '3. Permessi di Altro utente']);
-  expect(screen.getByRole('button', { name: enabled ? 'Ripeti la verifica MFA' : 'Verifica MFA per modificare gli accessi' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Verifica MFA' })).toBeEnabled();
   expect(await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' })).toHaveProperty('disabled', !enabled);
   expect(screen.queryByText(/esegui prima la verifica MFA/) !== null).toBe(!enabled);
-  expect(screen.queryByRole('link', { name: 'Configura il secondo fattore nell’Area personale' }) !== null).toBe(setupLink);
+  expect(screen.queryByRole('link', { name: 'Configura il secondo fattore nell’Area personale' })).not.toBeInTheDocument();
+});
+
+test.each([
+  [{ acr: 'pwd' }, /MFA non attiva/],
+  [{ acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 301 }, /MFA scaduta/],
+  [{ acr: 'mfa', auth_time: Math.floor(Date.now() / 1000) - 60 }, /MFA attiva: verifica valida/],
+])('backup page starts with the shared MFA status (%j)', async (payload, expected) => {
+  mockSignIn(payload);
+  mockApi({ '/Backup/snapshots': [] });
+  render(withPermissions(['backups.read', 'backups.restore'], <BackupPage />));
+  await screen.findByRole('heading', { name: 'Nessun backup sul server' });
+  expect(screen.getByRole('note')).toHaveTextContent(expected);
+  expect(screen.getAllByRole('heading', { level: 2 })[0]).toHaveTextContent('Verifica MFA');
+  expect(screen.getByRole('button', { name: 'Verifica MFA' })).toBeEnabled();
+  expect(screen.queryByRole('link', { name: /Configura il secondo fattore/ })).not.toBeInTheDocument();
 });
 
 test('audit history shows who made each change and the changed user without exposing only identifiers', async () => {

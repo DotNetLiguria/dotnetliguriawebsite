@@ -17,4 +17,23 @@ public class DatabaseBackupServiceTests
     {
         Assert.Equal(expected, DatabaseBackupService.IsValidSnapshotId(snapshotId));
     }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("Before importing the archive", true)]
+    [InlineData("Archive / 2020", true)]
+    [InlineData("Invalid\nname", false)]
+    [InlineData("Invalid\u0000name", false)]
+    public void BackupNamesAreOptionalDisplayTextNotSnapshotIdentifiers(string? name, bool expected)
+    {
+        Assert.Equal(expected, DatabaseBackupService.IsValidSnapshotName(name));
+    }
+
+    [Fact]
+    public void BackupNameLengthIsBounded()
+    {
+        Assert.True(DatabaseBackupService.IsValidSnapshotName(new string('a', 120)));
+        Assert.False(DatabaseBackupService.IsValidSnapshotName(new string('a', 121)));
+    }
 }
