@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Button } from 'react-aria-components';
-import { useOidc } from '@axa-fr/react-oidc';
-import { useLocation } from 'react-router-dom';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import { ErasureOperation, useAccountRequest } from '../../account/accountApi';
 import { useAccountResource } from '../../account/useAccountResource';
-import { accountReturnPath } from '../../account/returnPath';
-import { mfaStepUpExtras } from '../../account/mfaStepUp';
+import { useMfaWindow } from '../../account/useMfaWindow';
 import { PageHeader, Panel, btn } from '../ui';
+import MfaVerification from '../MfaVerification';
 import { hasPermission, hasAnyPermission, PRIVACY_PERMISSIONS } from '../../account/permissions';
 
 type Campaign = { id: string; recipientCount: number; expiresAt: string };
+type RetentionPolicy = { overrides: Record<string, string>; blockingOverrides: string[]; fields: string[] };
 const stageLabel = (stage: string) => stage === 'awaiting_manual_identity_removal'
   ? 'In attesa della rimozione manuale dell’identità' : stage.startsWith('blocked_') ? `Bloccata (${stage})` : `Da verificare (${stage})`;
 const noticeLabel = (status: string) => ({
@@ -30,12 +29,14 @@ function Administration() {
   const can = (permission: Parameters<typeof hasPermission>[1]) => hasPermission(capabilities, permission);
   const privacyAdmin = hasAnyPermission(capabilities, PRIVACY_PERMISSIONS.filter(permission => permission.startsWith('privacy.')));
   const notificationAdmin = can('notifications.preview') || can('notifications.confirm');
+  const needsMfa = can('privacy.operations.manage') || can('privacy.identities.read');
+  const mfa = useMfaWindow();
   const request = useAccountRequest();
-  const { login } = useOidc();
-  const location = useLocation();
   const operations = useAccountResource<ErasureOperation[]>('privacy/admin/operations', can('privacy.operations.read'));
   const [policy, setPolicy] = useState('{}');
-  const [report, setReport] = useState('');
+  const [savedPolicy, setSavedPolicy] = useState<string | null>(null);
+  const [retentionFields, setRetentionFields] = useState<string[]>([]);
+  const [blockingOverrides, setBlockingOverrides] = useState<string[] | null>(null);
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -49,47 +50,71 @@ function Administration() {
   };
   const loadPolicy = () => run(async () => {
     const retention = await request('privacy/admin/retention');
-    const value = await retention.json() as { overrides: Record<string, string>; blockingOverrides: string[] };
-    setPolicy(JSON.stringify(value.overrides, null, 2));
-    setReport(JSON.stringify(value.blockingOverrides));
-    operations.reload();
+    const value = await retention.json() as RetentionPolicy;
+    const formatted = JSON.stringify(value.overrides, null, 2);
+    setPolicy(formatted);
+    setSavedPolicy(formatted);
+    setRetentionFields(value.fields);
+    setBlockingOverrides(value.blockingOverrides);
+    setConfirmed(false);
   });
   return <>
     <PageHeader title="Privacy e avvisi" description="Regole, richieste pendenti e preparazione degli avvisi. Ogni funzione richiede il proprio permesso." />
+    {needsMfa && <MfaVerification mfa={mfa} busy={busy} />}
     {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-red-900">{error}</p>}
     {privacyAdmin && <Panel labelledBy="privacy-administration" className="space-y-4 p-6">
       <h2 id="privacy-administration" className="text-lg font-bold">Amministrazione privacy</h2>
-      <p>Qualsiasi conservazione non valutata blocca la cancellazione. I report non contengono valori personali.
-        Il recupero di operazioni distruttive richiede una verifica MFA recente.</p>
-      <Button className={btn.secondary} onPress={() => void login(accountReturnPath(location),
-        mfaStepUpExtras())}>Verifica MFA per il recupero</Button>
+      <p>Le richieste di cancellazione che richiedono intervento appaiono qui. I dettagli e le azioni per ogni richiesta
+        compaiono solo se esiste una richiesta pendente e il tuo account ha i permessi necessari; la verifica MFA è mostrata sopra.</p>
       <h3 className="font-bold">Richieste pendenti</h3>
       {operations.loading && <p role="status">Caricamento richieste pendenti…</p>}
       {operations.error && <p role="alert">Richieste pendenti non disponibili: {operations.error}</p>}
       <Button className={btn.secondary} isDisabled={operations.loading || !can('privacy.operations.read')} onPress={operations.reload}>Aggiorna richieste pendenti</Button>
       {operations.data?.length === 0 && <p>Nessuna richiesta pendente.</p>}
       {operations.data?.map(operation => <OperationCard key={operation.id} operation={operation} reload={operations.reload} />)}
-      <Button className={btn.secondary} isDisabled={busy || !can('privacy.retention.read')} onPress={() => void loadPolicy()}>Carica regole e richieste pendenti</Button>
-      <label className="block font-bold" htmlFor="retention-overrides">Regole di cancellazione (JSON campo/azione)</label>
+      <h3 className="font-bold">Regole di conservazione per la cancellazione</h3>
+      <p>Queste regole indicano quali campi possono essere eliminati quando una persona cancella il proprio account.
+        Ogni chiave deve essere un percorso presente nell’inventario qui sotto e l’azione supportata è <code>delete</code>.
+        Qualsiasi altra azione segnala un dato trattenuto e blocca il completamento della cancellazione.
+        La guida tecnica è in <code>docs/privacy-backend.md</code>, sezione “Regole di conservazione”.</p>
+      <Button className={btn.secondary} isDisabled={busy || !can('privacy.retention.read')} onPress={() => void loadPolicy()}>Carica regole di conservazione</Button>
+      {retentionFields.length > 0 && <details>
+        <summary className="min-h-11 cursor-pointer py-2 font-semibold">Percorsi campo validi</summary>
+        <ul className="list-inside list-disc break-all font-mono text-sm">{retentionFields.map(field => <li key={field}>{field}</li>)}</ul>
+      </details>}
+      <label className="block font-bold" htmlFor="retention-overrides">Sostituzioni delle regole (JSON campo/azione)</label>
       <textarea disabled={!can('privacy.retention.manage')} id="retention-overrides" className="min-h-32 w-full rounded-xl border p-3 font-mono" value={policy}
         onChange={event => { setPolicy(event.target.value); setConfirmed(false); }} />
-      <label className="flex gap-3"><input type="checkbox" checked={confirmed}
+      <label className="flex gap-3"><input type="checkbox" checked={confirmed} disabled={savedPolicy === null || policy === savedPolicy}
         onChange={event => setConfirmed(event.target.checked)} />Confermo la sostituzione delle regole.</label>
-      <Button className={btn.secondary} isDisabled={busy || !confirmed || !can('privacy.retention.manage')} onPress={() => void run(async () => {
+      <Button className={btn.secondary} isDisabled={busy || !confirmed || savedPolicy === null || policy === savedPolicy || !can('privacy.retention.manage')} onPress={() => void run(async () => {
         const value: unknown = JSON.parse(policy);
         if (!value || typeof value !== 'object' || Array.isArray(value) ||
           Object.values(value).some(action => typeof action !== 'string')) throw new Error('Inserisci un oggetto JSON campo/azione.');
+        if (Object.keys(value).some(field => !retentionFields.includes(field)))
+          throw new Error('Usa solo percorsi presenti nell’inventario. Carica prima le regole per vedere l’elenco valido.');
         const response = await request('privacy/admin/retention', { method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'X-Confirm-Retention-Policy': 'replace' }, body: JSON.stringify(value) });
-        setReport(JSON.stringify(await response.json()));
-        setConfirmed(false);
+        const result = await response.json() as { blockingOverrides: string[] };
+        const formatted = JSON.stringify(value, null, 2);
+        setPolicy(formatted);
+        setSavedPolicy(formatted);
+        setBlockingOverrides(result.blockingOverrides);
+        setConfirmed(true);
       })}>Sostituisci regole</Button>
-      {report && <pre className="overflow-x-auto whitespace-pre-wrap" aria-label="Report privacy">{report}</pre>}
+      {blockingOverrides !== null && <section aria-label="Esito regole di conservazione" className="space-y-2">
+        <h4 className="font-bold">Campi che bloccano la cancellazione</h4>
+        {blockingOverrides.length === 0
+          ? <p>Nessuna sostituzione blocca la cancellazione.</p>
+          : <ul className="list-inside list-disc break-all font-mono text-sm">{blockingOverrides.map(field => <li key={field}>{field}</li>)}</ul>}
+      </section>}
     </Panel>}
     {notificationAdmin && <Panel labelledBy="campaign-preparation" className="space-y-4 p-6">
       <h2 id="campaign-preparation" className="text-lg font-bold">Prepara avvisi</h2>
-      <p>Anteprima del riepilogo degli eventi pubblicati del prossimo mese, senza indirizzi email.
-        La conferma non invia messaggi: manca un fornitore approvato.</p>
+      <p>Gli avvisi sono email riepilogative di eventi: il riepilogo mensile considera gli eventi pubblicati del prossimo mese;
+        gli annunci riguardano gli eventi pubblicati e imminenti che selezioni. L’anteprima conta solo le persone con consenso
+        attuale per quel tipo di avviso e senza una cancellazione account pendente: non mostra indirizzi email e non invia nulla.
+        Il conteggio è indicativo e l’anteprima scade dopo 30 minuti. L’invio è disabilitato perché non è configurato un fornitore approvato.</p>
       <Button className={btn.secondary} isDisabled={busy || !can('notifications.preview')} onPress={() => void run(async () => {
         const response = await request('notifications/campaigns/preview', { method: 'POST',
           headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ purpose: 'monthly-upcoming-events', eventIds: [] }) });
@@ -112,7 +137,7 @@ function Administration() {
           await request(`notifications/campaigns/${encodeURIComponent(campaign.id)}/confirm`, {
             method: 'POST', headers: { 'X-Confirm-Campaign': campaign.id },
           });
-        })}>Conferma preparazione senza invio</Button>
+        })}>Conferma preparazione (invio non disponibile)</Button>
       </>}
     </Panel>}
   </>;

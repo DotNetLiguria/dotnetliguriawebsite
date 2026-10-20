@@ -1,7 +1,7 @@
 import React from 'react';
 import userEvent from '@testing-library/user-event';
 import { useOidc } from '@axa-fr/react-oidc';
-import { ADMIN_CAPABILITIES, NO_CAPABILITIES, jsonResponse, mockApi, render, screen, within } from '../../test-utils';
+import { ADMIN_CAPABILITIES, NO_CAPABILITIES, fireEvent, jsonResponse, mockApi, render, screen, within } from '../../test-utils';
 import PrivacyAdministration from './PrivacyAdministration';
 
 const operation = { id: 'task-1', stage: 'awaiting_manual_identity_removal', notificationStatus: 'failed', notificationAttempts: 2, notificationError: 'smtp_unavailable' };
@@ -38,8 +38,42 @@ test('a confirmed campaign with no provider never claims messages were sent', as
   const user = controls();
   await user.click(await screen.findByRole('button', { name: 'Anteprima riepilogo mensile' }));
   await screen.findByText(/2 destinatari idonei/);
-  await user.click(screen.getByRole('button', { name: 'Conferma preparazione senza invio' }));
+  await user.click(screen.getByRole('button', { name: 'Conferma preparazione (invio non disponibile)' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('nessun messaggio è stato inviato');
+});
+
+test('retention instructions explain valid paths and confirmation locks after replacement', async () => {
+  prepare({ ...NO_CAPABILITIES, canAccessAdmin: true, permissions: ['privacy.operations.read', 'privacy.retention.read', 'privacy.retention.manage'] }, {
+    'privacy/admin/retention': (_url: string, init?: RequestInit) => init?.method === 'PUT'
+      ? jsonResponse({ blockingOverrides: ['responses.AccountIssuer'] })
+      : jsonResponse({
+        overrides: { 'responses.AccountIssuer': 'delete' },
+        blockingOverrides: [],
+        fields: ['responses.AccountIssuer'],
+      }),
+  });
+  render(<PrivacyAdministration />);
+  const user = controls();
+  const confirm = screen.getByRole('checkbox', { name: /Confermo la sostituzione/ });
+  expect(confirm).toBeDisabled();
+  expect(screen.getByText(/docs\/privacy-backend\.md/)).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Carica regole di conservazione' }));
+  await screen.findByText('responses.AccountIssuer');
+  const textarea = screen.getByRole('textbox', { name: /Sostituzioni delle regole/ });
+  await user.clear(textarea);
+  fireEvent.change(textarea, { target: { value: '{"responses.AccountIssuer":"keep"}' } });
+  expect(confirm).toBeEnabled();
+  await user.click(confirm);
+  const replace = screen.getByRole('button', { name: 'Sostituisci regole' });
+  expect(replace).toBeEnabled();
+  await user.click(replace);
+  expect(await screen.findByRole('region', { name: 'Esito regole di conservazione' })).toHaveTextContent('responses.AccountIssuer');
+  expect(confirm).toBeChecked();
+  expect(confirm).toBeDisabled();
+  expect(replace).toBeDisabled();
+  await user.clear(textarea);
+  fireEvent.change(textarea, { target: { value: '{}' } });
+  expect(confirm).toBeEnabled();
 });
 
 test('lists only minimal operation data and requires an explicit recent-MFA identity request', async () => {
@@ -55,7 +89,7 @@ test('lists only minimal operation data and requires an explicit recent-MFA iden
   const user = controls();
   await user.click(within(card).getByRole('button', { name: /Mostra identità/ }));
   await within(card).findByText(/È richiesta una verifica MFA recente/);
-  await user.click(screen.getByRole('button', { name: 'Verifica MFA per il recupero' }));
+  await user.click(screen.getByRole('button', { name: 'Verifica MFA' }));
   expect(useOidc().login).toHaveBeenCalledWith('/admin/privacy?task=1#pending', { acr_values: 'mfa' });
   expect(screen.queryByRole('heading', { name: 'Prepara avvisi' })).not.toBeInTheDocument();
 });

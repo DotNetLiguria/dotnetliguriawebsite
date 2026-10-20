@@ -179,6 +179,26 @@ and email verification remain in the Keycloak account console. The capabilities 
 uses the existing server policies, not board membership or an audience claim.
 Narrower privacy/notification/questionnaire/backup API permissions remain separate.
 
+### Retention overrides
+
+`GET /api/privacy/admin/retention` returns the current override object, the
+canonical `fields` inventory, and `blockingOverrides`. The override is a JSON
+object whose keys are paths from `fields` and whose values are actions. The only
+action that permits erasure completion is `delete`; any other value is reported
+as a blocker. For example:
+
+```json
+{
+  "responses.AccountIssuer": "delete"
+}
+```
+
+`PUT /api/privacy/admin/retention` replaces the entire override object; it does
+not merge individual keys. It requires
+`X-Confirm-Retention-Policy: replace` and the `privacy.retention.manage`
+permission. Review the returned `blockingOverrides` after replacement. The
+SPA displays the field inventory and blockers returned by the GET/PUT endpoints.
+
 ### Edit personal data without local persistence
 
 `GET /api/privacy/profile` and `PUT /api/privacy/profile` forward the authenticated
