@@ -193,7 +193,7 @@ Re-enable the client only for an approved later configuration run.
 | Runtime permission client | Confidential service-account client with full scope OFF; conventional five-role provider assignments AND explicit role scopes |
 | Recovery account | Only with explicit flag: full application-role group assignment and human membership |
 | Website local secrets | Only in InstallLocalSecrets mode: installs real runtime credentials and protected group UUID without printing them; preserves unrelated values and existing protected UUIDs |
-| Privacy/provisioning accounts | Never edited; privacy settings/roles/secrets are not replaced |
+| Privacy/provisioning accounts | Never edited; privacy settings/roles/secrets are not replaced. The privacy client's `realm-management` scope mappings are a manual step (section 2) |
 | Other users, roles, groups, scopes | Object definitions never deleted; unexpected/conflicting grants stop preflight except for the explicit, application-scope-only repair above |
 
 Runtime provider roles are `view-users`, `query-users`, `view-clients`,
@@ -392,6 +392,21 @@ Before disabling full scope on an existing service client, explicitly scope
 its approved provider administration roles so existing functionality is not
 accidentally broken. Do not expand the privacy service account for permission
 administration.
+
+For the privacy service client `dotnetliguria-privacy-admin`, which the personal
+area and privacy administration use:
+
+1. **Clients → dotnetliguria-privacy-admin → Client scopes →
+   dotnetliguria-privacy-admin-dedicated → Scope**: set **Full Scope Allowed =
+   OFF**.
+2. On the same tab, **Assign role → Filter by clients → `realm-management`** and
+   add exactly the roles its service account holds: `view-users`,
+   `manage-users`, `query-users`, `view-clients`, `query-clients`.
+3. Verify with **Client scopes → Evaluate** (user: the client's service account):
+   the access token must contain those five `realm-management` roles.
+
+Without step 2, the personal area fails with 503 `identity_admin_unavailable`
+(see Troubleshooting).
 
 **Full Scope Allowed** and **Include in token scope** are different settings.
 Missing roles or scope mappings should not automatically turn full scope on.
