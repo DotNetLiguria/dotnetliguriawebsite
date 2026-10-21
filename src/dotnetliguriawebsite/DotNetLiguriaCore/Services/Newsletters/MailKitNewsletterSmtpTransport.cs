@@ -29,9 +29,7 @@ public sealed class MailKitNewsletterSmtpTransport : INewsletterSmtpTransport
         var submissionStarted = false;
         try
         {
-            var socketOptions = options.SmtpUseStartTls
-                ? SecureSocketOptions.StartTls
-                : SecureSocketOptions.SslOnConnect;
+            var socketOptions = ToSocketOptions(options.SmtpUseStartTls);
             await client.ConnectAsync(options.SmtpHost, options.SmtpPort, socketOptions, cancellationToken);
             if (!string.IsNullOrWhiteSpace(options.SmtpUserName))
                 await client.AuthenticateAsync(options.SmtpUserName, options.SmtpPassword, cancellationToken);
@@ -87,4 +85,7 @@ public sealed class MailKitNewsletterSmtpTransport : INewsletterSmtpTransport
                 submissionStarted ? "smtp_result_unknown" : "smtp_protocol_failed");
         }
     }
+
+    internal static SecureSocketOptions ToSocketOptions(bool useStartTls) =>
+        useStartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
 }

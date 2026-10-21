@@ -27,6 +27,8 @@ public interface INewsletterStore
     Task<NewsletterConfirmationDocument?> GetConfirmationAsync(string id, CancellationToken cancellationToken);
     Task<bool> ConsumeConfirmationAsync(string id, CancellationToken cancellationToken);
     Task SetTestApprovalAsync(Guid newsletterId, int version, Guid snapshotId, CancellationToken cancellationToken);
+    Task<bool> SetApprovalAsync(Guid newsletterId, int version, Guid snapshotId, string actorIssuer,
+        string actorSubject, DateTimeOffset now, CancellationToken cancellationToken);
     Task<bool> CompleteProductionAsync(Guid newsletterId, Guid attemptId, string status, CancellationToken cancellationToken);
     Task SeedTemplateAsync(NewsletterTemplateDocument template, NewsletterTemplateRevisionDocument revision,
         CancellationToken cancellationToken);

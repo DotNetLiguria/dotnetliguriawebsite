@@ -3,19 +3,15 @@ import DOMPurify from 'dompurify';
 import type { RenderedPreview } from './types';
 import { Panel } from '../ui';
 
-const csp = "default-src 'none'; img-src blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'";
+const csp = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-src 'none'";
 
-/** Only supplied CID raster images become local blobs; no remote content can load. */
+/** Inline raster data survives the opaque sandbox origin; remote resources remain forbidden. */
 export function createPreviewDocument(preview: RenderedPreview): { html: string; dispose: () => void } {
-  const urls: string[] = [];
-  try {
     const images = new Map<string, string>();
     for (const image of preview.images) {
       if (!['image/png', 'image/jpeg'].includes(image.contentType) || images.has(image.cid)) continue;
-      const bytes = Uint8Array.from(atob(image.base64), char => char.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], { type: image.contentType }));
-      urls.push(url);
-      images.set(image.cid.replace(/^<|>$/g, ''), url);
+      const bytes = atob(image.base64);
+      images.set(image.cid.replace(/^<|>$/g, ''), `data:${image.contentType};base64,${btoa(bytes)}`);
     }
     const html = DOMPurify.sanitize(preview.html, {
       WHOLE_DOCUMENT: false,
@@ -31,6 +27,7 @@ export function createPreviewDocument(preview: RenderedPreview): { html: string;
         const source = element.getAttribute('src') ?? '';
         const url = source.startsWith('cid:') ? images.get(source.slice(4).replace(/^<|>$/g, '')) : undefined;
         if (url) element.setAttribute('src', url);
+        else if (source.startsWith('cid:')) throw new Error('Missing preview image');
         else element.removeAttribute('src');
       } else {
         element.removeAttribute('src');
@@ -46,12 +43,8 @@ export function createPreviewDocument(preview: RenderedPreview): { html: string;
     }
     return {
       html: `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>${document.body.innerHTML}</body></html>`,
-      dispose: () => urls.forEach(url => URL.revokeObjectURL(url)),
+      dispose: () => {},
     };
-  } catch (error) {
-    urls.forEach(url => URL.revokeObjectURL(url));
-    throw error;
-  }
 }
 
 export default function ServerPreview({ preview, onValidityChange }: { preview: RenderedPreview; onValidityChange?: (valid: boolean) => void }) {

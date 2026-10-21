@@ -18,33 +18,50 @@ The newsletter and template editors are separate admin sections:
 - `/admin/newsletters`: drafts, archived items and submission history.
 - `/admin/newsletter-templates`: reusable event/generic templates.
 
-Create a draft, set its internal title and subject, then write Markdown or generate
-it from a selected template. Event newsletters offer published ongoing and future
-events. Event data is projected to JSON and merged on the server; private event
-and integration fields are not included. Regeneration replaces the draft text
-only after an explicit warning. Template and event edits never silently rewrite
-an existing newsletter.
+The newsletter editor is a five-step wizard. The current step is kept in the
+`?step=` query parameter; a step can be opened directly once its prerequisites
+are met, otherwise the editor opens the next incomplete step. Switching steps
+keeps unsaved text in the page.
 
-Save before preparing a preview. Upload PNG/JPEG images using the newsletter
-editor, then insert the generated Markdown references. Arbitrary remote images,
-HTML, SVG, and file paths are not supported. The server supplies the logo at the
-top of every email. Templates cannot remove it.
+1. **Create or open.** Create a new newsletter or resume an existing draft. Pick
+   the type (generic or event) and, for event newsletters, a published ongoing or
+   future event; title and subject are prefilled from the event. Choose either to
+   copy the event data into the text through a template, or to start from an
+   empty text. Event data is projected to JSON and merged on the server; private
+   event and integration fields are not included. For an existing draft, this step
+   offers explicit regeneration, which replaces the saved text after a warning.
+   Template and event edits never silently rewrite an existing newsletter.
+2. **Text and approval.** Edit title, subject and Markdown, and save drafts.
+   Upload PNG/JPEG images and insert the generated Markdown references.
+   Arbitrary remote images, HTML, SVG and file paths are not supported. The server
+   supplies the logo at the top of every email; templates cannot remove it.
+   Prepare the server-rendered preview, then **approve** it (requires
+   `newsletters.manage`). Approval is stored on the server for that exact
+   snapshot (`POST /api/newsletters/{id}/approve` with `version` and
+   `snapshotId`); reopening the editor reloads the approved snapshot via
+   `GET /api/newsletters/{id}/snapshots/{snapshotId}`. Saving changes,
+   regenerating or archiving revokes the approval and any test of it; a changed
+   sender/delivery configuration makes the approved snapshot stale.
+3. **Test send** (requires an approval). The test always uses the approved
+   snapshot. The destination starts with the configured default but can be
+   changed to another **single** mailbox. It must not be the production
+   distribution address or a known distribution alias. The website cannot discover
+   hidden forwarding rules: operators must ensure test mailboxes cannot forward to
+   subscribers. Test sending is a privileged operation. The `.eml` download is
+   test-addressed and does not count as a successful test.
+4. **Send to subscribers** (requires an accepted test of the approved snapshot).
+   Inspect the received test in an email client; SMTP acceptance does not establish
+   visual correctness. Acknowledge the visual check, then review the final
+   confirmation naming the subject and distribution address.
+5. **History.** Test and production attempts, with reconciliation of uncertain
+   outcomes.
 
-Preview the prepared revision, then send a test. The test destination starts with
-the configured default but can be changed to another **single** mailbox. It must
-not be the production distribution address or a known distribution alias.
-The website cannot discover hidden forwarding rules: operators must ensure test
-mailboxes cannot forward to subscribers. Test sending is a privileged operation.
-
-Inspect the received test in an email client. A successful SMTP test submission
-does not establish visual correctness. Explicitly acknowledge visual approval,
-then review the final production confirmation naming the subject and distribution
-address. Changes to content, subject, images, email layout, sender or delivery
-configuration require a fresh matching test/approval.
+The server enforces the same order: test sends, confirmations and production sends
+for a snapshot other than the approved one fail with `newsletter_approval_required`,
+and production also requires an accepted test of that approved snapshot.
 
 Production-accepted newsletters cannot be edited and resent. Clone one to create
 a new draft without its approval or send state. Archiving preserves history.
-The `.eml` download is test-addressed and does not count as a successful test.
 
 ## Templates and embedded images
 
@@ -79,9 +96,9 @@ Server options are bound from the `Newsletters` section. Relevant runtime keys:
 | `DefaultTestAddress`, `DistributionAddress`, `DistributionAliases` | Prefill, fixed production recipient, and prohibited test-routing aliases. |
 | `TestEnabled`, `ProductionEnabled` | Independent test and production switches; leave production disabled until the readiness review is complete. |
 | `ActivationGeneration`, `OperationalFolder` | Approved activation identity and protected, non-restored suspension storage. Use a new generation after restore reconciliation. |
-| `PublicBaseUrl` | Approved HTTPS base for public event links. |
+| `PublicBaseUrl` | HTTPS base for public event links; shipped configuration uses the canonical `https://dotnetliguria.net`. Override for other environments when needed. |
 | `SenderAddress`, `SenderName`, `ReplyToAddress` | Approved sender identity and optional reply address. |
-| `SmtpHost`, `SmtpPort`, `SmtpUseStartTls` | SMTP endpoint and TLS mode. |
+| `SmtpHost`, `SmtpPort`, `SmtpUseStartTls` | SMTP endpoint. `SmtpUseStartTls=true` (default) requires STARTTLS; `false` uses plain SMTP without TLS (credentials, if set, travel unencrypted). |
 | `SmtpUserName`, `SmtpPassword` | Runtime-only authentication secrets. |
 | `SmtpTimeoutSeconds` | Bounded handoff timeout. |
 | `MaxImageBytes`, `MaxImages`, `MaxMimeBytes` | Upload/count/final encoded-message bounds. |

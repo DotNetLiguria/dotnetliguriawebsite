@@ -19,11 +19,17 @@ export function useUnsavedChanges(dirty: boolean) {
     if (!dirty) return;
     const message = 'Ci sono modifiche non salvate. Vuoi abbandonarle?';
     const allow = () => !dirtyRef.current || window.confirm(message);
+    // Changing only the query (e.g. the wizard step) keeps the in-memory draft, so it is not a departure.
+    const samePage = (to: unknown) => {
+      if (typeof to === 'string') return new URL(to, `${window.location.origin}${location.pathname}`).pathname === location.pathname;
+      const target = to as { pathname?: string } | null;
+      return !target?.pathname || target.pathname === location.pathname;
+    };
     const unload = (event: BeforeUnloadEvent) => { if (dirtyRef.current) { event.preventDefault(); event.returnValue = ''; } };
     const originalPush = navigator.push;
     const originalReplace = navigator.replace;
-    const push: typeof navigator.push = (...args) => { if (allow()) originalPush.apply(navigator, args); };
-    const replace: typeof navigator.replace = (...args) => { if (allow()) originalReplace.apply(navigator, args); };
+    const push: typeof navigator.push = (...args) => { if (samePage(args[0]) || allow()) originalPush.apply(navigator, args); };
+    const replace: typeof navigator.replace = (...args) => { if (samePage(args[0]) || allow()) originalReplace.apply(navigator, args); };
     navigator.push = push;
     navigator.replace = replace;
     const click = (event: MouseEvent) => {
@@ -44,7 +50,7 @@ export function useUnsavedChanges(dirty: boolean) {
       }
       const target = event.state?.idx as number | undefined;
       const previous = historyIndex.current;
-      if (!allow() && previous != null && target != null && previous !== target) {
+      if (window.location.pathname !== location.pathname && !allow() && previous != null && target != null && previous !== target) {
         event.stopImmediatePropagation();
         restoring = true;
         window.history.go(previous - target);
@@ -60,7 +66,7 @@ export function useUnsavedChanges(dirty: boolean) {
       if (navigator.push === push) navigator.push = originalPush;
       if (navigator.replace === replace) navigator.replace = originalReplace;
     };
-  }, [dirty, currentPath, navigator]);
+  }, [dirty, currentPath, location.pathname, navigator]);
   return () => { dirtyRef.current = false; };
 }
 

@@ -124,7 +124,7 @@ public sealed class FakeNewsletterStore : INewsletterStore
     public Task SetTestApprovalAsync(Guid newsletterId, int version, Guid snapshotId, CancellationToken cancellationToken)
     {
         var item = Newsletters[newsletterId];
-        if (item.Version == version && item.ProductionStatus == "draft")
+        if (item.Version == version && item.ProductionStatus == "draft" && item.ApprovedSnapshotId == snapshotId.ToString())
         {
             item.TestSnapshotId = snapshotId.ToString();
             item.ConfirmationId = null;
@@ -132,6 +132,18 @@ public sealed class FakeNewsletterStore : INewsletterStore
             item.ConfirmationConsumed = false;
         }
         return Task.CompletedTask;
+    }
+    public Task<bool> SetApprovalAsync(Guid newsletterId, int version, Guid snapshotId, string actorIssuer,
+        string actorSubject, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (!Newsletters.TryGetValue(newsletterId, out var item) || item.Version != version ||
+            item.ProductionStatus != "draft" || item.Archived)
+            return Task.FromResult(false);
+        item.ApprovedSnapshotId = snapshotId.ToString();
+        item.ApprovedAt = now;
+        item.ApprovedByIssuer = actorIssuer;
+        item.ApprovedBySubject = actorSubject;
+        return Task.FromResult(true);
     }
     public Task<bool> CompleteProductionAsync(Guid newsletterId, Guid attemptId, string status, CancellationToken cancellationToken)
     {

@@ -49,6 +49,13 @@ public sealed class NewsletterService
             defaultTestAddress = options.DefaultTestAddress,
             distributionAddress = options.DistributionAddress,
             testEnabled = options.TestEnabled && options.HasSmtpConfiguration,
+            testDisabledReason = !options.HasSmtpConfiguration
+                ? "Configurazione SMTP incompleta o non valida: " +
+                  string.Join(", ", options.SmtpConfigurationProblems()) +
+                  ". Gli indirizzi devono essere semplici (es. nome@dominio.it). Nessun invio è stato eseguito."
+                : !options.TestEnabled
+                    ? "Il server SMTP è configurato, ma gli invii di prova sono disabilitati. Abilita Newsletters:TestEnabled per consentirli."
+                    : null,
             productionEnabled = options.IsProductionReady && _restoreGuard.IsGenerationActive(options.ActivationGeneration),
             maxImageBytes = Math.Clamp(options.MaxImageBytes, 1, NewsletterImageProcessor.MaximumInputBytes)
         };
@@ -242,6 +249,28 @@ public sealed class NewsletterService
         return Preview(snapshot, warnings);
     }
 
+    public async Task<NewsletterPreviewApiModel> SnapshotAsync(Guid id, Guid snapshotId,
+        CancellationToken cancellationToken)
+    {
+        var item = await RequireNewsletterAsync(id, cancellationToken);
+        return Preview(await RequireSnapshotAsync(item, snapshotId, cancellationToken));
+    }
+
+    public async Task<NewsletterApiModel> ApproveAsync(Guid id, NewsletterApprovalRequest request,
+        ClaimsPrincipal principal, CancellationToken cancellationToken)
+    {
+        var item = await RequireNewsletterAsync(id, cancellationToken);
+        EnsureEditable(item);
+        EnsureVersion(item, request.Version);
+        _ = await RequireSnapshotAsync(item, request.SnapshotId, cancellationToken);
+        await EnsureCurrentEventAsync(item, cancellationToken);
+        var actor = GetActor(principal);
+        if (!await _store.SetApprovalAsync(id, request.Version, request.SnapshotId, actor.Issuer, actor.Subject,
+                _clock.GetUtcNow(), cancellationToken))
+            throw new NewsletterServiceException("newsletter_version_conflict", 409);
+        return MapNewsletter(await RequireNewsletterAsync(id, cancellationToken));
+    }
+
     public async Task<NewsletterImageApiModel> UploadImageAsync(Guid id, Stream source, ClaimsPrincipal principal,
         CancellationToken cancellationToken)
     {
@@ -287,6 +316,7 @@ public sealed class NewsletterService
         var item = await RequireNewsletterAsync(id, cancellationToken);
         EnsureEditable(item);
         EnsureVersion(item, request.Version);
+        EnsureApproved(item, request.SnapshotId);
         var snapshot = await RequireSnapshotAsync(item, request.SnapshotId, cancellationToken);
         var actor = GetActor(principal);
         var attemptId = Guid.NewGuid();
@@ -312,6 +342,7 @@ public sealed class NewsletterService
             item = await RequireNewsletterAsync(id, cancellationToken);
             EnsureEditable(item);
             EnsureVersion(item, request.Version);
+            EnsureApproved(item, request.SnapshotId);
             _ = await RequireSnapshotAsync(item, request.SnapshotId, cancellationToken);
             await _store.AddAttemptAsync(attempt, cancellationToken);
         }
@@ -335,6 +366,7 @@ public sealed class NewsletterService
         var item = await RequireNewsletterAsync(id, cancellationToken);
         EnsureEditable(item);
         EnsureVersion(item, request.Version);
+        EnsureApproved(item, request.SnapshotId);
         var snapshot = await RequireSnapshotAsync(item, request.SnapshotId, cancellationToken);
         await EnsureCurrentEventAsync(item, cancellationToken);
         if (item.TestSnapshotId != request.SnapshotId.ToString() ||
@@ -382,6 +414,7 @@ public sealed class NewsletterService
             item = await RequireNewsletterAsync(id, cancellationToken);
             EnsureEditable(item);
             EnsureVersion(item, request.Version);
+            EnsureApproved(item, request.SnapshotId);
             snapshot = await RequireSnapshotAsync(item, request.SnapshotId, cancellationToken);
             confirmation = await _store.GetConfirmationAsync(request.ConfirmationId, cancellationToken)
                 ?? throw new NewsletterServiceException("newsletter_confirmation_invalid", 409);
@@ -777,17 +810,31 @@ public sealed class NewsletterService
 
     private static void EnsureCompleteEvent(NewsletterEventProjection projection)
     {
-        if (string.IsNullOrWhiteSpace(projection.StartTime) || string.IsNullOrWhiteSpace(projection.EndTime) ||
-            projection.Talks.Count == 0 || string.IsNullOrWhiteSpace(projection.LocationName) ||
-            string.IsNullOrWhiteSpace(projection.LocationAddress) || string.IsNullOrWhiteSpace(projection.MapUrl) ||
-            string.IsNullOrWhiteSpace(projection.Url))
-            throw new NewsletterServiceException("event_public_details_incomplete", 409);
+        var missing = new List<string>();
+        if (string.IsNullOrWhiteSpace(projection.StartTime)) missing.Add("orario di inizio");
+        if (string.IsNullOrWhiteSpace(projection.EndTime)) missing.Add("orario di fine");
+        if (projection.Talks.Count == 0) missing.Add("interventi");
+        if (string.IsNullOrWhiteSpace(projection.LocationName)) missing.Add("nome della sede");
+        if (string.IsNullOrWhiteSpace(projection.LocationAddress)) missing.Add("indirizzo della sede");
+        if (string.IsNullOrWhiteSpace(projection.MapUrl)) missing.Add("link alla mappa");
+        if (string.IsNullOrWhiteSpace(projection.Url)) missing.Add("URL pubblico (configurazione Newsletters:PublicBaseUrl)");
+        if (missing.Count > 0)
+            throw new NewsletterServiceException("event_public_details_incomplete", 409,
+                $"Impossibile generare la newsletter: mancano {string.Join(", ", missing)}. " +
+                "Completa i dati dell’evento e la configurazione indicata, poi riprova. Il testo nell’editor non è stato modificato.");
     }
 
     private static NewsletterApiModel MapNewsletter(NewsletterDocument item) =>
         new(item.Id.ToString("D"), item.Kind, item.Title, item.Subject, item.Markdown,
             item.Version, item.TemplateId, item.TemplateVersion, item.EventId, item.Archived,
-            item.ProductionStatus, item.UpdatedAt);
+            item.ProductionStatus, item.UpdatedAt, null, item.ApprovedSnapshotId, item.ApprovedAt,
+            item.TestSnapshotId is not null && item.TestSnapshotId == item.ApprovedSnapshotId ? item.TestSnapshotId : null);
+
+    private static void EnsureApproved(NewsletterDocument item, Guid snapshotId)
+    {
+        if (item.ApprovedSnapshotId != snapshotId.ToString())
+            throw new NewsletterServiceException("newsletter_approval_required", 409);
+    }
 
     private static NewsletterTemplateApiModel MapTemplate(NewsletterTemplateDocument item) =>
         new(item.Id.ToString("D"), item.Kind, item.Name, item.Subject, item.Markdown, item.Version, item.Archived);
@@ -822,6 +869,10 @@ public sealed class NewsletterService
 
     private static void InvalidateApproval(NewsletterDocument item)
     {
+        item.ApprovedSnapshotId = null;
+        item.ApprovedAt = null;
+        item.ApprovedByIssuer = null;
+        item.ApprovedBySubject = null;
         item.TestSnapshotId = null;
         item.VisualApproved = false;
         item.ConfirmationId = null;

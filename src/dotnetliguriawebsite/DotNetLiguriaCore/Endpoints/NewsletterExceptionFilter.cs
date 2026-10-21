@@ -15,6 +15,7 @@ public sealed class NewsletterExceptionFilter(ILogger<NewsletterExceptionFilter>
         catch (NewsletterServiceException exception)
         {
             return Results.Problem(statusCode: exception.StatusCode,
+                detail: exception.Detail,
                 title: exception.StatusCode >= 500 ? "Newsletter operation failed" : "Newsletter request rejected",
                 extensions: new Dictionary<string, object?> { ["code"] = exception.Code });
         }

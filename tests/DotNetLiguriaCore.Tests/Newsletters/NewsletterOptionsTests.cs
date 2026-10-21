@@ -19,6 +19,15 @@ public sealed class NewsletterOptionsTests
         Assert.Equal(expected, NewsletterOptions.IsMailbox(value));
     }
 
+    [Theory]
+    [InlineData(true, MailKit.Security.SecureSocketOptions.StartTls)]
+    [InlineData(false, MailKit.Security.SecureSocketOptions.None)]
+    public void SmtpUseStartTlsFalseMeansPlainSmtpWithoutTls(bool useStartTls,
+        MailKit.Security.SecureSocketOptions expected)
+    {
+        Assert.Equal(expected, MailKitNewsletterSmtpTransport.ToSocketOptions(useStartTls));
+    }
+
     [Fact]
     public void RejectsDistributionAddressAndItsAliasesAsTestDestinations()
     {

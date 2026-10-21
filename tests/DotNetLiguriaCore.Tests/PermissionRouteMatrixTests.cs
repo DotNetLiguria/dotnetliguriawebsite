@@ -46,6 +46,8 @@ public sealed class PermissionRouteMatrixTests
     [InlineData("/api/newsletters/{id}/generate", "POST", "newsletters.manage")]
     [InlineData("/api/newsletters/{id}/images", "POST", "newsletters.manage")]
     [InlineData("/api/newsletters/{id}/preview", "POST", "newsletters.read")]
+    [InlineData("/api/newsletters/{id}/snapshots/{snapshotId}", "GET", "newsletters.read")]
+    [InlineData("/api/newsletters/{id}/approve", "POST", "newsletters.manage")]
     [InlineData("/api/newsletters/{id}/eml", "GET", "newsletters.read")]
     [InlineData("/api/newsletters/{id}/history", "GET", "newsletters.read")]
     [InlineData("/api/newsletters/{id}/test", "POST", "newsletters.send")]

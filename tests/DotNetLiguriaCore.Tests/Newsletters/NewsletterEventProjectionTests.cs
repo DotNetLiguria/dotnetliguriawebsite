@@ -11,6 +11,22 @@ namespace DotNetLiguriaCore.Tests.Newsletters;
 public sealed class NewsletterEventProjectionTests
 {
     [Fact]
+    public void ShippedConfigurationProvidesTheCanonicalPublicEventUrlWithoutEnablingProductionEmail()
+    {
+        var environment = new NewsletterTestEnvironment();
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(environment.ContentRootPath).AddJsonFile("appsettings.json").Build();
+        var services = new ServiceCollection();
+        services.Configure<NewsletterOptions>(configuration.GetSection(NewsletterOptions.SectionName));
+        using var provider = services.BuildServiceProvider();
+        var projection = Assert.IsType<NewsletterEventProjection>(Source(provider).CreateProjection(Event()));
+        Assert.StartsWith("https://dotnetliguria.net/workshop/", projection.Url);
+        var options = provider.GetRequiredService<IOptionsMonitor<NewsletterOptions>>().CurrentValue;
+        Assert.False(options.HasSmtpConfiguration);
+        Assert.False(options.ProductionEnabled);
+    }
+
+    [Fact]
     public void ModernTalksWithoutAnAgendaRemainAvailableAndUseTheRealPublicRoute()
     {
         using var services = OptionsProvider();

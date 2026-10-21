@@ -68,6 +68,17 @@ public static class NewsletterEndpointMappings
             NewsletterService service, CancellationToken token) =>
             Results.Ok(await service.PreviewAsync(id, request, token)))
             .RequireRateLimiting("newsletter-render");
+        group.MapGet("/{id:guid}/snapshots/{snapshotId:guid}", async (Guid id, Guid snapshotId,
+            NewsletterService service, CancellationToken token) =>
+            Results.Ok(await service.SnapshotAsync(id, snapshotId, token)))
+            .RequireRateLimiting("newsletter-render");
+        group.MapPost("/{id:guid}/approve", async (Guid id, NewsletterApprovalRequest request,
+            HttpContext context, NewsletterService service, CancellationToken token) =>
+            Results.Ok(await service.ApproveAsync(id, request, context.User, token)))
+            .RequireAuthorization("newsletters.manage")
+            .AddEndpointFilter<ActiveAccountWriteFilter>()
+            .RequireRateLimiting("newsletter-write")
+            .WithMetadata(new RequestSizeLimitAttribute(_maximumJsonRequestBytes));
         group.MapPost("/{id:guid}/images", async (Guid id, IFormFile file, HttpContext context,
             NewsletterService service, CancellationToken token) =>
         {

@@ -19,6 +19,10 @@ public sealed class NewsletterDocument
     public bool Archived { get; set; }
     public string ProductionStatus { get; set; } = "draft";
     public string? TestSnapshotId { get; set; }
+    public string? ApprovedSnapshotId { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
+    public string? ApprovedByIssuer { get; set; }
+    public string? ApprovedBySubject { get; set; }
     public bool VisualApproved { get; set; }
     public string? ConfirmationId { get; set; }
     public DateTimeOffset? ConfirmationExpiresAt { get; set; }

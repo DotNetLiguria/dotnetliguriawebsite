@@ -194,13 +194,26 @@ public sealed class MongoNewsletterStore : INewsletterStore
 
     public Task SetTestApprovalAsync(Guid newsletterId, int version, Guid snapshotId, CancellationToken cancellationToken) =>
         _newsletters.UpdateOneAsync(item => item.Id == newsletterId && item.Version == version &&
-                item.ProductionStatus == "draft",
+                item.ProductionStatus == "draft" && item.ApprovedSnapshotId == snapshotId.ToString(),
             Builders<NewsletterDocument>.Update.Set(item => item.TestSnapshotId, snapshotId.ToString())
                 .Set(item => item.VisualApproved, false)
                 .Unset(item => item.ConfirmationId)
                 .Unset(item => item.ConfirmationExpiresAt)
                 .Set(item => item.ConfirmationConsumed, false),
             cancellationToken: cancellationToken);
+
+    public async Task<bool> SetApprovalAsync(Guid newsletterId, int version, Guid snapshotId, string actorIssuer,
+        string actorSubject, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var result = await _newsletters.UpdateOneAsync(item => item.Id == newsletterId && item.Version == version &&
+                item.ProductionStatus == "draft" && !item.Archived,
+            Builders<NewsletterDocument>.Update.Set(item => item.ApprovedSnapshotId, snapshotId.ToString())
+                .Set(item => item.ApprovedAt, now)
+                .Set(item => item.ApprovedByIssuer, actorIssuer)
+                .Set(item => item.ApprovedBySubject, actorSubject),
+            cancellationToken: cancellationToken);
+        return result.MatchedCount == 1;
+    }
 
     public async Task<bool> CompleteProductionAsync(Guid newsletterId, Guid attemptId, string status,
         CancellationToken cancellationToken)
@@ -303,6 +316,7 @@ public sealed class MongoNewsletterStore : INewsletterStore
             item.CreatedByIssuer == issuer && item.CreatedBySubject == subject ||
             item.UpdatedByIssuer == issuer && item.UpdatedBySubject == subject ||
             item.ProductionActorIssuer == issuer && item.ProductionActorSubject == subject ||
+            item.ApprovedByIssuer == issuer && item.ApprovedBySubject == subject ||
             item.ConfirmationOperator == issuer + "|" + subject).Limit(1001).ToListAsync(cancellationToken);
         var templateDocs = await _templates.Find(item =>
             item.CreatedByIssuer == issuer && item.CreatedBySubject == subject ||
@@ -372,6 +386,8 @@ public sealed class MongoNewsletterStore : INewsletterStore
                 item.ProductionRecipient = null;
                 item.ProductionActorIssuer = null;
                 item.ProductionActorSubject = null;
+                item.ApprovedByIssuer = null;
+                item.ApprovedBySubject = null;
                 item.ConfirmationId = null;
                 item.ConfirmationExpiresAt = null;
                 item.ConfirmationOperator = null;
@@ -409,6 +425,12 @@ public sealed class MongoNewsletterStore : INewsletterStore
             Builders<NewsletterDocument>.Update
                 .Unset(item => item.ProductionActorIssuer)
                 .Unset(item => item.ProductionActorSubject),
+            cancellationToken: cancellationToken);
+        await _newsletters.UpdateManyAsync(item =>
+                item.ApprovedByIssuer == issuer && item.ApprovedBySubject == subject,
+            Builders<NewsletterDocument>.Update
+                .Unset(item => item.ApprovedByIssuer)
+                .Unset(item => item.ApprovedBySubject),
             cancellationToken: cancellationToken);
         foreach (var id in ownedTemplateIds)
         {

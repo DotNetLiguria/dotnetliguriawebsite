@@ -1,6 +1,17 @@
 import { renderHook } from '../../test-utils';
 import { AdminApiError } from '../adminApi';
-import { isSingleMailbox, useNewsletterBinary } from './newsletterApi';
+import { isSingleMailbox, newsletterError, useNewsletterBinary } from './newsletterApi';
+
+test('incomplete events are not misreported as version conflicts', () => {
+  const message = newsletterError(new AdminApiError(409, undefined, 'event_public_details_incomplete'));
+  expect(message).toContain('orari di inizio e fine');
+  expect(message).not.toContain('Conflitto');
+  expect(newsletterError(new AdminApiError(409, undefined, 'event_public_details_incomplete', 'Mancano orario di inizio e URL pubblico.'))).toBe('Mancano orario di inizio e URL pubblico.');
+});
+
+test('actual version conflicts retain the preservation advice', () => {
+  expect(newsletterError(new AdminApiError(409, undefined, 'newsletter_version_conflict'))).toContain('le tue modifiche sono conservate');
+});
 
 test.each([
   ['single@example.test', true],

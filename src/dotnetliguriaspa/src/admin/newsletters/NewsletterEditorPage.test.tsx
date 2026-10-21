@@ -11,7 +11,10 @@ import type { Newsletter, NewsletterConfig, NewsletterPreview } from './types';
 const initial: Newsletter = { id: 'n1', kind: 'generic', title: 'Notizie della community', subject: 'Novità', markdown: 'Testo iniziale', version: 3, archived: false, productionStatus: 'draft', updatedAt: '2026-10-21T09:00:00Z' };
 const config: NewsletterConfig = { defaultTestAddress: 'prova@example.test', distributionAddress: 'lista@example.test', testEnabled: true, productionEnabled: true, maxImageBytes: 1024 };
 const preview: NewsletterPreview = { snapshotId: 'snapshot-3', contentHash: 'hash-3', subject: initial.subject, html: '<h1>Novità</h1>', plainText: 'Novità', images: [], warnings: [], messageBytes: 456 };
+const approved: Newsletter = { ...initial, approvedSnapshotId: preview.snapshotId, approvedAt: '2026-10-21T09:02:00Z' };
+const tested: Newsletter = { ...approved, testedSnapshotId: preview.snapshotId };
 const full: Permission[] = ['newsletters.read', 'newsletters.manage', 'newsletters.send'];
+const editorRoute = (step?: number) => `/admin/newsletters/n1${step ? `?step=${step}` : ''}`;
 type Handler = (path: string, init: RequestInit) => Response | Promise<Response> | undefined;
 
 function serve(handler?: Handler, configuration = config, record = initial) {
@@ -25,10 +28,13 @@ function serve(handler?: Handler, configuration = config, record = initial) {
       if (custom) return custom;
     }
     if (path === '/newsletters/config') return jsonResponse(configuration);
+    if (path === '/newsletters' && !init.method) return jsonResponse([record]);
     if (path === '/newsletters/events') return jsonResponse([{ id: 'e1', title: 'Evento futuro pubblicato', date: '2026-11-01', locationName: 'Genova' }]);
     if (path === '/newsletter-templates') return jsonResponse([{ id: 't1', kind: record.kind, name: 'Modello base', subject: 'Generato', markdown: 'Testo generato', version: 2, archived: false }]);
     if (path === '/newsletters/n1/history') return jsonResponse([]);
     if (path === '/newsletters/n1/preview') return jsonResponse(preview);
+    if (path === '/newsletters/n1/snapshots/snapshot-3') return jsonResponse(preview);
+    if (path === '/newsletters/n1/approve') return jsonResponse({ ...record, approvedSnapshotId: preview.snapshotId, approvedAt: '2026-10-21T09:02:00Z', testedSnapshotId: null });
     if (path === '/newsletters/n1/test') return jsonResponse({ id: 'a1', mode: 'test', recipient: 'prova@example.test', status: 'accepted', occurredAt: '2026-10-21T09:01:00Z' });
     if (path === '/newsletters/n1/confirmation') return jsonResponse({ confirmationId: 'confirm-3', expiresAt: '2026-10-21T09:10:00Z', distributionAddress: config.distributionAddress });
     if (path === '/newsletters/n1' && !init.method) return jsonResponse(record);
@@ -37,7 +43,7 @@ function serve(handler?: Handler, configuration = config, record = initial) {
   return { requests, to: (path: string, method = 'POST') => requests.filter(value => value.path === path && (value.init.method ?? 'GET') === method) };
 }
 
-function mount(permissions = full, route = '/admin/newsletters/n1') {
+function mount(permissions = full, route = editorRoute()) {
   return render(<CapabilityContext.Provider value={{
     status: 'ready', capabilities: { schemaVersion: 1, permissions, canAccessAdmin: true },
     retry: vi.fn(), refresh: vi.fn(), clear: vi.fn(),
@@ -49,15 +55,24 @@ function mount(permissions = full, route = '/admin/newsletters/n1') {
 }
 
 const user = () => userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+const stepButton = (step: number) => screen.getByRole('button', { name: new RegExp(`^${step}\\. `) });
+const currentStep = () => screen.getByRole('button', { current: 'step' });
 const prepare = async () => {
   await user().click(await screen.findByRole('button', { name: 'Prepara anteprima' }));
   await screen.findByTitle('Anteprima email isolata');
 };
-const testAndApprove = async () => {
+const approveAndContinue = async () => {
   await prepare();
-  await user().click(screen.getByRole('button', { name: 'Invia prova' }));
-  await screen.findByText(/Prova di questo snapshot accettata/);
-  await user().click(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ }));
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Approva questa anteprima' })).toBeEnabled());
+  await user().click(screen.getByRole('button', { name: 'Approva questa anteprima' }));
+  await user().click(await screen.findByRole('button', { name: 'Continua: invio di prova' }));
+  await screen.findByRole('heading', { name: 'Invio di prova' });
+};
+const testAndContinue = async () => {
+  await user().click(await screen.findByRole('button', { name: 'Invia prova' }));
+  await screen.findByText(/Prova dell’anteprima approvata accettata/);
+  await user().click(screen.getByRole('button', { name: 'Continua: invio agli iscritti' }));
+  await user().click(await screen.findByRole('checkbox', { name: /Ho verificato visivamente/ }));
 };
 
 beforeEach(() => {
@@ -65,6 +80,33 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
 });
 afterEach(() => vi.restoreAllMocks());
+
+test('the stepper opens the next incomplete step and only allows reachable steps', async () => {
+  serve();
+  const view = mount();
+  await screen.findByRole('heading', { name: 'Testo della newsletter' });
+  expect(currentStep()).toHaveTextContent('2. Testo e approvazione');
+  expect(stepButton(1)).toBeEnabled();
+  expect(stepButton(3)).toBeDisabled();
+  expect(stepButton(4)).toBeDisabled();
+  expect(stepButton(5)).toBeEnabled();
+  await user().click(stepButton(5));
+  expect(await screen.findByRole('heading', { name: 'Cronologia invii' })).toBeInTheDocument();
+  view.unmount();
+  serve(undefined, config, tested);
+  mount(full, editorRoute(4));
+  await screen.findByRole('heading', { name: 'Invio a tutti gli iscritti' });
+  for (const step of [1, 2, 3, 4, 5]) expect(stepButton(step)).toBeEnabled();
+  await user().click(stepButton(3));
+  expect(await screen.findByRole('heading', { name: 'Invio di prova' })).toBeInTheDocument();
+});
+
+test('an unreachable step in the address falls back to the next incomplete step', async () => {
+  serve();
+  mount(full, editorRoute(4));
+  await screen.findByRole('heading', { name: 'Testo della newsletter' });
+  expect(currentStep()).toHaveTextContent('2. Testo e approvazione');
+});
 
 test('manual save sends the exact persisted version; 409 preserves all local edits and warns on navigation', async () => {
   const api = serve((path, init) => {
@@ -90,27 +132,22 @@ test('manual save sends the exact persisted version; 409 preserves all local edi
   expect(subject).toHaveValue('Oggetto modificato');
   expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveValue('Testo personale');
   expect(JSON.parse(String(api.to('/newsletters/n1', 'PUT')[0].init.body))).toEqual({ version: 3, title: initial.title, subject: 'Oggetto modificato', markdown: 'Testo personale' });
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
+  expect(stepButton(3)).toBeDisabled();
 });
 
-test('sender requires current snapshot test, visual approval and final explicit confirmation with server destination', async () => {
+test('full workflow: approve the preview, test it, then send after visual check and final confirmation', async () => {
   const api = serve(path => path === '/newsletters/n1/send'
     ? jsonResponse({ id: 'p1', mode: 'production', recipient: config.distributionAddress, status: 'accepted', occurredAt: '2026-10-21T09:03:00Z' })
     : undefined as unknown as Response);
-  mount(['newsletters.read', 'newsletters.send']);
-  await screen.findByRole('textbox', { name: 'Oggetto email' });
-  expect(screen.getByRole('textbox', { name: 'Oggetto email' })).toHaveAttribute('readonly');
-  expect(screen.queryByRole('button', { name: 'Salva bozza' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
-  expect(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ })).toBeDisabled();
-  expect(await screen.findByRole('textbox', { name: 'Destinatario della prova' })).toHaveValue(config.defaultTestAddress);
-  await prepare();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
-  const address = screen.getByRole('textbox', { name: 'Destinatario della prova' });
-  fireEvent.change(address, { target: { value: 'alternativa@example.test' } });
+  mount();
+  await approveAndContinue();
+  expect(JSON.parse(String(api.to('/newsletters/n1/approve')[0].init.body))).toEqual({ version: 3, snapshotId: preview.snapshotId });
+  expect(stepButton(4)).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Destinatario della prova' }), { target: { value: 'alternativa@example.test' } });
   await user().click(screen.getByRole('button', { name: 'Invia prova' }));
-  await screen.findByText(/Prova di questo snapshot accettata/);
+  await screen.findByText(/Prova dell’anteprima approvata accettata/);
   expect(JSON.parse(String(api.to('/newsletters/n1/test')[0].init.body))).toEqual({ version: 3, snapshotId: preview.snapshotId, recipient: 'alternativa@example.test' });
+  await user().click(screen.getByRole('button', { name: 'Continua: invio agli iscritti' }));
   expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
   await user().click(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ }));
   await user().click(screen.getByRole('button', { name: 'Prepara conferma invio' }));
@@ -123,49 +160,81 @@ test('sender requires current snapshot test, visual approval and final explicit 
   await screen.findByText(/Accettata dall’appliance SMTP, non necessariamente consegnata/);
   expect(api.to('/newsletters/n1/send')).toHaveLength(1);
   expect(JSON.parse(String(api.to('/newsletters/n1/send')[0].init.body))).toEqual({ version: 3, snapshotId: preview.snapshotId, confirmationId: 'confirm-3' });
-  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Prepara conferma invio' })).not.toBeInTheDocument();
 });
 
-test('edits invalidate preview, successful test and visual approval even if the original text is restored', async () => {
-  serve();
-  mount();
-  await testAndApprove();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeEnabled();
-  fireEvent.change(screen.getByRole('textbox', { name: 'Oggetto email' }), { target: { value: 'Modifica' } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Oggetto email' }), { target: { value: initial.subject } });
+test('a sender without manage permission uses the approved snapshot but cannot approve', async () => {
+  const api = serve(undefined, config, tested);
+  mount(['newsletters.read', 'newsletters.send'], editorRoute(2));
+  await screen.findByTitle('Anteprima email isolata');
+  expect(screen.getByRole('textbox', { name: 'Oggetto email' })).toHaveAttribute('readonly');
+  expect(screen.queryByRole('button', { name: 'Salva bozza' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Approva questa anteprima' })).not.toBeInTheDocument();
+  expect(api.to('/newsletters/n1/snapshots/snapshot-3', 'GET')).toHaveLength(1);
+  await user().click(stepButton(4));
+  await user().click(await screen.findByRole('checkbox', { name: /Ho verificato visivamente/ }));
+  await user().click(screen.getByRole('button', { name: 'Prepara conferma invio' }));
+  await screen.findByRole('dialog', { name: 'Conferma finale di invio in produzione' });
+  expect(JSON.parse(String(api.to('/newsletters/n1/confirmation')[0].init.body))).toEqual({ version: 3, snapshotId: preview.snapshotId, visualApproved: true });
+});
+
+test('edits warn that saving revokes the approval and lock later steps until restored or re-approved', async () => {
+  serve(undefined, config, approved);
+  mount(full, editorRoute(2));
+  await screen.findByText('Approvata');
+  expect(stepButton(3)).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Approva questa anteprima' })).toBeDisabled();
+  const subject = screen.getByRole('textbox', { name: 'Oggetto email' });
+  fireEvent.change(subject, { target: { value: 'Modifica' } });
+  expect(screen.getByText(/l’approvazione attuale verrà revocata/)).toBeInTheDocument();
+  expect(stepButton(3)).toBeDisabled();
   expect(screen.queryByTitle('Anteprima email isolata')).not.toBeInTheDocument();
-  expect(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ })).not.toBeChecked();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
+  fireEvent.change(subject, { target: { value: initial.subject } });
+  expect(stepButton(3)).toBeEnabled();
 });
 
-test.each(['preview', 'test'])('late %s response after an edit cannot restore send eligibility', async operation => {
+test('saving an approved newsletter shows the server-revoked approval', async () => {
+  serve((path, init) => path === '/newsletters/n1' && init.method === 'PUT' ? jsonResponse({ ...initial, subject: 'Modifica', version: 4 }) : undefined, config, approved);
+  mount(full, editorRoute(2));
+  await screen.findByText('Approvata');
+  fireEvent.change(screen.getByRole('textbox', { name: 'Oggetto email' }), { target: { value: 'Modifica' } });
+  await user().click(screen.getByRole('button', { name: 'Salva bozza' }));
+  await waitFor(() => expect(screen.queryByText('Approvata')).not.toBeInTheDocument());
+  expect(stepButton(3)).toBeDisabled();
+});
+
+test('a stale approved snapshot falls back to the approval step', async () => {
+  serve(path => path === '/newsletters/n1/snapshots/snapshot-3' ? jsonResponse({ code: 'newsletter_snapshot_stale' }, 409) : undefined, config, approved);
+  mount(full, editorRoute(3));
+  expect(await screen.findByText(/L’anteprima approvata non è più valida/)).toBeInTheDocument();
+  expect(currentStep()).toHaveTextContent('2. Testo e approvazione');
+  expect(stepButton(3)).toBeDisabled();
+});
+
+test('late preview response after an edit cannot enable approval', async () => {
   let resolve!: (response: Response) => void;
-  serve(path => path === `/newsletters/n1/${operation}` ? new Promise<Response>(done => { resolve = done; }) : undefined as unknown as Response);
+  serve(path => path === '/newsletters/n1/preview' ? new Promise<Response>(done => { resolve = done; }) : undefined as unknown as Response);
   mount();
-  if (operation === 'test') await prepare();
-  await user().click(await screen.findByRole('button', { name: operation === 'test' ? 'Invia prova' : 'Prepara anteprima' }));
+  await user().click(await screen.findByRole('button', { name: 'Prepara anteprima' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Oggetto email' }), { target: { value: 'Nuova revisione locale' } });
-  await act(async () => resolve(jsonResponse(operation === 'preview' ? preview : { id: 'a1', status: 'accepted' })));
+  await act(async () => resolve(jsonResponse(preview)));
   await waitFor(() => expect(screen.getByRole('textbox', { name: 'Oggetto email' })).toHaveValue('Nuova revisione locale'));
   expect(screen.queryByTitle('Anteprima email isolata')).not.toBeInTheDocument();
-  expect(screen.queryByText(/Prova di questo snapshot accettata/)).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Approva questa anteprima' })).toBeDisabled();
 });
 
-test.each(['rejected', 'unknown'])('a %s test is visibly not approval and cannot authorize production', async status => {
-  serve(path => path === '/newsletters/n1/test' ? jsonResponse({ id: 'a1', status, errorCode: 'smtp_result' }) : undefined as unknown as Response);
+test.each(['rejected', 'unknown'])('a %s test is visibly not accepted and does not unlock production', async status => {
+  serve(path => path === '/newsletters/n1/test' ? jsonResponse({ id: 'a1', status, errorCode: 'smtp_result' }) : undefined as unknown as Response, config, approved);
   mount();
-  await prepare();
-  await user().click(screen.getByRole('button', { name: 'Invia prova' }));
+  await user().click(await screen.findByRole('button', { name: 'Invia prova' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Prova non accettata');
-  expect(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
+  expect(stepButton(4)).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Continua: invio agli iscritti' })).not.toBeInTheDocument();
 });
 
-test('generation is explicit, confirms replacement and uses saved version and selected template', async () => {
+test('regeneration in step 1 is explicit, confirms replacement and uses saved version and selected template', async () => {
   const api = serve(path => path === '/newsletters/n1/generate' ? jsonResponse({ ...initial, subject: 'Generato', markdown: 'Dal template', version: 4, templateId: 't1' }) : undefined as unknown as Response);
-  mount();
-  await screen.findByRole('textbox', { name: 'Oggetto email' });
+  mount(full, editorRoute(1));
   await user().selectOptions(await screen.findByRole('combobox', { name: 'Template' }), 't1');
   expect(api.to('/newsletters/n1/generate')).toHaveLength(0);
   await user().click(screen.getByRole('button', { name: 'Genera e sostituisci testo' }));
@@ -173,59 +242,114 @@ test('generation is explicit, confirms replacement and uses saved version and se
   expect(dialog).toHaveTextContent('sostituiti');
   expect(api.to('/newsletters/n1/generate')).toHaveLength(0);
   await user().click(within(dialog).getByRole('button', { name: 'Sostituisci e salva' }));
-  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Oggetto email' })).toHaveValue('Generato'));
+  await waitFor(() => expect(api.to('/newsletters/n1/generate')).toHaveLength(1));
   expect(JSON.parse(String(api.to('/newsletters/n1/generate')[0].init.body))).toEqual({ version: 3, templateId: 't1' });
+  await user().click(screen.getByRole('button', { name: 'Continua: testo e approvazione' }));
+  expect(await screen.findByRole('textbox', { name: 'Oggetto email' })).toHaveValue('Generato');
 });
 
-test('a new event newsletter generates text before saving and selects the only matching template', async () => {
-  const api = serve(path => {
+test('switching steps with unsaved edits keeps them without a leave prompt; regeneration requires saving first', async () => {
+  serve();
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  mount();
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Titolo interno' }), { target: { value: 'Modifica locale' } });
+  await user().click(stepButton(1));
+  await screen.findByText('Salva le modifiche alla bozza prima di sostituire il testo.');
+  expect(screen.getByRole('button', { name: 'Genera e sostituisci testo' })).toBeDisabled();
+  await user().click(stepButton(2));
+  expect(await screen.findByRole('textbox', { name: 'Titolo interno' })).toHaveValue('Modifica locale');
+  expect(confirm).not.toHaveBeenCalled();
+});
+
+test('disabled test sending displays the server configuration action without enabling the button', async () => {
+  serve(undefined, { ...config, testEnabled: false, testDisabledReason: 'Configura il server SMTP e il mittente.' }, approved);
+  mount();
+  expect(await screen.findByText('Configura il server SMTP e il mittente.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+});
+
+test('enabled test sending explains a missing recipient', async () => {
+  serve(undefined, { ...config, defaultTestAddress: '' }, approved);
+  mount();
+  expect(await screen.findByText('Inserisci l’indirizzo del destinatario della prova.')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Destinatario della prova' }), { target: { value: 'prova@example.test' } });
+  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeEnabled();
+  expect(screen.queryByText('Inserisci l’indirizzo del destinatario della prova.')).not.toBeInTheDocument();
+});
+
+test('a new event newsletter copies event fields through the template and opens step 2', async () => {
+  const created = { ...initial, kind: 'event' as const, eventId: 'e1', title: 'Evento futuro pubblicato', subject: 'Evento futuro pubblicato', markdown: '## Testo generato', version: 1 };
+  const api = serve((path, init) => {
     if (path === '/newsletter-templates') return jsonResponse([{ id: 'event-template', kind: 'event', name: 'Annuncio evento', subject: '{{event.title}}', markdown: 'Template', version: 2, archived: false }]);
-    if (path === '/newsletter-templates/event-template/preview') return jsonResponse({ subject: 'Evento futuro pubblicato', markdown: '## Testo generato', html: '<p>Testo generato</p>', plainText: 'Testo generato', images: [], warnings: [] });
+    if (path === '/newsletter-templates/event-template/preview') return jsonResponse({ subject: 'Oggetto dal template', markdown: '## Testo generato', html: '<p>Testo generato</p>', plainText: 'Testo generato', images: [], warnings: [] });
+    if (path === '/newsletters' && init.method === 'POST') return jsonResponse(created);
+    if (path === '/newsletters/n1' && !init.method) return jsonResponse(created);
     return undefined;
   });
   mount(full, '/admin/newsletters/new');
+  expect(currentStep()).toHaveTextContent('1. Crea o apri');
+  expect(stepButton(2)).toBeDisabled();
   await user().selectOptions(screen.getByRole('combobox', { name: 'Tipo' }), 'event');
   await screen.findByRole('option', { name: /Evento futuro pubblicato/ });
   await user().selectOptions(screen.getByRole('combobox', { name: 'Evento pubblicato in corso o futuro' }), 'e1');
   expect(screen.getByRole('textbox', { name: 'Titolo interno' })).toHaveValue('Evento futuro pubblicato');
   expect(screen.getByRole('textbox', { name: 'Oggetto email' })).toHaveValue('Evento futuro pubblicato');
-  expect(screen.getByRole('heading', { name: 'Genera da un template' }).compareDocumentPosition(
-    screen.getByRole('textbox', { name: 'Titolo interno' }))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(screen.getByRole('radio', { name: /Copia i dati dell’evento/ })).toBeChecked();
   await waitFor(() => expect(screen.getByRole('combobox', { name: 'Template' })).toHaveValue('event-template'));
-  const button = screen.getByRole('button', { name: 'Genera e sostituisci testo' });
-  expect(button).toBeEnabled();
-  await user().click(button);
-  await user().click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Genera testo' }));
-  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveValue('## Testo generato'));
-  expect(screen.getByRole('textbox', { name: 'Titolo interno' })).toHaveValue('Evento futuro pubblicato');
-  expect(screen.getByRole('textbox', { name: 'Oggetto email' })).toHaveValue('Evento futuro pubblicato');
+  await user().click(screen.getByRole('button', { name: 'Crea bozza e continua' }));
+  expect(await screen.findByRole('textbox', { name: 'Contenuto Markdown' })).toHaveValue('## Testo generato');
+  expect(currentStep()).toHaveTextContent('2. Testo e approvazione');
   expect(JSON.parse(String(api.to('/newsletter-templates/event-template/preview')[0].init.body))).toEqual({ version: 2, eventId: 'e1' });
-  expect(api.to('/newsletters')).toHaveLength(0);
-  expect(screen.getByRole('button', { name: 'Salva bozza' })).toBeEnabled();
+  expect(JSON.parse(String(api.to('/newsletters')[0].init.body))).toEqual({ kind: 'event', title: 'Evento futuro pubblicato', subject: 'Evento futuro pubblicato', markdown: '## Testo generato', templateId: 'event-template', eventId: 'e1' });
 });
 
-test('generation explains when an existing edited draft must first be saved', async () => {
-  serve();
-  mount();
-  const title = await screen.findByRole('textbox', { name: 'Titolo interno' });
-  fireEvent.change(title, { target: { value: 'Modifica locale' } });
-  await screen.findByText('Salva le modifiche alla bozza prima di sostituire il testo.');
-  expect(screen.getByRole('button', { name: 'Genera e sostituisci testo' })).toBeDisabled();
+test('a new newsletter can start from scratch without template generation or sending', async () => {
+  const created = { ...initial, version: 1, title: 'Nuova bozza', subject: 'Nuovo oggetto', markdown: '' };
+  const api = serve((path, init) => {
+    if (path === '/newsletters' && init.method === 'POST') return jsonResponse(created);
+    if (path === '/newsletters/n1' && !init.method) return jsonResponse(created);
+    return undefined;
+  });
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  mount(full, '/admin/newsletters/new');
+  await user().click(screen.getByRole('radio', { name: 'Inizia da zero con un testo vuoto' }));
+  expect(screen.queryByRole('combobox', { name: 'Template' })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Titolo interno' }), { target: { value: created.title } });
+  expect(screen.getByRole('button', { name: 'Crea bozza e continua' })).toBeDisabled();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Oggetto email' }), { target: { value: created.subject } });
+  await user().click(screen.getByRole('button', { name: 'Crea bozza e continua' }));
+  await screen.findByRole('textbox', { name: 'Contenuto Markdown' });
+  expect(JSON.parse(String(api.to('/newsletters')[0].init.body))).toEqual({ kind: 'generic', title: created.title, subject: created.subject, markdown: '' });
+  expect(api.requests.some(value => value.path.includes('/preview'))).toBe(false);
+  expect(confirm).not.toHaveBeenCalled();
+  expect(api.to('/newsletters/n1/send')).toHaveLength(0);
+});
+
+test('step 1 lists existing drafts to resume, excluding sent and archived newsletters', async () => {
+  serve(path => path === '/newsletters' ? jsonResponse([approved, { ...initial, id: 'n2', title: 'Inviata', productionStatus: 'accepted' }, { ...initial, id: 'n3', title: 'Archiviata', archived: true }]) : undefined);
+  mount(full, '/admin/newsletters/new');
+  const link = await screen.findByRole('link', { name: initial.title });
+  expect(link).toHaveAttribute('href', '/admin/newsletters/n1');
+  expect(screen.getByText('Approvata')).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Inviata' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Archiviata' })).not.toBeInTheDocument();
 });
 
 test('read-only and editor-only accounts cannot send; no-read accounts mount no private data', async () => {
-  const api = serve();
-  const view = mount(['newsletters.read']);
+  const api = serve(undefined, config, approved);
+  const view = mount(['newsletters.read'], editorRoute(2));
   await screen.findByRole('textbox', { name: 'Oggetto email' });
   expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveAttribute('readonly');
   expect(screen.queryByRole('button', { name: 'Salva bozza' })).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Approva questa anteprima' })).not.toBeInTheDocument();
+  await user().click(stepButton(3));
+  expect(await screen.findByRole('button', { name: 'Invia prova' })).toBeDisabled();
   expect(api.to('/newsletter-templates', 'GET')).toHaveLength(0);
   expect(api.to('/newsletters/events', 'GET')).toHaveLength(0);
   view.unmount();
-  const editor = mount(['newsletters.read', 'newsletters.manage']);
-  await prepare();
-  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  const editor = mount(['newsletters.read', 'newsletters.manage'], editorRoute(3));
+  expect(await screen.findByRole('button', { name: 'Invia prova' })).toBeDisabled();
   editor.unmount();
   const previous = api.requests.length;
   mount(['newsletters.manage', 'newsletters.send']);
@@ -234,10 +358,9 @@ test('read-only and editor-only accounts cannot send; no-read accounts mount no 
 });
 
 test('test recipient accepts exactly one editable address, never the configured distribution', async () => {
-  const api = serve();
+  const api = serve(undefined, config, approved);
   mount();
-  await prepare();
-  const input = screen.getByRole('textbox', { name: 'Destinatario della prova' });
+  const input = await screen.findByRole('textbox', { name: 'Destinatario della prova' });
   for (const value of ['one@example.test,two@example.test', 'one@example.test;two@example.test', config.distributionAddress, 'invalid']) {
     fireEvent.change(input, { target: { value } });
     expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
@@ -263,35 +386,33 @@ test('multipart upload inserts the server markdown without a JSON Content-Type; 
   expect(api.to('/newsletters/n1/images')).toHaveLength(1);
 });
 
-test('EML downloads use test snapshot and chosen recipient, release blob URL and do not count as a test', async () => {
-  const api = serve(path => path.startsWith('/newsletters/n1/eml?') ? new Response('MIME test message', { headers: { 'Content-Type': 'message/rfc822' } }) : undefined as unknown as Response);
+test('EML downloads use the approved snapshot and chosen recipient, release blob URL and do not count as a test', async () => {
+  const api = serve(path => path.startsWith('/newsletters/n1/eml?') ? new Response('MIME test message', { headers: { 'Content-Type': 'message/rfc822' } }) : undefined as unknown as Response, config, approved);
   const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
   mount();
-  await prepare();
-  await user().click(screen.getByRole('button', { name: 'Scarica .eml di prova' }));
+  await user().click(await screen.findByRole('button', { name: 'Scarica .eml di prova' }));
   await waitFor(() => expect(click).toHaveBeenCalledOnce());
   expect(api.requests.find(value => value.path.includes('/eml?'))?.path).toContain('snapshotId=snapshot-3&recipient=prova%40example.test');
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:newsletter-test');
-  expect(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ })).toBeDisabled();
+  expect(stepButton(4)).toBeDisabled();
   expect(api.to('/newsletters/n1/test')).toHaveLength(0);
 });
 
 test('production-disabled configuration is explicit even after a successful test', async () => {
-  const api = serve(undefined, { ...config, productionEnabled: false });
+  const api = serve(undefined, { ...config, productionEnabled: false }, approved);
   mount();
-  await testAndApprove();
+  await testAndContinue();
   expect(screen.getByText(/Invio in produzione disabilitato dalla configurazione/)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
   expect(api.to('/newsletters/n1/confirmation')).toHaveLength(0);
 });
 
-test('failed confirmation remains visible, keeps edits, and never sends', async () => {
-  const api = serve(path => path === '/newsletters/n1/confirmation' ? jsonResponse({ detail: 'Attivazione produzione sospesa' }, 400) : undefined as unknown as Response);
+test('failed confirmation remains visible and never sends', async () => {
+  const api = serve(path => path === '/newsletters/n1/confirmation' ? jsonResponse({ detail: 'Attivazione produzione sospesa' }, 400) : undefined as unknown as Response, config, tested);
   mount();
-  await testAndApprove();
+  await user().click(await screen.findByRole('checkbox', { name: /Ho verificato visivamente/ }));
   await user().click(screen.getByRole('button', { name: 'Prepara conferma invio' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Attivazione produzione sospesa');
-  expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveValue(initial.markdown);
   expect(api.to('/newsletters/n1/send')).toHaveLength(0);
 });
 
@@ -312,22 +433,6 @@ test('newsletter list shows multiple drafts, archive filter and load failures ra
   expect(screen.getByRole('button', { name: 'Riprova' })).toBeInTheDocument();
 });
 
-test('new newsletter persists independently without implicit generation or sending', async () => {
-  const created = { ...initial, version: 1, title: 'Nuova bozza', subject: 'Nuovo oggetto', markdown: 'Nuovo contenuto' };
-  const api = serve((path, init) => path === '/newsletters' && init.method === 'POST' ? jsonResponse(created) : undefined);
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-  mount(full, '/admin/newsletters/new');
-  fireEvent.change(screen.getByRole('textbox', { name: 'Titolo interno' }), { target: { value: created.title } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Oggetto email' }), { target: { value: created.subject } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Contenuto Markdown' }), { target: { value: created.markdown } });
-  expect(api.to('/newsletters')).toHaveLength(0);
-  await user().click(screen.getByRole('button', { name: 'Salva bozza' }));
-  await screen.findByRole('button', { name: 'Clona in una nuova bozza' });
-  expect(JSON.parse(String(api.to('/newsletters')[0].init.body))).toEqual({ kind: 'generic', title: created.title, subject: created.subject, markdown: created.markdown });
-  expect(confirm).not.toHaveBeenCalled();
-  expect(api.to('/newsletters/n1/generate')).toHaveLength(0);
-  expect(api.to('/newsletters/n1/send')).toHaveLength(0);
-});
 
 test('cloning a frozen newsletter opens a different draft, without carrying approvals', async () => {
   const cloned = { ...initial, id: 'n2', title: 'Copia newsletter', version: 1 };
@@ -336,14 +441,15 @@ test('cloning a frozen newsletter opens a different draft, without carrying appr
     if (path === '/newsletters/n2' && !init.method) return jsonResponse(cloned);
     if (path === '/newsletters/n2/history') return jsonResponse([]);
     return undefined;
-  }, config, { ...initial, productionStatus: 'accepted' });
+  }, config, { ...tested, productionStatus: 'accepted' });
   mount();
+  await screen.findByRole('heading', { name: 'Cronologia invii' });
   await user().click(await screen.findByRole('button', { name: 'Clona in una nuova bozza' }));
   await screen.findByRole('heading', { name: cloned.title });
   expect(await screen.findByRole('textbox', { name: 'Oggetto email' })).not.toHaveAttribute('readonly');
   expect(api.to('/newsletters/n1/clone')).toHaveLength(1);
-  expect(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ })).not.toBeChecked();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
+  expect(stepButton(3)).toBeDisabled();
+  expect(stepButton(4)).toBeDisabled();
 });
 
 test('archive is confirmed, versioned, and leaves content and history readable', async () => {
@@ -357,6 +463,7 @@ test('archive is confirmed, versioned, and leaves content and history readable',
   expect(JSON.parse(String(api.to('/newsletters/n1/archive')[0].init.body))).toEqual({ version: 3 });
   expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveValue(initial.markdown);
   expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveAttribute('readonly');
+  expect(stepButton(5)).toBeEnabled();
 });
 
 test('ambiguous production is locked until sender records verified reconciliation and reason', async () => {
@@ -368,7 +475,8 @@ test('ambiguous production is locked until sender records verified reconciliatio
   }, config, { ...initial, productionStatus: 'unknown' });
   mount(['newsletters.read', 'newsletters.send']);
   await screen.findByText(/Esito SMTP incerto/);
-  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  expect(currentStep()).toHaveTextContent('5. Cronologia');
+  expect(stepButton(3)).toBeDisabled();
   await user().click(await screen.findByRole('button', { name: 'Riconcilia esito incerto' }));
   const dialog = await screen.findByRole('dialog', { name: 'Riconcilia dopo verifica dei log SMTP' });
   expect(dialog).toHaveTextContent(attempt.messageId);
@@ -392,33 +500,35 @@ test('Markdown toolbar wraps the selected content and marks the draft unsaved', 
   expect(screen.getByRole('button', { name: 'Prepara anteprima' })).toBeDisabled();
 });
 
-test('lost production response is never auto-retried and locks the local draft pending reconciliation', async () => {
+test('lost production response is never auto-retried and locks the newsletter pending reconciliation', async () => {
   const api = serve(path => {
     if (path === '/newsletters/n1/send') throw new Error('Connessione interrotta dopo la conferma');
     return undefined;
-  });
+  }, config, tested);
   mount();
-  await testAndApprove();
+  await user().click(await screen.findByRole('checkbox', { name: /Ho verificato visivamente/ }));
   await user().click(screen.getByRole('button', { name: 'Prepara conferma invio' }));
   const dialog = await screen.findByRole('dialog', { name: 'Conferma finale di invio in produzione' });
   await user().click(within(dialog).getByRole('button', { name: 'Confermo: invia all’appliance SMTP' }));
   await screen.findByText(/Esito SMTP incerto/);
   expect(screen.getByText('Connessione interrotta dopo la conferma')).toBeInTheDocument();
-  expect(screen.getByRole('textbox', { name: 'Contenuto Markdown' })).toHaveAttribute('readonly');
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  expect(screen.queryByRole('button', { name: 'Prepara conferma invio' })).not.toBeInTheDocument();
   expect(api.to('/newsletters/n1/send')).toHaveLength(1);
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await user().click(stepButton(3));
+  expect(await screen.findByRole('button', { name: 'Invia prova' })).toBeDisabled();
+  await user().click(stepButton(2));
+  expect(await screen.findByRole('textbox', { name: 'Contenuto Markdown' })).toHaveAttribute('readonly');
 });
 
-test('malformed preview images fail closed instead of enabling test or visual approval', async () => {
-  serve(path => path === '/newsletters/n1/preview' ? jsonResponse({ ...preview, images: [{ cid: 'bad', contentType: 'image/png', base64: '%%%%' }] }) : undefined);
+test('malformed preview images fail closed instead of enabling approval', async () => {
+  const api = serve(path => path === '/newsletters/n1/preview' ? jsonResponse({ ...preview, images: [{ cid: 'bad', contentType: 'image/png', base64: '%%%%' }] }) : undefined);
   mount();
   await user().click(await screen.findByRole('button', { name: 'Prepara anteprima' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Impossibile visualizzare le immagini');
-  expect(screen.getByRole('button', { name: 'Invia prova' })).toBeDisabled();
-  expect(screen.getByRole('checkbox', { name: /Ho verificato visivamente/ })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Prepara conferma invio' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Approva questa anteprima' })).toBeDisabled();
+  expect(api.to('/newsletters/n1/approve')).toHaveLength(0);
+  expect(stepButton(3)).toBeDisabled();
 });
 
 test('unknown test attempts can be reconciled with either verified outcome and require a trimmed ten-character reason', async () => {
@@ -428,7 +538,7 @@ test('unknown test attempts can be reconciled with either verified outcome and r
     if (path === '/newsletters/n1/reconcile') return jsonResponse(initial);
     return undefined;
   });
-  mount(['newsletters.read', 'newsletters.send']);
+  mount(['newsletters.read', 'newsletters.send'], editorRoute(5));
   await user().click(await screen.findByRole('button', { name: 'Riconcilia esito incerto' }));
   const dialog = await screen.findByRole('dialog', { name: 'Riconcilia dopo verifica dei log SMTP' });
   const outcome = within(dialog).getByRole('combobox', { name: 'Esito verificato' });
@@ -455,7 +565,7 @@ test.each(['accepted', 'not-submitted'] as const)('terminal persisted %s attempt
     if (path === '/newsletters/n1/reconcile') return jsonResponse({ ...initial, productionStatus: persistedOutcome });
     return undefined;
   }, config, { ...initial, productionStatus: 'unknown' });
-  mount(['newsletters.read', 'newsletters.send']);
+  mount(['newsletters.read', 'newsletters.send'], editorRoute(5));
   await user().click(await screen.findByRole('button', { name: 'Completa riconciliazione invio' }));
   const dialog = await screen.findByRole('dialog', { name: 'Riconcilia dopo verifica dei log SMTP' });
   expect(dialog).toHaveTextContent('L’esito è già registrato');
@@ -478,11 +588,11 @@ test('explicit reconciliationRequired false overrides unknown fallback and read-
     { id: 'a2', mode: 'production', recipient: config.distributionAddress, status: 'accepted', occurredAt: '2026-10-21T09:03:00Z', reconciliationRequired: true, reconciliationOutcome: 'accepted' },
   ];
   serve(path => path === '/newsletters/n1/history' ? jsonResponse(attempts) : undefined);
-  const view = mount(['newsletters.read', 'newsletters.send']);
+  const view = mount(['newsletters.read', 'newsletters.send'], editorRoute(5));
   await screen.findByRole('button', { name: 'Completa riconciliazione invio' });
   expect(screen.queryByRole('button', { name: 'Riconcilia esito incerto' })).not.toBeInTheDocument();
   view.unmount();
-  mount(['newsletters.read']);
+  mount(['newsletters.read'], editorRoute(5));
   await screen.findByText('Produzione · Accettato da SMTP');
   expect(screen.queryByRole('button', { name: 'Completa riconciliazione invio' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Riconcilia esito incerto' })).not.toBeInTheDocument();

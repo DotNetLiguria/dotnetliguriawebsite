@@ -58,5 +58,8 @@ public sealed class NewsletterHistoryTests
         var error = await Assert.ThrowsAsync<NewsletterServiceException>(() =>
             fixture.Service.PreviewAsync(fixture.NewsletterId, new(1), TestContext.Current.CancellationToken));
         Assert.Equal("event_public_details_incomplete", error.Code);
+        Assert.Contains("orario di inizio", error.Detail);
+        Assert.Contains("orario di fine", error.Detail);
+        Assert.Contains("Newsletters:PublicBaseUrl", error.Detail);
     }
 }

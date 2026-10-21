@@ -17,6 +17,7 @@ public sealed class NewsletterOptions
     public string ReplyToAddress { get; set; } = "";
     public string SmtpHost { get; set; } = "";
     public int SmtpPort { get; set; } = 587;
+    /// <summary>true = upgrade with STARTTLS (required); false = plain SMTP without TLS.</summary>
     public bool SmtpUseStartTls { get; set; } = true;
     public string SmtpUserName { get; set; } = "";
     public string SmtpPassword { get; set; } = "";
@@ -34,6 +35,24 @@ public sealed class NewsletterOptions
         (string.IsNullOrWhiteSpace(ReplyToAddress) || IsMailbox(ReplyToAddress)) &&
         SenderName is not null && !SenderName.Any(char.IsControl) &&
         (string.IsNullOrWhiteSpace(SmtpUserName) || !string.IsNullOrWhiteSpace(SmtpPassword));
+
+    public IReadOnlyList<string> SmtpConfigurationProblems()
+    {
+        var problems = new List<string>();
+        if (string.IsNullOrWhiteSpace(SmtpHost) || Uri.CheckHostName(SmtpHost) == UriHostNameType.Unknown)
+            problems.Add("Newsletters:SmtpHost");
+        if (SmtpPort is <= 0 or > 65535)
+            problems.Add("Newsletters:SmtpPort");
+        if (!IsMailbox(SenderAddress))
+            problems.Add("Newsletters:SenderAddress");
+        if (!string.IsNullOrWhiteSpace(ReplyToAddress) && !IsMailbox(ReplyToAddress))
+            problems.Add("Newsletters:ReplyToAddress");
+        if (SenderName is null || SenderName.Any(char.IsControl))
+            problems.Add("Newsletters:SenderName");
+        if (!string.IsNullOrWhiteSpace(SmtpUserName) && string.IsNullOrWhiteSpace(SmtpPassword))
+            problems.Add("Newsletters:SmtpPassword");
+        return problems;
+    }
 
     public bool IsProductionReady =>
         ProductionEnabled && HasSmtpConfiguration && IsMailbox(DistributionAddress) &&

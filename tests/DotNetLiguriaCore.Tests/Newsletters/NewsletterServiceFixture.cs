@@ -33,7 +33,7 @@ public sealed class NewsletterServiceFixture
         Store.Newsletters[NewsletterId] = new NewsletterDocument
         {
             Id = NewsletterId, Title = "Title", Subject = "Subject", Markdown = "Body",
-            TestSnapshotId = SnapshotId.ToString(), UpdatedAt = Clock.GetUtcNow()
+            TestSnapshotId = SnapshotId.ToString(), ApprovedSnapshotId = SnapshotId.ToString(), UpdatedAt = Clock.GetUtcNow()
         };
         Store.Snapshots[SnapshotId] = new NewsletterSnapshotDocument
         {

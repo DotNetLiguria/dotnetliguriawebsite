@@ -24,6 +24,9 @@ export interface Newsletter {
   productionStatus: string;
   updatedAt: string;
   attempts?: Attempt[];
+  approvedSnapshotId?: string | null;
+  approvedAt?: string | null;
+  testedSnapshotId?: string | null;
 }
 export interface NewsletterTemplate {
   id: string;
@@ -38,6 +41,7 @@ export interface NewsletterConfig {
   defaultTestAddress: string;
   distributionAddress: string;
   testEnabled: boolean;
+  testDisabledReason?: string | null;
   productionEnabled: boolean;
   maxImageBytes: number;
 }
