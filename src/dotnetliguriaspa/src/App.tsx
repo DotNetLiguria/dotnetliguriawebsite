@@ -31,6 +31,9 @@ import { clearPrivateBrowserState } from './questionnaire/drafts';
 // The questionnaire designer and results pull in dnd-kit and Recharts: load them on demand.
 const QuestionnaireDesigner = lazy(() => import('./components/QuestionnaireDesigner/QuestionnaireDesigner'));
 const QuestionnaireResults = lazy(() => import('./components/QuestionnaireResults/QuestionnaireResults'));
+const NewsletterListPage = lazy(() => import('./admin/newsletters/NewsletterListPage'));
+const NewsletterEditorPage = lazy(() => import('./admin/newsletters/NewsletterEditorPage'));
+const NewsletterTemplatesPage = lazy(() => import('./admin/newsletters/NewsletterTemplatesPage'));
 const page = (element: React.ReactNode) => <Suspense fallback={null}>{element}</Suspense>;
 
 function ProfileRedirect() {
@@ -57,6 +60,11 @@ function App() {
                     <Route path='/admin' element={<DashboardPage />} />
                     <Route path='/admin/privacy' element={<PrivacyAdministration />} />
                     <Route path='/admin/access' element={<AccessPage />} />
+                    <Route path='/admin/newsletters' element={page(<NewsletterListPage />)} />
+                    <Route path='/admin/newsletters/new' element={page(<NewsletterEditorPage />)} />
+                    <Route path='/admin/newsletters/:id' element={page(<NewsletterEditorPage />)} />
+                    <Route path='/admin/newsletter-templates' element={page(<NewsletterTemplatesPage />)} />
+                    <Route path='/admin/newsletter-templates/:id' element={page(<NewsletterTemplatesPage />)} />
                     <Route path='/admin/board/' element={<BoardPage />} />
                     <Route path='/admin/board/:id' element={<BoardPage />} />
                     <Route path='/admin/speakers/' element={<SpeakersPage />} />

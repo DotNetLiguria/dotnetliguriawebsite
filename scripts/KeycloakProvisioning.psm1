@@ -117,7 +117,7 @@ function New-KeycloakSetupPlan {
         throw 'Recovery user must be an existing enabled human account.'
     }
     $catalogue = @($Fixture.roles.client.DotNetLiguriaCore | ForEach-Object { $_.name })
-    if ($catalogue.Count -ne 53 -or @($catalogue | Sort-Object -Unique).Count -ne $catalogue.Count) {
+    if ($catalogue.Count -ne 56 -or @($catalogue | Sort-Object -Unique).Count -ne $catalogue.Count) {
         throw 'Unexpected application catalogue. Review tool/fixture changes before provisioning.'
     }
     $existingRoles = @(& $Request 'GET' "clients/$($plan.Aliases.api)/roles?first=0&max=513" $null)

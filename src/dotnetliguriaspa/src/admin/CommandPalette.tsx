@@ -22,6 +22,8 @@ const ACTIONS: Command[] = [
   { id: 'new-event', label: 'Nuovo evento', meta: 'Crea', to: '/admin/workshop/create', permission: 'events.manage' },
   { id: 'no-photo', label: 'Relatori senza foto', meta: 'Da sistemare', to: '/admin/speakers/?filtro=senza-foto', permission: 'speakers.read' },
   { id: 'venues', label: 'Sedi', meta: 'Vai', to: '/admin/venues/', permission: 'venues.read' },
+  { id: 'newsletters', label: 'Newsletter', meta: 'Bozze e invii', to: '/admin/newsletters', permission: 'newsletters.read' },
+  { id: 'newsletter-templates', label: 'Template newsletter', meta: 'Modelli Markdown', to: '/admin/newsletter-templates', permission: 'newsletters.read' },
   { id: 'personal', label: 'Area personale', meta: 'Account e consensi', to: '/area-personale' },
   { id: 'site', label: 'Vedi il sito', meta: 'Si apre in una nuova scheda', to: '/', external: true },
 ];

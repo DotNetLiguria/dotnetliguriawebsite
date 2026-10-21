@@ -16,7 +16,7 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next, IHostEnviron
             if (!environment.IsDevelopment())
             {
                 headers.ContentSecurityPolicy = "default-src 'self'; base-uri 'self'; object-src 'none'; " +
-                    "script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; " +
+                    "script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; " +
                     "font-src 'self'; connect-src 'self' https://hello.vevy.com; " +
                     "frame-src 'self' https://hello.vevy.com; frame-ancestors 'self'; " +
                     "worker-src 'self'; form-action 'self' https://hello.vevy.com";
@@ -27,7 +27,9 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next, IHostEnviron
                 context.Request.Path.StartsWithSegments("/api/Questionnaire") ||
                 context.Request.Path.StartsWithSegments("/api/Backup") ||
                 context.Request.Path.StartsWithSegments("/api/Privacy") ||
-                context.Request.Path.StartsWithSegments("/api/Notifications"))
+                context.Request.Path.StartsWithSegments("/api/Notifications") ||
+                context.Request.Path.StartsWithSegments("/api/newsletters") ||
+                context.Request.Path.StartsWithSegments("/api/newsletter-templates"))
             {
                 headers.CacheControl = "no-store";
                 headers.Pragma = "no-cache";

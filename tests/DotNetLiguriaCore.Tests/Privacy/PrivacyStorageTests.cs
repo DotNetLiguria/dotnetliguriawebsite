@@ -144,7 +144,8 @@ public sealed class PrivacyStorageTests : IDisposable
     private PrivacyTestEnvironment Environment() => new(Path.Combine(_root, "application"));
     private DatabaseBackupService Backup(DotNetLiguriaDatabaseSettings settings, IErasureJournal journal) =>
         new(Options.Create(settings), Environment(), new PrivacyTestClock(), NullLogger<DatabaseBackupService>.Instance,
-            new PrivacyOperationGate(), journal, Options.Create(PrivacyCoordinatorTests.Settings()));
+            new FakeNewsletterRestoreGuard(), new PrivacyOperationGate(), journal,
+            Options.Create(PrivacyCoordinatorTests.Settings()));
 
     public void Dispose()
     {

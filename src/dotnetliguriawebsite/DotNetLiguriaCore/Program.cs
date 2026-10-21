@@ -11,6 +11,7 @@ using DotNetLiguriaCore.Services.Questionnaires;
 using DotNetLiguriaCore.Services.Privacy;
 using DotNetLiguriaCore.Services.Access;
 using DotNetLiguriaCore.Services.Photos;
+using DotNetLiguriaCore.Services.Newsletters;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using DotNetLiguria.ServiceDefaults;
@@ -77,7 +78,7 @@ public class Program
                 policy.WithHeaders("Content-Type", "Authorization", "Accept", "X-Confirm-Erasure",
                         "X-Confirm-Retention-Policy", "X-Confirm-Campaign", "X-Admin-Request",
                         "X-Confirm-Repair", "X-Confirm-Access-Change", "X-Confirm-Board-Change", "X-Confirm-Speaker-Change")
-                    .WithExposedHeaders("X-Page-Offset", "X-Page-Limit", "X-Next-Offset")
+                    .WithExposedHeaders("X-Page-Offset", "X-Page-Limit", "X-Next-Offset", "Content-Disposition")
                     .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
             });
         });
@@ -132,6 +133,8 @@ public class Program
         builder.Services.AddSingleton<PhotoSnapshotService>();
         builder.Services.AddSingleton<PhotoMutationAudit>();
         builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
+        builder.Services.AddNewsletterServices(builder.Configuration);
+        builder.Services.AddScoped<ActiveAccountWriteFilter>();
         builder.Services.AddPermissionDirectory(builder.Configuration);
         builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
 
@@ -179,6 +182,8 @@ public class Program
         app.MapNotificationEndpoints();
         app.MapAccessEndpoints();
         app.MapPhotoEndpoints();
+        app.MapNewsletterEndpoints();
+        app.MapNewsletterTemplateEndpoints();
         app.MapSpeakerAccountEndpoints();
         app.MapServiceDefaults();
         app.MapFallback("/api/{**path}", () => Results.Problem(
@@ -390,6 +395,38 @@ public class Program
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+                    }));
+            options.AddPolicy("newsletter-write", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    (context.User.FindFirst("iss")?.Value ?? "") + "|" +
+                    (context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 40, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+                    }));
+            options.AddPolicy("newsletter-render", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    (context.User.FindFirst("iss")?.Value ?? "") + "|" +
+                    (context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+                    }));
+            options.AddPolicy("newsletter-upload", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    (context.User.FindFirst("iss")?.Value ?? "") + "|" +
+                    (context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+                    }));
+            options.AddPolicy("newsletter-send", context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    (context.User.FindFirst("iss")?.Value ?? "") + "|" +
+                    (context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0
                     }));
         });
     }

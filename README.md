@@ -22,6 +22,8 @@ two unit-test projects. The questionnaire is integrated into the React SPA and M
 
 See [architecture](docs/architecture.md), [frontend setup](src/dotnetliguriaspa/README.md),
 [website setup](src/dotnetliguriawebsite/website.md), and [test procedures](tests/Tests.md).
+See [newsletter administration](docs/newsletters.md) for drafting, templates,
+embedded-image emails and the separate SMTP-appliance production activation gate.
 Read [AGENTS.md](AGENTS.md) and scoped guidance before editing. Canonical portable
 skills live under [.agents/skills](.agents/skills), with Claude and Copilot adapters.
 

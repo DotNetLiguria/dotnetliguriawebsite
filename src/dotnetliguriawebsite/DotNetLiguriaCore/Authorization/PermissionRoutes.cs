@@ -20,6 +20,19 @@ public static class PermissionRoutes
     public static string? For(string route, string method)
     {
         route = route.TrimEnd('/');
+        if (route == "/api/newsletters" || route.StartsWith("/api/newsletters/", StringComparison.Ordinal))
+        {
+            if (method == "GET" || route.EndsWith("/preview", StringComparison.Ordinal))
+                return "newsletters.read";
+            return route.EndsWith("/test", StringComparison.Ordinal) ||
+                route.EndsWith("/confirmation", StringComparison.Ordinal) ||
+                route.EndsWith("/send", StringComparison.Ordinal) ||
+                route.EndsWith("/reconcile", StringComparison.Ordinal)
+                ? "newsletters.send" : "newsletters.manage";
+        }
+        if (route == "/api/newsletter-templates" || route.StartsWith("/api/newsletter-templates/", StringComparison.Ordinal))
+            return method == "GET" || route.EndsWith("/preview", StringComparison.Ordinal)
+                ? "newsletters.read" : "newsletters.manage";
         if (route.StartsWith("/api/PublicQuestionnaire/", StringComparison.Ordinal)) return null;
         if (route.StartsWith("/api/Backup/", StringComparison.Ordinal))
             return route.EndsWith("/snapshots", StringComparison.Ordinal) ? "backups.read"

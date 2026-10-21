@@ -19,7 +19,8 @@ public static class PermissionDelegationPolicy
         "questionnaire-results.read", "questionnaire-responses.read",
         "questionnaire-responses.export", "questionnaire-responses.delete",
         "backups.read", "backups.create",
-        "notifications.preview", "notifications.confirm"
+        "notifications.preview", "notifications.confirm",
+        "newsletters.read", "newsletters.manage", "newsletters.send"
     }.ToFrozenSet(StringComparer.Ordinal);
 
     public static IReadOnlySet<string> DelegableIds { get; } = _delegable;

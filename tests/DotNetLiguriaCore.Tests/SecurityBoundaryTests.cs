@@ -21,6 +21,9 @@ public sealed class SecurityBoundaryTests
     [InlineData("/api/Privacy/export", true)]
     [InlineData("/api/Notifications/subscription", true)]
     [InlineData("/api/Questionnaire", true)]
+    [InlineData("/api/newsletters", true)]
+    [InlineData("/api/newsletters/config", true)]
+    [InlineData("/api/newsletter-templates", true)]
     [InlineData("/authentication/callback", true)]
     [InlineData("/index.html", false)]
     [InlineData("/assets/app.js", false)]
@@ -38,6 +41,7 @@ public sealed class SecurityBoundaryTests
         Assert.Equal("nosniff", context.Response.Headers.XContentTypeOptions);
         Assert.Equal("SAMEORIGIN", context.Response.Headers.XFrameOptions);
         Assert.Contains("script-src 'self';", context.Response.Headers.ContentSecurityPolicy.ToString());
+        Assert.Contains("img-src 'self' data: blob: https:;", context.Response.Headers.ContentSecurityPolicy.ToString());
         Assert.DoesNotContain("unsafe-eval", context.Response.Headers.ContentSecurityPolicy.ToString());
         Assert.Equal(privateResponse ? "no-store" : "", context.Response.Headers.CacheControl.ToString());
     }

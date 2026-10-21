@@ -67,6 +67,14 @@ statistics and CSV export are pure services tested without MongoDB. The SPA serv
 the runner at `/q/:questionnaireId` and `/feedback/:workshopId` and lazy-loads the
 admin designer and results. Details are in [questionnaire.md](questionnaire.md).
 
+Newsletter administration is separate from notification-consent campaign
+preparation. The newsletter editor and reusable template editor persist private
+versioned Markdown, event-data projections, inline images and prepared MIME
+snapshots. The SMTP adapter submits one message to an operator-configured
+distribution address; it does not enumerate website users or manage subscribers.
+Production requires revision-bound testing, explicit approval and durable
+duplicate/restore protection. See [newsletters.md](newsletters.md).
+
 ## Authentication And Configuration
 
 The website retains cookie/OIDC and JWT bearer schemes. Keycloak uses authorization

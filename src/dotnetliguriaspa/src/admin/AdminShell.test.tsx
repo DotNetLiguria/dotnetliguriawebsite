@@ -32,7 +32,7 @@ describe('<AdminShell />', () => {
     signedIn();
     const { unmount } = renderShell('/admin');
     const sections = await screen.findByRole('navigation', { name: 'Sezioni' });
-    expect(within(sections).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori', 'Sedi', 'Board', 'Questionari', 'Menu del sito', 'Backup e import', 'Privacy e avvisi', 'Accessi utenti']);
+    expect(within(sections).getAllByRole('link').map(l => l.textContent)).toEqual(['Panoramica', 'Eventi', 'Relatori', 'Sedi', 'Newsletter', 'Template newsletter', 'Board', 'Questionari', 'Menu del sito', 'Backup e import', 'Privacy e avvisi', 'Accessi utenti']);
     expect(within(sections).getByRole('link', { name: 'Panoramica' })).toHaveAttribute('aria-current', 'page');
     unmount();
 

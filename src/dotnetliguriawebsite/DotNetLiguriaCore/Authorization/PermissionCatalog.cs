@@ -23,6 +23,7 @@ public static class PermissionCatalog
         "privacy.operations.read", "privacy.operations.manage", "privacy.identities.read",
         "privacy.notifications.retry", "privacy.retention.read", "privacy.retention.manage",
         "notifications.preview", "notifications.confirm",
+        "newsletters.read", "newsletters.manage", "newsletters.send",
         "access.users.read", "access.users.create", "access.permissions.grant", "access.permissions.revoke", "access.audit.read",
     });
 

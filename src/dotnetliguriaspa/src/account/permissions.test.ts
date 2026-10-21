@@ -18,6 +18,13 @@ describe('exact server permission helpers', () => {
     expect(canPerform({ permissions: ['events.delete', 'events.past.manage'] }, 'events.delete', { isPast: true })).toBe(true);
   });
 
+  it('keeps newsletter drafting, reading and sending independent', () => {
+    const editor = { permissions: ['newsletters.read', 'newsletters.manage'] };
+    expect(hasAllPermissions(editor, ['newsletters.read', 'newsletters.manage'])).toBe(true);
+    expect(hasPermission(editor, 'newsletters.send')).toBe(false);
+    expect(hasPermission({ permissions: ['newsletters.send'] }, 'newsletters.read')).toBe(false);
+  });
+
   it('never infers current events from a browser clock and honors server denied actions', () => {
     const source = { permissions: ['events.manage', 'events.past.manage'] };
     expect(canPerform({ permissions: ['events.manage'] }, 'events.manage', {})).toBe(false);

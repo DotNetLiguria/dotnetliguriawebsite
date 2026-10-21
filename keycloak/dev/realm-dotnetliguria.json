@@ -34,6 +34,7 @@
         { "name": "privacy.operations.read" }, { "name": "privacy.operations.manage" }, { "name": "privacy.identities.read" },
         { "name": "privacy.notifications.retry" }, { "name": "privacy.retention.read" }, { "name": "privacy.retention.manage" },
         { "name": "notifications.preview" }, { "name": "notifications.confirm" },
+        { "name": "newsletters.read" }, { "name": "newsletters.manage" }, { "name": "newsletters.send" },
         { "name": "access.users.read" }, { "name": "access.users.create" }, { "name": "access.permissions.grant" },
         { "name": "access.permissions.revoke" }, { "name": "access.audit.read" }
       ]
@@ -90,6 +91,7 @@
           "maintenance.counters.read", "maintenance.counters.manage", "maintenance.speaker-references.repair", "maintenance.diagnostics.manage",
           "privacy.operations.read", "privacy.operations.manage", "privacy.identities.read", "privacy.notifications.retry",
           "privacy.retention.read", "privacy.retention.manage", "notifications.preview", "notifications.confirm",
+          "newsletters.read", "newsletters.manage", "newsletters.send",
           "access.users.read", "access.users.create", "access.permissions.grant", "access.permissions.revoke", "access.audit.read"
         ]
       }

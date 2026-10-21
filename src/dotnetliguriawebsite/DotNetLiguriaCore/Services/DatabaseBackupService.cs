@@ -7,6 +7,7 @@ using MongoDB.Bson.IO;
 using MongoDB.Driver;
 using DotNetLiguriaCore.Services.Privacy;
 using DotNetLiguriaCore.Services.Photos;
+using DotNetLiguriaCore.Services.Newsletters;
 
 namespace DotNetLiguriaCore.Services;
 
@@ -51,12 +52,14 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
     private readonly IErasureJournal? _erasureJournal;
     private readonly PrivacyOptions _privacyOptions;
     private readonly PhotoSnapshotService? _photos;
+    private readonly INewsletterRestoreGuard _newsletterRestoreGuard;
 
     public DatabaseBackupService(
         IOptions<DotNetLiguriaDatabaseSettings> settings,
         IHostEnvironment hostEnvironment,
         TimeProvider timeProvider,
         ILogger<DatabaseBackupService> logger,
+        INewsletterRestoreGuard newsletterRestoreGuard,
         PrivacyOperationGate? operationGate = null,
         IErasureJournal? erasureJournal = null,
         IOptions<PrivacyOptions>? privacyOptions = null,
@@ -72,6 +75,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         _erasureJournal = erasureJournal;
         _privacyOptions = privacyOptions?.Value ?? new PrivacyOptions();
         _photos = photos;
+        _newsletterRestoreGuard = newsletterRestoreGuard;
     }
 
     public static bool IsValidSnapshotId(string? snapshotId) =>
@@ -137,6 +141,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         if ((await PhotoSnapshotService.ReadAssetsAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken)).Count > 0 && _photos is null)
             throw new InvalidDataException("Photo storage is required to restore this snapshot.");
 
+        await _newsletterRestoreGuard.SuspendForRestoreAsync(cancellationToken);
         var safetySnapshot = await CreateSnapshotAsync(true, cancellationToken);
         var previousAssets = _photos is null ? [] : await _photos.CurrentAssetsAsync(cancellationToken);
         await ReplaceDatabaseAsync(manifest, snapshotId, cancellationToken);

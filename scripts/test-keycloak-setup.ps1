@@ -222,7 +222,7 @@ Test-Case 'Preview is read-only and plans the complete missing setup' {
     $provider = New-FakeProvider
     $plan = New-TestPlan $provider -Grant
     Assert-True ($provider.State.Writes -eq 0) 'Preview wrote to realm'
-    Assert-True (@($plan.Actions | Where-Object Label -like 'Create permission *').Count -eq 53) 'Missing role actions'
+    Assert-True (@($plan.Actions | Where-Object Label -like 'Create permission *').Count -eq 56) 'Missing role actions'
     Assert-True (@($plan.Actions | Where-Object Label -eq 'Create dedicated runtime permission client').Count -eq 1) 'Missing runtime client action'
 }
 Test-Case 'Apply is repeatable and preserves existing client configuration' {
@@ -235,7 +235,7 @@ Test-Case 'Apply is repeatable and preserves existing client configuration' {
     Assert-True (!$spa.fullScopeAllowed -and !$spa.consentRequired) 'SPA remained permissive'
     Assert-True ($spa.attributes.keep -eq 'unchanged') 'Unrelated client attributes changed'
     Assert-True ($spa.redirectUris[0] -eq 'https://localhost:5443/callback') 'Redirect changed'
-    Assert-True ($provider.State.Roles[$provider.State.ApiId].Count -eq 53) 'Role catalogue mismatch'
+    Assert-True ($provider.State.Roles[$provider.State.ApiId].Count -eq 56) 'Role catalogue mismatch'
     $scopeId = $second.Aliases.scope
     Assert-True ($provider.State.Scopes[$scopeId].attributes['display.on.consent.screen'] -eq 'false') 'Internal scope shows on consent'
 }

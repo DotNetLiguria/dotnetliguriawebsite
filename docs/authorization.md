@@ -229,6 +229,9 @@ not roles owned by DotNetLiguriaSpa.
 | `privacy.retention.manage` | Replace rules, with recent MFA and explicit confirmation. |
 | `notifications.preview` | Prepare a campaign preview and recipient count. |
 | `notifications.confirm` | Confirm campaign preparation, not delivery. |
+| `newsletters.read` | Read newsletter drafts, templates, private previews, MIME exports and submission history. |
+| `newsletters.manage` | With newsletter read access, edit drafts/templates, upload images, generate event content, clone and archive. Does not authorize sending. |
+| `newsletters.send` | With newsletter read access, submit a test, approve and confirm a production handoff, or explicitly reconcile an uncertain SMTP attempt. Production readiness and revision checks still apply. |
 | `access.users.read` | Bounded user lookup and application grant inspection. |
 | `access.users.create` | Explicit speaker-account creation and onboarding invitation/resend; nondelegable. Never grants application access. |
 | `access.permissions.grant` | Grant an eligible direct permission to another permitted target, subject to delegation checks and recent MFA. |
@@ -373,6 +376,8 @@ composable groups; explicitly assign destructive/sensitive additions.
 | Site menu editors | site-menu.read, site-menu.manage |
 | Privacy operators | privacy.operations.read, privacy.operations.manage, privacy.retention.read |
 | Notification preparers | notifications.preview |
+| Newsletter editors | newsletters.read, newsletters.manage |
+| Newsletter senders | newsletters.read, newsletters.send |
 | Backup operators | backups.read, backups.create |
 
 Historical operators receive their chosen task bundle plus events.past.manage.

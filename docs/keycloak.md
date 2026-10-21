@@ -2,13 +2,19 @@
 
 Use this procedure for the **currently implemented, client-role-backed**
 authorization design. The application reads one multivalued `permissions` claim;
-53 Keycloak client roles supply its values. The alternative of backing that
+56 Keycloak client roles supply its values. The alternative of backing that
 claim with protected user attributes was discussed but **not implemented**.
 Changing only the mapper to attributes will not work: live checks still read
 client-role assignments.
 
 The architecture, permission meanings, delegation restrictions and rollout
 limitations are in [authorization.md](authorization.md).
+
+The newsletter feature adds `newsletters.read`, `newsletters.manage` and
+`newsletters.send` to the catalogue and explicit application scope mapping.
+These repository changes do not provision or grant the new roles in the live
+realm. Review newsletter editor/sender assignments separately; enabling a role
+does not enable production delivery. See [newsletter administration](newsletters.md).
 
 ## Board membership rollout
 
@@ -187,7 +193,7 @@ pwsh -File scripts\configure-keycloak.ps1 -Mode InstallLocalSecrets `
 ```
 
 `-GrantRecoveryAccess` is an explicit choice to give the named human account
-all 53 application permissions through the protected
+all 56 application permissions through the protected
 **Application recovery operators** group. It does not give that user Keycloak
 realm administration rights. The flag also checks these grants during Verify
 and InstallLocalSecrets. Without it, the tool does not manage human permission
@@ -358,7 +364,7 @@ roles from either namespace. Do not remove similarly named roles by pattern.
    in approved protected storage. Deleting a role removes its existing
    mappings; recreating the name alone does not restore assignments.
 3. Migrate affected users/groups to reviewed task bundles. There is no automatic
-   translation from a legacy administrator role to all 53 new permissions.
+   translation from a legacy administrator role to all 56 new permissions.
 4. Using an authorized realm operator, remove obsolete mapper/scope/composite
    references and delete only confirmed application-exclusive legacy roles.
    Preserve provider defaults, `realm-management`, `account`, `broker`, privacy
@@ -459,6 +465,9 @@ privacy.retention.read
 privacy.retention.manage
 notifications.preview
 notifications.confirm
+newsletters.read
+newsletters.manage
+newsletters.send
 access.users.read
 access.users.create
 access.permissions.grant
@@ -545,7 +554,7 @@ Inside **Client scopes -> dotnetliguria-permissions -> Scope**:
 
 1. Choose **Assign role**.
 2. Filter by client roles and select **DotNetLiguriaCore**.
-3. Select all 53 roles in step 1, then assign.
+3. Select all 56 roles in step 1, then assign.
 4. Confirm no foreign-client, legacy administrator or realm-management roles
    are in this application's permission scope allowlist.
 
@@ -811,7 +820,7 @@ grant/revoke eligible event-editor permissions, and edit current draft events.
 You cannot publish, delete or edit past events without additional permissions.
 
 If your own account intentionally needs every application task, assign all
-53 DotNetLiguriaCore roles from step 1 to this group instead. This is an
+56 DotNetLiguriaCore roles from step 1 to this group instead. This is an
 explicit full-access assignment, not a special administrator bypass. Choose
 it only if every member of this group should have all those powers. New roles
 will still need a deliberate assignment later.
@@ -879,6 +888,8 @@ Suggested exact starting bundles:
 | Site menu editors | site-menu.read, site-menu.manage |
 | Privacy operators | privacy.operations.read, privacy.operations.manage, privacy.retention.read |
 | Notification preparers | notifications.preview |
+| Newsletter editors | newsletters.read, newsletters.manage |
+| Newsletter senders | newsletters.read, newsletters.send |
 | Backup operators | backups.read, backups.create |
 
 Add deletion, export, restore, external publication and other sensitive duties

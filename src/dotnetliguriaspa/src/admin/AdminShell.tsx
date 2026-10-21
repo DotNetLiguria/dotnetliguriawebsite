@@ -23,6 +23,8 @@ export const NAV: { group: string | null; items: NavItem[] }[] = [
     { label: 'Sedi', to: '/admin/venues/', icon: 'pin', match: ['/admin/venues'], permissions: ['venues.read'] },
   ] },
   { group: 'Community', items: [
+    { label: 'Newsletter', to: '/admin/newsletters', icon: 'list', match: ['/admin/newsletters'], permissions: ['newsletters.read'] },
+    { label: 'Template newsletter', to: '/admin/newsletter-templates', icon: 'clipboard', match: ['/admin/newsletter-templates'], permissions: ['newsletters.read'] },
     { label: 'Board', to: '/admin/board/', icon: 'users', match: ['/admin/board'], permissions: ['board.read'] },
     { label: 'Questionari', to: '/admin/questionnaires', icon: 'clipboard', match: ['/admin/questionnaires', '/admin/feedbacks'], permissions: ['questionnaires.read'] },
   ] },

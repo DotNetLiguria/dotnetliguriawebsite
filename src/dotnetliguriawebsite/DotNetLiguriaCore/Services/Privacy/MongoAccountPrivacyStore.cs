@@ -4,10 +4,12 @@ using DotNetLiguriaCore.Services.Notifications;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using DotNetLiguriaCore.Services.Photos;
+using DotNetLiguriaCore.Services.Newsletters;
 
 namespace DotNetLiguriaCore.Services.Privacy;
 
 public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSettings> settings, IOptions<PrivacyOptions> options,
+    INewsletterPrivacyStore newsletters,
     PhotoLifecycle? photos = null)
     : IAccountPrivacyStore
 {
@@ -18,6 +20,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
     public async Task<IReadOnlyList<string>> InspectAsync(AccountReference account, CancellationToken cancellationToken)
     {
         var blockers = new List<string>();
+        blockers.AddRange(await newsletters.InspectAsync(account, cancellationToken));
         var known = new HashSet<string>(_options.AssessedNonAccountCollections, StringComparer.Ordinal)
         {
             _settings.QuestionnaireCollectionName, _settings.QuestionnaireResponseCollectionName,
@@ -26,6 +29,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
             MongoPhotoStore.SelectionCollection, MongoPhotoStore.AssetCollection,
             _settings.SpeakerCollectionName + MongoSpeakerAccountStore.OperationsCollectionSuffix
         };
+        known.UnionWith(newsletters.CollectionNames);
         using var names = await _database.ListCollectionNamesAsync(cancellationToken: cancellationToken);
         foreach (var name in await names.ToListAsync(cancellationToken))
             if (!name.StartsWith("system.", StringComparison.Ordinal) && !known.Contains(name))
@@ -147,6 +151,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
             .Limit(1001).ToListAsync(cancellationToken);
         result.AddRange(speakerLinks.Select(document => new BsonDocument { { "kind", "speaker-account-link" }, { "document", document } }));
         if (photos is not null) result.AddRange(await photos.ExportAsync(account, cancellationToken));
+        result.AddRange(await newsletters.ExportAsync(account, cancellationToken));
         var operations = await SpeakerOperations.Find(MongoSpeakerAccountStore.OperationAccountFilter(account))
             .Limit(1001).ToListAsync(cancellationToken);
         result.AddRange(operations.Select(document => new BsonDocument { { "kind", "speaker-account-operation" }, { "document", document } }));
@@ -158,6 +163,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
     {
         var blockers = await InspectAsync(account, cancellationToken);
         if (blockers.Count != 0) throw new PrivacyBlockedException("privacy_inventory_blocked", StatusCodes.Status409Conflict);
+        await newsletters.EraseAsync(account, cancellationToken);
         if (photos is not null) await photos.EraseAsync(account, cancellationToken);
         // Discard the entire response: answers, rare combinations and free text are not proven anonymous.
         await Responses.DeleteManyAsync(ResponseFilter(account), cancellationToken);
