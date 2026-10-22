@@ -25,10 +25,12 @@ internal class Program
 
         };
 
-        // --from-json imports the checked-in json/ export without reading the historical SQL database.
+        // No argument: export the historical SQL database into the json/ files and stop.
+        // --from-json: skip the SQL read and import the existing json/ files into MongoDB.
         if (!args.Contains("--from-json", StringComparer.OrdinalIgnoreCase))
         {
             ReadFromSql(options);
+            return;
         }
 
         ImportJsonIntoMongo(options);
@@ -54,6 +56,18 @@ internal class Program
 
         var workshopTracks = ctx.Tracks!.OrderBy(w => w.WorkshopId).ToList();
         var workshopSpeakers = ctx.Speakers!.OrderBy(w => w.Name).ToList();
+        var workshopFiles = ctx.WorkshopFiles!
+           .Select(w => new DotNetLiguria.Models.WorkshopFile
+           {
+               WorkshopFileId = w.WorkshopFileId,
+               Workshop_WorkshopId = w.Workshop_WorkshopId,
+               Title = w.Title,
+               FileName = w.FileName,
+               FullPath = w.FullPath,
+               FileType = w.FileType
+           })
+           .OrderBy(w => w.Workshop_WorkshopId)
+           .ToList();
 
         //I need to create a dto for workshop and extract only speackers ids
         foreach (var workshop in workshops)
@@ -87,14 +101,12 @@ internal class Program
         var jsonWorkshops = JsonSerializer.Serialize(workshops, options);
         var jsonWorkshopTracks = JsonSerializer.Serialize(workshopTracks, options);
         var jsonWorkshopSpeakers = JsonSerializer.Serialize(workshopSpeakers, options);
+        var jsonWorkshopFiles = JsonSerializer.Serialize(workshopFiles, options);
 
-        // I need to write the json files
-        // File.WriteAllText(Path.Combine(destinationJsonPath, "workshops.json"), jsonWorkshops);
-        // File.WriteAllText(Path.Combine(destinationJsonPath, "workshopTracks.json"), jsonWorkshopTracks);
-        // File.WriteAllText(Path.Combine(destinationJsonPath, "workshopSpeakers.json"), jsonWorkshopSpeakers);
-
-        // //TOOD: END AT THIS POINT
-        // return;
+        File.WriteAllText(Path.Combine(destinationJsonPath, "workshops.json"), jsonWorkshops);
+        File.WriteAllText(Path.Combine(destinationJsonPath, "workshopTracks.json"), jsonWorkshopTracks);
+        File.WriteAllText(Path.Combine(destinationJsonPath, "workshopSpeakers.json"), jsonWorkshopSpeakers);
+        File.WriteAllText(Path.Combine(destinationJsonPath, "workshopFiles.json"), jsonWorkshopFiles);
     }
 
     private static void ImportJsonIntoMongo(JsonSerializerOptions options)
@@ -273,12 +285,12 @@ internal class Program
             IMongoCollection<DotNetLiguria.MongoDBModel.Workshop> _workshopCollection
                 = mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.Workshop>(mongoDBDatabaseSettings.WorkshopCollectionName);
 
-            var number = 33;
-            foreach (var item in workshops1)
+            var number = 0;
+            foreach (var item in workshops1.OrderBy(w => w.EventDate))
             {
                 var alreadyPresent = _workshopCollection.Find(x => x.WorkshopId == item.WorkshopId).FirstOrDefault();
 
-                //create a number with 3 digits from number
+                number++;
                 var workshopFolderName = $"workshop{number:000}";
 
                 if (alreadyPresent == null)
@@ -336,8 +348,6 @@ internal class Program
 
                     _workshopCollection.InsertOne(workshop);
                 }
-
-                number++;
             }
 
             IMongoCollection<DotNetLiguria.MongoDBModel.WorkshopFile> _workshopFileCollection
@@ -349,9 +359,15 @@ internal class Program
             {
                 foreach (var item in workshopFiles)
                 {
-                    var workshopId = allWorkshops.FirstOrDefault(w => w.FolderName == item.WorkshopFolder)?.WorkshopId ?? Guid.Empty;
+                    var matchedWorkshop = allWorkshops.FirstOrDefault(w =>
+                        (item.Workshop_WorkshopId is { } workshopId && w.WorkshopId == workshopId) ||
+                        (!string.IsNullOrEmpty(item.WorkshopFolder) && w.FolderName == item.WorkshopFolder));
 
-                    // Console.WriteLine($"Processing WorkshopId: {workshopId}, FileName: {item.FileName}");
+                    var workshopId = matchedWorkshop?.WorkshopId ?? Guid.Empty;
+                    var workshopFolder = !string.IsNullOrEmpty(item.WorkshopFolder)
+                        ? item.WorkshopFolder
+                        : matchedWorkshop?.FolderName ?? string.Empty;
+
                     var destFolder = item.FileType switch
                     {
                         DotNetLiguria.Models.WorkshopFileType.Material => "tracks",
@@ -359,7 +375,7 @@ internal class Program
                         _ => "other"
                     };
 
-                    var fullPath = $"/workshops/{item.WorkshopFolder}/{destFolder}/{item.FileName}";
+                    var fullPath = $"/workshops/{workshopFolder}/{destFolder}/{item.FileName}";
                     DotNetLiguria.MongoDBModel.WorkshopFile workshopFile = new DotNetLiguria.MongoDBModel.WorkshopFile
                     {
                         WorkshopFileId = Guid.NewGuid(),

@@ -698,6 +698,62 @@
           }
         ],
         "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
+      },
+      {
+        "WorkshopTrackId": "4a41b48b-b44e-426c-94de-5cd678baf9af",
+        "Title": "Q\u0026A",
+        "Image": null,
+        "StartTime": "2026-05-07T17:40:00",
+        "EndTime": "2026-05-07T18:00:00",
+        "Abstract": "Panel, Demo e Discussioni",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+            "Name": "Andrea Belloni",
+            "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+      },
+      {
+        "WorkshopTrackId": "ae712b11-b373-440b-b0f4-7797f465561f",
+        "Title": "MCP e strategie alternative per estendere gli AI assistant nello sviluppo",
+        "Image": null,
+        "StartTime": "2026-05-07T16:45:00",
+        "EndTime": "2026-05-07T17:40:00",
+        "Abstract": "Oltre il prompt: costruire AI per casi d\u2019uso complessi La generazione automatica di itinerari complessi \u00E8 solo uno dei casi in cui un singolo LLM non basta. In questa sessione vedremo esempi reali per capire cosa serve davvero in contesti enterprise. Partendo da esperienze concrete, esploreremo perch\u00E9 \u00E8 necessario orchestrare modelli cloud e locali, gestire vincoli, dati dinamici e garantire coerenza lungo tutto il processo. Il focus sar\u00E0 sul perch\u00E9 nasce una piattaforma di orchestrazione AI: un approccio pragmatico per rendere l\u2019AI davvero utile, controllabile e scalabile nei sistemi aziendali.",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+            "Name": "Andrea Belloni",
+            "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
       }
     ]
   },
@@ -1160,6 +1216,158 @@
           }
         ],
         "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
+      },
+      {
+        "WorkshopTrackId": "112d3676-5559-4744-b8f1-91663da3b2b9",
+        "Title": "Le Novit\u00E0 Essenziali di Entity Framework Core 10",
+        "Image": null,
+        "StartTime": "2025-12-12T17:00:00",
+        "EndTime": "2025-12-12T17:50:00",
+        "Abstract": "Questa sessione \u00E8 dedicata all\u0027analisi delle novit\u00E0 introdotte in Entity Framework Core 10 (EF10), la major release presentata con .NET 10. Verr\u00E0 analizzato come Entity Framework Core 10 semplifica la gestione dei dati grazie alla mappatura diretta di tipi complessi su colonne JSON, agli operatori LINQ per join pi\u00F9 intuitivi e a una API ottimizzata per gli aggiornamenti bulk. Verranno inoltre presentati i miglioramenti nella ricerca su Azure Cosmos DB, tra cui full-text search e hybrid search, oltre al consolidamento della ricerca vettoriale. Tutto questo, rende EF10 uno strumento ancora pi\u00F9 efficiente per lo sviluppo di applicazioni dati moderne. ",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+      },
+      {
+        "WorkshopTrackId": "842294ac-119d-40cc-aa12-c19511d709e2",
+        "Title": "Sfruttare la potenza di GitHub Copilot per una generazione di codice efficient",
+        "Image": null,
+        "StartTime": "2026-01-23T15:30:00",
+        "EndTime": "2026-01-23T16:25:00",
+        "Abstract": "In questa sessione esploreremo il ruolo trasformativo di GitHub Copilot come strumento di intelligenza artificiale per l\u0027assistenza alla programmazione. Analizzeremo come Copilot, basato su modelli linguistici avanzati, non sia solo un assistente di codice, ma un vero e proprio partner di sviluppo, capace di generare interi blocchi di codice, funzioni e persino algoritmi complessi a partire da semplici commenti o definizioni.Ci concentreremo sulla scrittura di codice da zero, dimostrando come si possa accelerare il ciclo di sviluppo, ridurre i tempi di implementazione e di concentrarsi sulla logica di business e sulla risoluzione di problemi pi\u00F9 complessi.",
+        "Level": 0,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+      },
+      {
+        "WorkshopTrackId": "1a24eaab-9cad-4b93-9e84-9ad2decdc7d2",
+        "Title": "Q\u0026A",
+        "Image": null,
+        "StartTime": "2026-03-05T17:30:00",
+        "EndTime": "2026-03-05T18:30:00",
+        "Abstract": "Panel, Demo e Discussioni",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+            "Name": "Diego Zunino",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+      },
+      {
+        "WorkshopTrackId": "d58b17c9-239b-4e9c-8289-9d779f2e3627",
+        "Title": "Sfruttare la potenza di GitHub Copilot per una generazione di codice efficient",
+        "Image": null,
+        "StartTime": "2026-03-05T15:30:00",
+        "EndTime": "2026-03-05T16:25:00",
+        "Abstract": "In questa sessione esploreremo il ruolo trasformativo di GitHub Copilot come strumento di intelligenza artificiale per l\u0027assistenza alla programmazione. Analizzeremo come Copilot, basato su modelli linguistici avanzati, non sia solo un assistente di codice, ma un vero e proprio partner di sviluppo, capace di generare interi blocchi di codice, funzioni e persino algoritmi complessi a partire da semplici commenti o definizioni. Ci concentreremo sulla scrittura di codice da zero, dimostrando come si possa accelerare il ciclo di sviluppo, ridurre i tempi di implementazione e concentrarsi sulla logica di business e sulla risoluzione di problemi pi\u00F9 complessi.",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+      },
+      {
+        "WorkshopTrackId": "4a41b48b-b44e-426c-94de-5cd678baf9af",
+        "Title": "Q\u0026A",
+        "Image": null,
+        "StartTime": "2026-05-07T17:40:00",
+        "EndTime": "2026-05-07T18:00:00",
+        "Abstract": "Panel, Demo e Discussioni",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+            "Name": "Andrea Belloni",
+            "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+      },
+      {
+        "WorkshopTrackId": "f4d40999-7b1b-466b-9737-bad59525e918",
+        "Title": "Sfruttare la potenza di GitHub Copilot per una generazione di codice efficient",
+        "Image": null,
+        "StartTime": "2026-05-07T15:45:00",
+        "EndTime": "2026-05-07T16:40:00",
+        "Abstract": "Attraverso una panoramica pratica, vedremo come Copilot sia in grado di interpretare l\u0027intento dello sviluppatore per generare algoritmi complessi, funzioni boilerplate e interi blocchi di codice partendo da semplici input in linguaggio naturale. L\u0027obiettivo \u00E8 dimostrare come l\u0027integrazione strategica dell\u0027IA nel workflow quotidiano permetta di: Accelerare il ciclo di sviluppo: Ridurre drasticamente i tempi di implementazione della sintassi ripetitiva. Elevare la qualit\u00E0 del codice: Esplorare suggerimenti contestuali basati su best practice globali. Focus sulla Logica di Business: Liberare risorse cognitive per concentrarsi sulla risoluzione di problemi architettonici e di alto livello. Un\u0027occasione per scoprire come trasformare il modo di programmare, passando dalla \u0022scrittura\u0022 alla \u0022guida\u0022 del codice, per una produttivit\u00E0 senza precedenti.",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
       }
     ]
   },
@@ -1558,6 +1766,102 @@
           }
         ],
         "WorkshopId": "7843665a-29e2-45fe-9e98-d7baa8cb3650"
+      },
+      {
+        "WorkshopTrackId": "cfa7736c-ac34-4326-9ebd-507fcc79fd8c",
+        "Title": "Tutte le novit\u00E0 di .NET 10 per ASP.NET e Blazor",
+        "Image": null,
+        "StartTime": "2025-12-12T17:55:00",
+        "EndTime": "2025-12-12T18:45:00",
+        "Abstract": ".NET 10 introduce numerosi miglioramenti che rendono ASP.NET e Blazor pi\u00F9 performanti, sicuri e flessibili. Durante la sessione esploreremo le principali novit\u00E0 del framework, con un focus sulle funzionalit\u00E0 pratiche di Blazor: nuovi componenti, ottimizzazioni del rendering e della navigazione, e supporto alla persistenza dello stato dell\u2019applicazione tra sessioni e ricaricamenti. Un viaggio tra nuove API, pattern aggiornati e opportunit\u00E0 concrete per potenziare e modernizzare le applicazioni web. ",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+            "Name": "Diego Zunino",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+      },
+      {
+        "WorkshopTrackId": "f9cc2f24-6d35-4754-a52d-825d070e20de",
+        "Title": "MCP e strategie alternative per estendere gli AI assistant nello sviluppo",
+        "Image": null,
+        "StartTime": "2026-01-23T16:30:00",
+        "EndTime": "2026-01-23T17:30:00",
+        "Abstract": "In questa sessione verranno analizzati diversi approcci architetturali per l\u0027estensione degli AI coding assistants, mettendo a confronto l\u0027utilizzo di server MCP con meccanismi alternativi adottabili in contesti di sviluppo software. Attraverso esempi pratici verranno discussi i trade-off legati a performance, gestione del contesto, memoria, tempi di esecuzione e manutenibilit\u00E0, con l\u0027obiettivo di fornire criteri concreti per scegliere la soluzione pi\u00F9 adatta al workflow del developer.",
+        "Level": 0,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+            "Name": "Diego Zunino",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+      },
+      {
+        "WorkshopTrackId": "1a24eaab-9cad-4b93-9e84-9ad2decdc7d2",
+        "Title": "Q\u0026A",
+        "Image": null,
+        "StartTime": "2026-03-05T17:30:00",
+        "EndTime": "2026-03-05T18:30:00",
+        "Abstract": "Panel, Demo e Discussioni",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+            "Name": "Diego Zunino",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+      },
+      {
+        "WorkshopTrackId": "d0deaeef-acd3-46f3-9146-a08a4c71cae4",
+        "Title": "MCP e strategie alternative per estendere gli AI assistant nello sviluppo",
+        "Image": null,
+        "StartTime": "2026-03-05T16:30:00",
+        "EndTime": "2026-03-05T17:25:00",
+        "Abstract": "In questa sessione verranno analizzati diversi approcci architetturali per l\u0027estensione degli AI coding assistants, mettendo a confronto l\u0027utilizzo di server MCP con meccanismi alternativi adottabili in contesti di sviluppo software. Attraverso esempi pratici verranno discussi i trade-off legati a performance, gestione del contesto, memoria, tempi di esecuzione e manutenibilit\u00E0, con l\u0027obiettivo di fornire criteri concreti per scegliere la soluzione pi\u00F9 adatta al workflow del developer.",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+            "Name": "Diego Zunino",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
       }
     ]
   },
@@ -2169,6 +2473,26 @@
           }
         ],
         "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
+      },
+      {
+        "WorkshopTrackId": "f4fa47a0-6b50-4ccc-8013-b21baadcbbd5",
+        "Title": "Le novit\u00E0 di MAUI 10",
+        "Image": null,
+        "StartTime": "2025-12-12T10:25:00",
+        "EndTime": "2025-12-12T11:15:00",
+        "Abstract": "La nuova versione di MAUI porta alcune novit\u00E0 interessanti che riaguardano l\u0027interazione con Aspire, nonch\u00E8 nell\u0027ambito delle Hybrid View: a completare la revisione alcune API sono state marcate come deprecate. Nella sessione vedremo un p\u00F2 pi\u00F9 nel dettaglio queste novit\u00E0, soffermandoci sui risvolti pratici e sulle varie particolarita. ",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
+            "Name": "Giampaolo Tucci ",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
       }
     ]
   },
@@ -2264,6 +2588,84 @@
           }
         ],
         "WorkshopId": "36abf553-6b14-46e3-b81a-3fa8292d1c55"
+      }
+    ]
+  },
+  {
+    "WorkshopSpeakerId": "3191fff4-d9c9-4b8f-933e-30fe8106bceb",
+    "Name": "Jody Donetti",
+    "ProfileImage": null,
+    "BlogHtml": null,
+    "UserName": null,
+    "Tracks": [
+      {
+        "WorkshopTrackId": "924474db-556c-4326-a6bb-41385f5ca92d",
+        "Title": "Hybrid Caching in .NET",
+        "Image": null,
+        "StartTime": "2025-12-12T11:20:00",
+        "EndTime": "2025-12-12T12:20:00",
+        "Abstract": "Il caching \u00E8 fondamentale per creare software performante, robusto e resiliente. In questa sessione esploreremo cosa significa fare caching in .NET, quali alternative abbiamo a disposizione: in memoria, distribuita e ibrida. Per le cache ibride approfondiremo sia la nuova HybridCache di Microsoft che FusionCache. Esploreremo scenari comuni, problemi ricorrenti e soprattutto come risolverli, concentrandoci su soluzioni pragmatiche immediatamente applicabili nel mondo reale. FusionCache \u00E8 il mio progetto free\u002BOSS: \u00E8 utilizzato da svariati progetti e aziende, inclusa Microsoft stessa (esempio: Data API Builder). E\u0027 inoltre stata la prima implementazione production-ready di HybridCache in assoluto, anche prima di Microsoft stessa. Resilienza, prestazioni e scalabilit\u00E0 saranno centrali.",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "3191fff4-d9c9-4b8f-933e-30fe8106bceb",
+            "Name": "Jody Donetti",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+      },
+      {
+        "WorkshopTrackId": "e9ac45fa-a86f-4bda-8098-6278580ae6fa",
+        "Title": "Oltre HybridCache: FusionCache",
+        "Image": null,
+        "StartTime": "2025-12-12T14:00:00",
+        "EndTime": "2025-12-12T15:00:00",
+        "Abstract": "Con la nuova HybridCache di Microsoft, ora disponiamo di una cache ibrida 1st party che possiamo utilizzare per ottenere il meglio di entrambi i mondi: caching in memoria e distribuito. E\u0027 quindi la fine del nostro viaggio nel mondo del caching? No, decisamente no. In questa sessione vedremo come, tramite FusionCache, possiamo spingerci ben oltre i limiti di HybridCache e ottenere maggiore flessibilit\u00E0, prestazioni, scalabilit\u00E0 e soprattutto resilienza. FusionCache \u00E8 il mio progetto free\u002BOSS: \u00E8 utilizzato da svariati progetti e aziende, inclusa Microsoft stessa (esempio: Data API Builder). E\u0027 inoltre stata la prima implementazione production-ready di HybridCache in assoluto, anche prima di Microsoft stessa. Ci saranno demo, lezioni apprese direttamente sul campo, e best practice per ottenere prestazioni spettacolari oltre a resilienza e scalabilit\u00E0 avanzate. Bonus: vedremo anche com\u0027\u00E8 possibile andare oltre i limiti di HybridCache usando... HybridCache stessa",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "3191fff4-d9c9-4b8f-933e-30fe8106bceb",
+            "Name": "Jody Donetti",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+      }
+    ]
+  },
+  {
+    "WorkshopSpeakerId": "20243789-398f-413e-b650-46f64fb6b37f",
+    "Name": "Lorenzo Billi",
+    "ProfileImage": null,
+    "BlogHtml": null,
+    "UserName": null,
+    "Tracks": [
+      {
+        "WorkshopTrackId": "a05f3a67-953d-4af0-abad-0cda73384055",
+        "Title": "Le novit\u00E0 in Visual Studio 2026",
+        "Image": null,
+        "StartTime": "2025-12-12T15:05:00",
+        "EndTime": "2025-12-12T16:55:00",
+        "Abstract": "La prossima versione di Visual Studio \u00E8 in arrivo, e con essa una profonda rivisitazione dell\u2019interfaccia grafica ora basata sul Fluent design, con supporto a temi e finestre di dialogo e configurazione completamente ridisegnate. In questa sessione esploreremo le principali novit\u00E0 di Visual Studio 2026, tra cui la maggiore integrazione con Copilot, i miglioramenti prestazionali di compilazione e di Hot Reload, il nuovo formato predefinito SLNX per le solution, nonch\u00E9 l\u2019estensione della funzionalit\u00E0 di code coverage a tutte le edizioni di Visual Studio.",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "20243789-398f-413e-b650-46f64fb6b37f",
+            "Name": "Lorenzo Billi",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
       }
     ]
   },
@@ -4436,6 +4838,238 @@
           }
         ],
         "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
+      },
+      {
+        "WorkshopTrackId": "dffc800e-a01c-4172-a23f-8a3fbdccd50f",
+        "Title": "Introduzione e benvenuto",
+        "Image": null,
+        "StartTime": "2025-12-12T09:15:00",
+        "EndTime": "2025-12-12T09:30:00",
+        "Abstract": "L\u0027evento di quest\u0027anno \u00E8 un evento combinato che incrocia il lancio della Long Term Support (LTS) di .NET 10 e C# 14 con le nuove librerie per aggiungere la potenza della AI generativa alle applicazioni .NET, grazie anche al nuovo protocollo standard Model Context Protocol (MCP) che aggiungono potenza ai Copilot e alle nostre applicazioni. Gli argomenti della giornata spazieranno dalle novit\u00E0 della nuova versione di .NET alle librerie pi\u00F9 interessanti del ricco ecosistema.",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+      },
+      {
+        "WorkshopTrackId": "0ea418e7-ef71-4b55-8bcb-d3bbc85fd475",
+        "Title": "Le novit\u00E0 di C# 14 e .NET 10",
+        "Image": null,
+        "StartTime": "2025-12-12T09:30:00",
+        "EndTime": "2025-12-12T10:20:00",
+        "Abstract": "Eccoci a una nuova versione di .NET, che porta con s\u00E9 numerose novit\u00E0 sia per il linguaggio C# sia per il runtime e le librerie. Sul fronte C# vedremo come estendere le propriet\u00E0 di un tipo, l\u2019introduzione della keyword field e alcune utili semplificazioni sintattiche. Per quanto riguarda il runtime, esploreremo i miglioramenti in termini di performance, le nuove caratteristiche del Garbage Collector e una selezione delle pi\u00F9 interessanti innovazioni nelle librerie.",
+        "Level": 1,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+      },
+      {
+        "WorkshopTrackId": "9d1ddee8-0b1e-4bd8-aecb-08abc7aac686",
+        "Title": "Introduzione",
+        "Image": null,
+        "StartTime": "2026-01-23T14:00:00",
+        "EndTime": "2026-01-23T14:15:00",
+        "Abstract": "Introduzione all\u0027evento",
+        "Level": 0,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+      },
+      {
+        "WorkshopTrackId": "fbed4abb-a66f-45f3-b7c9-856e5f01a973",
+        "Title": "Creare applicazioni agentiche con .NET e Model Context Protocol",
+        "Image": null,
+        "StartTime": "2026-01-23T14:30:00",
+        "EndTime": "2026-01-23T15:25:00",
+        "Abstract": "Le architetture di AI generativa basate su agenti permettono ai modelli di superare i propri limiti integrandosi con strumenti esterni specializzati. In questa sessione vedremo come creare applicazioni agentiche con Microsoft.Extensions.AI, e come sfruttare il Model Context Protocol (MCP) per orchestrare pi\u00F9 agenti \u2014 come Playwright MCP \u2014 per estendere le capacit\u00E0 dei modelli e ottenere il massimo da Completion e Reasoning. ",
+        "Level": 0,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+      },
+      {
+        "WorkshopTrackId": "ac3ffcf2-e5f5-45bd-9ad1-41f18aa74dc4",
+        "Title": "Introduzione",
+        "Image": null,
+        "StartTime": "2026-03-05T14:00:00",
+        "EndTime": "2026-03-05T14:15:00",
+        "Abstract": "Introduzione all\u0027evento",
+        "Level": 0,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+      },
+      {
+        "WorkshopTrackId": "88939cdd-e88c-48b0-8433-451e3d8e0e13",
+        "Title": "Creare applicazioni agentiche con .NET e Model Context Protocol",
+        "Image": null,
+        "StartTime": "2026-03-05T14:30:00",
+        "EndTime": "2026-03-05T15:25:00",
+        "Abstract": "Le architetture di AI generativa basate su agenti permettono ai modelli di superare i propri limiti integrandosi con strumenti esterni specializzati. In questa sessione vedremo come creare applicazioni agentiche con Microsoft.Extensions.AI, e come sfruttare il Model Context Protocol (MCP) per orchestrare pi\u00F9 agenti \u2014 come Playwright MCP \u2014 per estendere le capacit\u00E0 dei modelli e ottenere il massimo da completion e reasoning.",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+      },
+      {
+        "WorkshopTrackId": "1a24eaab-9cad-4b93-9e84-9ad2decdc7d2",
+        "Title": "Q\u0026A",
+        "Image": null,
+        "StartTime": "2026-03-05T17:30:00",
+        "EndTime": "2026-03-05T18:30:00",
+        "Abstract": "Panel, Demo e Discussioni",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+            "Name": "Diego Zunino",
+            "ProfileImage": null,
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+      },
+      {
+        "WorkshopTrackId": "756e030d-fb73-4e97-9e48-4938483f3710",
+        "Title": "Creare applicazioni agentiche con .NET e Model Context Protocol",
+        "Image": null,
+        "StartTime": "2026-05-07T14:45:00",
+        "EndTime": "2026-05-07T15:40:00",
+        "Abstract": "Le architetture di AI generativa basate su agenti permettono ai modelli di superare i propri limiti integrandosi con strumenti esterni specializzati. In questa sessione vedremo come creare applicazioni agentiche con Microsoft.Extensions.AI, e come sfruttare il Model Context Protocol (MCP) per orchestrare pi\u00F9 agenti \u2014 come Playwright MCP \u2014 per estendere le capacit\u00E0 dei modelli e ottenere il massimo da completion e reasoning.",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+      },
+      {
+        "WorkshopTrackId": "4a41b48b-b44e-426c-94de-5cd678baf9af",
+        "Title": "Q\u0026A",
+        "Image": null,
+        "StartTime": "2026-05-07T17:40:00",
+        "EndTime": "2026-05-07T18:00:00",
+        "Abstract": "Panel, Demo e Discussioni",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+            "Name": "Andrea Merlin",
+            "ProfileImage": "/Uploads/speakers/merlin.JPG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+            "Name": "Andrea Belloni",
+            "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          },
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+      },
+      {
+        "WorkshopTrackId": "407d44f4-8c50-469e-a079-eee138ba56d6",
+        "Title": "Introduzione",
+        "Image": null,
+        "StartTime": "2026-05-07T14:15:00",
+        "EndTime": "2026-05-07T14:45:00",
+        "Abstract": "Come sta cambiando il nostro mondo con i nuovi modelli di AI",
+        "Level": 100,
+        "Speakers": [
+          {
+            "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+            "Name": "Raffaele Rialdi",
+            "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+            "BlogHtml": null,
+            "UserName": null,
+            "Tracks": null
+          }
+        ],
+        "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
       }
     ]
   },

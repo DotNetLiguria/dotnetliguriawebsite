@@ -1,5 +1,133 @@
 [
   {
+    "WorkshopTrackId": "9d1ddee8-0b1e-4bd8-aecb-08abc7aac686",
+    "Title": "Introduzione",
+    "Image": null,
+    "StartTime": "2026-01-23T14:00:00",
+    "EndTime": "2026-01-23T14:15:00",
+    "Abstract": "Introduzione all\u0027evento",
+    "Level": 0,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+  },
+  {
+    "WorkshopTrackId": "f9cc2f24-6d35-4754-a52d-825d070e20de",
+    "Title": "MCP e strategie alternative per estendere gli AI assistant nello sviluppo",
+    "Image": null,
+    "StartTime": "2026-01-23T16:30:00",
+    "EndTime": "2026-01-23T17:30:00",
+    "Abstract": "In questa sessione verranno analizzati diversi approcci architetturali per l\u0027estensione degli AI coding assistants, mettendo a confronto l\u0027utilizzo di server MCP con meccanismi alternativi adottabili in contesti di sviluppo software. Attraverso esempi pratici verranno discussi i trade-off legati a performance, gestione del contesto, memoria, tempi di esecuzione e manutenibilit\u00E0, con l\u0027obiettivo di fornire criteri concreti per scegliere la soluzione pi\u00F9 adatta al workflow del developer.",
+    "Level": 0,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+  },
+  {
+    "WorkshopTrackId": "fbed4abb-a66f-45f3-b7c9-856e5f01a973",
+    "Title": "Creare applicazioni agentiche con .NET e Model Context Protocol",
+    "Image": null,
+    "StartTime": "2026-01-23T14:30:00",
+    "EndTime": "2026-01-23T15:25:00",
+    "Abstract": "Le architetture di AI generativa basate su agenti permettono ai modelli di superare i propri limiti integrandosi con strumenti esterni specializzati. In questa sessione vedremo come creare applicazioni agentiche con Microsoft.Extensions.AI, e come sfruttare il Model Context Protocol (MCP) per orchestrare pi\u00F9 agenti \u2014 come Playwright MCP \u2014 per estendere le capacit\u00E0 dei modelli e ottenere il massimo da Completion e Reasoning. ",
+    "Level": 0,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+  },
+  {
+    "WorkshopTrackId": "842294ac-119d-40cc-aa12-c19511d709e2",
+    "Title": "Sfruttare la potenza di GitHub Copilot per una generazione di codice efficient",
+    "Image": null,
+    "StartTime": "2026-01-23T15:30:00",
+    "EndTime": "2026-01-23T16:25:00",
+    "Abstract": "In questa sessione esploreremo il ruolo trasformativo di GitHub Copilot come strumento di intelligenza artificiale per l\u0027assistenza alla programmazione. Analizzeremo come Copilot, basato su modelli linguistici avanzati, non sia solo un assistente di codice, ma un vero e proprio partner di sviluppo, capace di generare interi blocchi di codice, funzioni e persino algoritmi complessi a partire da semplici commenti o definizioni.Ci concentreremo sulla scrittura di codice da zero, dimostrando come si possa accelerare il ciclo di sviluppo, ridurre i tempi di implementazione e di concentrarsi sulla logica di business e sulla risoluzione di problemi pi\u00F9 complessi.",
+    "Level": 0,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "0eaee0db-2b13-4ff1-b795-1413470b974f"
+  },
+  {
+    "WorkshopTrackId": "7fbc0878-d5ee-4722-ac8d-c6433a88c5a5",
+    "Title": "Introduzione ai Cognitive Services",
+    "Image": null,
+    "StartTime": "2020-01-24T16:00:00",
+    "EndTime": "2020-01-24T17:00:00",
+    "Abstract": null,
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "2dedf6e9-d62b-470d-a0e8-34d0e8314c2e",
+        "Name": "Dante Ciambella",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "a9494639-b04f-4849-9237-b744e792c032",
+        "Name": "Stefano Semeria",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "1f322045-c9d2-4e9e-9c82-17ab57721eb2"
+  },
+  {
+    "WorkshopTrackId": "1c5e013a-7de1-47be-90c0-81b974850641",
+    "Title": "Introduzione a ML.NET",
+    "Image": null,
+    "StartTime": "2020-01-24T15:00:00",
+    "EndTime": "2020-01-24T16:00:00",
+    "Abstract": null,
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "8641361c-36e3-48ab-a6c0-0db7ecf43714",
+        "Name": "Marco Zamana",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "1f322045-c9d2-4e9e-9c82-17ab57721eb2"
+  },
+  {
     "WorkshopTrackId": "2a8a02f7-186f-4297-97b7-2174c5880531",
     "Title": "Registrazione",
     "Image": null,
@@ -38,90 +166,6 @@
       }
     ],
     "WorkshopId": "1f322045-c9d2-4e9e-9c82-17ab57721eb2"
-  },
-  {
-    "WorkshopTrackId": "1c5e013a-7de1-47be-90c0-81b974850641",
-    "Title": "Introduzione a ML.NET",
-    "Image": null,
-    "StartTime": "2020-01-24T15:00:00",
-    "EndTime": "2020-01-24T16:00:00",
-    "Abstract": null,
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "8641361c-36e3-48ab-a6c0-0db7ecf43714",
-        "Name": "Marco Zamana",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "1f322045-c9d2-4e9e-9c82-17ab57721eb2"
-  },
-  {
-    "WorkshopTrackId": "7fbc0878-d5ee-4722-ac8d-c6433a88c5a5",
-    "Title": "Introduzione ai Cognitive Services",
-    "Image": null,
-    "StartTime": "2020-01-24T16:00:00",
-    "EndTime": "2020-01-24T17:00:00",
-    "Abstract": null,
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "2dedf6e9-d62b-470d-a0e8-34d0e8314c2e",
-        "Name": "Dante Ciambella",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      },
-      {
-        "WorkshopSpeakerId": "a9494639-b04f-4849-9237-b744e792c032",
-        "Name": "Stefano Semeria",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "1f322045-c9d2-4e9e-9c82-17ab57721eb2"
-  },
-  {
-    "WorkshopTrackId": "cfd866e1-d450-4095-a3b3-992da86c33b0",
-    "Title": "Le novit\u00E0 importanti",
-    "Image": null,
-    "StartTime": "2022-07-04T17:15:00",
-    "EndTime": "2022-07-04T18:00:00",
-    "Abstract": "Approfondimento sui temi che ci hanno colpito di pi\u00F9 e a cosa potrebbero portare",
-    "Level": 0,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
-        "Name": "Andrea Belloni",
-        "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      },
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      },
-      {
-        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
-        "Name": "Giampaolo Tucci ",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "97b2851a-8a1e-4d7a-8a19-1a822b914b51"
   },
   {
     "WorkshopTrackId": "2b82a306-ec4e-4cc3-8255-716574a61a09",
@@ -188,24 +232,40 @@
     "WorkshopId": "97b2851a-8a1e-4d7a-8a19-1a822b914b51"
   },
   {
-    "WorkshopTrackId": "59b5d931-de0a-40de-9439-69771a6cbe4e",
-    "Title": "Web API all\u0027opera: realizziamo il backend dell\u0027applicazione",
+    "WorkshopTrackId": "cfd866e1-d450-4095-a3b3-992da86c33b0",
+    "Title": "Le novit\u00E0 importanti",
     "Image": null,
-    "StartTime": "2019-04-18T17:30:00",
-    "EndTime": "2019-04-18T18:30:00",
-    "Abstract": "In questa sessione entreremo nel vivo dello sviluppo di un backend con ASP.NET Core mostrando come realizzare efficacemente delle API per un\u0027app mobile: dall\u0027autenticazione fino all\u0027accesso ai dati, passando per la gestione degli errori e il versionamento.\r\nIn pratica esporremo come adottare il meglio delle varie soluzioni offerte da ASP.NET Core, illustrandone i pro e i contro.",
-    "Level": 100,
+    "StartTime": "2022-07-04T17:15:00",
+    "EndTime": "2022-07-04T18:00:00",
+    "Abstract": "Approfondimento sui temi che ci hanno colpito di pi\u00F9 e a cosa potrebbero portare",
+    "Level": 0,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "b0fe21e2-c407-412f-aed0-c8374139c3bc",
-        "Name": "Marco Minerva",
-        "ProfileImage": "/Uploads/speakers/1cefe7d[1].jpg",
+        "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+        "Name": "Andrea Belloni",
+        "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
+        "Name": "Giampaolo Tucci ",
+        "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
       }
     ],
-    "WorkshopId": "9f7725e4-479b-4dff-ace5-1ee3b599c08c"
+    "WorkshopId": "97b2851a-8a1e-4d7a-8a19-1a822b914b51"
   },
   {
     "WorkshopTrackId": "00caf73b-4523-49c3-9260-b079c3e3dc3a",
@@ -228,6 +288,26 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "9f7725e4-479b-4dff-ace5-1ee3b599c08c"
+  },
+  {
+    "WorkshopTrackId": "59b5d931-de0a-40de-9439-69771a6cbe4e",
+    "Title": "Web API all\u0027opera: realizziamo il backend dell\u0027applicazione",
+    "Image": null,
+    "StartTime": "2019-04-18T17:30:00",
+    "EndTime": "2019-04-18T18:30:00",
+    "Abstract": "In questa sessione entreremo nel vivo dello sviluppo di un backend con ASP.NET Core mostrando come realizzare efficacemente delle API per un\u0027app mobile: dall\u0027autenticazione fino all\u0027accesso ai dati, passando per la gestione degli errori e il versionamento.\r\nIn pratica esporremo come adottare il meglio delle varie soluzioni offerte da ASP.NET Core, illustrandone i pro e i contro.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "b0fe21e2-c407-412f-aed0-c8374139c3bc",
+        "Name": "Marco Minerva",
+        "ProfileImage": "/Uploads/speakers/1cefe7d[1].jpg",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -276,6 +356,26 @@
     "WorkshopId": "9f7725e4-479b-4dff-ace5-1ee3b599c08c"
   },
   {
+    "WorkshopTrackId": "98443726-0b79-4256-b038-57b55e2c2580",
+    "Title": "Roundtable \u0022//build/\u0022",
+    "Image": null,
+    "StartTime": "2011-09-30T17:00:00",
+    "EndTime": "2011-09-30T18:00:00",
+    "Abstract": "Discussione aperta tra tutti i partecipanti e Raffaele Rialdi che ha partecipato alla //build/ conference. Tavola rotonda sulle novit\u00E0 presentate alla \u201CBuild\u201D di Los Anageles: Windows 8, WinRT , le novit\u00E0 legate allo sviluppo Visual Studio 2011, le applicazioni metro style, HTML5, ecc.",
+    "Level": 200,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "0d2b7baa-7032-41d4-823c-232df495f841"
+  },
+  {
     "WorkshopTrackId": "221862ab-5e42-4c76-a6c1-e18b9b8bf511",
     "Title": "Dependency Injection e IoC in .Net",
     "Image": null,
@@ -316,50 +416,14 @@
     "WorkshopId": "0d2b7baa-7032-41d4-823c-232df495f841"
   },
   {
-    "WorkshopTrackId": "98443726-0b79-4256-b038-57b55e2c2580",
-    "Title": "Roundtable \u0022//build/\u0022",
+    "WorkshopTrackId": "4e64da21-4fa1-492f-b59d-8391d4cffae2",
+    "Title": "Uno sguardo allo sviluppo di Web API in ASP.NET Core ",
     "Image": null,
-    "StartTime": "2011-09-30T17:00:00",
-    "EndTime": "2011-09-30T18:00:00",
-    "Abstract": "Discussione aperta tra tutti i partecipanti e Raffaele Rialdi che ha partecipato alla //build/ conference. Tavola rotonda sulle novit\u00E0 presentate alla \u201CBuild\u201D di Los Anageles: Windows 8, WinRT , le novit\u00E0 legate allo sviluppo Visual Studio 2011, le applicazioni metro style, HTML5, ecc.",
-    "Level": 200,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "0d2b7baa-7032-41d4-823c-232df495f841"
-  },
-  {
-    "WorkshopTrackId": "0c540cf6-a692-4495-8b22-56b7a7482315",
-    "Title": "Domande \u0026 Risposte",
-    "Image": null,
-    "StartTime": "2019-12-13T18:00:00",
-    "EndTime": "2019-12-13T18:30:00",
+    "StartTime": "2019-12-13T16:00:00",
+    "EndTime": "2019-12-13T17:00:00",
     "Abstract": null,
-    "Level": 0,
+    "Level": 100,
     "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      },
-      {
-        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
-        "Name": "Giampaolo Tucci ",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      },
       {
         "WorkshopSpeakerId": "b0fe21e2-c407-412f-aed0-c8374139c3bc",
         "Name": "Marco Minerva",
@@ -392,14 +456,30 @@
     "WorkshopId": "fd14a523-1bcb-4782-a139-25e48dc4dcae"
   },
   {
-    "WorkshopTrackId": "4e64da21-4fa1-492f-b59d-8391d4cffae2",
-    "Title": "Uno sguardo allo sviluppo di Web API in ASP.NET Core ",
+    "WorkshopTrackId": "0c540cf6-a692-4495-8b22-56b7a7482315",
+    "Title": "Domande \u0026 Risposte",
     "Image": null,
-    "StartTime": "2019-12-13T16:00:00",
-    "EndTime": "2019-12-13T17:00:00",
+    "StartTime": "2019-12-13T18:00:00",
+    "EndTime": "2019-12-13T18:30:00",
     "Abstract": null,
-    "Level": 100,
+    "Level": 0,
     "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
+        "Name": "Giampaolo Tucci ",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
       {
         "WorkshopSpeakerId": "b0fe21e2-c407-412f-aed0-c8374139c3bc",
         "Name": "Marco Minerva",
@@ -464,6 +544,86 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
+  },
+  {
+    "WorkshopTrackId": "5cdeaea9-42c6-4155-99ed-15984db80709",
+    "Title": "Le novit\u00E0 di EFCore9",
+    "Image": null,
+    "StartTime": "2024-12-18T15:20:00",
+    "EndTime": "2024-12-18T16:05:00",
+    "Abstract": "Le recenti novit\u00E0 introdotte in EFCore9 hanno riguardato principalmente l\u2019interazione con CosmosDB, e le precomplied-query, che esaltano le perfomance introdotte da Native AOT. In questa sessione analizzeremo queste caratteristiche interessanti, cercando di enfatizzare gli aspetti pratici dell\u2019utilizzo dello strumento.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
+        "Name": "Giampaolo Tucci ",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
+  },
+  {
+    "WorkshopTrackId": "40e70420-6157-4c3c-94b5-487a267c2344",
+    "Title": "Introduzione all\u0027evento",
+    "Image": null,
+    "StartTime": "2024-12-18T14:15:00",
+    "EndTime": "2024-12-18T14:30:00",
+    "Abstract": null,
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
+  },
+  {
+    "WorkshopTrackId": "df86b3ae-06ed-4166-b061-9cc47400ed8d",
+    "Title": "Blazor e ASP.NET Core: le novit\u00E0 di .NET 9",
+    "Image": null,
+    "StartTime": "2024-12-18T16:10:00",
+    "EndTime": "2024-12-18T16:55:00",
+    "Abstract": "Blazor e ASP.NET Core continuano a evolversi con .NET 9, offrendo strumenti sempre pi\u00F9 potenti per creare applicazioni web innovative. Durante questa sessione esploreremo le principali novit\u00E0, con un focus su performance, produttivit\u00E0 e flessibilit\u00E0, mostrando come sfruttarle al meglio sui nostri progetti.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
+  },
+  {
+    "WorkshopTrackId": "f4b70785-4a13-468d-9805-9f2fdacc6401",
+    "Title": "OpenAPI: uso con minimal API",
+    "Image": null,
+    "StartTime": "2024-12-18T17:00:00",
+    "EndTime": "2024-12-18T17:45:00",
+    "Abstract": "Tra le novit\u00E0 di .NET 9, in ASP.NET Core viene fornito il supporto integrato per la generazione di documenti OpenAPI da minimal API e API basate su controller. In questa sessione tratteremo le caratteristiche principali di questo nuovo supporto, esploreremo gli scenari di integrazione per OpenAPI e discuteremo di come ottenere il massimo da OpenAPI.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -544,98 +704,18 @@
     "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
   },
   {
-    "WorkshopTrackId": "df86b3ae-06ed-4166-b061-9cc47400ed8d",
-    "Title": "Blazor e ASP.NET Core: le novit\u00E0 di .NET 9",
+    "WorkshopTrackId": "fcb4d217-33eb-4b31-8bbc-d1e69c899a20",
+    "Title": "SQL Server \u0026 GDPR",
     "Image": null,
-    "StartTime": "2024-12-18T16:10:00",
-    "EndTime": "2024-12-18T16:55:00",
-    "Abstract": "Blazor e ASP.NET Core continuano a evolversi con .NET 9, offrendo strumenti sempre pi\u00F9 potenti per creare applicazioni web innovative. Durante questa sessione esploreremo le principali novit\u00E0, con un focus su performance, produttivit\u00E0 e flessibilit\u00E0, mostrando come sfruttarle al meglio sui nostri progetti.",
-    "Level": 100,
+    "StartTime": "2018-02-15T17:10:00",
+    "EndTime": "2018-02-15T18:40:00",
+    "Abstract": "Con l\u0027avvicinarsi della scadenza per il recepimento del regolamento generale sulla protezione dei dati (GDPR, General Data Protection Regulation), ma anche per il continuo e preoccupante aumento del numero di crimini informatici, il tema della protezione dei dati diventa sempre pi\u00F9 importante. Gli RDBMS sono tradizionalmente uno degli obiettivi principali di attacchi informatici e SQL Server offre svariate tecnologie sia per proteggere i dati in transito e a riposo, che per monitorare in maniera proattiva i tentativi di aggirare i meccanismi di protezione. Lungi dal voler esaurire l\u0027argomento GDPR, che spesso \u00E8 pi\u00F9 una questione di processi che di tecnologia, in questa sessione vedremo quali sono le tecnologie che possono aiutarci nel recepimento del regolamento scendendo pi\u00F9 in dettaglio sulle nuove funzionalit\u00E0 introdotte con SQL Server 2016 e faremo anche alcuni cenni alle tecnologie per mitigare i rischi di perdita dei dati.",
+    "Level": 300,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
-        "Name": "Diego Zunino",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
-  },
-  {
-    "WorkshopTrackId": "f4b70785-4a13-468d-9805-9f2fdacc6401",
-    "Title": "OpenAPI: uso con minimal API",
-    "Image": null,
-    "StartTime": "2024-12-18T17:00:00",
-    "EndTime": "2024-12-18T17:45:00",
-    "Abstract": "Tra le novit\u00E0 di .NET 9, in ASP.NET Core viene fornito il supporto integrato per la generazione di documenti OpenAPI da minimal API e API basate su controller. In questa sessione tratteremo le caratteristiche principali di questo nuovo supporto, esploreremo gli scenari di integrazione per OpenAPI e discuteremo di come ottenere il massimo da OpenAPI.",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
-        "Name": "Andrea Merlin",
-        "ProfileImage": "/Uploads/speakers/merlin.JPG",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
-  },
-  {
-    "WorkshopTrackId": "5cdeaea9-42c6-4155-99ed-15984db80709",
-    "Title": "Le novit\u00E0 di EFCore9",
-    "Image": null,
-    "StartTime": "2024-12-18T15:20:00",
-    "EndTime": "2024-12-18T16:05:00",
-    "Abstract": "Le recenti novit\u00E0 introdotte in EFCore9 hanno riguardato principalmente l\u2019interazione con CosmosDB, e le precomplied-query, che esaltano le perfomance introdotte da Native AOT. In questa sessione analizzeremo queste caratteristiche interessanti, cercando di enfatizzare gli aspetti pratici dell\u2019utilizzo dello strumento.",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
-        "Name": "Giampaolo Tucci ",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
-  },
-  {
-    "WorkshopTrackId": "40e70420-6157-4c3c-94b5-487a267c2344",
-    "Title": "Introduzione all\u0027evento",
-    "Image": null,
-    "StartTime": "2024-12-18T14:15:00",
-    "EndTime": "2024-12-18T14:30:00",
-    "Abstract": null,
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "28d22454-426b-42d3-aad8-2f92b6f010be"
-  },
-  {
-    "WorkshopTrackId": "40eaa028-13e2-4080-9cf6-0f49c90b45df",
-    "Title": "Introduzione ",
-    "Image": null,
-    "StartTime": "2018-02-15T16:00:00",
-    "EndTime": "2018-02-15T16:05:00",
-    "Abstract": null,
-    "Level": 1,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "20e60600-15c2-4f34-ba18-5b0027f294a9",
-        "Name": "Matteo Gentile",
-        "ProfileImage": null,
+        "WorkshopSpeakerId": "66c3b4af-bf22-40f5-a46b-6d5ff3eaff5b",
+        "Name": "Gianluca Hotz",
+        "ProfileImage": "/Uploads/speakers/hotz.jpg",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -664,18 +744,18 @@
     "WorkshopId": "275a1299-dd43-4791-96f4-3531d4dcb7f8"
   },
   {
-    "WorkshopTrackId": "fcb4d217-33eb-4b31-8bbc-d1e69c899a20",
-    "Title": "SQL Server \u0026 GDPR",
+    "WorkshopTrackId": "40eaa028-13e2-4080-9cf6-0f49c90b45df",
+    "Title": "Introduzione ",
     "Image": null,
-    "StartTime": "2018-02-15T17:10:00",
-    "EndTime": "2018-02-15T18:40:00",
-    "Abstract": "Con l\u0027avvicinarsi della scadenza per il recepimento del regolamento generale sulla protezione dei dati (GDPR, General Data Protection Regulation), ma anche per il continuo e preoccupante aumento del numero di crimini informatici, il tema della protezione dei dati diventa sempre pi\u00F9 importante. Gli RDBMS sono tradizionalmente uno degli obiettivi principali di attacchi informatici e SQL Server offre svariate tecnologie sia per proteggere i dati in transito e a riposo, che per monitorare in maniera proattiva i tentativi di aggirare i meccanismi di protezione. Lungi dal voler esaurire l\u0027argomento GDPR, che spesso \u00E8 pi\u00F9 una questione di processi che di tecnologia, in questa sessione vedremo quali sono le tecnologie che possono aiutarci nel recepimento del regolamento scendendo pi\u00F9 in dettaglio sulle nuove funzionalit\u00E0 introdotte con SQL Server 2016 e faremo anche alcuni cenni alle tecnologie per mitigare i rischi di perdita dei dati.",
-    "Level": 300,
+    "StartTime": "2018-02-15T16:00:00",
+    "EndTime": "2018-02-15T16:05:00",
+    "Abstract": null,
+    "Level": 1,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "66c3b4af-bf22-40f5-a46b-6d5ff3eaff5b",
-        "Name": "Gianluca Hotz",
-        "ProfileImage": "/Uploads/speakers/hotz.jpg",
+        "WorkshopSpeakerId": "20e60600-15c2-4f34-ba18-5b0027f294a9",
+        "Name": "Matteo Gentile",
+        "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -732,26 +812,6 @@
     "WorkshopId": "399be155-60a5-4787-9ea6-3ea8be704dd0"
   },
   {
-    "WorkshopTrackId": "610a3810-80a8-41d6-b0ce-bbdf91abb497",
-    "Title": "Gestire Il Data Layer Attraverso Un Database Documentale: Esempi In Mongodb",
-    "Image": "http://www.hostingtalk.it/wp-content/uploads/2013/11/mongodb_logo.png",
-    "StartTime": "2015-03-03T19:00:00",
-    "EndTime": "2015-03-03T20:00:00",
-    "Abstract": "Negli ultimi anni grazie anche alla drastica riduzione dei costi dello storage ed al crescente bisogno di memorizzare sempre pi\u00F9 grandi quantitativi di dati, sono tornati alla ribalta i database documentali, \u00E8 quindi per noi developer necessario ed obbligatorio averne una conoscenza per poterli utilizzare nel momento giusto. In questa presentazione vedremo perch\u00E8 vanno usati, dove e come... ci saranno anche esempi di codice, ovviamente con linguaggio C# .Net.",
-    "Level": 200,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "6f3d049f-358e-4653-bae0-0785a60442b2",
-        "Name": "Alessandro Gambaro",
-        "ProfileImage": "/Uploads/speakers/AAEAAQAAAAAAAAe0AAAAJDU1ZjhkZTY5LTMwODktNGVmMy04ZjdiLTdlNjRkYjRjZDViZQ[1].jpg",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "399be155-60a5-4787-9ea6-3ea8be704dd0"
-  },
-  {
     "WorkshopTrackId": "9c814683-3f43-4e1a-9022-b3382f2a1d56",
     "Title": "L\u2019utilizzo Di Frontend Basate Su Microsoft Office Utilizzando OOXml",
     "Image": "https://sharepointsamurai.files.wordpress.com/2014/04/2008040211105590dad1.gif",
@@ -772,6 +832,26 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "399be155-60a5-4787-9ea6-3ea8be704dd0"
+  },
+  {
+    "WorkshopTrackId": "610a3810-80a8-41d6-b0ce-bbdf91abb497",
+    "Title": "Gestire Il Data Layer Attraverso Un Database Documentale: Esempi In Mongodb",
+    "Image": "http://www.hostingtalk.it/wp-content/uploads/2013/11/mongodb_logo.png",
+    "StartTime": "2015-03-03T19:00:00",
+    "EndTime": "2015-03-03T20:00:00",
+    "Abstract": "Negli ultimi anni grazie anche alla drastica riduzione dei costi dello storage ed al crescente bisogno di memorizzare sempre pi\u00F9 grandi quantitativi di dati, sono tornati alla ribalta i database documentali, \u00E8 quindi per noi developer necessario ed obbligatorio averne una conoscenza per poterli utilizzare nel momento giusto. In questa presentazione vedremo perch\u00E8 vanno usati, dove e come... ci saranno anche esempi di codice, ovviamente con linguaggio C# .Net.",
+    "Level": 200,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "6f3d049f-358e-4653-bae0-0785a60442b2",
+        "Name": "Alessandro Gambaro",
+        "ProfileImage": "/Uploads/speakers/AAEAAQAAAAAAAAe0AAAAJDU1ZjhkZTY5LTMwODktNGVmMy04ZjdiLTdlNjRkYjRjZDViZQ[1].jpg",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -820,33 +900,13 @@
     "WorkshopId": "36abf553-6b14-46e3-b81a-3fa8292d1c55"
   },
   {
-    "WorkshopTrackId": "47f60796-37c6-455d-848d-20922d61e630",
-    "Title": "Introduzione",
+    "WorkshopTrackId": "cfa7736c-ac34-4326-9ebd-507fcc79fd8c",
+    "Title": "Tutte le novit\u00E0 di .NET 10 per ASP.NET e Blazor",
     "Image": null,
-    "StartTime": "2024-02-29T09:45:00",
-    "EndTime": "2024-02-29T10:00:00",
-    "Abstract": "Introduzione all\u0027evento",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
-  },
-  {
-    "WorkshopTrackId": "d2abc46b-63e1-4fec-a6da-2487984bc2bc",
-    "Title": "Full stack web UI con Blazor",
-    "Image": null,
-    "StartTime": "2024-02-29T15:30:00",
-    "EndTime": "2024-02-29T16:20:00",
-    "Abstract": "Con l\u0027avvento di .NET 8, Blazor si arricchisce di nuove ed interessanti funzionalit\u00E0: dal modello unificato client-server all\u0027innovativo stream rendering, la vera novit\u00E0 di questa versione. Durante la sessione, esamineremo e valuteremo il loro impatto sul framework e sulle nostre applicazioni.",
-    "Level": 100,
+    "StartTime": "2025-12-12T17:55:00",
+    "EndTime": "2025-12-12T18:45:00",
+    "Abstract": ".NET 10 introduce numerosi miglioramenti che rendono ASP.NET e Blazor pi\u00F9 performanti, sicuri e flessibili. Durante la sessione esploreremo le principali novit\u00E0 del framework, con un focus sulle funzionalit\u00E0 pratiche di Blazor: nuovi componenti, ottimizzazioni del rendering e della navigazione, e supporto alla persistenza dello stato dell\u2019applicazione tra sessioni e ricaricamenti. Un viaggio tra nuove API, pattern aggiornati e opportunit\u00E0 concrete per potenziare e modernizzare le applicazioni web. ",
+    "Level": 1,
     "Speakers": [
       {
         "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
@@ -857,16 +917,76 @@
         "Tracks": null
       }
     ],
-    "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
   },
   {
-    "WorkshopTrackId": "ed2a6d79-e87f-4144-b43b-2f748a2f6c20",
-    "Title": "Orchestrare una applicazione distribuita con .NET Aspire",
+    "WorkshopTrackId": "e9ac45fa-a86f-4bda-8098-6278580ae6fa",
+    "Title": "Oltre HybridCache: FusionCache",
     "Image": null,
-    "StartTime": "2024-02-29T17:20:00",
-    "EndTime": "2024-02-29T18:10:00",
-    "Abstract": "Con .NET 8 debutta un nuovo stack per gestire ed orchestrare le applicazioni distribuite. Il nuovo Aspire si integra facilmente con Visual Studio e consente di gestire facilmente la gerarchia dei progetti che compongono una soluzione, ma anche molto altro. L\u0027integrazione infatti fornisce anche una dashboard che consente di monitorare e gestire i log dell\u0027applicazione, seguendo la chiamata dal front-end fino al database passando per tutti i servizi intermedi e servizi o container di terze parti, integrati in modo dichiarativo.",
-    "Level": 100,
+    "StartTime": "2025-12-12T14:00:00",
+    "EndTime": "2025-12-12T15:00:00",
+    "Abstract": "Con la nuova HybridCache di Microsoft, ora disponiamo di una cache ibrida 1st party che possiamo utilizzare per ottenere il meglio di entrambi i mondi: caching in memoria e distribuito. E\u0027 quindi la fine del nostro viaggio nel mondo del caching? No, decisamente no. In questa sessione vedremo come, tramite FusionCache, possiamo spingerci ben oltre i limiti di HybridCache e ottenere maggiore flessibilit\u00E0, prestazioni, scalabilit\u00E0 e soprattutto resilienza. FusionCache \u00E8 il mio progetto free\u002BOSS: \u00E8 utilizzato da svariati progetti e aziende, inclusa Microsoft stessa (esempio: Data API Builder). E\u0027 inoltre stata la prima implementazione production-ready di HybridCache in assoluto, anche prima di Microsoft stessa. Ci saranno demo, lezioni apprese direttamente sul campo, e best practice per ottenere prestazioni spettacolari oltre a resilienza e scalabilit\u00E0 avanzate. Bonus: vedremo anche com\u0027\u00E8 possibile andare oltre i limiti di HybridCache usando... HybridCache stessa",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "3191fff4-d9c9-4b8f-933e-30fe8106bceb",
+        "Name": "Jody Donetti",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+  },
+  {
+    "WorkshopTrackId": "a05f3a67-953d-4af0-abad-0cda73384055",
+    "Title": "Le novit\u00E0 in Visual Studio 2026",
+    "Image": null,
+    "StartTime": "2025-12-12T15:05:00",
+    "EndTime": "2025-12-12T16:55:00",
+    "Abstract": "La prossima versione di Visual Studio \u00E8 in arrivo, e con essa una profonda rivisitazione dell\u2019interfaccia grafica ora basata sul Fluent design, con supporto a temi e finestre di dialogo e configurazione completamente ridisegnate. In questa sessione esploreremo le principali novit\u00E0 di Visual Studio 2026, tra cui la maggiore integrazione con Copilot, i miglioramenti prestazionali di compilazione e di Hot Reload, il nuovo formato predefinito SLNX per le solution, nonch\u00E9 l\u2019estensione della funzionalit\u00E0 di code coverage a tutte le edizioni di Visual Studio.",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "20243789-398f-413e-b650-46f64fb6b37f",
+        "Name": "Lorenzo Billi",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+  },
+  {
+    "WorkshopTrackId": "924474db-556c-4326-a6bb-41385f5ca92d",
+    "Title": "Hybrid Caching in .NET",
+    "Image": null,
+    "StartTime": "2025-12-12T11:20:00",
+    "EndTime": "2025-12-12T12:20:00",
+    "Abstract": "Il caching \u00E8 fondamentale per creare software performante, robusto e resiliente. In questa sessione esploreremo cosa significa fare caching in .NET, quali alternative abbiamo a disposizione: in memoria, distribuita e ibrida. Per le cache ibride approfondiremo sia la nuova HybridCache di Microsoft che FusionCache. Esploreremo scenari comuni, problemi ricorrenti e soprattutto come risolverli, concentrandoci su soluzioni pragmatiche immediatamente applicabili nel mondo reale. FusionCache \u00E8 il mio progetto free\u002BOSS: \u00E8 utilizzato da svariati progetti e aziende, inclusa Microsoft stessa (esempio: Data API Builder). E\u0027 inoltre stata la prima implementazione production-ready di HybridCache in assoluto, anche prima di Microsoft stessa. Resilienza, prestazioni e scalabilit\u00E0 saranno centrali.",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "3191fff4-d9c9-4b8f-933e-30fe8106bceb",
+        "Name": "Jody Donetti",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+  },
+  {
+    "WorkshopTrackId": "dffc800e-a01c-4172-a23f-8a3fbdccd50f",
+    "Title": "Introduzione e benvenuto",
+    "Image": null,
+    "StartTime": "2025-12-12T09:15:00",
+    "EndTime": "2025-12-12T09:30:00",
+    "Abstract": "L\u0027evento di quest\u0027anno \u00E8 un evento combinato che incrocia il lancio della Long Term Support (LTS) di .NET 10 e C# 14 con le nuove librerie per aggiungere la potenza della AI generativa alle applicazioni .NET, grazie anche al nuovo protocollo standard Model Context Protocol (MCP) che aggiungono potenza ai Copilot e alle nostre applicazioni. Gli argomenti della giornata spazieranno dalle novit\u00E0 della nuova versione di .NET alle librerie pi\u00F9 interessanti del ricco ecosistema.",
+    "Level": 1,
     "Speakers": [
       {
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
@@ -877,21 +997,81 @@
         "Tracks": null
       }
     ],
-    "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
   },
   {
-    "WorkshopTrackId": "fe1f5bc2-a570-489d-977e-3777f64796e9",
-    "Title": "MAUI: un futuro nelle Hybrid View ?",
+    "WorkshopTrackId": "112d3676-5559-4744-b8f1-91663da3b2b9",
+    "Title": "Le Novit\u00E0 Essenziali di Entity Framework Core 10",
     "Image": null,
-    "StartTime": "2024-02-29T16:25:00",
-    "EndTime": "2024-02-29T17:15:00",
-    "Abstract": "La nuova versione di MAUI ha portato novit\u00E0 molto importanti, che lo hanno portato ad essere un\u0027ambiente di sviluppo maturo. Nel corso della DotNetConf sono state presentate queste novit\u00E0 , ma sono anche stati presentati gli sviluppi nel campo delle HybridView, che permettono anche l\u0027esecuzione di ambienti javascript-like (vedi ReactJs). Nel corso di questo intervento vedremo non solo le nuove caratteristiche offerte da MAUI, ma porremo l\u0027accento anche su questa nuove possibilit\u00E0, che potrebbero rivelarsi una vera e propria killer-feature per questo ambiente. ",
-    "Level": 100,
+    "StartTime": "2025-12-12T17:00:00",
+    "EndTime": "2025-12-12T17:50:00",
+    "Abstract": "Questa sessione \u00E8 dedicata all\u0027analisi delle novit\u00E0 introdotte in Entity Framework Core 10 (EF10), la major release presentata con .NET 10. Verr\u00E0 analizzato come Entity Framework Core 10 semplifica la gestione dei dati grazie alla mappatura diretta di tipi complessi su colonne JSON, agli operatori LINQ per join pi\u00F9 intuitivi e a una API ottimizzata per gli aggiornamenti bulk. Verranno inoltre presentati i miglioramenti nella ricerca su Azure Cosmos DB, tra cui full-text search e hybrid search, oltre al consolidamento della ricerca vettoriale. Tutto questo, rende EF10 uno strumento ancora pi\u00F9 efficiente per lo sviluppo di applicazioni dati moderne. ",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+  },
+  {
+    "WorkshopTrackId": "f4fa47a0-6b50-4ccc-8013-b21baadcbbd5",
+    "Title": "Le novit\u00E0 di MAUI 10",
+    "Image": null,
+    "StartTime": "2025-12-12T10:25:00",
+    "EndTime": "2025-12-12T11:15:00",
+    "Abstract": "La nuova versione di MAUI porta alcune novit\u00E0 interessanti che riaguardano l\u0027interazione con Aspire, nonch\u00E8 nell\u0027ambito delle Hybrid View: a completare la revisione alcune API sono state marcate come deprecate. Nella sessione vedremo un p\u00F2 pi\u00F9 nel dettaglio queste novit\u00E0, soffermandoci sui risvolti pratici e sulle varie particolarita. ",
+    "Level": 1,
     "Speakers": [
       {
         "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
         "Name": "Giampaolo Tucci ",
         "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+  },
+  {
+    "WorkshopTrackId": "0ea418e7-ef71-4b55-8bcb-d3bbc85fd475",
+    "Title": "Le novit\u00E0 di C# 14 e .NET 10",
+    "Image": null,
+    "StartTime": "2025-12-12T09:30:00",
+    "EndTime": "2025-12-12T10:20:00",
+    "Abstract": "Eccoci a una nuova versione di .NET, che porta con s\u00E9 numerose novit\u00E0 sia per il linguaggio C# sia per il runtime e le librerie. Sul fronte C# vedremo come estendere le propriet\u00E0 di un tipo, l\u2019introduzione della keyword field e alcune utili semplificazioni sintattiche. Per quanto riguarda il runtime, esploreremo i miglioramenti in termini di performance, le nuove caratteristiche del Garbage Collector e una selezione delle pi\u00F9 interessanti innovazioni nelle librerie.",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "168f890d-1d05-4d95-9b2e-47d3f25634a9"
+  },
+  {
+    "WorkshopTrackId": "a6d6f096-361b-4b9b-9986-db6e6f3a1245",
+    "Title": "Le novit\u00E0 di .NET 8",
+    "Image": null,
+    "StartTime": "2024-02-29T10:00:00",
+    "EndTime": "2024-02-29T10:50:00",
+    "Abstract": "In questa sessione inizieremo a vedere una rapida carrellata sulle novit\u00E0 di .NET 8 e C# per capire la direzione in cui sta evolvendo .NET. Dopo questa prima analisi ci focalizzeremo sul tema delle performance, con particolare attenzione ai nuovi meccanismi usati da .NET per accelerare l\u0027esecuzione delle nostre applicazioni. Tutto questo ci permetter\u00E0 di capire meglio come e quando sfruttare la nuova \u0022Native AoT\u0022 che permette di ottenere servizi WebAPI completamente privi di codice IL e ottimizzati al pari di applicazioni C\u002B\u002B.",
+    "Level": 300,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -940,13 +1120,73 @@
     "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
   },
   {
-    "WorkshopTrackId": "a6d6f096-361b-4b9b-9986-db6e6f3a1245",
-    "Title": "Le novit\u00E0 di .NET 8",
+    "WorkshopTrackId": "ed2a6d79-e87f-4144-b43b-2f748a2f6c20",
+    "Title": "Orchestrare una applicazione distribuita con .NET Aspire",
     "Image": null,
-    "StartTime": "2024-02-29T10:00:00",
-    "EndTime": "2024-02-29T10:50:00",
-    "Abstract": "In questa sessione inizieremo a vedere una rapida carrellata sulle novit\u00E0 di .NET 8 e C# per capire la direzione in cui sta evolvendo .NET. Dopo questa prima analisi ci focalizzeremo sul tema delle performance, con particolare attenzione ai nuovi meccanismi usati da .NET per accelerare l\u0027esecuzione delle nostre applicazioni. Tutto questo ci permetter\u00E0 di capire meglio come e quando sfruttare la nuova \u0022Native AoT\u0022 che permette di ottenere servizi WebAPI completamente privi di codice IL e ottimizzati al pari di applicazioni C\u002B\u002B.",
-    "Level": 300,
+    "StartTime": "2024-02-29T17:20:00",
+    "EndTime": "2024-02-29T18:10:00",
+    "Abstract": "Con .NET 8 debutta un nuovo stack per gestire ed orchestrare le applicazioni distribuite. Il nuovo Aspire si integra facilmente con Visual Studio e consente di gestire facilmente la gerarchia dei progetti che compongono una soluzione, ma anche molto altro. L\u0027integrazione infatti fornisce anche una dashboard che consente di monitorare e gestire i log dell\u0027applicazione, seguendo la chiamata dal front-end fino al database passando per tutti i servizi intermedi e servizi o container di terze parti, integrati in modo dichiarativo.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
+  },
+  {
+    "WorkshopTrackId": "fe1f5bc2-a570-489d-977e-3777f64796e9",
+    "Title": "MAUI: un futuro nelle Hybrid View ?",
+    "Image": null,
+    "StartTime": "2024-02-29T16:25:00",
+    "EndTime": "2024-02-29T17:15:00",
+    "Abstract": "La nuova versione di MAUI ha portato novit\u00E0 molto importanti, che lo hanno portato ad essere un\u0027ambiente di sviluppo maturo. Nel corso della DotNetConf sono state presentate queste novit\u00E0 , ma sono anche stati presentati gli sviluppi nel campo delle HybridView, che permettono anche l\u0027esecuzione di ambienti javascript-like (vedi ReactJs). Nel corso di questo intervento vedremo non solo le nuove caratteristiche offerte da MAUI, ma porremo l\u0027accento anche su questa nuove possibilit\u00E0, che potrebbero rivelarsi una vera e propria killer-feature per questo ambiente. ",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
+        "Name": "Giampaolo Tucci ",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
+  },
+  {
+    "WorkshopTrackId": "d2abc46b-63e1-4fec-a6da-2487984bc2bc",
+    "Title": "Full stack web UI con Blazor",
+    "Image": null,
+    "StartTime": "2024-02-29T15:30:00",
+    "EndTime": "2024-02-29T16:20:00",
+    "Abstract": "Con l\u0027avvento di .NET 8, Blazor si arricchisce di nuove ed interessanti funzionalit\u00E0: dal modello unificato client-server all\u0027innovativo stream rendering, la vera novit\u00E0 di questa versione. Durante la sessione, esamineremo e valuteremo il loro impatto sul framework e sulle nostre applicazioni.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
+  },
+  {
+    "WorkshopTrackId": "47f60796-37c6-455d-848d-20922d61e630",
+    "Title": "Introduzione",
+    "Image": null,
+    "StartTime": "2024-02-29T09:45:00",
+    "EndTime": "2024-02-29T10:00:00",
+    "Abstract": "Introduzione all\u0027evento",
+    "Level": 100,
     "Speakers": [
       {
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
@@ -980,6 +1220,122 @@
     "WorkshopId": "26a1bf3e-f867-45c7-a0cd-55856c41f406"
   },
   {
+    "WorkshopTrackId": "ac3ffcf2-e5f5-45bd-9ad1-41f18aa74dc4",
+    "Title": "Introduzione",
+    "Image": null,
+    "StartTime": "2026-03-05T14:00:00",
+    "EndTime": "2026-03-05T14:15:00",
+    "Abstract": "Introduzione all\u0027evento",
+    "Level": 0,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+  },
+  {
+    "WorkshopTrackId": "88939cdd-e88c-48b0-8433-451e3d8e0e13",
+    "Title": "Creare applicazioni agentiche con .NET e Model Context Protocol",
+    "Image": null,
+    "StartTime": "2026-03-05T14:30:00",
+    "EndTime": "2026-03-05T15:25:00",
+    "Abstract": "Le architetture di AI generativa basate su agenti permettono ai modelli di superare i propri limiti integrandosi con strumenti esterni specializzati. In questa sessione vedremo come creare applicazioni agentiche con Microsoft.Extensions.AI, e come sfruttare il Model Context Protocol (MCP) per orchestrare pi\u00F9 agenti \u2014 come Playwright MCP \u2014 per estendere le capacit\u00E0 dei modelli e ottenere il massimo da completion e reasoning.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+  },
+  {
+    "WorkshopTrackId": "d0deaeef-acd3-46f3-9146-a08a4c71cae4",
+    "Title": "MCP e strategie alternative per estendere gli AI assistant nello sviluppo",
+    "Image": null,
+    "StartTime": "2026-03-05T16:30:00",
+    "EndTime": "2026-03-05T17:25:00",
+    "Abstract": "In questa sessione verranno analizzati diversi approcci architetturali per l\u0027estensione degli AI coding assistants, mettendo a confronto l\u0027utilizzo di server MCP con meccanismi alternativi adottabili in contesti di sviluppo software. Attraverso esempi pratici verranno discussi i trade-off legati a performance, gestione del contesto, memoria, tempi di esecuzione e manutenibilit\u00E0, con l\u0027obiettivo di fornire criteri concreti per scegliere la soluzione pi\u00F9 adatta al workflow del developer.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+  },
+  {
+    "WorkshopTrackId": "d58b17c9-239b-4e9c-8289-9d779f2e3627",
+    "Title": "Sfruttare la potenza di GitHub Copilot per una generazione di codice efficient",
+    "Image": null,
+    "StartTime": "2026-03-05T15:30:00",
+    "EndTime": "2026-03-05T16:25:00",
+    "Abstract": "In questa sessione esploreremo il ruolo trasformativo di GitHub Copilot come strumento di intelligenza artificiale per l\u0027assistenza alla programmazione. Analizzeremo come Copilot, basato su modelli linguistici avanzati, non sia solo un assistente di codice, ma un vero e proprio partner di sviluppo, capace di generare interi blocchi di codice, funzioni e persino algoritmi complessi a partire da semplici commenti o definizioni. Ci concentreremo sulla scrittura di codice da zero, dimostrando come si possa accelerare il ciclo di sviluppo, ridurre i tempi di implementazione e concentrarsi sulla logica di business e sulla risoluzione di problemi pi\u00F9 complessi.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+  },
+  {
+    "WorkshopTrackId": "1a24eaab-9cad-4b93-9e84-9ad2decdc7d2",
+    "Title": "Q\u0026A",
+    "Image": null,
+    "StartTime": "2026-03-05T17:30:00",
+    "EndTime": "2026-03-05T18:30:00",
+    "Abstract": "Panel, Demo e Discussioni",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "dcb2f15f-f653-469f-91e6-568cccc7ca2d"
+  },
+  {
     "WorkshopTrackId": "33f0a727-1323-492d-9fd6-7031f427fd89",
     "Title": "Entity Framework 4.1 - Code First",
     "Image": null,
@@ -998,6 +1354,142 @@
       }
     ],
     "WorkshopId": "99bf031c-7768-4902-8efb-5b40dca38282"
+  },
+  {
+    "WorkshopTrackId": "756e030d-fb73-4e97-9e48-4938483f3710",
+    "Title": "Creare applicazioni agentiche con .NET e Model Context Protocol",
+    "Image": null,
+    "StartTime": "2026-05-07T14:45:00",
+    "EndTime": "2026-05-07T15:40:00",
+    "Abstract": "Le architetture di AI generativa basate su agenti permettono ai modelli di superare i propri limiti integrandosi con strumenti esterni specializzati. In questa sessione vedremo come creare applicazioni agentiche con Microsoft.Extensions.AI, e come sfruttare il Model Context Protocol (MCP) per orchestrare pi\u00F9 agenti \u2014 come Playwright MCP \u2014 per estendere le capacit\u00E0 dei modelli e ottenere il massimo da completion e reasoning.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+  },
+  {
+    "WorkshopTrackId": "4a41b48b-b44e-426c-94de-5cd678baf9af",
+    "Title": "Q\u0026A",
+    "Image": null,
+    "StartTime": "2026-05-07T17:40:00",
+    "EndTime": "2026-05-07T18:00:00",
+    "Abstract": "Panel, Demo e Discussioni",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+        "Name": "Andrea Belloni",
+        "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+  },
+  {
+    "WorkshopTrackId": "ae712b11-b373-440b-b0f4-7797f465561f",
+    "Title": "MCP e strategie alternative per estendere gli AI assistant nello sviluppo",
+    "Image": null,
+    "StartTime": "2026-05-07T16:45:00",
+    "EndTime": "2026-05-07T17:40:00",
+    "Abstract": "Oltre il prompt: costruire AI per casi d\u2019uso complessi La generazione automatica di itinerari complessi \u00E8 solo uno dei casi in cui un singolo LLM non basta. In questa sessione vedremo esempi reali per capire cosa serve davvero in contesti enterprise. Partendo da esperienze concrete, esploreremo perch\u00E9 \u00E8 necessario orchestrare modelli cloud e locali, gestire vincoli, dati dinamici e garantire coerenza lungo tutto il processo. Il focus sar\u00E0 sul perch\u00E9 nasce una piattaforma di orchestrazione AI: un approccio pragmatico per rendere l\u2019AI davvero utile, controllabile e scalabile nei sistemi aziendali.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+        "Name": "Andrea Belloni",
+        "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+  },
+  {
+    "WorkshopTrackId": "f4d40999-7b1b-466b-9737-bad59525e918",
+    "Title": "Sfruttare la potenza di GitHub Copilot per una generazione di codice efficient",
+    "Image": null,
+    "StartTime": "2026-05-07T15:45:00",
+    "EndTime": "2026-05-07T16:40:00",
+    "Abstract": "Attraverso una panoramica pratica, vedremo come Copilot sia in grado di interpretare l\u0027intento dello sviluppatore per generare algoritmi complessi, funzioni boilerplate e interi blocchi di codice partendo da semplici input in linguaggio naturale. L\u0027obiettivo \u00E8 dimostrare come l\u0027integrazione strategica dell\u0027IA nel workflow quotidiano permetta di: Accelerare il ciclo di sviluppo: Ridurre drasticamente i tempi di implementazione della sintassi ripetitiva. Elevare la qualit\u00E0 del codice: Esplorare suggerimenti contestuali basati su best practice globali. Focus sulla Logica di Business: Liberare risorse cognitive per concentrarsi sulla risoluzione di problemi architettonici e di alto livello. Un\u0027occasione per scoprire come trasformare il modo di programmare, passando dalla \u0022scrittura\u0022 alla \u0022guida\u0022 del codice, per una produttivit\u00E0 senza precedenti.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+  },
+  {
+    "WorkshopTrackId": "407d44f4-8c50-469e-a079-eee138ba56d6",
+    "Title": "Introduzione",
+    "Image": null,
+    "StartTime": "2026-05-07T14:15:00",
+    "EndTime": "2026-05-07T14:45:00",
+    "Abstract": "Come sta cambiando il nostro mondo con i nuovi modelli di AI",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "13a8fc1f-4a8d-415d-904a-6445d8abbc94"
+  },
+  {
+    "WorkshopTrackId": "65d00be2-8ac9-4bb0-b935-d5ee162587ca",
+    "Title": "La rivoluzione di AI generativa a Build 2023",
+    "Image": null,
+    "StartTime": "2023-06-23T14:30:00",
+    "EndTime": "2023-06-23T15:20:00",
+    "Abstract": "Non c\u2019\u00E8 dubbio che l\u2019edizione 2023 di Microsoft Build abbia visto l\u2019esplosione del tema di AI generativa in ogni ambito.\r\n\r\nMicrosoft sta realizzando \u201CCoPilot\u201D per ogni prodotto, da Windows ad Office, da Teams a Visual Studio.\r\n\r\nDopo una overview sui principali concetti annunciati a build e le roadmap promesse da Microsoft, ci concentreremo sulla dimostrazione di cosa offrono i CoPilot disponibili per Visual Studio e Visual Studio Code.\r\n\r\nQuesti CoPilot gi\u00E0 oggi sono in grado di generare codice con una semplice richiesta in linguaggio naturale e perci\u00F2 determineranno il futuro della creazione delle applicazioni e del ruolo degli sviluppatori.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "247b84e3-4d3a-4abc-9ba3-64918b0e24bf"
   },
   {
     "WorkshopTrackId": "3f32c21e-d989-4770-a550-5d075850a94f",
@@ -1062,26 +1554,6 @@
     "StartTime": "2023-06-23T15:30:00",
     "EndTime": "2023-06-23T16:20:00",
     "Abstract": "I nuovi modelli di AI generativa hanno abbattuto due ostacoli storici dell\u2019informatica: una comunicazione fluente uomo-macchina e la possibilit\u00E0 di fornire capacit\u00E0 creative e non deterministiche al software.\r\n\r\nAnche se questo non \u00E8 sufficiente per assimilare la macchina ad una intelligenza umana, non c\u2019\u00E8 dubbio che si aprano nuove possibilit\u00E0 per il software e che presto vedremo il loro utilizzo a 360 gradi in ogni aspetto della nostra vita.\r\n\r\nPer gli sviluppatori si apre l\u2019opportunit\u00E0 di fare la differenza nei propri software e di sfruttare al meglio i servizi che sono disponibili sia in OpenAI che in Azure.\r\n\r\nIn questa sessione vedremo come sviluppare software che sfruttino questi modelli testuali e grafici e come estendere la conoscenza di questi modelli ai nostri dati.",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "247b84e3-4d3a-4abc-9ba3-64918b0e24bf"
-  },
-  {
-    "WorkshopTrackId": "65d00be2-8ac9-4bb0-b935-d5ee162587ca",
-    "Title": "La rivoluzione di AI generativa a Build 2023",
-    "Image": null,
-    "StartTime": "2023-06-23T14:30:00",
-    "EndTime": "2023-06-23T15:20:00",
-    "Abstract": "Non c\u2019\u00E8 dubbio che l\u2019edizione 2023 di Microsoft Build abbia visto l\u2019esplosione del tema di AI generativa in ogni ambito.\r\n\r\nMicrosoft sta realizzando \u201CCoPilot\u201D per ogni prodotto, da Windows ad Office, da Teams a Visual Studio.\r\n\r\nDopo una overview sui principali concetti annunciati a build e le roadmap promesse da Microsoft, ci concentreremo sulla dimostrazione di cosa offrono i CoPilot disponibili per Visual Studio e Visual Studio Code.\r\n\r\nQuesti CoPilot gi\u00E0 oggi sono in grado di generare codice con una semplice richiesta in linguaggio naturale e perci\u00F2 determineranno il futuro della creazione delle applicazioni e del ruolo degli sviluppatori.",
     "Level": 100,
     "Speakers": [
       {
@@ -1348,17 +1820,17 @@
     "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
   },
   {
-    "WorkshopTrackId": "db66f337-5320-4fbc-907d-4be841d376f7",
-    "Title": "[Secondary Room] Sviluppo di app mobile per Augmented Reality",
+    "WorkshopTrackId": "06721dbb-633a-4432-b01a-4ec6b1b7bca5",
+    "Title": "[Secondary Room] Introduzione a React Native",
     "Image": null,
-    "StartTime": "2018-06-19T16:10:00",
-    "EndTime": "2018-06-19T17:00:00",
-    "Abstract": "Introduzione sullo sviluppo di app mobile per Augmented Reality con  demo  in Unity e Vuforia.",
+    "StartTime": "2018-06-19T17:05:00",
+    "EndTime": "2018-06-19T17:50:00",
+    "Abstract": "React Native \u00E8 un framework Javascript basato su ReactJS per lo sviluppo crossplatform di applicazioni mobile.\r\nNel talk vedremo i prinicipi di base ed alcuni esempi di funzionamento del framework.",
     "Level": 100,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "337b5fef-3f22-4e97-8bb3-902d9b9b5092",
-        "Name": "Manuela Chessa",
+        "WorkshopSpeakerId": "cde2b4ef-093d-41da-bd3d-a11607ddce26",
+        "Name": "Federico Salvi",
         "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
@@ -1388,6 +1860,26 @@
     "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
   },
   {
+    "WorkshopTrackId": "db66f337-5320-4fbc-907d-4be841d376f7",
+    "Title": "[Secondary Room] Sviluppo di app mobile per Augmented Reality",
+    "Image": null,
+    "StartTime": "2018-06-19T16:10:00",
+    "EndTime": "2018-06-19T17:00:00",
+    "Abstract": "Introduzione sullo sviluppo di app mobile per Augmented Reality con  demo  in Unity e Vuforia.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "337b5fef-3f22-4e97-8bb3-902d9b9b5092",
+        "Name": "Manuela Chessa",
+        "ProfileImage": null,
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
+  },
+  {
     "WorkshopTrackId": "a21ce5ac-f721-4a5a-8bce-6aaed604a9a1",
     "Title": "[Sencodary Room] Sviluppo di una app mobile con Nativescript ",
     "Image": null,
@@ -1400,66 +1892,6 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
-  },
-  {
-    "WorkshopTrackId": "06721dbb-633a-4432-b01a-4ec6b1b7bca5",
-    "Title": "[Secondary Room] Introduzione a React Native",
-    "Image": null,
-    "StartTime": "2018-06-19T17:05:00",
-    "EndTime": "2018-06-19T17:50:00",
-    "Abstract": "React Native \u00E8 un framework Javascript basato su ReactJS per lo sviluppo crossplatform di applicazioni mobile.\r\nNel talk vedremo i prinicipi di base ed alcuni esempi di funzionamento del framework.",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "cde2b4ef-093d-41da-bd3d-a11607ddce26",
-        "Name": "Federico Salvi",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
-  },
-  {
-    "WorkshopTrackId": "c7ae5232-5495-4c9d-99d1-869001b60249",
-    "Title": "[Main Room] Sviluppi mobile con Visual Studio OnLine",
-    "Image": null,
-    "StartTime": "2018-06-19T15:05:00",
-    "EndTime": "2018-06-19T15:55:00",
-    "Abstract": "Introduzione a .NET standard, AppCenter e sviluppo mobile con Visual Studio Online",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "5babc702-3106-4199-bf12-80957d54ef10",
-        "Name": "Gianluca Bertelli",
-        "ProfileImage": "/Uploads/speakers/gibert[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
-  },
-  {
-    "WorkshopTrackId": "579e67a2-a30a-4dbf-92b0-86a283ccb2d3",
-    "Title": "[Secondary Room] Introduzione alle Progressive Web App",
-    "Image": null,
-    "StartTime": "2018-06-19T14:10:00",
-    "EndTime": "2018-06-19T15:00:00",
-    "Abstract": "Breve introduzione al mondo delle Progressive Web App con esempi di sviluppo \r\nbasato sulla libreria per configurare Service Worker in Javascript.",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "becdd777-5f02-41b8-b328-7d20367db509",
-        "Name": "Angelo Ferrando",
-        "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -1500,6 +1932,46 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
+  },
+  {
+    "WorkshopTrackId": "c7ae5232-5495-4c9d-99d1-869001b60249",
+    "Title": "[Main Room] Sviluppi mobile con Visual Studio OnLine",
+    "Image": null,
+    "StartTime": "2018-06-19T15:05:00",
+    "EndTime": "2018-06-19T15:55:00",
+    "Abstract": "Introduzione a .NET standard, AppCenter e sviluppo mobile con Visual Studio Online",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "5babc702-3106-4199-bf12-80957d54ef10",
+        "Name": "Gianluca Bertelli",
+        "ProfileImage": "/Uploads/speakers/gibert[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "d6112500-8a5d-44c6-8a22-74b290b571f0"
+  },
+  {
+    "WorkshopTrackId": "579e67a2-a30a-4dbf-92b0-86a283ccb2d3",
+    "Title": "[Secondary Room] Introduzione alle Progressive Web App",
+    "Image": null,
+    "StartTime": "2018-06-19T14:10:00",
+    "EndTime": "2018-06-19T15:00:00",
+    "Abstract": "Breve introduzione al mondo delle Progressive Web App con esempi di sviluppo \r\nbasato sulla libreria per configurare Service Worker in Javascript.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "becdd777-5f02-41b8-b328-7d20367db509",
+        "Name": "Angelo Ferrando",
+        "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -1576,6 +2048,26 @@
     "WorkshopId": "efdb07d8-5993-485e-94b3-7bd84dbca18a"
   },
   {
+    "WorkshopTrackId": "4b12e03b-ad34-400a-b4e6-783c53f77424",
+    "Title": "Introduzione",
+    "Image": null,
+    "StartTime": "2017-03-09T14:00:00",
+    "EndTime": "2017-03-09T14:15:00",
+    "Abstract": "Introduzione all\u0027evento a cura di Raffaele Rialdi (DotNetLiguria) e Claudio Firpo (Ordine degli Ingegneri di Genova)",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "efdb07d8-5993-485e-94b3-7bd84dbca18a"
+  },
+  {
     "WorkshopTrackId": "abf86395-3729-4543-bd50-d1109a4e3d31",
     "Title": " Il nuovo volto dello standard C\u002B\u002B nelle applicazioni UWP e DirectX.",
     "Image": null,
@@ -1628,26 +2120,6 @@
         "WorkshopSpeakerId": "2194e596-73a8-4b2f-bd68-4655b6afa8ce",
         "Name": "Andrea Sassetti",
         "ProfileImage": "/Uploads/speakers/0334a91[1].jpg",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "efdb07d8-5993-485e-94b3-7bd84dbca18a"
-  },
-  {
-    "WorkshopTrackId": "4b12e03b-ad34-400a-b4e6-783c53f77424",
-    "Title": "Introduzione",
-    "Image": null,
-    "StartTime": "2017-03-09T14:00:00",
-    "EndTime": "2017-03-09T14:15:00",
-    "Abstract": "Introduzione all\u0027evento a cura di Raffaele Rialdi (DotNetLiguria) e Claudio Firpo (Ordine degli Ingegneri di Genova)",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -1836,26 +2308,6 @@
     "WorkshopId": "96869722-9aa7-4ef6-be1b-7d6139b0a37f"
   },
   {
-    "WorkshopTrackId": "018fdb53-9a26-4fe6-b2fa-880442f1bf55",
-    "Title": "NoSql: come, quando e perch\u00E9",
-    "Image": null,
-    "StartTime": "2012-09-28T18:00:00",
-    "EndTime": "2012-09-28T19:00:00",
-    "Abstract": "Obiettivo della sessione \u00E8 confrontare sul campo vantaggi e svantaggi dei modelli relazione e documentale, mettendo a confronto il modello relazionale con quello documentale. Affronteremo le complessit\u00E0 e i vantaggi che il modello documentale offre e capiremo quando ha senso scegliere uno piuttosto che l\u0027altro o quando ha molto senso farli convivere per sfruttare i vantaggi offerti da entrambi i modelli. Spazieremo da RavenDB a MongoDB ad Azure Table Storage.",
-    "Level": 200,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "abcfb5f0-927c-4733-ae8c-3401f0ee73a3",
-        "Name": "Mauro Servienti",
-        "ProfileImage": "/Uploads/speakers/MauroServienti[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "a1fdfa6a-1607-45d5-92a6-8263e344afa7"
-  },
-  {
     "WorkshopTrackId": "02ad67a3-2ab7-49d7-b49a-c428beaa79af",
     "Title": "I vantaggi di ASP.NET MVC",
     "Image": null,
@@ -1896,24 +2348,24 @@
     "WorkshopId": "a1fdfa6a-1607-45d5-92a6-8263e344afa7"
   },
   {
-    "WorkshopTrackId": "6fb3e94d-c49a-4fc5-86b9-f8688a7d58ea",
-    "Title": "Knockout \u2013 Dynamic Javascript UI attraverso il pattern MVVM",
-    "Image": "http://www.edgewater-consulting.com/SiteCollectionImages/Article%20Page%20Images/knockoutjs-banner.jpg",
-    "StartTime": "2013-04-05T18:30:00",
-    "EndTime": "2013-04-05T19:15:00",
-    "Abstract": "Il nuovo standard HTML non introduce soltanto nuovi tags, ma un modo profondamente diverso di approcciare allo sviluppo di pagine web. In questa sessione cercheremo di analizzare le fondamentali differenze con lo standard precedente per arrivare alle ragioni che stanno dietro a tali cambiamenti.",
-    "Level": 300,
+    "WorkshopTrackId": "018fdb53-9a26-4fe6-b2fa-880442f1bf55",
+    "Title": "NoSql: come, quando e perch\u00E9",
+    "Image": null,
+    "StartTime": "2012-09-28T18:00:00",
+    "EndTime": "2012-09-28T19:00:00",
+    "Abstract": "Obiettivo della sessione \u00E8 confrontare sul campo vantaggi e svantaggi dei modelli relazione e documentale, mettendo a confronto il modello relazionale con quello documentale. Affronteremo le complessit\u00E0 e i vantaggi che il modello documentale offre e capiremo quando ha senso scegliere uno piuttosto che l\u0027altro o quando ha molto senso farli convivere per sfruttare i vantaggi offerti da entrambi i modelli. Spazieremo da RavenDB a MongoDB ad Azure Table Storage.",
+    "Level": 200,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
-        "Name": "Andrea Belloni",
-        "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+        "WorkshopSpeakerId": "abcfb5f0-927c-4733-ae8c-3401f0ee73a3",
+        "Name": "Mauro Servienti",
+        "ProfileImage": "/Uploads/speakers/MauroServienti[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
       }
     ],
-    "WorkshopId": "d4a675b7-e631-4201-a55e-8778e2d8edf2"
+    "WorkshopId": "a1fdfa6a-1607-45d5-92a6-8263e344afa7"
   },
   {
     "WorkshopTrackId": "0df62d32-fff1-4ccf-b19f-49da448f7b2c",
@@ -1976,13 +2428,13 @@
     "WorkshopId": "d4a675b7-e631-4201-a55e-8778e2d8edf2"
   },
   {
-    "WorkshopTrackId": "ce581335-e298-4202-aa81-1774d818fbcf",
-    "Title": "Entity Framework 7",
-    "Image": null,
-    "StartTime": "2023-01-27T16:45:00",
-    "EndTime": "2023-01-27T17:40:00",
-    "Abstract": "Entity Framework 7 \u00E8 il successore di Entity Framework Core 6 e non di Entity Framework 6 come ci porterebbe a pensare, come per le ultime versioni i cambiamenti non sono molti, ma la qualit\u00E0 e i miglioramenti di questo ORM sono sempre superiori e in questa sessione vedremo le piccole novit\u00E0 introdotte e i miglioramenti in tante sue parti. Nelle performance, nella completa gestione dell\u0027ereditariet\u00E0, nell\u0027introduzione delle colonne JSON, delle Bulk update e delete.",
-    "Level": 1,
+    "WorkshopTrackId": "6fb3e94d-c49a-4fc5-86b9-f8688a7d58ea",
+    "Title": "Knockout \u2013 Dynamic Javascript UI attraverso il pattern MVVM",
+    "Image": "http://www.edgewater-consulting.com/SiteCollectionImages/Article%20Page%20Images/knockoutjs-banner.jpg",
+    "StartTime": "2013-04-05T18:30:00",
+    "EndTime": "2013-04-05T19:15:00",
+    "Abstract": "Il nuovo standard HTML non introduce soltanto nuovi tags, ma un modo profondamente diverso di approcciare allo sviluppo di pagine web. In questa sessione cercheremo di analizzare le fondamentali differenze con lo standard precedente per arrivare alle ragioni che stanno dietro a tali cambiamenti.",
+    "Level": 300,
     "Speakers": [
       {
         "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
@@ -1993,7 +2445,7 @@
         "Tracks": null
       }
     ],
-    "WorkshopId": "88376954-190c-4456-960b-8b1635c634e2"
+    "WorkshopId": "d4a675b7-e631-4201-a55e-8778e2d8edf2"
   },
   {
     "WorkshopTrackId": "d6270bab-205a-4459-9f2c-01761aa94780",
@@ -2040,6 +2492,46 @@
     "WorkshopId": "88376954-190c-4456-960b-8b1635c634e2"
   },
   {
+    "WorkshopTrackId": "ce581335-e298-4202-aa81-1774d818fbcf",
+    "Title": "Entity Framework 7",
+    "Image": null,
+    "StartTime": "2023-01-27T16:45:00",
+    "EndTime": "2023-01-27T17:40:00",
+    "Abstract": "Entity Framework 7 \u00E8 il successore di Entity Framework Core 6 e non di Entity Framework 6 come ci porterebbe a pensare, come per le ultime versioni i cambiamenti non sono molti, ma la qualit\u00E0 e i miglioramenti di questo ORM sono sempre superiori e in questa sessione vedremo le piccole novit\u00E0 introdotte e i miglioramenti in tante sue parti. Nelle performance, nella completa gestione dell\u0027ereditariet\u00E0, nell\u0027introduzione delle colonne JSON, delle Bulk update e delete.",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+        "Name": "Andrea Belloni",
+        "ProfileImage": "/Uploads/speakers/andreabelloni[1].PNG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "88376954-190c-4456-960b-8b1635c634e2"
+  },
+  {
+    "WorkshopTrackId": "11022724-c6ce-4b01-8a61-23615e06f725",
+    "Title": "Le novit\u00E0 in C# 11 e .NET 7",
+    "Image": null,
+    "StartTime": "2023-01-27T14:50:00",
+    "EndTime": "2023-01-27T15:40:00",
+    "Abstract": "Il team di .NET \u00E8 riuscito a stupire ancora una volta con interessantissime novit\u00E0 sia sul fronte di C# che del runtime e delle librerie. La vera chiave di lettura di questa veloce evoluzione \u00E8 di aumentare drasticamente la produttivit\u00E0 e la performance delle nostre applicazioni e non c\u0027\u00E8 dubbio che ci siano riusciti. Tra gli argomenti che vedremo ci sono \u0022Generic Math\u0022, le novit\u00E0 di System.Text.Json, i required members di C#, il nuovo modo di chiamare codice nativo, i generatori di regular expressions, i nuovi metodi di System.IO.Stream e le numerosissime novit\u00E0 sulla performance che regalano velocit\u00E0 alle nostre applicazioni.",
+    "Level": 1,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "88376954-190c-4456-960b-8b1635c634e2"
+  },
+  {
     "WorkshopTrackId": "e3307565-b95b-424a-a3d6-3bf8dee340e0",
     "Title": "Migrare da AspNet a AspNet Core utilizzando Yarp",
     "Image": null,
@@ -2066,26 +2558,6 @@
     "StartTime": "2023-01-27T14:30:00",
     "EndTime": "2023-01-27T14:50:00",
     "Abstract": null,
-    "Level": 1,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "88376954-190c-4456-960b-8b1635c634e2"
-  },
-  {
-    "WorkshopTrackId": "11022724-c6ce-4b01-8a61-23615e06f725",
-    "Title": "Le novit\u00E0 in C# 11 e .NET 7",
-    "Image": null,
-    "StartTime": "2023-01-27T14:50:00",
-    "EndTime": "2023-01-27T15:40:00",
-    "Abstract": "Il team di .NET \u00E8 riuscito a stupire ancora una volta con interessantissime novit\u00E0 sia sul fronte di C# che del runtime e delle librerie. La vera chiave di lettura di questa veloce evoluzione \u00E8 di aumentare drasticamente la produttivit\u00E0 e la performance delle nostre applicazioni e non c\u0027\u00E8 dubbio che ci siano riusciti. Tra gli argomenti che vedremo ci sono \u0022Generic Math\u0022, le novit\u00E0 di System.Text.Json, i required members di C#, il nuovo modo di chiamare codice nativo, i generatori di regular expressions, i nuovi metodi di System.IO.Stream e le numerosissime novit\u00E0 sulla performance che regalano velocit\u00E0 alle nostre applicazioni.",
     "Level": 1,
     "Speakers": [
       {
@@ -2148,26 +2620,6 @@
     "WorkshopId": "8cdb5f65-c239-474b-8e1b-8ed480495b50"
   },
   {
-    "WorkshopTrackId": "9cd460be-2003-4aeb-8055-5e89017bbd95",
-    "Title": "Full stack web UI con Blazor",
-    "Image": null,
-    "StartTime": "2024-01-19T11:00:00",
-    "EndTime": "2024-01-19T11:55:00",
-    "Abstract": " Con l\u0027avvento di .NET 8, Blazor si arricchisce di nuove ed interessanti funzionalit\u00E0: dal modello unificato client-server all\u0027innovativo stream rendering, la vera novit\u00E0 di questa versione. Durante la sessione, esamineremo e valuteremo il loro impatto sul framework e sulle nostre applicazioni.",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
-        "Name": "Diego Zunino",
-        "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "8cdb5f65-c239-474b-8e1b-8ed480495b50"
-  },
-  {
     "WorkshopTrackId": "1ef46c03-a373-4849-9201-621df6cc4344",
     "Title": "Introduzione",
     "Image": null,
@@ -2180,6 +2632,26 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "8cdb5f65-c239-474b-8e1b-8ed480495b50"
+  },
+  {
+    "WorkshopTrackId": "9cd460be-2003-4aeb-8055-5e89017bbd95",
+    "Title": "Full stack web UI con Blazor",
+    "Image": null,
+    "StartTime": "2024-01-19T11:00:00",
+    "EndTime": "2024-01-19T11:55:00",
+    "Abstract": " Con l\u0027avvento di .NET 8, Blazor si arricchisce di nuove ed interessanti funzionalit\u00E0: dal modello unificato client-server all\u0027innovativo stream rendering, la vera novit\u00E0 di questa versione. Durante la sessione, esamineremo e valuteremo il loro impatto sul framework e sulle nostre applicazioni.",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2248,12 +2720,12 @@
     "WorkshopId": "8cdb5f65-c239-474b-8e1b-8ed480495b50"
   },
   {
-    "WorkshopTrackId": "c1e1e481-4415-4ec2-9985-ffeb69999ee4",
-    "Title": "Orchestrare una applicazione distribuita con .NET Aspire",
+    "WorkshopTrackId": "483373f4-94a1-4566-91c4-b7babf685a41",
+    "Title": "Le novit\u00E0 di .NET 8",
     "Image": null,
-    "StartTime": "2024-01-19T17:15:00",
-    "EndTime": "2024-01-19T18:10:00",
-    "Abstract": "Con .NET 8 debutta un nuovo stack per gestire ed orchestrare le applicazioni distribuite. Il nuovo Aspire si integra facilmente con Visual Studio e consente di gestire facilmente la gerarchia dei progetti che compongono una soluzione, ma anche molto altro. L\u0027integrazione infatti fornisce anche una dashboard che consente di monitorare e gestire i log dell\u0027applicazione, seguendo la chiamata dal front-end fino al database passando per tutti i servizi intermedi e servizi o container di terze parti, integrati in modo dichiarativo.",
+    "StartTime": "2024-01-19T10:00:00",
+    "EndTime": "2024-01-19T10:55:00",
+    "Abstract": " In questa sessione inizieremo a vedere una rapida carrellata sulle novit\u00E0 di .NET 8 e C# per capire la direzione in cui sta evolvendo .NET. Dopo questa prima analisi ci focalizzeremo sul tema delle performance, con particolare attenzione ai nuovi meccanismi usati da .NET per accelerare l\u0027esecuzione delle nostre applicazioni. Tutto questo ci permetter\u00E0 di capire meglio come e quando sfruttare la nuova \u0022Native AoT\u0022 che permette di ottenere servizi WebAPI completamente privi di codice IL e ottimizzati al pari di applicazioni C\u002B\u002B.",
     "Level": 100,
     "Speakers": [
       {
@@ -2268,12 +2740,12 @@
     "WorkshopId": "8cdb5f65-c239-474b-8e1b-8ed480495b50"
   },
   {
-    "WorkshopTrackId": "483373f4-94a1-4566-91c4-b7babf685a41",
-    "Title": "Le novit\u00E0 di .NET 8",
+    "WorkshopTrackId": "c1e1e481-4415-4ec2-9985-ffeb69999ee4",
+    "Title": "Orchestrare una applicazione distribuita con .NET Aspire",
     "Image": null,
-    "StartTime": "2024-01-19T10:00:00",
-    "EndTime": "2024-01-19T10:55:00",
-    "Abstract": " In questa sessione inizieremo a vedere una rapida carrellata sulle novit\u00E0 di .NET 8 e C# per capire la direzione in cui sta evolvendo .NET. Dopo questa prima analisi ci focalizzeremo sul tema delle performance, con particolare attenzione ai nuovi meccanismi usati da .NET per accelerare l\u0027esecuzione delle nostre applicazioni. Tutto questo ci permetter\u00E0 di capire meglio come e quando sfruttare la nuova \u0022Native AoT\u0022 che permette di ottenere servizi WebAPI completamente privi di codice IL e ottimizzati al pari di applicazioni C\u002B\u002B.",
+    "StartTime": "2024-01-19T17:15:00",
+    "EndTime": "2024-01-19T18:10:00",
+    "Abstract": "Con .NET 8 debutta un nuovo stack per gestire ed orchestrare le applicazioni distribuite. Il nuovo Aspire si integra facilmente con Visual Studio e consente di gestire facilmente la gerarchia dei progetti che compongono una soluzione, ma anche molto altro. L\u0027integrazione infatti fornisce anche una dashboard che consente di monitorare e gestire i log dell\u0027applicazione, seguendo la chiamata dal front-end fino al database passando per tutti i servizi intermedi e servizi o container di terze parti, integrati in modo dichiarativo.",
     "Level": 100,
     "Speakers": [
       {
@@ -2306,26 +2778,6 @@
       }
     ],
     "WorkshopId": "8fcac0da-44e0-44cc-9261-9ee3621e53e9"
-  },
-  {
-    "WorkshopTrackId": "d9ffde8a-c97d-44e8-97d6-60721aa87ec4",
-    "Title": "Novit\u00E0 per gli sviluppatori web con Visual Studio e ASP.NET.",
-    "Image": "http://resource.thaicreate.com/upload/stock/20120503202942.gif",
-    "StartTime": "2014-06-05T19:00:00",
-    "EndTime": "2014-06-05T20:00:00",
-    "Abstract": "Lo sviluppo web evolve rapidamente, e Visual Studio e ASP.NET cercano di tenere il passo, puntando ad essere sempre di pi\u00F9 l\u0027IDE di riferimento per gli sviluppatori web di tutti i tipi. Daremo un\u0027occhiata alle nuove funzionalit\u00E0 introdotte in ASP.NET, le nuove idee in sviluppo web front-end, le novit\u00E0 delle Web Essentials e un po\u0027 del futuro ASP.NET.",
-    "Level": 200,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "6ba9932e-df58-4810-bfd8-6ad490aa9b56",
-        "Name": "Alessio Gogna",
-        "ProfileImage": "/Uploads/speakers/_XNLjgXu_400x400[1].jpg",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "10a15e32-8206-431b-9bbb-bb5ebf952aa8"
   },
   {
     "WorkshopTrackId": "35f5e6cf-83de-4eea-b5cb-1f864a20a394",
@@ -2368,6 +2820,26 @@
         "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
         "Name": "Raffaele Rialdi",
         "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "10a15e32-8206-431b-9bbb-bb5ebf952aa8"
+  },
+  {
+    "WorkshopTrackId": "d9ffde8a-c97d-44e8-97d6-60721aa87ec4",
+    "Title": "Novit\u00E0 per gli sviluppatori web con Visual Studio e ASP.NET.",
+    "Image": "http://resource.thaicreate.com/upload/stock/20120503202942.gif",
+    "StartTime": "2014-06-05T19:00:00",
+    "EndTime": "2014-06-05T20:00:00",
+    "Abstract": "Lo sviluppo web evolve rapidamente, e Visual Studio e ASP.NET cercano di tenere il passo, puntando ad essere sempre di pi\u00F9 l\u0027IDE di riferimento per gli sviluppatori web di tutti i tipi. Daremo un\u0027occhiata alle nuove funzionalit\u00E0 introdotte in ASP.NET, le nuove idee in sviluppo web front-end, le novit\u00E0 delle Web Essentials e un po\u0027 del futuro ASP.NET.",
+    "Level": 200,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "6ba9932e-df58-4810-bfd8-6ad490aa9b56",
+        "Name": "Alessio Gogna",
+        "ProfileImage": "/Uploads/speakers/_XNLjgXu_400x400[1].jpg",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2436,26 +2908,6 @@
     "WorkshopId": "2aead87a-4320-45d1-9376-bdae2e38973c"
   },
   {
-    "WorkshopTrackId": "f8e88a48-83c7-4366-bead-c2bab504f89f",
-    "Title": "Introduzione alla AI Generativa",
-    "Image": null,
-    "StartTime": "2025-12-06T14:30:00",
-    "EndTime": "2025-12-06T15:15:00",
-    "Abstract": null,
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
-  },
-  {
     "WorkshopTrackId": "4e237f6b-1ce7-4df7-a4d3-c7b295128f3e",
     "Title": "Registrazione",
     "Image": null,
@@ -2468,6 +2920,26 @@
         "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
         "Name": "Andrea Merlin",
         "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
+  },
+  {
+    "WorkshopTrackId": "f8e88a48-83c7-4366-bead-c2bab504f89f",
+    "Title": "Introduzione alla AI Generativa",
+    "Image": null,
+    "StartTime": "2025-12-06T14:30:00",
+    "EndTime": "2025-12-06T15:15:00",
+    "Abstract": null,
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2496,18 +2968,18 @@
     "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
   },
   {
-    "WorkshopTrackId": "bb057c7c-5fef-4535-b91d-f366b3346b0e",
-    "Title": "Gemini versus ChatGPT",
+    "WorkshopTrackId": "3d4807ef-55d7-4c1e-b27f-2b9a8d70805e",
+    "Title": "Evoluzioni e differenze tra i modelli di AI Generativa",
     "Image": null,
-    "StartTime": "2025-12-06T16:00:00",
-    "EndTime": "2025-12-06T16:40:00",
-    "Abstract": "In questa sessione metteremo a confronto i risultati generati da richieste verso Gemini e ChatGpt e cercheremo di capire quali sono i principali scenari in cui utilizzare l\u0027uno o l\u0027altro e come identificare eventuali allucinazioni nelle risposte. Analizzeremo casi pratici nell\u0027utilizzo di Github Copilot, l\u0027assistente AI per gli sviluppatori ed l\u0027utilizzo di Copilot all\u0027interno degli strumenti Microsoft. ",
+    "StartTime": "2025-12-06T15:15:00",
+    "EndTime": "2025-12-06T15:55:00",
+    "Abstract": "Chi utilizza i portali di intelligenza artificiale avr\u00E0 certamente notato notevoli differenze nei risultati ottenuti negli ultimi mesi. Molti credono che l\u2019ultimo modello rilasciato sia automaticamente il migliore, ma non \u00E8 sempre cos\u00EC.\r\n\r\nLa competizione tra ChatGPT, DeepSeek, Gemini, Claude AI e Grok si gioca su diversi fronti: i modelli, gli agenti e, pi\u00F9 recentemente, i server MCP.\r\n\r\nNel corso della sessione analizzeremo le caratteristiche principali di ciascun modello e vedremo come individuare quello pi\u00F9 adatto al proprio caso d\u2019uso. ",
     "Level": 100,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
-        "Name": "Andrea Merlin",
-        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2528,26 +3000,6 @@
         "WorkshopSpeakerId": "aa70afc7-ea86-41c6-9277-9664db6687e3",
         "Name": "Giampaolo Tucci ",
         "ProfileImage": null,
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
-      }
-    ],
-    "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
-  },
-  {
-    "WorkshopTrackId": "3d4807ef-55d7-4c1e-b27f-2b9a8d70805e",
-    "Title": "Evoluzioni e differenze tra i modelli di AI Generativa",
-    "Image": null,
-    "StartTime": "2025-12-06T15:15:00",
-    "EndTime": "2025-12-06T15:55:00",
-    "Abstract": "Chi utilizza i portali di intelligenza artificiale avr\u00E0 certamente notato notevoli differenze nei risultati ottenuti negli ultimi mesi. Molti credono che l\u2019ultimo modello rilasciato sia automaticamente il migliore, ma non \u00E8 sempre cos\u00EC.\r\n\r\nLa competizione tra ChatGPT, DeepSeek, Gemini, Claude AI e Grok si gioca su diversi fronti: i modelli, gli agenti e, pi\u00F9 recentemente, i server MCP.\r\n\r\nNel corso della sessione analizzeremo le caratteristiche principali di ciascun modello e vedremo come individuare quello pi\u00F9 adatto al proprio caso d\u2019uso. ",
-    "Level": 100,
-    "Speakers": [
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2584,18 +3036,46 @@
     "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
   },
   {
-    "WorkshopTrackId": "2c66f8e0-62f1-46df-87b1-8354076cafaf",
-    "Title": "Responsible AI",
+    "WorkshopTrackId": "bb057c7c-5fef-4535-b91d-f366b3346b0e",
+    "Title": "Gemini versus ChatGPT",
     "Image": null,
-    "StartTime": "2023-07-18T16:30:00",
-    "EndTime": "2023-07-18T17:30:00",
-    "Abstract": "Gli strumenti di intelligenza artificiale (IA) stanno rivoluzionando in maniera radicale molti ambiti legati all\u0027apprendimento, allo sviluppo di codice ed alla creativit\u00E0.\r\n\r\nAumentando la precisione degli algoritmi che ne stanno alla base, si sta delineando la necessit\u00E0 di utilizzare l\u0027intelligenza artificiale in maniera piu etica e responsabile.\r\n\r\nCi\u00F2 significa mantenere le persone e i loro obiettivi al centro delle decisioni di progettazione del sistema e rispettare valori durevoli come l\u0027equit\u00E0, l\u0027affidabilit\u00E0 e la trasparenza.\r\n\r\nIn questa sessione analizzeremo lo standard che Microsoft ha sviluppato per l\u0027 intelligenza artificiale responsabile.\r\n\r\nSi tratta di un framework per la creazione di sistemi di intelligenza artificiale in base ad alcuni principi fondamentali in aggiunta all\u0027utilizzo di Azure OpenAI e Azure Content Safety per mitigare errori, bias e potenziali problemi nei contenuti.",
+    "StartTime": "2025-12-06T16:00:00",
+    "EndTime": "2025-12-06T16:40:00",
+    "Abstract": "In questa sessione metteremo a confronto i risultati generati da richieste verso Gemini e ChatGpt e cercheremo di capire quali sono i principali scenari in cui utilizzare l\u0027uno o l\u0027altro e come identificare eventuali allucinazioni nelle risposte. Analizzeremo casi pratici nell\u0027utilizzo di Github Copilot, l\u0027assistente AI per gli sviluppatori ed l\u0027utilizzo di Copilot all\u0027interno degli strumenti Microsoft. ",
     "Level": 100,
     "Speakers": [
       {
         "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
         "Name": "Andrea Merlin",
         "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      }
+    ],
+    "WorkshopId": "89d23964-f3cd-4ca8-9e65-d15251e0b6a1"
+  },
+  {
+    "WorkshopTrackId": "340afbb2-0919-499a-9cbf-faf93f442ca5",
+    "Title": "Open Panel e live demo",
+    "Image": null,
+    "StartTime": "2023-07-18T17:30:00",
+    "EndTime": "2023-07-18T18:30:00",
+    "Abstract": "In questo panel presenteremo alcune demo che utilizzano vari aspetti dell\u0027AI, e le discuteremo insieme per comprendere come cambier\u00E0 inevitabilmente lo sviluppo software e la user experience delle nostre applicazioni",
+    "Level": 100,
+    "Speakers": [
+      {
+        "WorkshopSpeakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+        "Name": "Andrea Merlin",
+        "ProfileImage": "/Uploads/speakers/merlin.JPG",
+        "BlogHtml": null,
+        "UserName": null,
+        "Tracks": null
+      },
+      {
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2644,12 +3124,12 @@
     "WorkshopId": "5e2baba4-d85e-4cb8-beae-d4a431cb595e"
   },
   {
-    "WorkshopTrackId": "340afbb2-0919-499a-9cbf-faf93f442ca5",
-    "Title": "Open Panel e live demo",
+    "WorkshopTrackId": "2c66f8e0-62f1-46df-87b1-8354076cafaf",
+    "Title": "Responsible AI",
     "Image": null,
-    "StartTime": "2023-07-18T17:30:00",
-    "EndTime": "2023-07-18T18:30:00",
-    "Abstract": "In questo panel presenteremo alcune demo che utilizzano vari aspetti dell\u0027AI, e le discuteremo insieme per comprendere come cambier\u00E0 inevitabilmente lo sviluppo software e la user experience delle nostre applicazioni",
+    "StartTime": "2023-07-18T16:30:00",
+    "EndTime": "2023-07-18T17:30:00",
+    "Abstract": "Gli strumenti di intelligenza artificiale (IA) stanno rivoluzionando in maniera radicale molti ambiti legati all\u0027apprendimento, allo sviluppo di codice ed alla creativit\u00E0.\r\n\r\nAumentando la precisione degli algoritmi che ne stanno alla base, si sta delineando la necessit\u00E0 di utilizzare l\u0027intelligenza artificiale in maniera piu etica e responsabile.\r\n\r\nCi\u00F2 significa mantenere le persone e i loro obiettivi al centro delle decisioni di progettazione del sistema e rispettare valori durevoli come l\u0027equit\u00E0, l\u0027affidabilit\u00E0 e la trasparenza.\r\n\r\nIn questa sessione analizzeremo lo standard che Microsoft ha sviluppato per l\u0027 intelligenza artificiale responsabile.\r\n\r\nSi tratta di un framework per la creazione di sistemi di intelligenza artificiale in base ad alcuni principi fondamentali in aggiunta all\u0027utilizzo di Azure OpenAI e Azure Content Safety per mitigare errori, bias e potenziali problemi nei contenuti.",
     "Level": 100,
     "Speakers": [
       {
@@ -2659,31 +3139,23 @@
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
-      },
-      {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
-        "BlogHtml": null,
-        "UserName": null,
-        "Tracks": null
       }
     ],
     "WorkshopId": "5e2baba4-d85e-4cb8-beae-d4a431cb595e"
   },
   {
-    "WorkshopTrackId": "ad0f2a02-a288-4313-80b8-e09f9c8384ef",
-    "Title": "Capire e utilizzare al meglio i modelli GPT",
+    "WorkshopTrackId": "5b877509-580f-40fd-b9e8-81cad474ee0d",
+    "Title": "L\u2019AI e l\u2019evoluzione dell\u2019analisi dei dati per le imprese",
     "Image": null,
-    "StartTime": "2025-02-07T14:30:00",
-    "EndTime": "2025-02-07T15:25:00",
-    "Abstract": "Come funzionano i modelli di AI generativa? A quali domande pu\u00F2 o non pu\u00F2 rispondere in modo sensato? Quali sono le motivazioni per cui certe risposte sono qualitativamente migliori di altre? Durante questo primo intervento, vedremo in cosa consiste il \u0022prompt engineering\u0022 e come funzionano i modelli di AI Generativa per poter sfruttare al meglio le sue potenzialit\u00E0. Vedremo anche come funziona la ricerca semantica e la \u0022Retrival Augmented Generation\u0022 (RAG) che ci permette di ottenere risposte su dati non presenti su Internet e la funzione svolta dai database vettoriali.",
+    "StartTime": "2025-02-07T16:30:00",
+    "EndTime": "2025-02-07T17:25:00",
+    "Abstract": "L\u2019era dell\u2019intelligenza artificiale sta trasformando il modo in cui le aziende di tutte le dimensioni sfruttano i dati per le decisioni strategiche. Questo avanzamento tecnologico permette di accedere ad informazioni preziose, prima inaccessibili per le piccole realt\u00E0. Affrontare e superare non solo le sfide tecnologiche, ma anche quelle culturali ed organizzative \u00E8 fondamentale per evolvere in vere e proprie data-driven company. Nella sessione, vedremo esempi di utilizzo dell\u2019AI nell\u2019analisi dei dati aziendali esaminando casi d\u2019uso reali.",
     "Level": 100,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
-        "Name": "Raffaele Rialdi",
-        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
+        "Name": "Diego Zunino",
+        "ProfileImage": null,
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
@@ -2732,12 +3204,12 @@
     "WorkshopId": "7843665a-29e2-45fe-9e98-d7baa8cb3650"
   },
   {
-    "WorkshopTrackId": "810b96f3-eb56-474d-b30a-0c2b871285d7",
-    "Title": "Introduzione all\u0027evento",
+    "WorkshopTrackId": "ad0f2a02-a288-4313-80b8-e09f9c8384ef",
+    "Title": "Capire e utilizzare al meglio i modelli GPT",
     "Image": null,
-    "StartTime": "2025-02-07T14:00:00",
-    "EndTime": "2025-02-07T14:30:00",
-    "Abstract": "Introduzione all\u0027evento",
+    "StartTime": "2025-02-07T14:30:00",
+    "EndTime": "2025-02-07T15:25:00",
+    "Abstract": "Come funzionano i modelli di AI generativa? A quali domande pu\u00F2 o non pu\u00F2 rispondere in modo sensato? Quali sono le motivazioni per cui certe risposte sono qualitativamente migliori di altre? Durante questo primo intervento, vedremo in cosa consiste il \u0022prompt engineering\u0022 e come funzionano i modelli di AI Generativa per poter sfruttare al meglio le sue potenzialit\u00E0. Vedremo anche come funziona la ricerca semantica e la \u0022Retrival Augmented Generation\u0022 (RAG) che ci permette di ottenere risposte su dati non presenti su Internet e la funzione svolta dai database vettoriali.",
     "Level": 100,
     "Speakers": [
       {
@@ -2752,18 +3224,18 @@
     "WorkshopId": "7843665a-29e2-45fe-9e98-d7baa8cb3650"
   },
   {
-    "WorkshopTrackId": "5b877509-580f-40fd-b9e8-81cad474ee0d",
-    "Title": "L\u2019AI e l\u2019evoluzione dell\u2019analisi dei dati per le imprese",
+    "WorkshopTrackId": "810b96f3-eb56-474d-b30a-0c2b871285d7",
+    "Title": "Introduzione all\u0027evento",
     "Image": null,
-    "StartTime": "2025-02-07T16:30:00",
-    "EndTime": "2025-02-07T17:25:00",
-    "Abstract": "L\u2019era dell\u2019intelligenza artificiale sta trasformando il modo in cui le aziende di tutte le dimensioni sfruttano i dati per le decisioni strategiche. Questo avanzamento tecnologico permette di accedere ad informazioni preziose, prima inaccessibili per le piccole realt\u00E0. Affrontare e superare non solo le sfide tecnologiche, ma anche quelle culturali ed organizzative \u00E8 fondamentale per evolvere in vere e proprie data-driven company. Nella sessione, vedremo esempi di utilizzo dell\u2019AI nell\u2019analisi dei dati aziendali esaminando casi d\u2019uso reali.",
+    "StartTime": "2025-02-07T14:00:00",
+    "EndTime": "2025-02-07T14:30:00",
+    "Abstract": "Introduzione all\u0027evento",
     "Level": 100,
     "Speakers": [
       {
-        "WorkshopSpeakerId": "84e31fdb-ce63-4f5e-bde5-5f0478472200",
-        "Name": "Diego Zunino",
-        "ProfileImage": null,
+        "WorkshopSpeakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+        "Name": "Raffaele Rialdi",
+        "ProfileImage": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
         "BlogHtml": null,
         "UserName": null,
         "Tracks": null
