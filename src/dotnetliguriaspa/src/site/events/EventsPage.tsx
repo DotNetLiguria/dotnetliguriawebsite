@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
+import { Button } from 'react-aria-components';
+import YearFilter from './YearFilter';
 import SiteLayout from '../SiteLayout';
 import PageMeta from '../PageMeta';
 import EventCard from '../EventCard';
@@ -49,8 +50,6 @@ export default function EventsPage() {
     setParams(key === ALL ? {} : { anno: key }, { replace: true });
   }, [setParams]);
 
-  const chip = `inline-flex min-h-11 cursor-pointer items-center rounded-full border-2 px-5 font-bold transition ${focusRing} border-navy/20 bg-white text-navy data-[hovered]:border-navy data-[selected]:border-navy data-[selected]:bg-navy data-[selected]:text-white`;
-
   // A valid year is a page of its own (shareable address, own title); unknown values fall back to the archive.
   const year = selected === ALL ? null : selected;
   const since = firstYear ? ` dal ${firstYear}` : '';
@@ -97,20 +96,7 @@ export default function EventsPage() {
         {newest.length > 0 && (
           <>
             {years.length > 1 && (
-              <ToggleButtonGroup
-                aria-label="Filtra per anno"
-                selectionMode="single"
-                disallowEmptySelection
-                selectedKeys={[selected]}
-                onSelectionChange={keys => {
-                  const [key] = [...keys];
-                  if (key !== undefined) choose(String(key));
-                }}
-                className="flex flex-wrap gap-2"
-              >
-                <ToggleButton id={ALL} className={chip}>Tutti gli anni</ToggleButton>
-                {years.map(year => <ToggleButton key={year} id={String(year)} className={chip}>{year}</ToggleButton>)}
-              </ToggleButtonGroup>
+              <YearFilter years={years} selected={selected} onSelect={choose} />
             )}
 
             {visibleYears.map(year => {

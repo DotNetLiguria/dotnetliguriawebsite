@@ -265,8 +265,9 @@ dotnet run -- questionnaires --apply ...            # writes to MongoDB
 Connection strings can also be provided as `QuestionnaireMigration:SqlServerConnectionString` and
 `QuestionnaireMigration:SqliteConnectionString` (preferably user secrets), `--no-feedback` skips
 the Mongo source. Without the `questionnaires` argument the executable keeps its original
-workshop migration behavior (it reads the historical SQL database, then imports `json/` into
-MongoDB); `--from-json` skips the SQL read and imports only the checked-in `json/` export.
+workshop export behavior (it reads the historical SQL database, writes `json/`, and stops);
+`--from-json` skips SQL and imports the checked-in export. Add `--update-existing` to
+refresh existing content. See the [complete JSON import runbook](data-import.md).
 **Run `--apply` against real data only after explicit approval and a reviewed dry run.**
 
 Populating the local Aspire MongoDB container (database `DotNetLiguriaAspire`, TLS with the Aspire

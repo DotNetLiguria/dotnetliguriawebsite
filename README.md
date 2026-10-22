@@ -24,6 +24,8 @@ See [architecture](docs/architecture.md), [frontend setup](src/dotnetliguriaspa/
 [website setup](src/dotnetliguriawebsite/website.md), and [test procedures](tests/Tests.md).
 See [newsletter administration](docs/newsletters.md) for drafting, templates,
 embedded-image emails and the separate SMTP-appliance production activation gate.
+See [JSON data import](docs/data-import.md) for refreshing local MongoDB and the
+production backup, import, verification and rollback sequence.
 Read [AGENTS.md](AGENTS.md) and scoped guidance before editing. Canonical portable
 skills live under [.agents/skills](.agents/skills), with Claude and Copilot adapters.
 

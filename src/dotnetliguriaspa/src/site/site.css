@@ -68,6 +68,118 @@
 .site [data-focus-visible] { outline: 3px solid var(--color-cyan-700); outline-offset: 3px; box-shadow: 0 0 0 3px #ffffff; }
 
 @layer components {
+  .site .year-filter {
+    position: relative;
+    isolation: isolate;
+    min-width: 0;
+    padding-top: 0.5rem;
+    background:
+      radial-gradient(ellipse at 16% 70%, rgb(0 168 223 / 0.13), transparent 30%),
+      radial-gradient(ellipse at 80% 65%, rgb(89 165 44 / 0.1), transparent 27%);
+  }
+  .site .year-filter-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 2rem;
+  }
+  .site .year-filter-heading > p {
+    position: relative;
+    padding-bottom: 0.4rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .site .year-filter-heading > p::after {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 5px;
+    border-top: 2px solid var(--color-cyan-700);
+    border-radius: 50%;
+    transform: rotate(-2deg);
+  }
+  .site .year-filter-navigation { display: flex; flex-wrap: wrap; gap: 1rem; }
+  .site .year-filter-arrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-navy);
+    border-radius: 0.25rem;
+  }
+  .site .year-filter-arrow[data-hovered] { text-decoration: underline; text-underline-offset: 0.25em; }
+  .site .year-filter-arrow[data-disabled] { color: var(--color-muted); opacity: 0.6; cursor: default; }
+  .site .year-filter-track {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.25rem 1rem;
+    padding: 1.75rem 0.75rem 2rem;
+  }
+  .site .year-filter-year {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    cursor: pointer;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 47% 53% 49% 51% / 54% 46% 54% 46%;
+    background: linear-gradient(145deg, white, var(--color-cyan-50));
+    color: var(--color-navy);
+    font-size: 1.125rem;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 4px white;
+  }
+  .site .year-filter-year::before {
+    content: '';
+    position: absolute;
+    inset: -4px 1px -2px -3px;
+    border: 1px solid var(--color-cyan-700);
+    border-radius: 54% 46% 52% 48% / 48% 53% 47% 52%;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .site .year-filter-year:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    left: 100%;
+    top: 50%;
+    width: 1rem;
+    height: 8px;
+    border-top: 2px solid var(--color-cyan-700);
+    border-bottom: 1px solid var(--color-cyan-200);
+    border-radius: 50%;
+    transform: translateY(-50%) rotate(-6deg);
+    pointer-events: none;
+  }
+  .site .year-filter-year:nth-child(3n) {
+    border-radius: 54% 46% 51% 49% / 48% 54% 46% 52%;
+    background: linear-gradient(135deg, white, var(--color-basil-50));
+  }
+  .site .year-filter-all { width: 80px; height: 80px; padding: 0.75rem; line-height: 1.15; }
+  .site .year-filter-year[data-hovered] { border-color: var(--color-navy); background: var(--color-cyan-200); }
+  .site .year-filter-year[data-selected] {
+    border: 2px solid var(--color-navy);
+    background: radial-gradient(ellipse at 25% 15%, var(--color-cyan-700), var(--color-navy) 75%);
+    color: white;
+    box-shadow: inset 0 0 0 3px var(--color-navy), 0 5px 14px rgb(8 61 115 / 0.2);
+  }
+  .site .year-filter-year[data-selected]::before { inset: -6px; border: 2px solid var(--color-navy); opacity: 0.85; transform: rotate(-12deg); }
+  @media (prefers-reduced-motion: no-preference) {
+    .site .year-filter-year { transition: transform 180ms ease, box-shadow 180ms ease; }
+    .site .year-filter-year[data-hovered] { transform: translateY(-3px); }
+  }
   /* The logo's brush arc, drawn once when the hero appears. */
   .arc-draw path {
     stroke-dasharray: 2400;

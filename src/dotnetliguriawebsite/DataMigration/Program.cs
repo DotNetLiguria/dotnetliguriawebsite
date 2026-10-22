@@ -5,6 +5,7 @@ using DotNetLiguria.Models;
 using Microsoft.EntityFrameworkCore;
 
 using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace DataMigration;
 
@@ -33,7 +34,7 @@ internal class Program
             return;
         }
 
-        ImportJsonIntoMongo(options);
+        ImportJsonIntoMongo(options, args.Contains("--update-existing"), args.Contains("--dry-run"), args.Contains("--repair-asset-folders"));
     }
 
     private static void ReadFromSql(JsonSerializerOptions options)
@@ -109,23 +110,41 @@ internal class Program
         File.WriteAllText(Path.Combine(destinationJsonPath, "workshopFiles.json"), jsonWorkshopFiles);
     }
 
-    private static void ImportJsonIntoMongo(JsonSerializerOptions options)
+    private static void ImportJsonIntoMongo(JsonSerializerOptions options, bool updateExisting, bool dryRun, bool repairAssetFolders)
     {
         var envPath = Environment.CurrentDirectory;
 
-        string jsonPath = Path.GetFullPath(Path.Combine(envPath, "json\\"));
+        string jsonPath = Path.GetFullPath(Path.Combine(envPath, "json"));
 
-        string fileName = jsonPath + "workshopSpeakers.json";
+        string fileName = Path.Combine(jsonPath, "workshopSpeakers.json");
         string jsonString = File.ReadAllText(fileName);
         var speakers = JsonSerializer.Deserialize<List<DotNetLiguria.Models.WorkshopSpeaker>>(jsonString, options) ?? throw new Exception("Cannot deserialize (result is null)");
 
-        fileName = jsonPath + "workshops.json";
+        fileName = Path.Combine(jsonPath, "workshops.json");
         jsonString = File.ReadAllText(fileName);
         var workshops1 = JsonSerializer.Deserialize<List<DotNetLiguria.Models.Workshop>>(jsonString, options) ?? throw new Exception("Cannot deserialize (result is null)");
 
-        fileName = jsonPath + "workshopFiles.json";
+        fileName = Path.Combine(jsonPath, "workshopFiles.json");
         jsonString = File.ReadAllText(fileName);
         var workshopFiles = JsonSerializer.Deserialize<List<DotNetLiguria.Models.WorkshopFile>>(jsonString, options) ?? throw new Exception("Cannot deserialize (result is null)");
+
+        // Validate every relationship before writing any collection.
+        var tracks = JsonSerializer.Deserialize<List<DotNetLiguria.Models.WorkshopTrack>>(
+            File.ReadAllText(Path.Combine(jsonPath, "workshopTracks.json")), options)
+            ?? throw new InvalidOperationException("Cannot deserialize workshopTracks.json.");
+        WorkshopImportMapping.ValidateTracks(workshops1, tracks);
+        var folders = JsonSerializer.Deserialize<Dictionary<Guid, string>>(
+            File.ReadAllText(Path.Combine(jsonPath, "workshopFolders.json")), options)
+            ?? throw new InvalidOperationException("Missing workshop folder ownership map.");
+        var images = JsonSerializer.Deserialize<Dictionary<Guid, string>>(
+            File.ReadAllText(Path.Combine(jsonPath, "workshopImages.json")), options)
+            ?? throw new InvalidOperationException("Missing workshop image ownership map.");
+        if (workshops1.Any(w => !images.TryGetValue(w.WorkshopId, out var image) || string.IsNullOrWhiteSpace(image)))
+            throw new InvalidOperationException("Every workshop requires an explicit image in workshopImages.json.");
+        var verifiedFilePaths = JsonSerializer.Deserialize<Dictionary<Guid, string>>(
+            File.ReadAllText(Path.Combine(jsonPath, "workshopFilePaths.json")), options)
+            ?? throw new InvalidOperationException("Missing verified file path map.");
+        var plannedFiles = WorkshopImportMapping.MapFiles(workshops1, workshopFiles, folders, verifiedFilePaths);
 
 
         var mongoDBDatabaseSettings = ConfigurationReader.Read<DotNetLiguriaDatabaseSettings>("DotNetLiguriaDatabase");
@@ -135,6 +154,17 @@ internal class Program
             var mongoClient = new MongoClient(mongoDBDatabaseSettings.ConnectionString);
 
             var mongoDatabase = mongoClient.GetDatabase(mongoDBDatabaseSettings.DatabaseName);
+            WorkshopImportMapping.ValidateFolderOwnership(workshops1,
+                mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.Workshop>(mongoDBDatabaseSettings.WorkshopCollectionName)
+                    .Find(FilterDefinition<DotNetLiguria.MongoDBModel.Workshop>.Empty).ToList(), folders, repairAssetFolders);
+            Console.WriteLine($"Database: {mongoDBDatabaseSettings.DatabaseName}. Export: {workshops1.Count} workshops, {speakers.Count} speakers, {tracks.Count} embedded tracks, {plannedFiles.Count} files.");
+            if (dryRun)
+            {
+                foreach (var name in new[] { mongoDBDatabaseSettings.WorkshopCollectionName, mongoDBDatabaseSettings.SpeakerCollectionName, mongoDBDatabaseSettings.WorkshopFileCollectionName })
+                    Console.WriteLine($"Current {name}: {mongoDatabase.GetCollection<BsonDocument>(name).CountDocuments(FilterDefinition<BsonDocument>.Empty)}");
+                Console.WriteLine("Dry run completed. No writes performed.");
+                return;
+            }
 
             IMongoCollection<DotNetLiguria.MongoDBModel.WorkshopSpeaker> _speakerCollection = mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.WorkshopSpeaker>(
                 mongoDBDatabaseSettings.SpeakerCollectionName);
@@ -143,7 +173,7 @@ internal class Program
             {
                 var alreadyPresent = _speakerCollection.Find(x => x.WorkshopSpeakerId == item.WorkshopSpeakerId).FirstOrDefault();
 
-                if (alreadyPresent == null)
+                if (alreadyPresent == null || updateExisting)
                 {
                     DotNetLiguria.MongoDBModel.WorkshopSpeaker speaker = new DotNetLiguria.MongoDBModel.WorkshopSpeaker
                     {
@@ -156,7 +186,7 @@ internal class Program
                         IsActive = true
                     };
 
-                    _speakerCollection.InsertOne(speaker);
+                    Save(_speakerCollection, x => x.WorkshopSpeakerId == speaker.WorkshopSpeakerId, speaker);
                 }
             }
 
@@ -285,15 +315,13 @@ internal class Program
             IMongoCollection<DotNetLiguria.MongoDBModel.Workshop> _workshopCollection
                 = mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.Workshop>(mongoDBDatabaseSettings.WorkshopCollectionName);
 
-            var number = 0;
             foreach (var item in workshops1.OrderBy(w => w.EventDate))
             {
                 var alreadyPresent = _workshopCollection.Find(x => x.WorkshopId == item.WorkshopId).FirstOrDefault();
 
-                number++;
-                var workshopFolderName = $"workshop{number:000}";
+                var workshopFolderName = folders[item.WorkshopId];
 
-                if (alreadyPresent == null)
+                if (alreadyPresent == null || updateExisting)
                 {
                     DotNetLiguria.MongoDBModel.Workshop workshop = new()
                     {
@@ -302,8 +330,8 @@ internal class Program
                         Description = item.Description,
                         ImageOld = item.Image,
                         FolderName = workshopFolderName,
-                        Image = $"/workshops/{workshopFolderName}/workshop.png",
-                        ImageThumbnail = $"/workshops/{workshopFolderName}/workshop_thumb.png",
+                        Image = images[item.WorkshopId],
+                        ImageThumbnail = images[item.WorkshopId],
                         OnlyHtml = item.OnlyHtml,
                         BlogHtml = item.BlogHtml,
                         Published = item.Published,
@@ -346,52 +374,47 @@ internal class Program
                         }
                     }
 
-                    _workshopCollection.InsertOne(workshop);
+                    if (alreadyPresent != null)
+                    {
+                        workshop.Slug = alreadyPresent.Slug;
+                    }
+                    Save(_workshopCollection, x => x.WorkshopId == workshop.WorkshopId, workshop);
                 }
             }
 
             IMongoCollection<DotNetLiguria.MongoDBModel.WorkshopFile> _workshopFileCollection
               = mongoDatabase.GetCollection<DotNetLiguria.MongoDBModel.WorkshopFile>(mongoDBDatabaseSettings.WorkshopFileCollectionName);
 
-            var allWorkshops = _workshopCollection.Find(_ => true).ToList();
-
-            if (_workshopFileCollection.CountDocuments(_ => true) == 0)
+            if (updateExisting || _workshopFileCollection.CountDocuments(_ => true) == 0)
             {
-                foreach (var item in workshopFiles)
+                var sourceIds = plannedFiles.Select(f => f.WorkshopFileId).ToHashSet();
+                var ambiguousKeys = plannedFiles.GroupBy(f => (f.WorkshopId, f.FileName, f.FileType))
+                    .Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
+                foreach (var workshopFile in plannedFiles)
                 {
-                    var matchedWorkshop = allWorkshops.FirstOrDefault(w =>
-                        (item.Workshop_WorkshopId is { } workshopId && w.WorkshopId == workshopId) ||
-                        (!string.IsNullOrEmpty(item.WorkshopFolder) && w.FolderName == item.WorkshopFolder));
-
-                    var workshopId = matchedWorkshop?.WorkshopId ?? Guid.Empty;
-                    var workshopFolder = !string.IsNullOrEmpty(item.WorkshopFolder)
-                        ? item.WorkshopFolder
-                        : matchedWorkshop?.FolderName ?? string.Empty;
-
-                    var destFolder = item.FileType switch
-                    {
-                        DotNetLiguria.Models.WorkshopFileType.Material => "tracks",
-                        DotNetLiguria.Models.WorkshopFileType.Photo => "photos",
-                        _ => "other"
-                    };
-
-                    var fullPath = $"/workshops/{workshopFolder}/{destFolder}/{item.FileName}";
-                    DotNetLiguria.MongoDBModel.WorkshopFile workshopFile = new DotNetLiguria.MongoDBModel.WorkshopFile
-                    {
-                        WorkshopFileId = Guid.NewGuid(),
-                        WorkshopId = workshopId,
-                        Title = item.Title,
-                        FileName = item.FileName,
-                        FullPath = fullPath,
-                        FileType = item.FileType ?? DotNetLiguria.Models.WorkshopFileType.Other
-                    };
-
-                    _workshopFileCollection.InsertOne(workshopFile);
+                    // Older imports generated random IDs. Adopt an existing natural-key match.
+                    var existing = _workshopFileCollection.Find(x => x.WorkshopFileId == workshopFile.WorkshopFileId).FirstOrDefault();
+                    if (existing == null && !ambiguousKeys.Contains((workshopFile.WorkshopId, workshopFile.FileName, workshopFile.FileType)))
+                        existing = _workshopFileCollection.Find(x => x.WorkshopId == workshopFile.WorkshopId && x.FileName == workshopFile.FileName && x.FileType == workshopFile.FileType)
+                            .ToList().FirstOrDefault(f => !sourceIds.Contains(f.WorkshopFileId));
+                    if (existing != null) workshopFile.WorkshopFileId = existing.WorkshopFileId;
+                    Save(_workshopFileCollection, x => x.WorkshopFileId == workshopFile.WorkshopFileId, workshopFile);
                 }
             }
+            Console.WriteLine("Import completed. Export records applied; unrelated records retained.");
         }
 
 
+    }
+
+    private static void Save<T>(IMongoCollection<T> collection, System.Linq.Expressions.Expression<Func<T, bool>> filter, T document)
+    {
+        var fields = document.ToBsonDocument();
+        fields.Remove("_id");
+        collection.UpdateOne(filter, new BsonDocument("$set", fields), new UpdateOptions { IsUpsert = true });
+        var expected = Builders<T>.Filter.And(new ExpressionFilterDefinition<T>(filter), new BsonDocumentFilterDefinition<T>(fields));
+        if (collection.CountDocuments(expected) != 1)
+            throw new InvalidOperationException($"Import verification failed for collection {collection.CollectionNamespace.CollectionName}.");
     }
 
     private static void RunQuestionnaireMigration(string[] args)

@@ -1,0 +1,844 @@
+{
+  "checkedOn": "2026-10-22",
+  "sourceSite": "https://www.dotnetliguria.net",
+  "eventsChecked": 44,
+  "eventFieldDifferences": 0,
+  "verifiedAssets": [
+    {
+      "path": "imported/workshops/8fcac0da-44e0-44cc-9261-9ee3621e53e9/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/8fcac0da-44e0-44cc-9261-9ee3621e53e9/logo.png",
+      "sha256": "a4c2924926d69049eefa55888c493ea12d2e928bb71ba5d71bd9c4cad77687fa",
+      "bytes": 62887,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/99bf031c-7768-4902-8efb-5b40dca38282/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/99bf031c-7768-4902-8efb-5b40dca38282/logo.png",
+      "sha256": "ac0f36ec9ea13b0fd86d7a40a10860a6f363b8229cab6ff89dbe04204274acdc",
+      "bytes": 18969,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/0d2b7baa-7032-41d4-823c-232df495f841/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/0d2b7baa-7032-41d4-823c-232df495f841/logo.png",
+      "sha256": "8e24d62bdfd0d4d6384d55c4053f25d04900b729e434857850993ef8ac6b2654",
+      "bytes": 97980,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/96869722-9aa7-4ef6-be1b-7d6139b0a37f/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/96869722-9aa7-4ef6-be1b-7d6139b0a37f/logo.png",
+      "sha256": "52d76f73d4a11ca7f9c0e234fad1fb824dce955df934cbb77cbda2b739ab6f90",
+      "bytes": 227292,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/2aead87a-4320-45d1-9376-bdae2e38973c/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/2aead87a-4320-45d1-9376-bdae2e38973c/logo.png",
+      "sha256": "ac9a379447fc6f568a3a6e909b02efb06f7ab4eedbae72a6ceb87d717c8c8135",
+      "bytes": 101833,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/93a89b68-0651-4c4c-9343-c4eb9d114896/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/93a89b68-0651-4c4c-9343-c4eb9d114896/logo.png",
+      "sha256": "b12b03096550d1d43c8235af2f6c3e63ac57aa21a9ed1f48ef96982972a260e1",
+      "bytes": 4424,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/a1fdfa6a-1607-45d5-92a6-8263e344afa7/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/a1fdfa6a-1607-45d5-92a6-8263e344afa7/logo.png",
+      "sha256": "5632f255f0f6225210987b1238b7e7fc78ae37892b419a6ca45c18097091b6d6",
+      "bytes": 11244,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/10a15e32-8206-431b-9bbb-bb5ebf952aa8/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/10a15e32-8206-431b-9bbb-bb5ebf952aa8/logo.png",
+      "sha256": "62437d9351d9ee80df851cfdbfb0503f9e753137d3a6c94f5b5dcd3d533b4885",
+      "bytes": 45537,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/36abf553-6b14-46e3-b81a-3fa8292d1c55/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/36abf553-6b14-46e3-b81a-3fa8292d1c55/logo.png",
+      "sha256": "8eef1e11e53f2c1e8ef8ea63b6fcedef139012242c55fa2e78c904b9ac23fdb1",
+      "bytes": 29450,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/d47bb696-4dd1-4c6a-9f40-eba84257fa2c/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d47bb696-4dd1-4c6a-9f40-eba84257fa2c/logo.png",
+      "sha256": "916028afeba3b6c3b8d30aef403d170fbbab6767bf9f6b629c706fabb4628ff4",
+      "bytes": 354527,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/af37706a-0be1-497e-9c27-f1bad19f5aeb/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/af37706a-0be1-497e-9c27-f1bad19f5aeb/logo.png",
+      "sha256": "c17c4928266ad0004973c1a78554f2406f1fe0c8789edd9c533e461d01571a56",
+      "bytes": 75733,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/c1887472-5e24-4923-9503-205439b2f447/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/c1887472-5e24-4923-9503-205439b2f447/logo.png",
+      "sha256": "edf4d954498f4af0669abd3ff966ca18029455424de3b56297c6264a304b46fd",
+      "bytes": 82579,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/efdb07d8-5993-485e-94b3-7bd84dbca18a/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/efdb07d8-5993-485e-94b3-7bd84dbca18a/logo.png",
+      "sha256": "492f57b7354847d7b56023ca74d6b879e43ae91a4b058061d0e8b51a1642b715",
+      "bytes": 79075,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/57b37940-0607-42db-b0fa-2604e46c25f4/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/57b37940-0607-42db-b0fa-2604e46c25f4/logo.png",
+      "sha256": "1bf5dd92eb6d57aa37197b5a8fab9f82e3235af0f30a7f142509856a71bd5560",
+      "bytes": 58440,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/1c642730-ba30-4195-b6dc-c557bb7284d0/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/1c642730-ba30-4195-b6dc-c557bb7284d0/logo.png",
+      "sha256": "3024001d844cef30cabebad1a88d4ea4e2c65b8845b0d1e8056f5a46d163076b",
+      "bytes": 139598,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/148b9a4e-c91f-4172-9b19-9ff632f07157/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/148b9a4e-c91f-4172-9b19-9ff632f07157/logo.png",
+      "sha256": "e5632f10db3974b15726c96f0daf36154e637bc4276757dc7f953e06c2be5122",
+      "bytes": 97240,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/2eaba9c5-973a-4fb7-b51c-d1262ec494b1/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/2eaba9c5-973a-4fb7-b51c-d1262ec494b1/logo.png",
+      "sha256": "2d35d6092794b386336001598232b085cab909d81754ce2da93f47ea7e8e2c0c",
+      "bytes": 83145,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/275a1299-dd43-4791-96f4-3531d4dcb7f8/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/275a1299-dd43-4791-96f4-3531d4dcb7f8/logo.png",
+      "sha256": "0e18251ceed4e23297f352446899c0f37717b84817a604f271f43724ee9db593",
+      "bytes": 25176,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/d6112500-8a5d-44c6-8a22-74b290b571f0/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d6112500-8a5d-44c6-8a22-74b290b571f0/logo.png",
+      "sha256": "369fde34f58532c2d8d89e8b98d5925706991344512c1fec5b868728a4e6d88c",
+      "bytes": 111350,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/9f7725e4-479b-4dff-ace5-1ee3b599c08c/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/9f7725e4-479b-4dff-ace5-1ee3b599c08c/logo.png",
+      "sha256": "654b97d370c31ab916d534626e3e885373a4d2873bb28355e5b178fb4482119d",
+      "bytes": 11573,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/fd14a523-1bcb-4782-a139-25e48dc4dcae/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/fd14a523-1bcb-4782-a139-25e48dc4dcae/logo.png",
+      "sha256": "68fe04ffd3a073f382dd79b2a765530023e7571e0b0fe4e2a6a1fda9046f7b26",
+      "bytes": 11702,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/1f322045-c9d2-4e9e-9c82-17ab57721eb2/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/1f322045-c9d2-4e9e-9c82-17ab57721eb2/logo.png",
+      "sha256": "4e21486dea174cb001c9a84973177e91bfcca183ced2622468263a4856b29153",
+      "bytes": 48228,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/ff05d51b-d28a-47d6-ab51-f3247cd9caac/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/ff05d51b-d28a-47d6-ab51-f3247cd9caac/logo.png",
+      "sha256": "4f47e9977a3fdb9c018f1c8bbcfcbf3da2104464a82515e4796c2477a106b88e",
+      "bytes": 38371,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/d8e198b9-8e74-4991-be47-16da650bd34c/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d8e198b9-8e74-4991-be47-16da650bd34c/logo.png",
+      "sha256": "3303d6ecaede411281b88fff27a10d6fe47932a4ea680022bff370656a41e966",
+      "bytes": 360219,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/ab94d719-785f-4878-8284-6e3b276179e3/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/ab94d719-785f-4878-8284-6e3b276179e3/logo.png",
+      "sha256": "3ac9d8a51d840dce257421b1816c1f3a77a95c375bbaf68645cd4dd59d544635",
+      "bytes": 186810,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/97b2851a-8a1e-4d7a-8a19-1a822b914b51/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/97b2851a-8a1e-4d7a-8a19-1a822b914b51/logo.png",
+      "sha256": "fe3d45d85e3bb95c8fc35d6fd243cf8fd4a5ae29428bfd59329f2d539a837793",
+      "bytes": 660095,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/85f7131f-7d9d-46d6-913f-738a31edbaf8/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/85f7131f-7d9d-46d6-913f-738a31edbaf8/logo.png",
+      "sha256": "20c94c15557d768f5f50ced791080c4cd79756d405fb9679c0e2120d5f08669c",
+      "bytes": 283699,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/88376954-190c-4456-960b-8b1635c634e2/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/88376954-190c-4456-960b-8b1635c634e2/logo.png",
+      "sha256": "fecadf8c9a921aa674d711ec44fee86defd8037e7e792b86806933b8c39def1d",
+      "bytes": 206447,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/logo.png",
+      "sha256": "4b505deacdea4dd85105088037f944f8cf4da5eb5173e34dfe4249c5614abb1b",
+      "bytes": 721250,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/5e2baba4-d85e-4cb8-beae-d4a431cb595e/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/5e2baba4-d85e-4cb8-beae-d4a431cb595e/logo.png",
+      "sha256": "91c5e65ffde2cf1b417adc3eab48bb36a6ebef85baf34b013f3851f474cd0fb6",
+      "bytes": 545964,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/8cdb5f65-c239-474b-8e1b-8ed480495b50/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/8cdb5f65-c239-474b-8e1b-8ed480495b50/logo.png",
+      "sha256": "d15fe66fb5e03fa243a6e9f9b8aec699e55e6f7ed204867c54ce381ad2b0d0a7",
+      "bytes": 340886,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/26a1bf3e-f867-45c7-a0cd-55856c41f406/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/26a1bf3e-f867-45c7-a0cd-55856c41f406/logo.png",
+      "sha256": "0809ec8d6133ff8e82d17968a213d137408d532e7abdf55816ae0b3e373b6849",
+      "bytes": 279547,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/logo.png",
+      "sha256": "00920f9a37d3497e8e4da20a810c6f2d1ec6b6c97794e2f48d1369fe0564f77d",
+      "bytes": 565695,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/logo.png",
+      "sha256": "6792869a8a5ab153386c077b877d9ebd087ccd2ebdd026afcf285f95cdb40674",
+      "bytes": 99754,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/7843665a-29e2-45fe-9e98-d7baa8cb3650/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/7843665a-29e2-45fe-9e98-d7baa8cb3650/logo.png",
+      "sha256": "6b22d6bb9f5a175e0fff3f3a53c78a0847602805672c7d2fd251ea68b772e6aa",
+      "bytes": 560830,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/89d23964-f3cd-4ca8-9e65-d15251e0b6a1/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/89d23964-f3cd-4ca8-9e65-d15251e0b6a1/logo.png",
+      "sha256": "1b9485fd3b8d7fa502ec0bcd5ee88f539204bc3a0fa3bd2a23758175872a226c",
+      "bytes": 154066,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/logo.png",
+      "sha256": "8d205646c27c0b587a14d56e8b1f85527fa0470f0719beca4622e636a6cdca9f",
+      "bytes": 774791,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/0eaee0db-2b13-4ff1-b795-1413470b974f/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/0eaee0db-2b13-4ff1-b795-1413470b974f/logo.png",
+      "sha256": "961b636f58ec1cb1f88d13a925e94a64a71391b8f1b02de1a8a33ce3dffcccd5",
+      "bytes": 36846,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/dcb2f15f-f653-469f-91e6-568cccc7ca2d/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/dcb2f15f-f653-469f-91e6-568cccc7ca2d/logo.png",
+      "sha256": "b2b2f1b0412607872efe5771d09335198bd3b49aeb0905867667c6cecc741d15",
+      "bytes": 267813,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/workshops/13a8fc1f-4a8d-415d-904a-6445d8abbc94/poster.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/13a8fc1f-4a8d-415d-904a-6445d8abbc94/logo.png",
+      "sha256": "0c3d6c211f38a9794240be5548e1bdda909fa70d2014adecce94b3d0a752b279",
+      "bytes": 372875,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/63e4c80d-c90e-4a3a-ba94-1d842678560d/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/logo.png",
+      "sha256": "4b505deacdea4dd85105088037f944f8cf4da5eb5173e34dfe4249c5614abb1b",
+      "bytes": 721250,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/fbdcd39c-83be-425e-af06-3777995d7c8b/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/13a8fc1f-4a8d-415d-904a-6445d8abbc94/logo.png",
+      "sha256": "0c3d6c211f38a9794240be5548e1bdda909fa70d2014adecce94b3d0a752b279",
+      "bytes": 372875,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/83cfa3eb-49f3-4fc1-a823-393fde735165/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/logo.png",
+      "sha256": "8d205646c27c0b587a14d56e8b1f85527fa0470f0719beca4622e636a6cdca9f",
+      "bytes": 774791,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/dad04cae-48bd-414f-82f1-3aed1269387c/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/logo.png",
+      "sha256": "4b505deacdea4dd85105088037f944f8cf4da5eb5173e34dfe4249c5614abb1b",
+      "bytes": 721250,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/fa0c5f36-49a9-49ad-80a7-4240ae421665/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/logo.png",
+      "sha256": "4b505deacdea4dd85105088037f944f8cf4da5eb5173e34dfe4249c5614abb1b",
+      "bytes": 721250,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/9355c475-c8a6-48e2-94a2-44818fb3ee2b/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/efdb07d8-5993-485e-94b3-7bd84dbca18a/logo.png",
+      "sha256": "492f57b7354847d7b56023ca74d6b879e43ae91a4b058061d0e8b51a1642b715",
+      "bytes": 79075,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/98be6c4d-fc38-4295-88e4-3485e471ed2c/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/logo.png",
+      "sha256": "4b505deacdea4dd85105088037f944f8cf4da5eb5173e34dfe4249c5614abb1b",
+      "bytes": 721250,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/d85db1b5-025d-4d07-80a1-4cfdb2ce1fec/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/26a1bf3e-f867-45c7-a0cd-55856c41f406/logo.png",
+      "sha256": "0809ec8d6133ff8e82d17968a213d137408d532e7abdf55816ae0b3e373b6849",
+      "bytes": 279547,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/a2037482-a40c-49a2-9f6c-512b8f8fd53d/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d6112500-8a5d-44c6-8a22-74b290b571f0/logo.png",
+      "sha256": "369fde34f58532c2d8d89e8b98d5925706991344512c1fec5b868728a4e6d88c",
+      "bytes": 111350,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/01210081-5587-43c8-947a-604238b9aebe/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/ab94d719-785f-4878-8284-6e3b276179e3/logo.png",
+      "sha256": "3ac9d8a51d840dce257421b1816c1f3a77a95c375bbaf68645cd4dd59d544635",
+      "bytes": 186810,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/d338b236-d24e-4c48-9946-720b7c874e05/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/logo.png",
+      "sha256": "8d205646c27c0b587a14d56e8b1f85527fa0470f0719beca4622e636a6cdca9f",
+      "bytes": 774791,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/05e7aef0-4c1a-4191-81d9-8ef471c231b4/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/efdb07d8-5993-485e-94b3-7bd84dbca18a/logo.png",
+      "sha256": "492f57b7354847d7b56023ca74d6b879e43ae91a4b058061d0e8b51a1642b715",
+      "bytes": 79075,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/c4c1b4fe-0fae-48f0-ac5c-81267158fb1a/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/efdb07d8-5993-485e-94b3-7bd84dbca18a/logo.png",
+      "sha256": "492f57b7354847d7b56023ca74d6b879e43ae91a4b058061d0e8b51a1642b715",
+      "bytes": 79075,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/49db0ef7-6ab7-4cbc-ab19-cc4d356ed5ef/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/logo.png",
+      "sha256": "8d205646c27c0b587a14d56e8b1f85527fa0470f0719beca4622e636a6cdca9f",
+      "bytes": 774791,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/f3f87670-6bba-464d-9af7-e482be25af78/28279468_10155415843332149_1013777799393309606_n[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/275a1299-dd43-4791-96f4-3531d4dcb7f8/28279468_10155415843332149_1013777799393309606_n[1].jpg",
+      "sha256": "f7ca6b50b15d4954ecefbd3180c511067bb2aed829d4486e17f1d2b8caed6701",
+      "bytes": 46556,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/fc0b6012-9844-455f-8660-da7f4e15b60d/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/0eaee0db-2b13-4ff1-b795-1413470b974f/logo.png",
+      "sha256": "961b636f58ec1cb1f88d13a925e94a64a71391b8f1b02de1a8a33ce3dffcccd5",
+      "bytes": 36846,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/3c692f38-be2f-40d2-90a1-74ecbb0d83b6/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d8e198b9-8e74-4991-be47-16da650bd34c/logo.png",
+      "sha256": "3303d6ecaede411281b88fff27a10d6fe47932a4ea680022bff370656a41e966",
+      "bytes": 360219,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/f54060a9-9f57-4c5f-8fac-b890f0a4eaa2/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/1f322045-c9d2-4e9e-9c82-17ab57721eb2/logo.png",
+      "sha256": "4e21486dea174cb001c9a84973177e91bfcca183ced2622468263a4856b29153",
+      "bytes": 48228,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/4a0cfd5a-4979-4914-9445-44da744fe43e/Cognitive Services.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/1f322045-c9d2-4e9e-9c82-17ab57721eb2/Cognitive Services.pdf",
+      "sha256": "0fcb2460cb5f0da901e4438a4fe6f02bc35a9f3901ade132ce1419998faa11ab",
+      "bytes": 7853947,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/1d47d5e1-45df-4672-bbcb-b79d18a3efa8/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/97b2851a-8a1e-4d7a-8a19-1a822b914b51/logo.png",
+      "sha256": "fe3d45d85e3bb95c8fc35d6fd243cf8fd4a5ae29428bfd59329f2d539a837793",
+      "bytes": 660095,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/ad6247ab-3315-4dec-954a-c5338048dd1e/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/9f7725e4-479b-4dff-ace5-1ee3b599c08c/logo.png",
+      "sha256": "654b97d370c31ab916d534626e3e885373a4d2873bb28355e5b178fb4482119d",
+      "bytes": 11573,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/f0f3caac-2dc3-4d4d-a91a-34ca05867fcd/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/c1887472-5e24-4923-9503-205439b2f447/logo.png",
+      "sha256": "edf4d954498f4af0669abd3ff966ca18029455424de3b56297c6264a304b46fd",
+      "bytes": 82579,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/47641c75-37f2-4d4b-96f7-606932c501bb/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/0d2b7baa-7032-41d4-823c-232df495f841/logo.png",
+      "sha256": "8e24d62bdfd0d4d6384d55c4053f25d04900b729e434857850993ef8ac6b2654",
+      "bytes": 97980,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/69a1b24c-b508-46c2-9d99-031a86b4b169/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/fd14a523-1bcb-4782-a139-25e48dc4dcae/logo.png",
+      "sha256": "68fe04ffd3a073f382dd79b2a765530023e7571e0b0fe4e2a6a1fda9046f7b26",
+      "bytes": 11702,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/246b01c0-1e1c-42b5-bfba-105e8033becb/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/57b37940-0607-42db-b0fa-2604e46c25f4/logo.png",
+      "sha256": "1bf5dd92eb6d57aa37197b5a8fab9f82e3235af0f30a7f142509856a71bd5560",
+      "bytes": 58440,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/ad713de5-2710-431d-b8cd-153b9025d1a9/Intro.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/Intro.pdf",
+      "sha256": "58d86636aa4ea20d865567b2a7d3cae7824bacc214873ab29097d7eba793a3fd",
+      "bytes": 842386,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/cfa74925-a352-48c0-8fe4-18a2b93e01a9/slide_merlin.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/slide_merlin.pdf",
+      "sha256": "186c3214027555db607056089ad9ad2a76eef7aff3fa6f7f73e2e5ad9062f957",
+      "bytes": 2512012,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/49572b28-40f9-4355-946a-ace727259855/Aspire9.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/Aspire9.pdf",
+      "sha256": "c0655efb3a086982d14462d26e38d89d4ec7c384f2781ce5ba0e0ee5ff61dff6",
+      "bytes": 832355,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/7f498788-0ab4-4860-923d-a64fe1dc0bf2/LeNovitaDiDotnet9-bis.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/LeNovitaDiDotnet9-bis.pdf",
+      "sha256": "2020af1cee2e8b63666cafd2624f244901db092d7585dadba6e396eef30fc054",
+      "bytes": 830135,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/2d4bec8d-bc72-483d-93bf-be172c8d126a/EFCore9.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/EFCore9.pdf",
+      "sha256": "384e25cf9311015bb341133b5a69d882895cce86697920c85eda36a64db6a210",
+      "bytes": 1045230,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/b7e65410-24c4-4cff-badb-f3f0926d3fee/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/28d22454-426b-42d3-aad8-2f92b6f010be/logo.png",
+      "sha256": "6792869a8a5ab153386c077b877d9ebd087ccd2ebdd026afcf285f95cdb40674",
+      "bytes": 99754,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/0f5be9f7-1efb-4ddd-a13d-f2ef1bbe7273/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/275a1299-dd43-4791-96f4-3531d4dcb7f8/logo.png",
+      "sha256": "0e18251ceed4e23297f352446899c0f37717b84817a604f271f43724ee9db593",
+      "bytes": 25176,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/2569de9b-10ea-45e9-b90c-18f8d60fd1ef/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/36abf553-6b14-46e3-b81a-3fa8292d1c55/logo.png",
+      "sha256": "8eef1e11e53f2c1e8ef8ea63b6fcedef139012242c55fa2e78c904b9ac23fdb1",
+      "bytes": 29450,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/a1c0b6bb-07f7-4230-acac-1b9c6dc9b20f/IntroduzioneANet10ECsharp14.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/IntroduzioneANet10ECsharp14.pdf",
+      "sha256": "2fd75ead52a0bcf6d388d6b4ddabecb664ec3b94af90af12367941935f65e710",
+      "bytes": 766687,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/8af47084-69d6-48da-a375-702544d2fcf4/20251212-dotnetconf-liguria-part-2.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/20251212-dotnetconf-liguria-part-2.pdf",
+      "sha256": "e780d0472bf1d49d33627b2b56e0ada8c24608b1a77df17b2f9562c6893c849d",
+      "bytes": 6385416,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/cd2664ca-4a8a-456f-b51e-ace3bdcf8639/Le novità in Visual Studio 2026.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/Le novità in Visual Studio 2026.pdf",
+      "sha256": "0184a4c9d9d9082b9808ba6a5f0f24f96c82a50db0be92abbcb911f7f5f4399d",
+      "bytes": 2467733,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/1f50e4a5-fc72-4bc7-a85b-8643f4712ddf/20251212-dotnetconf-liguria-part-1.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/20251212-dotnetconf-liguria-part-1.pdf",
+      "sha256": "f5afae952c2c295e02c102b96a6306123c6b6fdd0866cc994d326060a1486ef5",
+      "bytes": 5668359,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/5654bccf-fa7e-4a9c-aa18-fecd80537d52/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/logo.png",
+      "sha256": "8d205646c27c0b587a14d56e8b1f85527fa0470f0719beca4622e636a6cdca9f",
+      "bytes": 774791,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/272ebec8-a402-4224-823d-9b1038ed0d73/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/26a1bf3e-f867-45c7-a0cd-55856c41f406/logo.png",
+      "sha256": "0809ec8d6133ff8e82d17968a213d137408d532e7abdf55816ae0b3e373b6849",
+      "bytes": 279547,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/e72b2da9-a2ce-46f1-80e0-416e84492b3b/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/dcb2f15f-f653-469f-91e6-568cccc7ca2d/logo.png",
+      "sha256": "b2b2f1b0412607872efe5771d09335198bd3b49aeb0905867667c6cecc741d15",
+      "bytes": 267813,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/9465b962-cff7-451a-bf81-d5cbead70cf2/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/99bf031c-7768-4902-8efb-5b40dca38282/logo.png",
+      "sha256": "ac0f36ec9ea13b0fd86d7a40a10860a6f363b8229cab6ff89dbe04204274acdc",
+      "bytes": 18969,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/8f1541e4-92b4-4399-8868-495e75502870/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/13a8fc1f-4a8d-415d-904a-6445d8abbc94/logo.png",
+      "sha256": "0c3d6c211f38a9794240be5548e1bdda909fa70d2014adecce94b3d0a752b279",
+      "bytes": 372875,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/b7ac3037-28dd-4f4a-99d0-f2dfeeefec33/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/247b84e3-4d3a-4abc-9ba3-64918b0e24bf/logo.png",
+      "sha256": "4b505deacdea4dd85105088037f944f8cf4da5eb5173e34dfe4249c5614abb1b",
+      "bytes": 721250,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/3319080c-4c8e-4f5b-96a7-f1f87df4f890/Workshop 1 Anno 2022.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/ab94d719-785f-4878-8284-6e3b276179e3/Workshop 1 Anno 2022.png",
+      "sha256": "3ac9d8a51d840dce257421b1816c1f3a77a95c375bbaf68645cd4dd59d544635",
+      "bytes": 186810,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/955ce52b-f7df-4c4d-982c-686c8d2d81ac/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/ab94d719-785f-4878-8284-6e3b276179e3/logo.png",
+      "sha256": "3ac9d8a51d840dce257421b1816c1f3a77a95c375bbaf68645cd4dd59d544635",
+      "bytes": 186810,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/e0b951f9-fac0-4f59-8146-1e954e5c7d1d/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/85f7131f-7d9d-46d6-913f-738a31edbaf8/logo.png",
+      "sha256": "20c94c15557d768f5f50ced791080c4cd79756d405fb9679c0e2120d5f08669c",
+      "bytes": 283699,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/14bfd9a2-2dcd-4e9e-b47a-d52cb625b975/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d6112500-8a5d-44c6-8a22-74b290b571f0/logo.png",
+      "sha256": "369fde34f58532c2d8d89e8b98d5925706991344512c1fec5b868728a4e6d88c",
+      "bytes": 111350,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/d0ff7433-750a-4e86-ae91-b15b706f4190/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/efdb07d8-5993-485e-94b3-7bd84dbca18a/logo.png",
+      "sha256": "492f57b7354847d7b56023ca74d6b879e43ae91a4b058061d0e8b51a1642b715",
+      "bytes": 79075,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/19e6315b-3e06-4cc6-bd83-7fd29d10e0c7/CopilotPersonalizzato.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/CopilotPersonalizzato.pdf",
+      "sha256": "15b34eb1ba04efc20d0bca3b9f31bc8f7e03d9f9cf7888992867192a6f538de2",
+      "bytes": 1028358,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/807926c8-6d86-44c4-b2d0-4a3d34641c38/CapireEUtilizzareAlMeglioIModelliGPT.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/CapireEUtilizzareAlMeglioIModelliGPT.pdf",
+      "sha256": "4929640ed1efdac0e75f4e1e66811d2db34a3d56087987cf84bcb27b51201be8",
+      "bytes": 1656968,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/fc24cf76-ca1e-42c0-a667-62bb7f00b833/Intro.pdf",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/Intro.pdf",
+      "sha256": "3cc5e805521fbb334f02ca90695b0ff01887c16b375f05ebdab690104e0d05f9",
+      "bytes": 925445,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/1cc198bd-9e93-4592-a7ec-62bda79bd9c4/DotnetLiguria_08112024.pptx",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/DotnetLiguria_08112024.pptx",
+      "sha256": "729bd38e928ac229173cd27defcc66fa51b18d977369cefff6f9b167d32a7ef8",
+      "bytes": 782447,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/f589a440-7676-4251-bf0b-62f15de50fd6/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/bd1f5a72-2d02-4125-b550-7c8fe34abe88/logo.png",
+      "sha256": "00920f9a37d3497e8e4da20a810c6f2d1ec6b6c97794e2f48d1369fe0564f77d",
+      "bytes": 565695,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/05b70b44-450d-4865-8662-37256c99bc25/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/96869722-9aa7-4ef6-be1b-7d6139b0a37f/logo.png",
+      "sha256": "52d76f73d4a11ca7f9c0e234fad1fb824dce955df934cbb77cbda2b739ab6f90",
+      "bytes": 227292,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/bbbec624-8a52-446a-8c0c-09c96aac906e/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/a1fdfa6a-1607-45d5-92a6-8263e344afa7/logo.png",
+      "sha256": "5632f255f0f6225210987b1238b7e7fc78ae37892b419a6ca45c18097091b6d6",
+      "bytes": 11244,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/f2657f84-0151-464a-8d4e-5e337de1ce62/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/88376954-190c-4456-960b-8b1635c634e2/logo.png",
+      "sha256": "fecadf8c9a921aa674d711ec44fee86defd8037e7e792b86806933b8c39def1d",
+      "bytes": 206447,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/9d4e1d1b-0c7e-4c4d-a321-0df104c4077c/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/8cdb5f65-c239-474b-8e1b-8ed480495b50/logo.png",
+      "sha256": "d15fe66fb5e03fa243a6e9f9b8aec699e55e6f7ed204867c54ce381ad2b0d0a7",
+      "bytes": 340886,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/77d96fd0-ad51-413d-abb8-a41018fb073f/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/8fcac0da-44e0-44cc-9261-9ee3621e53e9/logo.png",
+      "sha256": "a4c2924926d69049eefa55888c493ea12d2e928bb71ba5d71bd9c4cad77687fa",
+      "bytes": 62887,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/73473347-b6a5-40d9-a81f-c66eebbc35b7/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/148b9a4e-c91f-4172-9b19-9ff632f07157/logo.png",
+      "sha256": "e5632f10db3974b15726c96f0daf36154e637bc4276757dc7f953e06c2be5122",
+      "bytes": 97240,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/3be4ddaf-5e54-494f-acbb-dfa6303e0b5a/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/10a15e32-8206-431b-9bbb-bb5ebf952aa8/logo.png",
+      "sha256": "62437d9351d9ee80df851cfdbfb0503f9e753137d3a6c94f5b5dcd3d533b4885",
+      "bytes": 45537,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/6c26729a-4b02-4bbf-b2d5-d7560ebe30dc/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/2aead87a-4320-45d1-9376-bdae2e38973c/logo.png",
+      "sha256": "ac9a379447fc6f568a3a6e909b02efb06f7ab4eedbae72a6ceb87d717c8c8135",
+      "bytes": 101833,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/22810b9e-211b-4d27-adca-58b79ea26a16/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/93a89b68-0651-4c4c-9343-c4eb9d114896/logo.png",
+      "sha256": "b12b03096550d1d43c8235af2f6c3e63ac57aa21a9ed1f48ef96982972a260e1",
+      "bytes": 4424,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/eddad428-a385-4c11-93c2-d3c4141e09ee/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/1c642730-ba30-4195-b6dc-c557bb7284d0/logo.png",
+      "sha256": "3024001d844cef30cabebad1a88d4ea4e2c65b8845b0d1e8056f5a46d163076b",
+      "bytes": 139598,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/cb4116c2-0174-4fd1-88ad-fdb050832f80/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/2eaba9c5-973a-4fb7-b51c-d1262ec494b1/logo.png",
+      "sha256": "2d35d6092794b386336001598232b085cab909d81754ce2da93f47ea7e8e2c0c",
+      "bytes": 83145,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/2ad04576-2715-4285-8703-98c4610604f1/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/89d23964-f3cd-4ca8-9e65-d15251e0b6a1/logo.png",
+      "sha256": "1b9485fd3b8d7fa502ec0bcd5ee88f539204bc3a0fa3bd2a23758175872a226c",
+      "bytes": 154066,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/a4e59dcb-843a-48f8-af2e-68e583cf0894/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/5e2baba4-d85e-4cb8-beae-d4a431cb595e/logo.png",
+      "sha256": "91c5e65ffde2cf1b417adc3eab48bb36a6ebef85baf34b013f3851f474cd0fb6",
+      "bytes": 545964,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/c37d80ec-f64e-4747-9d09-9ab66739fac3/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/7843665a-29e2-45fe-9e98-d7baa8cb3650/logo.png",
+      "sha256": "6b22d6bb9f5a175e0fff3f3a53c78a0847602805672c7d2fd251ea68b772e6aa",
+      "bytes": 560830,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/6ef8b282-1b9b-4db9-a568-ee7d3fed2386/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d47bb696-4dd1-4c6a-9f40-eba84257fa2c/logo.png",
+      "sha256": "916028afeba3b6c3b8d30aef403d170fbbab6767bf9f6b629c706fabb4628ff4",
+      "bytes": 354527,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/faf77bc3-667e-4bb9-814f-1fe9aab1e51c/Windows 10 per IoT.ppsx",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/d47bb696-4dd1-4c6a-9f40-eba84257fa2c/Windows 10 per IoT.ppsx",
+      "sha256": "464d8caa2e685d8dc5c1afaa5125cc07a42de2ffc20b7029de95f2ab86d996ab",
+      "bytes": 4895308,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/70df8c17-4224-4de9-90b8-31018ef9f3f2/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/af37706a-0be1-497e-9c27-f1bad19f5aeb/logo.png",
+      "sha256": "c17c4928266ad0004973c1a78554f2406f1fe0c8789edd9c533e461d01571a56",
+      "bytes": 75733,
+      "checkedOn": "2026-10-22"
+    },
+    {
+      "path": "imported/files/6ae5ff03-637b-474a-b6cc-5d08d7e9d821/logo.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/workshops/ff05d51b-d28a-47d6-ab51-f3247cd9caac/logo.png",
+      "sha256": "4f47e9977a3fdb9c018f1c8bbcfcbf3da2104464a82515e4796c2477a106b88e",
+      "bytes": 38371,
+      "checkedOn": "2026-10-22"
+    }
+  ],
+  "unavailableMedia": [
+    {
+      "fileId": "39dfac03-e0ce-4b8b-80c8-2c40ac2591c3",
+      "sourcePath": "/Uploads/workshops/af37706a-0be1-497e-9c27-f1bad19f5aeb/IMG_20140225_081831.jpg",
+      "localPath": "workshops/workshop015/photos/IMG_20140225_081831.jpg",
+      "onlineStatus": 404
+    },
+    {
+      "fileId": "21611d89-02c7-4acb-9366-a0bd72a99995",
+      "sourcePath": "/Uploads/workshops/399be155-60a5-4787-9ea6-3ea8be704dd0/Anotnio-Conte.png",
+      "localPath": "workshops/workshop013/photos/Anotnio-Conte.png",
+      "onlineStatus": 404
+    },
+    {
+      "fileId": "a88af96d-13d4-46cd-a47c-d474e0de380e",
+      "sourcePath": "/Uploads/workshops/af37706a-0be1-497e-9c27-f1bad19f5aeb/avatar.jpg",
+      "localPath": "workshops/workshop015/other/avatar.jpg",
+      "onlineStatus": 404
+    },
+    {
+      "fileId": "1dbb5061-229c-45cf-bdb7-f181ffbdd1e1",
+      "sourcePath": "/Uploads/workshops/168f890d-1d05-4d95-9b2e-47d3f25634a9/20251212-dotnetconf-liguria-part-1[1].pdf",
+      "localPath": "workshops/workshop041/tracks/20251212-dotnetconf-liguria-part-1[1].pdf",
+      "onlineStatus": 404
+    }
+  ],
+  "externalPosters": [
+    {
+      "workshopId": "1f897fb5-4870-4769-a2d7-c2149049793a",
+      "sourceUrl": "http://www.plaffo.com/wp/wp-content/uploads/2012/09/MDC.png",
+      "retainedImage": "/workshops/workshop008/workshop.png"
+    },
+    {
+      "workshopId": "d4a675b7-e631-4201-a55e-8778e2d8edf2",
+      "sourceUrl": "http://www.w3.org/html/logo/downloads/HTML5_Badge_512.png",
+      "retainedImage": "/workshops/workshop009/workshop.png"
+    },
+    {
+      "workshopId": "96915916-61ef-4a96-aaa9-dcd6a6670a6c",
+      "sourceUrl": "https://miapple.me/wp-content/uploads/2013/07/Windows-8.1-Logo.jpg",
+      "retainedImage": "/workshops/workshop010/workshop.png"
+    },
+    {
+      "workshopId": "399be155-60a5-4787-9ea6-3ea8be704dd0",
+      "sourceUrl": "http://www.ordineingegneri.genova.it/images/leonardo.png",
+      "retainedImage": "/workshops/workshop013/workshop.png"
+    }
+  ],
+  "eventIndex": {
+    "yearPages": 15,
+    "onlineEventIds": 41,
+    "exportEventIds": 44,
+    "onlineAbsentFromExport": [],
+    "exportAbsentFromIndex": [
+      "c1887472-5e24-4923-9503-205439b2f447",
+      "d8e198b9-8e74-4991-be47-16da650bd34c",
+      "ff05d51b-d28a-47d6-ab51-f3247cd9caac"
+    ]
+  }
+}

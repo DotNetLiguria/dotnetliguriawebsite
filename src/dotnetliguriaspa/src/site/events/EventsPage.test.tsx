@@ -65,6 +65,27 @@ describe('<EventsPage />', () => {
     expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute('href', `${window.location.origin}/workshops`);
   });
 
+  test('steps through the timeline and disables navigation at either end', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    mockApi({ '/Workshop/Get?onlyPublished=true': LIST });
+    renderAt();
+    const next = await screen.findByRole('button', { name: 'Successivo' });
+    const previous = screen.getByRole('button', { name: 'Precedente' });
+    expect(previous).toBeDisabled();
+    await user.click(next);
+    expect(yearHeadings()).toEqual(['2025']);
+    expect(screen.getByRole('radio', { name: '2025' })).toHaveAttribute('aria-checked', 'true');
+    await user.click(next);
+    await user.click(next);
+    expect(yearHeadings()).toEqual(['2023']);
+    expect(next).toBeDisabled();
+    await user.click(previous);
+    expect(screen.getByLabelText('query')).toHaveTextContent('?anno=2024');
+    await user.click(screen.getByRole('radio', { name: 'Tutti gli anni' }));
+    expect(previous).toBeDisabled();
+    expect(next).toBeEnabled();
+  });
+
   test.each(['02024', '2024.0', ' 2024'])('treats the non-normalised year %j as the whole archive, not as a duplicate 2024 page', async value => {
     mockApi({ '/Workshop/Get?onlyPublished=true': LIST });
     renderAt(`/workshops?anno=${encodeURIComponent(value)}`);
