@@ -2,6 +2,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS base
 WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8080
 EXPOSE 8080
+EXPOSE 8443
 
 FROM node:24.21.0-alpine AS frontend
 WORKDIR /spa
