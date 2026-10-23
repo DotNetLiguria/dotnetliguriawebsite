@@ -105,12 +105,17 @@ public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironmen
         var slug = Regex.Replace(name.ToLowerInvariant().Normalize(NormalizationForm.FormD), "[\u0300-\u036f]", "");
         slug = Regex.Replace(slug, "[^a-z0-9]+", "_").Trim('_');
         if (slug.Length == 0) return null;
-        foreach (var folder in new[] { "speakers", "profile" })
-            foreach (var extension in new[] { "jpg", "png" })
-            {
-                var url = $"/Contents/{folder}/{slug}.{extension}";
-                if (IsUsableLegacyUrl(url)) return url;
-            }
+        // Board portraits use hyphens; older speaker portraits use underscores.
+        // Prefer the profile portrait when a legacy speaker URL is no longer usable.
+        foreach (var folder in new[] { "profile", "speakers" })
+            foreach (var fileName in folder == "profile"
+                ? new[] { slug.Replace('_', '-'), slug }.Distinct()
+                : new[] { slug, slug.Replace('_', '-') }.Distinct())
+                foreach (var extension in new[] { "jpg", "png" })
+                {
+                    var url = $"/Contents/{folder}/{fileName}.{extension}";
+                    if (IsUsableLegacyUrl(url)) return url;
+                }
         return null;
     }
 
@@ -119,12 +124,32 @@ public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironmen
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
             uri.Scheme is "https" or "http")
             return string.IsNullOrEmpty(uri.UserInfo) && !string.IsNullOrWhiteSpace(uri.Host);
+        return LocalLegacyPath(value) is not null;
+    }
+
+    public string? LegacyFileHash(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var path = LocalLegacyPath(value);
+        if (path is null) return null;
+        using var input = File.OpenRead(path);
+        return Convert.ToHexStringLower(SHA256.HashData(input));
+    }
+
+    public string? VersionedLegacyUrl(string? value)
+    {
+        var hash = LegacyFileHash(value);
+        return hash is null ? value : $"{value}?v={hash}";
+    }
+
+    private string? LocalLegacyPath(string value)
+    {
         if (value.Contains('\\') || value.Contains('?') || value.Contains('#') || value.Contains(':') ||
-            value.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return false;
+            value.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return null;
         var relative = value.StartsWith("/Contents/", StringComparison.Ordinal) ? value[10..] : value.TrimStart('/');
         var contents = Path.Combine(_contentRoot, "Contents");
         var path = Path.GetFullPath(Path.Combine(contents, relative.Replace('/', Path.DirectorySeparatorChar)));
         return PrivacyStoragePaths.IsWithin(path, contents) && File.Exists(path) &&
-            Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif";
+            Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" ? path : null;
     }
 }

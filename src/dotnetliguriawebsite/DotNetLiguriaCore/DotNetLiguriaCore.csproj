@@ -39,6 +39,7 @@
       <Content Include="Contents\speakers\alberto_baroni.jpg" />
       <Content Include="Contents\speakers\alessandro_del_sole.jpg" />
       <Content Include="Contents\speakers\alessandro_gambaro.jpg" />
+      <Content Include="Contents\speakers\alessandro_melchiori.jpg" />
       <Content Include="Contents\speakers\alessio_gogna.jpg" />
       <Content Include="Contents\speakers\andrea_belloni.png" />
       <Content Include="Contents\speakers\andrea_merlin.jpg" />
@@ -47,6 +48,7 @@
       <Content Include="Contents\speakers\erica_barone.jpg" />
       <Content Include="Contents\speakers\gianluca_bertelli.png" />
       <Content Include="Contents\speakers\gianluca_hotz.jpg" />
+      <Content Include="Contents\speakers\guido_noceti.jpg" />
       <Content Include="Contents\speakers\marco_dal_pino.jpg" />
       <Content Include="Contents\speakers\marco_d_alessandro.jpg" />
       <Content Include="Contents\speakers\marco_minerva.jpg" />
@@ -440,6 +442,11 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Content Update="Contents\speakers\**\*;Contents\profile\**\*">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </Content>
       <Content Include="Contents\newsletters\**\*">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

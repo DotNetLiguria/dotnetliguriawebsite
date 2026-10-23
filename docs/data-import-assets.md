@@ -1,5 +1,44 @@
 # Online media verification — 2026-10-22
 
+## Speaker portrait provenance audit — 2026-10-23
+
+The SQL export correctly assigns `/Uploads/speakers/3516c39[1].jpg` to Alberto
+Baroni and `/Uploads/speakers/0334a91[1].jpg` to Andrea Sassetti. Commit
+`0af1da7c085baf24cf3635c87ed4f9a104cb679f` (2026-01-10) copied these files to
+the opposite named speaker destinations. Later moves preserved those exact bytes.
+The October 22 record comparison checked the original URL fields but did not
+verify these renamed portrait files. Name-based fallback exposed the swapped
+assets; preferring Board portraits only masked the defect.
+
+The new audit fetched the 20 nonempty exported speaker image URLs: 19 returned
+images and one returned 404. Of the 17 matching named portraits already shipped,
+15 exactly matched the live originals and two were the reciprocal swap above.
+Those two named files now contain the correct original bytes. Alessandro
+Melchiori's missing portrait and Guido Noceti's missing source placeholder are
+also shipped under their matching names. No database writes were performed.
+
+`DataMigration/json/speakerAssetSources.json` binds all 19 available images to
+the source speaker ID, name, original path, online URL, destination and SHA256.
+`scripts/verify-speaker-assets.ps1` checks these bindings and file hashes in the
+shared gate, local import helper and publish verification. The importer performs
+its own validation before database access and uses the verified destination
+instead of leaving a non-served legacy URL in `ProfileImageUrl`.
+
+The expanded publish check also exposed missing publish-copy metadata on the
+portrait content items. Both `Contents/profile` and `Contents/speakers` now copy
+to build/publish output, and publish verification checks every file in both
+folders against its source bytes, in addition to the 19 online-verified mappings.
+
+Andrea Baresi's `/Uploads/speakers/download.jpg` returns 404. The other 15 speaker
+records have no source photo URL. The importer maps these to a null image URL;
+independent managed photo choices remain unchanged.
+All 44 original event pages were rechecked with zero differences in the fields
+covered by the prior event audit. Rechecking the saved October 22 database
+snapshot still matched 2,753 source/mapping values; this was not a new live
+database audit and does not certify all fields or all media.
+
+The older event-media audit and its limitations follow below.
+
 The live website supplied 40 original event posters and recovered 71 of the
 75 initially missing exported file references. All 111 new files are stored
 under Contents/imported with ID-based paths; their source URLs and SHA256 hashes

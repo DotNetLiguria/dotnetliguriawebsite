@@ -41,11 +41,11 @@ public sealed class PhotoService(IPhotoStore store, PhotoStorage storage)
         {
             var photo = await ResolveAsync(source, token);
             if (photo.Url is not null)
-                candidates.Add(new(source.Key, Label(source), photo.Url,
+                candidates.Add(new(source.Key, Label(source), _storage.VersionedLegacyUrl(photo.Url),
                     photo.AssetId is null ? null : $"{BasePath(target)}/image/128?existingKey={Uri.EscapeDataString(source.Key)}&v={photo.AssetId:N}",
                     await EffectiveVersionAsync(source, token)));
         }
-        return new(selection?.Version ?? "legacy", selection?.Source ?? "legacy", resolved.Url,
+        return new(selection?.Version ?? "legacy", selection?.Source ?? "legacy", _storage.VersionedLegacyUrl(resolved.Url),
             resolved.AssetId is null ? null : $"{BasePath(target)}/image/512?v={resolved.AssetId:N}",
             target.Account is not null, candidates, (await AffectedBoardsAsync(target, token)).Select(x => x.Name).ToArray());
     }
@@ -200,8 +200,9 @@ public sealed class PhotoService(IPhotoStore store, PhotoStorage storage)
             if (permissions.Contains("board.read"))
                 candidates = candidates.Concat((await _store.BoardTargetsAsync(token)).Where(x => MatchesPerson(target, x)));
         }
-        if (target.Key.StartsWith("board:", StringComparison.Ordinal))
-            candidates = candidates.Where(x => !x.Key.StartsWith("speaker:", StringComparison.Ordinal) || MatchesPerson(target, x));
+        // Account linkage alone does not establish a matching editorial identity.
+        // Apply the same rule to related profiles, discovery, preview and copy.
+        candidates = candidates.Where(x => x.Key.StartsWith("account:", StringComparison.Ordinal) || MatchesPerson(target, x));
         return candidates.Where(x => x.Key != target.Key).DistinctBy(x => x.Key).ToArray();
     }
     private static bool MatchesPerson(PhotoTarget board, PhotoTarget speaker)
@@ -246,6 +247,8 @@ public sealed class PhotoService(IPhotoStore store, PhotoStorage storage)
         var version = selection?.Version ?? "legacy";
         if (selection?.Source == "account" && target.Account is not null)
             version += ":" + ((await _store.SelectionAsync(PhotoTarget.AccountKey(target.Account), token))?.Version ?? "legacy");
+        var fileHash = _storage.LegacyFileHash((await ResolveAsync(target, token)).Url);
+        if (fileHash is not null) version += ":file:" + fileHash;
         return version;
     }
     private static string Label(PhotoTarget target) => target.Key.StartsWith("account:", StringComparison.Ordinal)

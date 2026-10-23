@@ -42,6 +42,18 @@ try {
     $dist = Join-Path $root 'src/dotnetliguriaspa/dist'
     $website = Join-Path $output 'website'
     Assert-NoPrivateArtifacts $website
+    & (Join-Path $PSScriptRoot 'verify-speaker-assets.ps1') -ContentRoot (Join-Path $website 'Contents') -ManifestPath (Join-Path $output 'dataMigration/json/speakerAssetSources.json') -SpeakerExportPath (Join-Path $output 'dataMigration/json/workshopSpeakers.json')
+    $portraitRoot = Join-Path $root 'src/dotnetliguriawebsite/DotNetLiguriaCore/Contents'
+    $portraits = @(foreach ($folder in @('profile', 'speakers')) { Get-ChildItem (Join-Path $portraitRoot $folder) -File -Recurse })
+    foreach ($portrait in $portraits) {
+        $relative = [IO.Path]::GetRelativePath($portraitRoot, $portrait.FullName)
+        $publishedPortrait = Join-Path $website "Contents/$relative"
+        if (!(Test-Path -LiteralPath $publishedPortrait -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $publishedPortrait).Hash -ne (Get-FileHash -LiteralPath $portrait.FullName).Hash) {
+            throw "Published portrait missing or changed: $relative"
+        }
+    }
+    Write-Host "$($portraits.Count) profile/speaker portrait files match the published website."
     $assets = @(Get-ChildItem $dist -File -Recurse)
     if (!$assets.Count -or !(Test-Path "$dist/index.html")) { throw 'Missing Vite output' }
     foreach ($asset in $assets) {

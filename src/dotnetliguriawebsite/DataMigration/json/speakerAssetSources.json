@@ -1,0 +1,186 @@
+{
+  "checkedOn": "2026-10-23",
+  "sourceSite": "https://www.dotnetliguria.net",
+  "verifiedAssets": [
+    {
+      "speakerId": "5e65b5e5-08c7-488f-9185-58c7652dd821",
+      "name": "Alberto Baroni",
+      "sourcePath": "/Uploads/speakers/3516c39[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/3516c39%5B1%5D.jpg",
+      "path": "speakers/alberto_baroni.jpg",
+      "sha256": "cca461ce4fdcd7e8cfd3cb089396d882789a83d099e484e8b4107b8156bd0a4e",
+      "bytes": 8364
+    },
+    {
+      "speakerId": "816ee9ea-2c0e-4eaf-a114-148ea42d4507",
+      "name": "Alessandro Del Sole",
+      "sourcePath": "/Uploads/speakers/41UKfIjBjOL._UX250_[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/41UKfIjBjOL._UX250_%5B1%5D.jpg",
+      "path": "speakers/alessandro_del_sole.jpg",
+      "sha256": "4bcefb3d527b7a82fdeca43e66b271d7f72ea9ea5140ed6a57fa01945efff9d1",
+      "bytes": 15595
+    },
+    {
+      "speakerId": "6f3d049f-358e-4653-bae0-0785a60442b2",
+      "name": "Alessandro Gambaro",
+      "sourcePath": "/Uploads/speakers/AAEAAQAAAAAAAAe0AAAAJDU1ZjhkZTY5LTMwODktNGVmMy04ZjdiLTdlNjRkYjRjZDViZQ[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/AAEAAQAAAAAAAAe0AAAAJDU1ZjhkZTY5LTMwODktNGVmMy04ZjdiLTdlNjRkYjRjZDViZQ%5B1%5D.jpg",
+      "path": "speakers/alessandro_gambaro.jpg",
+      "sha256": "0ecb9c30f3aab27556864cb6f8683bf4e4015dc407ef2cd78d1a86799ac68601",
+      "bytes": 9798
+    },
+    {
+      "speakerId": "f12a3500-57fb-42d7-ad25-a1603c8a1f12",
+      "name": "Alessandro Melchiori",
+      "sourcePath": "/Uploads/speakers/f21e909a1ffb3b4fa0c10f5b4745a1e1_400x400[1].jpeg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/f21e909a1ffb3b4fa0c10f5b4745a1e1_400x400%5B1%5D.jpeg",
+      "path": "speakers/alessandro_melchiori.jpg",
+      "sha256": "dc67e2c9aa2847957de728e6fb0debe51a04fb8dc4441b5acb866a29f4123885",
+      "bytes": 31713
+    },
+    {
+      "speakerId": "6ba9932e-df58-4810-bfd8-6ad490aa9b56",
+      "name": "Alessio Gogna",
+      "sourcePath": "/Uploads/speakers/_XNLjgXu_400x400[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/_XNLjgXu_400x400%5B1%5D.jpg",
+      "path": "speakers/alessio_gogna.jpg",
+      "sha256": "8d488eeb102abcdef3a76051ebd309545145ebf499ac8f42c8f30f2a5c1a33b3",
+      "bytes": 13268
+    },
+    {
+      "speakerId": "8ba0441a-3124-4f03-99e6-6f3b5ba76f89",
+      "name": "Andrea Belloni",
+      "sourcePath": "/Uploads/speakers/andreabelloni[1].PNG",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/andreabelloni%5B1%5D.PNG",
+      "path": "speakers/andrea_belloni.png",
+      "sha256": "e938af220df857155f0452818d969ba2dbd405579f23aa0fa9b916b890c05e12",
+      "bytes": 172007
+    },
+    {
+      "speakerId": "75f4df8a-5405-4476-9175-4bbd84a9642c",
+      "name": "Andrea Merlin",
+      "sourcePath": "/Uploads/speakers/merlin.JPG",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/merlin.JPG",
+      "path": "speakers/andrea_merlin.jpg",
+      "sha256": "6c5e0daaf4d5ac7c3adecf06199480ea3681f08cc19d909e7ff5480de4a07409",
+      "bytes": 24860
+    },
+    {
+      "speakerId": "2194e596-73a8-4b2f-bd68-4655b6afa8ce",
+      "name": "Andrea Sassetti",
+      "sourcePath": "/Uploads/speakers/0334a91[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/0334a91%5B1%5D.jpg",
+      "path": "speakers/andrea_sassetti.jpg",
+      "sha256": "1aa9f384fde9fccfd37f4f01d5763f74ecda0a7260aeeb741a049d7ae72917a4",
+      "bytes": 7025
+    },
+    {
+      "speakerId": "5b893948-5fbf-46a1-bd24-2abe2f6bbe8b",
+      "name": "Claudio Masieri",
+      "sourcePath": "/Uploads/speakers/photo[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/photo%5B1%5D.jpg",
+      "path": "speakers/claudio_masieri.jpg",
+      "sha256": "4bf8a45af96b9b62bd87a70db48804fb73f5ed053e52ab4139d686ad867e7610",
+      "bytes": 42735
+    },
+    {
+      "speakerId": "b69a22ff-1647-4b5f-a910-7b5360d6d883",
+      "name": "Erica Barone",
+      "sourcePath": "/Uploads/speakers/3000ddc[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/3000ddc%5B1%5D.jpg",
+      "path": "speakers/erica_barone.jpg",
+      "sha256": "4bb2bbf338e804dbc3cc96eff9ec9f20fa23dbc7fd3f0972f9e2dc0eb99dde26",
+      "bytes": 7774
+    },
+    {
+      "speakerId": "5babc702-3106-4199-bf12-80957d54ef10",
+      "name": "Gianluca Bertelli",
+      "sourcePath": "/Uploads/speakers/gibert[1].png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/gibert%5B1%5D.png",
+      "path": "speakers/gianluca_bertelli.png",
+      "sha256": "5d02a31907c1610e16213d0917d77b076cb33d09c67b8494e8c4907f17005a02",
+      "bytes": 44280
+    },
+    {
+      "speakerId": "66c3b4af-bf22-40f5-a46b-6d5ff3eaff5b",
+      "name": "Gianluca Hotz",
+      "sourcePath": "/Uploads/speakers/hotz.jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/hotz.jpg",
+      "path": "speakers/gianluca_hotz.jpg",
+      "sha256": "589634904064857b3aa6166689edac9d8e94df64d927f9495b03c5950040fa87",
+      "bytes": 7149
+    },
+    {
+      "speakerId": "c76bcd92-559d-4d66-8e99-4332852b7709",
+      "name": "Guido Noceti",
+      "sourcePath": "/Uploads/speakers/unknown-person[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/unknown-person%5B1%5D.jpg",
+      "path": "speakers/guido_noceti.jpg",
+      "sha256": "7d2d9f10b64a5d914cd17d044ebed4d8c1efd77794e2b16d4f988f794c20fba4",
+      "bytes": 4745
+    },
+    {
+      "speakerId": "d2b09dd9-f51a-4c9d-aca7-78cf7a4f778b",
+      "name": "Marco Dal Pino",
+      "sourcePath": "/Uploads/speakers/AAEAAQAAAAAAAAfFAAAAJDg2MTA4MGRkLWIwOTAtNDM5MC1hZGJkLWQ5Njc0NTQ3MjAwZg[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/AAEAAQAAAAAAAAfFAAAAJDg2MTA4MGRkLWIwOTAtNDM5MC1hZGJkLWQ5Njc0NTQ3MjAwZg%5B1%5D.jpg",
+      "path": "speakers/marco_dal_pino.jpg",
+      "sha256": "e01d9da15c31d2d27bf1d174135ca68b3131bd966b503874a4367a5b69a22aa9",
+      "bytes": 10756
+    },
+    {
+      "speakerId": "b9bb93f4-206e-493b-8c81-fd1ab8744617",
+      "name": "Marco D'Alessandro",
+      "sourcePath": "/Uploads/speakers/2509480_big[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/2509480_big%5B1%5D.jpg",
+      "path": "speakers/marco_d_alessandro.jpg",
+      "sha256": "1c09c45079ca31384ff2d16c71aff77bf9647cab796a40bcd4190eb72d565b82",
+      "bytes": 13094
+    },
+    {
+      "speakerId": "b0fe21e2-c407-412f-aed0-c8374139c3bc",
+      "name": "Marco Minerva",
+      "sourcePath": "/Uploads/speakers/1cefe7d[1].jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/1cefe7d%5B1%5D.jpg",
+      "path": "speakers/marco_minerva.jpg",
+      "sha256": "1818c54b03d356526a6e155e414c7ede3e8a7816f1565fd7441dd500e00fbb3a",
+      "bytes": 9798
+    },
+    {
+      "speakerId": "abcfb5f0-927c-4733-ae8c-3401f0ee73a3",
+      "name": "Mauro Servienti",
+      "sourcePath": "/Uploads/speakers/MauroServienti[1].png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/MauroServienti%5B1%5D.png",
+      "path": "speakers/mauro_servienti.png",
+      "sha256": "732883ed2e6899f8b9594623f537674432bd26105e1242774d561c12b6b74d93",
+      "bytes": 68559
+    },
+    {
+      "speakerId": "c9e6e058-3a50-475f-a6d7-7df072b8e535",
+      "name": "Raffaele Rialdi",
+      "sourcePath": "/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400[1].png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/117f4781-1c5f-49af-853c-1f577139e632_400x400%5B1%5D.png",
+      "path": "speakers/raffaele_rialdi.png",
+      "sha256": "8e697a84fcd13f196a0457b6784f960ac3910c2deecba35d8f3cdda8d767293f",
+      "bytes": 257714
+    },
+    {
+      "speakerId": "492b1659-0c8d-46ab-b9aa-e1e77d7a9098",
+      "name": "Riccardo Cappello",
+      "sourcePath": "/Uploads/speakers/capello.jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/capello.jpg",
+      "path": "speakers/riccardo_cappello.jpg",
+      "sha256": "ff84bc21cb60fb801e5a2dafed612dd094c18629047b7ce74ea0c56f2d425cae",
+      "bytes": 4684
+    }
+  ],
+  "unavailableMedia": [
+    {
+      "speakerId": "7153a9df-6ddd-4b22-b020-f7fc40b9136b",
+      "name": "Andrea Baresi",
+      "sourcePath": "/Uploads/speakers/download.jpg",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/download.jpg",
+      "httpStatus": 404
+    }
+  ]
+}

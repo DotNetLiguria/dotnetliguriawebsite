@@ -34,7 +34,10 @@ internal class Program
             return;
         }
 
-        ImportJsonIntoMongo(options, args.Contains("--update-existing"), args.Contains("--dry-run"), args.Contains("--repair-asset-folders"));
+        var contentRootIndex = Array.FindIndex(args, value => value.Equals("--content-root", StringComparison.OrdinalIgnoreCase));
+        if (contentRootIndex < 0 || contentRootIndex + 1 >= args.Length || args[contentRootIndex + 1].StartsWith("--"))
+            throw new InvalidOperationException("JSON import requires --content-root <website Contents directory> to verify speaker media before database access.");
+        ImportJsonIntoMongo(options, args.Contains("--update-existing"), args.Contains("--dry-run"), args.Contains("--repair-asset-folders"), args[contentRootIndex + 1]);
     }
 
     private static void ReadFromSql(JsonSerializerOptions options)
@@ -110,7 +113,7 @@ internal class Program
         File.WriteAllText(Path.Combine(destinationJsonPath, "workshopFiles.json"), jsonWorkshopFiles);
     }
 
-    private static void ImportJsonIntoMongo(JsonSerializerOptions options, bool updateExisting, bool dryRun, bool repairAssetFolders)
+    private static void ImportJsonIntoMongo(JsonSerializerOptions options, bool updateExisting, bool dryRun, bool repairAssetFolders, string contentRoot)
     {
         var envPath = Environment.CurrentDirectory;
 
@@ -145,6 +148,10 @@ internal class Program
             File.ReadAllText(Path.Combine(jsonPath, "workshopFilePaths.json")), options)
             ?? throw new InvalidOperationException("Missing verified file path map.");
         var plannedFiles = WorkshopImportMapping.MapFiles(workshops1, workshopFiles, folders, verifiedFilePaths);
+        var speakerAssets = JsonSerializer.Deserialize<SpeakerAssetManifest>(
+            File.ReadAllText(Path.Combine(jsonPath, "speakerAssetSources.json")), options)
+            ?? throw new InvalidOperationException("Missing speaker photo provenance manifest.");
+        var speakerImages = SpeakerAssetMapping.ValidateAndMap(speakers, speakerAssets, contentRoot);
 
 
         var mongoDBDatabaseSettings = ConfigurationReader.Read<DotNetLiguriaDatabaseSettings>("DotNetLiguriaDatabase");
@@ -178,11 +185,11 @@ internal class Program
                     DotNetLiguria.MongoDBModel.WorkshopSpeaker speaker = new DotNetLiguria.MongoDBModel.WorkshopSpeaker
                     {
                         WorkshopSpeakerId = item.WorkshopSpeakerId,
-                        Name = item?.Name,
-                        UserName = item?.UserName,
-                        ProfileImage = item?.ProfileImage,
-                        ProfileImageUrl = item?.ProfileImage,
-                        BlogHtml = item?.BlogHtml,
+                        Name = item.Name,
+                        UserName = item.UserName,
+                        ProfileImage = item.ProfileImage,
+                        ProfileImageUrl = speakerImages[item.WorkshopSpeakerId],
+                        BlogHtml = item.BlogHtml,
                         IsActive = true
                     };
 

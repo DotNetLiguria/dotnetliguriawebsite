@@ -250,11 +250,81 @@ public sealed class PhotoServiceTests : IDisposable
         await File.WriteAllBytesAsync(Path.Combine(folder, "ada_lovelace.jpg"), Image(SKEncodedImageFormat.Jpeg), _token);
         HashSet<string> permissions = ["board.manage", "speakers.read"];
         var candidate = Assert.Single((await _service.StatusAsync(board, permissions, _token)).Candidates);
-        Assert.Equal("/Contents/speakers/ada_lovelace.jpg", candidate.Url);
+        Assert.StartsWith("/Contents/speakers/ada_lovelace.jpg?v=", candidate.Url);
         await _service.ChangeAsync(board, new("legacy", "existing", candidate.Key, ExistingVersion: candidate.Version), permissions, _token);
-        Assert.Equal(candidate.Url, (await _service.ResolveAsync(board, _token)).Url);
+        Assert.Equal("/Contents/speakers/ada_lovelace.jpg", (await _service.ResolveAsync(board, _token)).Url);
         await _service.ChangeAsync(speaker, new("legacy", "none"), permissions, _token);
         Assert.Empty((await _service.StatusAsync(board, permissions, _token)).Candidates);
+    }
+
+    [Theory]
+    [InlineData("ada-lovelace.png")]
+    [InlineData("ada_lovelace.jpg")]
+    public async Task Missing_legacy_speaker_url_prefers_existing_profile_portrait_over_older_speaker_fallback(string profileFile)
+    {
+        var board = Add("board") with { Name = "Ada Lovelace", Account = null };
+        var speaker = Add("speaker") with { Name = "Adà Lovelace", LegacyUrl = "/Uploads/missing.jpg", Account = null };
+        _store.Targets[speaker.Key] = speaker;
+        var contents = Path.Combine(_root, "website", "Contents");
+        Directory.CreateDirectory(Path.Combine(contents, "profile"));
+        Directory.CreateDirectory(Path.Combine(contents, "speakers"));
+        await File.WriteAllBytesAsync(Path.Combine(contents, "profile", profileFile), Image(SKEncodedImageFormat.Png), _token);
+        await File.WriteAllBytesAsync(Path.Combine(contents, "speakers", "ada_lovelace.jpg"), Image(SKEncodedImageFormat.Jpeg), _token);
+        HashSet<string> permissions = ["board.manage", "speakers.read"];
+        var expected = $"/Contents/profile/{profileFile}";
+        Assert.Equal(expected, (await _service.ResolveAsync(speaker, _token)).Url);
+        var candidate = Assert.Single((await _service.StatusAsync(board, permissions, _token)).Candidates);
+        Assert.StartsWith(expected + "?v=", candidate.Url);
+        await _service.ChangeAsync(board, new("legacy", "existing", candidate.Key, ExistingVersion: candidate.Version), permissions, _token);
+        Assert.Equal(expected, (await _service.ResolveAsync(board, _token)).Url);
+        // Explicitly stored, usable images keep their original meaning.
+        Assert.Equal("/Contents/speakers/ada_lovelace.jpg",
+            (await _service.ResolveAsync(speaker with { LegacyUrl = "/Contents/speakers/ada_lovelace.jpg" }, _token)).Url);
+        await _service.ChangeAsync(speaker, new("legacy", "none"), permissions, _token);
+        Assert.Null((await _service.ResolveAsync(speaker, _token)).Url);
+        Assert.Empty((await _service.StatusAsync(board, permissions, _token)).Candidates);
+    }
+
+    [Fact]
+    public async Task Correcting_local_portrait_bytes_invalidates_proposed_preview_and_source_version()
+    {
+        const string url = "/Contents/speakers/fixture_person.jpg";
+        var board = Add("board") with { Name = "Fixture Person", LegacyUrl = url, Account = null };
+        var speaker = Add("speaker") with { Name = "Fixture Person", LegacyUrl = url, Account = null };
+        _store.Targets[speaker.Key] = speaker;
+        var folder = Path.Combine(_root, "website", "Contents", "speakers");
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "fixture_person.jpg");
+        var original = Image(SKEncodedImageFormat.Jpeg);
+        await File.WriteAllBytesAsync(path, original, _token);
+        HashSet<string> permissions = ["board.manage", "speakers.read"];
+        var first = await _service.StatusAsync(board, permissions, _token);
+        var firstCandidate = Assert.Single(first.Candidates);
+        Assert.Equal(url + "?v=" + PhotoStorage.Hash(original), firstCandidate.Url);
+        Assert.Equal(firstCandidate.Url, first.Url);
+
+        var replacement = Image(SKEncodedImageFormat.Png);
+        await File.WriteAllBytesAsync(path, replacement, _token);
+        var second = await _service.StatusAsync(board, permissions, _token);
+        var secondCandidate = Assert.Single(second.Candidates);
+        Assert.Equal(url + "?v=" + PhotoStorage.Hash(replacement), secondCandidate.Url);
+        Assert.NotEqual(firstCandidate.Url, secondCandidate.Url);
+        Assert.NotEqual(firstCandidate.Version, secondCandidate.Version);
+        var conflict = await Assert.ThrowsAsync<PrivacyBlockedException>(() => _service.ChangeAsync(board,
+            new("legacy", "existing", speaker.Key, ExistingVersion: firstCandidate.Version), permissions, _token));
+        Assert.Equal("photo_changed_reload", conflict.Code);
+        await _service.ChangeAsync(board, new("legacy", "existing", speaker.Key, ExistingVersion: secondCandidate.Version), permissions, _token);
+        Assert.Equal(url, _store.Selections[board.Key].LegacyUrl);
+        Assert.Equal(url, (await _service.ResolveAsync(board, _token)).Url);
+    }
+
+    [Fact]
+    public void Local_preview_versioning_leaves_external_missing_and_managed_urls_unchanged()
+    {
+        Assert.Null(_storage.VersionedLegacyUrl(null));
+        Assert.Equal("https://images.example/portrait.jpg", _storage.VersionedLegacyUrl("https://images.example/portrait.jpg"));
+        Assert.Equal("/api/media/photos/photo/512", _storage.VersionedLegacyUrl("/api/media/photos/photo/512"));
+        Assert.Equal("profile/missing.jpg", _storage.VersionedLegacyUrl("profile/missing.jpg"));
     }
 
     [Fact]
@@ -322,6 +392,49 @@ public sealed class PhotoServiceTests : IDisposable
         Assert.Empty((await _service.StatusAsync(board, permissions, _token)).Candidates);
         await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
             _service.ChangeAsync(board, new("legacy", "existing", speaker.Key), permissions, _token));
+    }
+
+    [Theory]
+    [InlineData("board", "board")]
+    [InlineData("board", "speaker")]
+    [InlineData("speaker", "board")]
+    [InlineData("speaker", "speaker")]
+    [InlineData("account", "board")]
+    [InlineData("account", "speaker")]
+    public async Task Shared_account_never_bypasses_email_or_surname_matching(string scope, string sourceScope)
+    {
+        var target = (scope == "account" ? Account : Add(scope)) with
+        {
+            Name = "Ada Lovelace", Email = "ada@example.test"
+        };
+        var source = Add(sourceScope) with { Name = "Grace Hopper", Email = "grace@example.test" };
+        _store.Targets[source.Key] = source;
+        await Upload(source);
+        HashSet<string> permissions = ["board.read", "speakers.read", "board.manage", "speakers.manage"];
+        Assert.Empty((await _service.StatusAsync(target, permissions, _token)).Candidates);
+        await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
+            _service.PreviewTargetAsync(target, source.Key, permissions, _token));
+        var error = await Assert.ThrowsAsync<PrivacyBlockedException>(() =>
+            _service.ChangeAsync(target, new("legacy", "existing", source.Key), permissions, _token));
+        Assert.Equal("photo_source_unavailable", error.Code);
+        Assert.False(_store.Selections.ContainsKey(target.Key));
+    }
+
+    [Theory]
+    [InlineData("Grace Lovelace", "other@example.test")]
+    [InlineData("Grace Hopper", " ADA@EXAMPLE.TEST ")]
+    public async Task Shared_account_board_candidates_still_allow_matching_surname_or_email(string sourceName, string sourceEmail)
+    {
+        var target = Add("board") with { Name = "Ada Lovelace", Email = "ada@example.test" };
+        var source = Add("board") with { Name = sourceName, Email = sourceEmail };
+        _store.Targets[source.Key] = source;
+        await Upload(source);
+        HashSet<string> permissions = ["board.read", "board.manage"];
+        var candidate = Assert.Single((await _service.StatusAsync(target, permissions, _token)).Candidates);
+        Assert.Equal(source.Key, candidate.Key);
+        Assert.Equal(source, await _service.PreviewTargetAsync(target, source.Key, permissions, _token));
+        await _service.ChangeAsync(target, new("legacy", "existing", source.Key, ExistingVersion: candidate.Version), permissions, _token);
+        Assert.Equal((await _service.ResolveAsync(source, _token)).AssetId, (await _service.ResolveAsync(target, _token)).AssetId);
     }
 
     [Fact]
@@ -515,8 +628,9 @@ public sealed class PhotoServiceTests : IDisposable
     [Fact]
     public async Task Candidate_version_includes_the_followed_account_photo_version()
     {
-        var speaker = Add("speaker");
-        var board = Add("board");
+        var speaker = Add("speaker") with { Name = "Ada Lovelace" };
+        var board = Add("board") with { Name = "Ada Lovelace" };
+        _store.Targets[board.Key] = board;
         await Upload(Account);
         await _service.ChangeAsync(board, new("legacy", "account"), _permissions, _token);
         var candidate = Assert.Single((await _service.StatusAsync(speaker, _permissions, _token)).Candidates, x => x.Key == board.Key);

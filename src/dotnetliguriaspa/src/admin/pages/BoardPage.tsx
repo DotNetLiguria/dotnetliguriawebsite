@@ -8,7 +8,7 @@ import { AdminApiError, clean, useAdminFetch, useAdminLoad } from '../adminApi';
 import { notify } from '../toasts';
 import { AdminBoardMember, LINKS, LinkKey, boardPhoto, isWebUrl, linkError } from './boardModel';
 import BoardAccountPanel from './BoardAccountPanel';
-import PhotoEditor from '../../account/PhotoEditor';
+import PhotoEditor, { PhotoStatus } from '../../account/PhotoEditor';
 import { LocalIcon, MissingCard, MoveButtons, RecordDialog, RowMenu, RowMenuItem, byOrder, iconLink, planMove, plural, restoreMoveFocus, revealOnRow, useIsDesktop } from './listKit';
 
 const errorText = (error: unknown) => {
@@ -133,19 +133,22 @@ function Detail({ title, children }: { title: string; children: React.ReactNode 
 
 const none = (text: string) => <span className="text-muted">{text}</span>;
 
-function BoardCard({ member, position, count, initialMode, onChanged, onDeleted }: {
+function BoardCard({ member, position, count, initialMode, initialRemove, onChanged, onRemoved, onClose }: {
   member: AdminBoardMember;
   position: number;
   count: number;
   initialMode: 'view' | 'edit';
+  initialRemove: boolean;
   onChanged: () => void;
-  onDeleted: () => void;
+  onRemoved: () => void;
+  onClose: () => void;
 }) {
   const can = useCan();
   const api = useAdminFetch();
   const [mode, setMode] = useState(initialMode);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(initialRemove);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const name = nameOf(member);
   const role = roleOf(member);
   const photo = boardPhoto(member.profileImageUrl);
@@ -167,8 +170,55 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
       </div>
 
       <div className="space-y-5 p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-4">
+          <Button isDisabled={removing || !can('board.manage')} onPress={() => setConfirmRemove(true)} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Rimuovi dal board…</Button>
+          {mode === 'view' && <Button isDisabled={removing || !can('board.manage')} onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>}
+        </div>
+        {confirmRemove && can('board.manage') && (
+          <div role="alert" className="space-y-3 rounded-xl border border-[#b42318] p-4">
+            <p className="font-bold text-[#b42318]">Rimuovere {name} dal board?</p>
+            <p className="text-sm text-muted">La scheda non sarà più visibile nel Team del sito. I dati e il collegamento all’account restano conservati nell’elenco amministrativo; potrai ripubblicarla con “Mostra sul sito”.</p>
+            <p className="text-sm text-muted">Per revocare l’accesso, usa separatamente “Rimuovi dal gruppo Board” nella sezione Account e appartenenza al Board.</p>
+            <SwitchInput isDisabled={removing} isSelected={removePhoto} onChange={setRemovePhoto}>Rimuovi anche la foto dalla scheda</SwitchInput>
+            <p className="text-sm text-muted">La foto account, le foto di altri profili e i file storici vengono conservati.</p>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button isDisabled={removing} onPress={() => { setConfirmRemove(false); setRemovePhoto(false); }} className={btn.ghost} autoFocus>Annulla rimozione</Button>
+              <Button
+                onPress={async () => {
+                  if (removing) return;
+                  setRemoving(true);
+                  try {
+                    await api(`/Board/Update/${member.boardId}`, { method: 'PUT', body: JSON.stringify({ ...member, isActive: false }) });
+                  } catch (error) {
+                    notify('Rimozione non riuscita', { description: errorText(error), kind: 'error' });
+                    setRemoving(false);
+                    return;
+                  }
+                  if (removePhoto) {
+                    try {
+                      const endpoint = `/photos/board/${member.boardId}`;
+                      const status = await api<PhotoStatus>(endpoint);
+                      if (!status || typeof status.version !== 'string') throw new Error('Stato foto non valido');
+                      await api(`${endpoint}/select`, { method: 'POST', body: JSON.stringify({ version: status.version, source: 'none', confirmUnpublish: false }) });
+                    } catch (error) {
+                      notify('Membro rimosso; rimozione foto non confermata', { description: `Ricarica lo stato della foto in Modifica prima di riprovare. ${errorText(error)}`, kind: 'error' });
+                      onRemoved();
+                      return;
+                    }
+                  }
+                  notify('Membro rimosso dal board', { description: name });
+                  onRemoved();
+                }}
+                isDisabled={removing}
+                className={btn.danger}
+              >
+                {removing ? 'Rimozione…' : 'Conferma rimozione'}
+              </Button>
+            </div>
+          </div>
+        )}
         {mode === 'edit' && can('board.manage') ? (
-          <BoardForm member={member} onCancel={() => setMode('view')} onSaved={() => { setMode('view'); onChanged(); }} onPhotoChanged={onChanged} />
+          <div inert={removing || confirmRemove}><BoardForm member={member} onCancel={onClose} onSaved={() => { onChanged(); onClose(); }} onPhotoChanged={onChanged} /></div>
         ) : (
           <>
             {!photo && (
@@ -203,37 +253,6 @@ function BoardCard({ member, position, count, initialMode, onChanged, onDeleted 
               <div><dt className="font-semibold text-muted">Posizione nel team</dt><dd>{position} di {count} (ordine {member.order ?? 0})</dd></div>
             </dl>
             <BoardAccountPanel boardId={member.boardId} email={member.email} />
-            {confirmDelete && (
-              <div role="alert" className="rounded-xl border border-[#b42318] p-4">
-                <p className="font-bold text-[#b42318]">Eliminare {name}?</p>
-                <p className="text-sm text-muted">Il membro viene rimosso dal database e dalla sezione Team del sito.</p>
-                <p className="text-sm text-muted">Se l’account appartiene al gruppo Board, conserverà l’accesso anche dopo l’eliminazione della scheda. Rimuovilo prima dal gruppo se necessario.</p>
-                <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  <Button onPress={() => setConfirmDelete(false)} className={btn.ghost} autoFocus>Annulla</Button>
-                  <Button
-                    onPress={async () => {
-                      setDeleting(true);
-                      try {
-                        await api(`/Board/Delete/${member.boardId}`, { method: 'DELETE' });
-                        notify('Membro eliminato', { description: name });
-                        onDeleted();
-                      } catch (error) {
-                        notify('Eliminazione non riuscita', { description: errorText(error), kind: 'error' });
-                        setDeleting(false);
-                      }
-                    }}
-                    isDisabled={deleting}
-                    className={btn.danger}
-                  >
-                    {deleting ? 'Eliminazione…' : 'Elimina'}
-                  </Button>
-                </div>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-              <Button isDisabled={!can('board.delete')} onPress={() => setConfirmDelete(true)} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}><AdminIcon name="trash" />Elimina…</Button>
-              <Button isDisabled={!can('board.manage')} onPress={() => setMode('edit')} className={btn.secondary}><AdminIcon name="pencil" />Modifica</Button>
-            </div>
           </>
         )}
       </div>
@@ -248,7 +267,7 @@ interface RowsProps {
   onToggle: (member: AdminBoardMember) => void;
 }
 
-const menuItems = (member: AdminBoardMember, onToggle: (member: AdminBoardMember) => void): RowMenuItem[] => [
+const menuItems = (member: AdminBoardMember, onToggle: (member: AdminBoardMember) => void, onRemove: () => void): RowMenuItem[] => [
   {
     id: 'toggle',
     permission: 'board.manage',
@@ -257,11 +276,13 @@ const menuItems = (member: AdminBoardMember, onToggle: (member: AdminBoardMember
     onAction: () => onToggle(member),
   },
   { id: 'site', label: 'Vedi il team sul sito', icon: <AdminIcon name="external" />, href: '/#team' },
+  { id: 'remove', label: 'Rimuovi dal board…', permission: 'board.manage', icon: <AdminIcon name="trash" />, danger: true, onAction: onRemove },
 ];
 
 const nameLink = `block font-bold leading-snug after:absolute after:inset-0 hover:underline ${linkFocus}`;
 
 function BoardTable({ members, busy, onMove, onToggle }: RowsProps) {
+  const navigate = useNavigate();
   return (
     <table className="w-full table-fixed text-left">
       <caption className="sr-only">Membri del board, nell'ordine in cui compaiono sul sito</caption>
@@ -299,7 +320,7 @@ function BoardTable({ members, busy, onMove, onToggle }: RowsProps) {
               <td className="relative z-10 pr-5">
                 <span className={`flex justify-end gap-1 ${revealOnRow}`}>
                   <Link to={`/admin/board/${member.boardId}?azione=modifica`} className={iconLink} aria-label={`Modifica ${name}`}><AdminIcon name="pencil" /></Link>
-                  <RowMenu label={`Altre azioni per ${name}`} items={menuItems(member, onToggle)} />
+                  <RowMenu label={`Altre azioni per ${name}`} items={menuItems(member, onToggle, () => navigate(`/admin/board/${member.boardId}?azione=rimuovi`))} />
                 </span>
               </td>
             </tr>
@@ -311,6 +332,7 @@ function BoardTable({ members, busy, onMove, onToggle }: RowsProps) {
 }
 
 function BoardCards({ members, busy, onMove, onToggle }: RowsProps) {
+  const navigate = useNavigate();
   return (
     <ul className="divide-y divide-line">
       {members.map((member, index) => {
@@ -332,7 +354,7 @@ function BoardCards({ members, busy, onMove, onToggle }: RowsProps) {
               </span>
               <span className="flex gap-1">
                 <Link to={`/admin/board/${member.boardId}?azione=modifica`} className={iconLink} aria-label={`Modifica ${name}`}><AdminIcon name="pencil" /></Link>
-                <RowMenu label={`Altre azioni per ${name}`} items={menuItems(member, onToggle)} />
+                <RowMenu label={`Altre azioni per ${name}`} items={menuItems(member, onToggle, () => navigate(`/admin/board/${member.boardId}?azione=rimuovi`))} />
               </span>
             </div>
           </li>
@@ -451,7 +473,9 @@ export default function BoardPage() {
             count={members?.length ?? 0}
             initialMode={params.get('azione') === 'modifica' ? 'edit' : 'view'}
             onChanged={reload}
-            onDeleted={() => { reload(); close(); }}
+            onClose={close}
+            initialRemove={params.get('azione') === 'rimuovi'}
+            onRemoved={() => { reload(); close(); }}
           />
         ) : <MissingCard listState={load.state} icon="users" title="Membro non trovato" />}
       </RecordDialog>

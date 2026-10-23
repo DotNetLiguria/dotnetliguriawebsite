@@ -3,7 +3,8 @@
 param(
     [Parameter(Mandatory)][string]$ContainerName,
     [switch]$Apply,
-    [switch]$RepairAssetFolders
+    [switch]$RepairAssetFolders,
+    [string]$ContentRoot = (Join-Path $PSScriptRoot '../DotNetLiguriaCore/Contents')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,6 +12,11 @@ $previousConnection = $env:DotNetLiguriaDatabase__ConnectionString
 $previousDatabase = $env:DotNetLiguriaDatabase__DatabaseName
 Push-Location $PSScriptRoot
 try {
+    $repositoryRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
+    $ContentRoot = [IO.Path]::GetFullPath($ContentRoot)
+    & (Join-Path $repositoryRoot 'scripts/verify-speaker-assets.ps1') -ContentRoot $ContentRoot
+    & dotnet build (Join-Path $repositoryRoot 'DotNetLiguria.slnx') -c Release --nologo --disable-build-servers -nodeReuse:false -p:UseSharedCompilation=false
+    if ($LASTEXITCODE -ne 0) { throw 'Root solution build failed.' }
     $mounts = & docker inspect $ContainerName --format '{{json .Mounts}}' | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0 -or !($mounts | Where-Object Name -eq 'dotnetliguria-aspire-mongo')) {
         throw 'Expected the existing local Aspire MongoDB volume.'
@@ -24,10 +30,10 @@ try {
     $port = $Matches[1]
     $env:DotNetLiguriaDatabase__DatabaseName = 'DotNetLiguriaAspire'
     $env:DotNetLiguriaDatabase__ConnectionString = "mongodb://$([uri]::EscapeDataString($username)):$([uri]::EscapeDataString($password))@127.0.0.1:$port/?authSource=admin&tls=true&tlsInsecure=true"
-    $arguments = @('--from-json', '--update-existing')
+    $arguments = @('--from-json', '--update-existing', '--content-root', $ContentRoot)
     if ($RepairAssetFolders) { $arguments += '--repair-asset-folders' }
     if (!$Apply) { $arguments += '--dry-run' }
-    & dotnet run --project DataMigration.csproj -c Release -- @arguments
+    & dotnet run --project DataMigration.csproj -c Release --no-build --no-restore -- @arguments
     if ($LASTEXITCODE -ne 0) { throw 'DataMigration failed.' }
 }
 finally {

@@ -19,11 +19,18 @@ const gambaro: Member = {
 const baroni: Member = { boardId: 'b-baroni', name: 'Alberto Baroni', description: 'Consigliere', isActive: false, order: 3 };
 
 /** The API sends the visible members first and the hidden ones last; the page sorts by order. */
-function serve(initial: Member[] = [gambaro, rialdi, baroni], options: { failUpdates?: boolean; updateFailureCode?: string } = {}) {
+function serve(initial: Member[] = [gambaro, rialdi, baroni], options: { failUpdates?: boolean; updateFailureCode?: string; failPhotoRemoval?: boolean } = {}) {
   const db = initial.map(member => ({ ...member }));
   const writes: { id: string; method?: string; body: Member }[] = [];
+  const photoWrites: RequestInit[] = [];
   mockApi({
-    '/photos/board/': { version: '1', source: 'legacy', url: null, previewPath: null, hasAccount: false, candidates: [], affectedBoards: [] },
+    '/photos/board/': (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        photoWrites.push(init);
+        if (options.failPhotoRemoval) return jsonResponse({ code: 'photo_changed_reload' }, 409);
+      }
+      return jsonResponse({ version: '1', source: 'legacy', url: null, previewPath: null, hasAccount: false, candidates: [], affectedBoards: [] });
+    },
     '/admin/board-accounts/': (url: string) => {
       const id = url.split('/admin/board-accounts/')[1];
       return jsonResponse({ boardId: id, email: db.find(member => member.boardId === id)?.email ?? null,
@@ -53,7 +60,7 @@ function serve(initial: Member[] = [gambaro, rialdi, baroni], options: { failUpd
     },
     '/Board/Get': () => jsonResponse(db),
   });
-  return { db, writes };
+  return { db, writes, photoWrites };
 }
 
 const renderAt = (route: string) => render(
@@ -126,7 +133,7 @@ describe('<BoardPage />', () => {
     await screen.findByRole('table');
     await user.click(screen.getByRole('button', { name: 'Altre azioni per Raffaele Rialdi' }));
     const menu = await screen.findByRole('menu', { name: 'Altre azioni per Raffaele Rialdi' });
-    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Nascondi dal sito', 'Vedi il team sul sito (si apre in una nuova scheda)']);
+    expect(within(menu).getAllByRole('menuitem').map(item => item.textContent)).toEqual(['Nascondi dal sito', 'Vedi il team sul sito (si apre in una nuova scheda)', 'Rimuovi dal board…']);
     await user.click(within(menu).getByRole('menuitem', { name: 'Nascondi dal sito' }));
     expect(await screen.findByText('Membro nascosto dal sito')).toBeInTheDocument();
     expect(writes).toEqual([expect.objectContaining({ id: 'b-rialdi', method: 'PUT', body: { ...rialdi, isActive: false } })]);
@@ -179,9 +186,42 @@ describe('<BoardPage />', () => {
     });
 
     expect(await screen.findByText('Membro aggiornato')).toBeInTheDocument();
-    // Back to the read view, showing what the server now holds.
-    expect(await within(card).findByRole('button', { name: 'Modifica' })).toBeInTheDocument();
-    expect(within(card).getByText('Nascosto dal sito')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByText('1 di 3 membri visibili sul sito')).toBeInTheDocument();
+  });
+
+  test('editing from the list offers removal immediately and Cancel closes the only dialog', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const { writes } = serve();
+    renderAt('/admin/board/');
+    await user.click(await screen.findByRole('link', { name: 'Modifica Raffaele Rialdi' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(within(dialog).getByRole('button', { name: 'Rimuovi dal board…' })).toBeVisible();
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Ruolo' }), { target: { value: 'Non salvato' } });
+    await user.click(within(dialog).getByRole('button', { name: 'Annulla' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(writes).toHaveLength(0);
+  });
+
+  test('removal confirmation stays in the edit dialog and cancellation preserves the draft', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const { writes } = serve();
+    renderAt('/admin/board/b-rialdi?azione=modifica');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    fireEvent.change(within(dialog).getByRole('textbox', { name: 'Ruolo' }), { target: { value: 'Non salvato' } });
+    await user.click(within(dialog).getByRole('button', { name: 'Rimuovi dal board…' }));
+    expect(within(dialog).getByText('Rimuovere Raffaele Rialdi dal board?')).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    await user.click(within(dialog).getByRole('button', { name: 'Annulla rimozione' }));
+    expect(within(dialog).getByRole('textbox', { name: 'Ruolo' })).toHaveValue('Non salvato');
+    expect(writes).toHaveLength(0);
+    await user.click(within(dialog).getByRole('button', { name: 'Rimuovi dal board…' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Conferma rimozione' }));
+    expect(await screen.findByText('Membro rimosso dal board')).toBeInTheDocument();
+    expect(writes).toEqual([{ id: 'b-rialdi', method: 'PUT', body: { ...rialdi, isActive: false } }]);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   test('creates a hidden Board draft before photo selection and publication, then reloads the database list', async () => {
@@ -232,20 +272,65 @@ describe('<BoardPage />', () => {
     expect(writes[0]).toMatchObject({ description: 'Ruolo non salvato', profileImageUrl: '/api/media/photos/new.webp', photoFallbackDisabled: true, photoVersion: 'photo-v2' });
   });
 
-  test('deletes a board member only after confirmation', async () => {
+  test('opens removal from the row menu, allows cancellation, and preserves all data and the photo by default', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-    const { writes } = serve();
-    renderAt('/admin/board/b-rialdi');
+    const { db, writes, photoWrites } = serve();
+    renderAt('/admin/board/');
+    await screen.findByRole('table');
+    await user.click(screen.getByRole('button', { name: 'Altre azioni per Raffaele Rialdi' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Rimuovi dal board…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
-    await user.click(within(dialog).getByRole('button', { name: /Elimina/ }));
-    expect(within(dialog).getByText('Eliminare Raffaele Rialdi?')).toBeInTheDocument();
+    expect(within(dialog).getByText('Rimuovere Raffaele Rialdi dal board?')).toBeInTheDocument();
+    expect(within(dialog).getByRole('switch', { name: 'Rimuovi anche la foto dalla scheda' })).not.toBeChecked();
     expect(writes).toHaveLength(0);
-    await user.click(within(dialog).getByRole('button', { name: 'Elimina' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Annulla rimozione' }));
+    expect(within(dialog).queryByRole('button', { name: 'Conferma rimozione' })).not.toBeInTheDocument();
+    expect(writes).toHaveLength(0);
+    await user.click(within(dialog).getByRole('button', { name: 'Rimuovi dal board…' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Conferma rimozione' }));
+    expect(await screen.findByText('Membro rimosso dal board')).toBeInTheDocument();
+    expect(writes).toEqual([{ id: 'b-rialdi', method: 'PUT', body: { ...rialdi, isActive: false } }]);
+    expect(db.find(member => member.boardId === rialdi.boardId)).toEqual({ ...rialdi, isActive: false });
+    expect(photoWrites).toHaveLength(0);
+    await waitFor(() => expect(rowNames()).toEqual(['Raffaele Rialdi', 'Alessandro Gambaro', 'Alberto Baroni']));
+  });
 
-    await waitFor(() => expect(writes).toHaveLength(1));
-    expect(writes[0]).toMatchObject({ id: 'b-rialdi', method: 'DELETE' });
-    expect(await screen.findByText('Membro eliminato')).toBeInTheDocument();
-    await waitFor(() => expect(rowNames()).toEqual(['Alessandro Gambaro', 'Alberto Baroni']));
+  test('optionally removes only the board photo using its current version', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const { writes, photoWrites } = serve();
+    renderAt('/admin/board/b-rialdi?azione=rimuovi');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    await user.click(within(dialog).getByRole('switch', { name: 'Rimuovi anche la foto dalla scheda' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Conferma rimozione' }));
+    expect(await screen.findByText('Membro rimosso dal board')).toBeInTheDocument();
+    expect(writes[0]).toMatchObject({ method: 'PUT', body: { isActive: false } });
+    expect(photoWrites).toHaveLength(1);
+    expect(JSON.parse(String(photoWrites[0].body))).toEqual({ version: '1', source: 'none', confirmUnpublish: false });
+  });
+
+  test('keeps the confirmation open and does not remove the photo when removal fails', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const { photoWrites } = serve(undefined, { failUpdates: true });
+    renderAt('/admin/board/b-rialdi?azione=rimuovi');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    await user.click(within(dialog).getByRole('switch', { name: 'Rimuovi anche la foto dalla scheda' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Conferma rimozione' }));
+    expect(await screen.findByText('Rimozione non riuscita')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Conferma rimozione' })).toBeEnabled();
+    expect(photoWrites).toHaveLength(0);
+  });
+
+  test('reports a partial result when photo removal conflicts, preserving the completed removal', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const { db, photoWrites } = serve(undefined, { failPhotoRemoval: true });
+    renderAt('/admin/board/b-rialdi?azione=rimuovi');
+    const dialog = await screen.findByRole('dialog', { name: 'Raffaele Rialdi' });
+    await user.click(within(dialog).getByRole('switch', { name: 'Rimuovi anche la foto dalla scheda' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Conferma rimozione' }));
+    expect(await screen.findByText('Membro rimosso; rimozione foto non confermata')).toBeInTheDocument();
+    expect(db.find(member => member.boardId === rialdi.boardId)?.isActive).toBe(false);
+    expect(photoWrites).toHaveLength(1);
+    expect(screen.queryByText('Membro rimosso dal board')).not.toBeInTheDocument();
   });
 
   test('opens straight in the form from the row action and refuses a missing name, a bad link and a bad order', async () => {

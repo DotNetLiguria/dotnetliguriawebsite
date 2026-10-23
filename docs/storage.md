@@ -317,6 +317,11 @@ This does not link accounts or change the speaker's photo. Historical speaker ph
 same shipped name-based fallback as the public speaker list; explicit photo
 removal still suppresses that fallback.
 
+The photo editor's local current/proposed image URLs include a SHA256 query
+version, so correcting a portrait under the same filename requests fresh bytes.
+Stored legacy URLs remain unversioned. Candidate copy versions also include the
+file hash; copying a source changed since preview requires reloading its status.
+
 The same reuse choices are available in the personal photo editor and speaker
 editor. Personal suggestions use the current name and email read server-side
 from the Identity Provider, not caller-supplied profile fields. Access to the

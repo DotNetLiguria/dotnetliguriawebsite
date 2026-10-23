@@ -39,6 +39,15 @@ project-specific requirements; it does not relax the standards below.
   documentation or instructions alone enforce a rule.
 
 ## Toolchains and Workflows
+Before ending a task, stop every background process started by the agent for that
+task or earlier work in the session, unless the user explicitly asks to keep it
+running. This includes Vite, Aspire AppHost, website hosts, watchers, build workers
+and their child processes. Track process IDs when starting them, clean up after failures
+as well as success, and verify that the processes have exited and their listening
+ports have closed. Stop task-owned containers without deleting their data volumes.
+Do not stop unrelated processes. Report the cleanup actually verified; a written
+rule alone does not satisfy this requirement.
+
 Use the root `DotNetLiguria.slnx` for all .NET projects. Keep live browser/database
 checks opt-in. Publish applications using their project paths.
 Use the checked-in SDK and Node pins, lockfiles and verification scripts when present.

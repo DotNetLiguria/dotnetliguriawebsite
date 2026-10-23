@@ -78,6 +78,8 @@ if (!$NoFrontendChecks) {
 }
 
 Write-Host 'Keycloak provisioning: offline reconciliation tests'
+Write-Host 'Speaker portraits: export identities and original-source hashes'
+Invoke-CheckedProcess (Get-Command pwsh).Source @('-NoProfile', '-File', 'scripts/verify-speaker-assets.ps1') $root 30 | Out-Null
 Invoke-CheckedProcess (Get-Command pwsh).Source @('-NoProfile', '-File', 'scripts/test-keycloak-setup.ps1') $root 30 | Out-Null
 
 $records = [System.Collections.Generic.List[object]]::new()

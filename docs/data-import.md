@@ -18,6 +18,16 @@ whose original bytes were not verified. Review those limitations before producti
 
 ## Import behavior
 
+Speaker media requires `--content-root <website Contents directory>` for every
+JSON import, including dry runs. Before database access, the importer checks
+`speakerAssetSources.json` against exported speaker IDs, names and original URLs,
+then checks each deployed portrait's byte length and SHA256. It sets
+`ProfileImageUrl` to the verified `/Contents/speakers/...` URL and preserves
+`ProfileImage` as the original source reference. Missing mappings, swapped or
+missing files, duplicate destinations and stale source bindings block import.
+An explicitly reviewed source 404/410 maps to no image; no replacement is invented.
+The local helper supplies the repository's website Contents path automatically.
+
 `--from-json --update-existing` inserts missing workshops, speakers and files and
 updates their mapped fields from JSON. Tracks are embedded in workshops;
 `workshopTracks.json` is checked against the embedded track/workshop IDs before
@@ -90,7 +100,8 @@ and confirm counts stay stable to check repeatability.
 ## Exact production release sequence
 
 1. Select the release commit, all four SQL-export JSON files, the four ownership/
-   provenance JSON files in `DataMigration/json`, and matching website `Contents`
+   provenance JSON files in `DataMigration/json`, the speaker-photo provenance
+   manifest, and matching website `Contents`
    assets including `Contents/imported`. If the old SQL source has newer changes,
    first export them in a separate workspace using the approved SQL connection:
    run DataMigration **without arguments** from its project directory. This writes
@@ -106,6 +117,7 @@ and confirm counts stay stable to check repeatability.
    dotnet publish src/dotnetliguriawebsite/DataMigration/DataMigration.csproj -c Release -o .artifacts/release/dataMigration
    dotnet publish src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj -c Release -o .artifacts/release/website
    pwsh -File scripts/verify-import-assets.ps1 -ContentRoot .artifacts/release/website/Contents -ManifestPath .artifacts/release/dataMigration/json/workshopAssetSources.json
+   pwsh -File scripts/verify-speaker-assets.ps1 -ContentRoot .artifacts/release/website/Contents -ManifestPath .artifacts/release/dataMigration/json/speakerAssetSources.json -SpeakerExportPath .artifacts/release/dataMigration/json/workshopSpeakers.json
    ```
 
    DataMigration publishes its `json` directory automatically. Keep this artifact
@@ -137,9 +149,9 @@ and confirm counts stay stable to check repeatability.
    command exits unsuccessfully:
 
    ```text
-   dotnet DataMigration.dll --from-json --update-existing --dry-run
-   dotnet DataMigration.dll --from-json --update-existing
-   dotnet DataMigration.dll --from-json --update-existing --dry-run
+   dotnet DataMigration.dll --from-json --update-existing --content-root ../website/Contents --dry-run
+   dotnet DataMigration.dll --from-json --update-existing --content-root ../website/Contents
+   dotnet DataMigration.dll --from-json --update-existing --content-root ../website/Contents --dry-run
    ```
 
    Review the first report's target database, export totals and current counts
