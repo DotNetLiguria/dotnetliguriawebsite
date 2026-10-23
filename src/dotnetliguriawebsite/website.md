@@ -119,5 +119,10 @@ entirely by DataMigration; the running website only needs MongoDB.
 
 Build Docker from the repository root using the website Dockerfile. The .NET 10
 non-root runtime listens on HTTP 8080; supply TLS, secrets and identity-provider
-registration at the deployment boundary. Images exclude local certificates and
-environment files. Do not deploy or change real data as part of verification.
+registration at the deployment boundary. Mount the persistent content volume at
+`/app/Contents`; daily logs are stored under `/app/Contents/Logs`, which is blocked
+from the public `/Contents` static-file route. The mounted directory must be writable
+by the image's non-root application user (`APP_UID`). The provider keeps the latest
+180 daily files and does not split a day into additional files. Images exclude local
+certificates and environment files. Do not deploy or change real data as part of
+verification.

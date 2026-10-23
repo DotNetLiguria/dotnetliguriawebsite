@@ -73,6 +73,12 @@
           "ZstdSharp.Port": "0.7.3"
         }
       },
+      "NetEscapades.Extensions.Logging.RollingFile": {
+        "type": "Direct",
+        "requested": "[2.5.0, )",
+        "resolved": "2.5.0",
+        "contentHash": "8tX6HIRGIpLZLHKzPYeaGxVgd/ZwqV/DeoJMM8qq1TZFy3K0vn3YjmeNxs0pdNMqce4XoW6wPzVnzu/eKw3pDQ=="
+      },
       "SkiaSharp": {
         "type": "Direct",
         "requested": "[4.153.1, )",

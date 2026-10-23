@@ -24,6 +24,7 @@ using Microsoft.IdentityModel.Tokens;
 using DotNetLiguriaCore.Security;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Http.Features;
+using NetEscapades.Extensions.Logging.RollingFile;
 
 namespace DotNetLiguriaCore;
 
@@ -43,6 +44,17 @@ public class Program
 #endif
 
         var builder = WebApplication.CreateBuilder(args);
+        var logDirectory = Path.Combine(builder.Environment.ContentRootPath, "Contents", "Logs");
+        builder.Logging.AddFile(options =>
+        {
+            options.FileName = "website-";
+            options.LogDirectory = logDirectory;
+            options.Extension = "log";
+            options.Periodicity = PeriodicityOptions.Daily;
+            options.FileSizeLimit = null;
+            options.FilesPerPeriodicityLimit = 1;
+            options.RetainedFileCountLimit = DailyLogHeartbeatWorker.MaximumRetainedFiles;
+        });
         if (builder.Environment.IsDevelopment() &&
             (string.IsNullOrWhiteSpace(builder.Configuration["AllowedHosts"]) ||
              builder.Configuration["AllowedHosts"] == "dotnetliguria.net;www.dotnetliguria.net"))
@@ -60,6 +72,7 @@ public class Program
             options.ValueCountLimit = 100;
         });
         builder.Services.AddServiceDefaults(builder.Configuration);
+        builder.Services.AddHostedService<DailyLogHeartbeatWorker>();
         if (builder.Configuration["DOTNET_LIGURIA_ASPIRE"] == "true")
             builder.Services.AddHealthChecks().AddCheck<MongoDatabaseHealthCheck>("mongodb");
         builder.Services.AddCors(options =>
@@ -164,6 +177,15 @@ public class Program
             Directory.CreateDirectory(contentsPath);
         }
         
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/Contents/Logs", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+            await next();
+        });
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(contentsPath),
