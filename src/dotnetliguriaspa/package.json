@@ -9,7 +9,7 @@
     "@dnd-kit/utilities": "3.2.2",
     "@fontsource/titillium-web": "5.3.0",
     "axios": "1.20.0",
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.17",
     "jwt-decode": "4.0.0",
     "qrcode.react": "4.2.0",
     "react": "19.3.0",
