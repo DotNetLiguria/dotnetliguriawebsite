@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$ContainerName,
     [switch]$Apply,
     [switch]$RepairAssetFolders,
-    [string]$ContentRoot = (Join-Path $PSScriptRoot '../DotNetLiguriaCore/Contents')
+    [string]$ContentRoot = (Join-Path $PSScriptRoot '../../../.persisted/contents')
 )
 
 $ErrorActionPreference = 'Stop'

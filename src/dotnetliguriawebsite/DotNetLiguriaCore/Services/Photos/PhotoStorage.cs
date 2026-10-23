@@ -2,14 +2,18 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using DotNetLiguriaCore.Services.Privacy;
+using DotNetLiguriaCore.Storage;
 using Microsoft.Extensions.Options;
 
 namespace DotNetLiguriaCore.Services.Photos;
 
-public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironment environment)
+public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironment environment,
+    WebsiteStoragePaths? storagePaths = null)
 {
     private readonly PhotoOptions _options = options.Value;
-    private readonly string _contentRoot = environment.ContentRootPath;
+    private readonly string _contentsRoot = storagePaths?.ContentsRoot ??
+        WebsiteStoragePaths.ResolveContentsRoot(environment);
+    private readonly string _contentRoot = Path.GetFullPath(environment.ContentRootPath);
 
     public string Root
     {
@@ -19,6 +23,7 @@ public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironmen
                 throw new PrivacyBlockedException("photo_storage_not_configured", 503);
             var root = Path.GetFullPath(_options.Root);
             if (PrivacyStoragePaths.IsWithin(root, _contentRoot) || PrivacyStoragePaths.IsWithin(_contentRoot, root) ||
+                PrivacyStoragePaths.IsWithin(root, _contentsRoot) || PrivacyStoragePaths.IsWithin(_contentsRoot, root) ||
                 root == Path.GetPathRoot(root))
                 throw new PrivacyBlockedException("unsafe_photo_storage", 503);
             PrivacyStoragePaths.RejectLinks(root);
@@ -147,7 +152,7 @@ public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironmen
         if (value.Contains('\\') || value.Contains('?') || value.Contains('#') || value.Contains(':') ||
             value.IndexOfAny(Path.GetInvalidPathChars()) >= 0) return null;
         var relative = value.StartsWith("/Contents/", StringComparison.Ordinal) ? value[10..] : value.TrimStart('/');
-        var contents = Path.Combine(_contentRoot, "Contents");
+        var contents = _contentsRoot;
         var path = Path.GetFullPath(Path.Combine(contents, relative.Replace('/', Path.DirectorySeparatorChar)));
         return PrivacyStoragePaths.IsWithin(path, contents) && File.Exists(path) &&
             Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".webp" or ".gif" ? path : null;

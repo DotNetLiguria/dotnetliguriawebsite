@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using DotNetLiguriaCore.Services.Privacy;
+using DotNetLiguriaCore.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 using MimeKit;
@@ -21,13 +22,13 @@ public sealed class NewsletterService
     private readonly PrivacyOperationGate _operationGate;
     private readonly PrivacyCoordinator _privacy;
     private readonly IOptionsMonitor<NewsletterOptions> _options;
-    private readonly IWebHostEnvironment _environment;
+    private readonly string _contentsRoot;
     private readonly TimeProvider _clock;
 
     public NewsletterService(INewsletterStore store, INewsletterEventSource events, NewsletterRenderer renderer,
         INewsletterSmtpTransport transport, INewsletterRestoreGuard restoreGuard, PrivacyOperationGate operationGate,
         PrivacyCoordinator privacy, IOptionsMonitor<NewsletterOptions> options,
-        IWebHostEnvironment environment, TimeProvider clock)
+        IWebHostEnvironment environment, TimeProvider clock, WebsiteStoragePaths? storagePaths = null)
     {
         _store = store;
         _events = events;
@@ -37,7 +38,7 @@ public sealed class NewsletterService
         _operationGate = operationGate;
         _privacy = privacy;
         _options = options;
-        _environment = environment;
+        _contentsRoot = storagePaths?.ContentsRoot ?? WebsiteStoragePaths.ResolveContentsRoot(environment);
         _clock = clock;
     }
 
@@ -679,7 +680,7 @@ public sealed class NewsletterService
 
     public async Task EnsureSeededAsync(CancellationToken cancellationToken)
     {
-        var directory = Path.Combine(_environment.ContentRootPath, "Contents", "newsletters");
+        var directory = Path.Combine(_contentsRoot, "newsletters");
         await SeedAsync(Guid.Parse("3c44fd9c-a82f-4e1c-89c8-faa000000001"), "event", "Template evento",
             "event-subject.md", "event-body.md", directory, cancellationToken);
         await SeedAsync(Guid.Parse("3c44fd9c-a82f-4e1c-89c8-faa000000002"), "generic", "Template generico",

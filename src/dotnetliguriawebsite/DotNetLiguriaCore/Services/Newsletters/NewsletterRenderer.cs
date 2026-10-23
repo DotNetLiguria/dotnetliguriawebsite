@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Options;
 using MimeKit;
 using AngleSharp.Html.Parser;
+using DotNetLiguriaCore.Storage;
 
 namespace DotNetLiguriaCore.Services.Newsletters;
 
@@ -16,16 +17,16 @@ public sealed class NewsletterRenderer
     public const string Version = "1";
     private readonly INewsletterStore _store;
     private readonly IOptionsMonitor<NewsletterOptions> _options;
-    private readonly IWebHostEnvironment _environment;
+    private readonly string _contentsRoot;
     private readonly TimeProvider _clock;
     private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder().DisableHtml().UseAdvancedExtensions().Build();
 
     public NewsletterRenderer(INewsletterStore store, IOptionsMonitor<NewsletterOptions> options,
-        IWebHostEnvironment environment, TimeProvider clock)
+        IWebHostEnvironment environment, TimeProvider clock, WebsiteStoragePaths? storagePaths = null)
     {
         _store = store;
         _options = options;
-        _environment = environment;
+        _contentsRoot = storagePaths?.ContentsRoot ?? WebsiteStoragePaths.ResolveContentsRoot(environment);
         _clock = clock;
     }
 
@@ -44,7 +45,7 @@ public sealed class NewsletterRenderer
         var html = await ReplaceImagesAsync(rendered, images, cancellationToken);
         html = Sanitize(html);
 
-        var logoPath = Path.Combine(_environment.ContentRootPath, "Contents", "newsletters", "dotnetliguria-logo.png");
+        var logoPath = Path.Combine(_contentsRoot, "newsletters", "dotnetliguria-logo.png");
         if (!File.Exists(logoPath))
             throw new NewsletterServiceException("newsletter_logo_unavailable", 503);
         var logo = await File.ReadAllBytesAsync(logoPath, cancellationToken);
@@ -136,7 +137,7 @@ public sealed class NewsletterRenderer
     public string ConfigurationFingerprint()
     {
         var options = _options.CurrentValue;
-        var logoPath = Path.Combine(_environment.ContentRootPath, "Contents", "newsletters", "dotnetliguria-logo.png");
+        var logoPath = Path.Combine(_contentsRoot, "newsletters", "dotnetliguria-logo.png");
         if (!File.Exists(logoPath))
             throw new NewsletterServiceException("newsletter_logo_unavailable", 503);
         var logoDigest = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(logoPath)));

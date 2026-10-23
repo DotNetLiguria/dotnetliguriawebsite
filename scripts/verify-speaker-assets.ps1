@@ -3,7 +3,7 @@
 param([string]$ContentRoot, [string]$ManifestPath, [string]$SpeakerExportPath)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-if (!$ContentRoot) { $ContentRoot = Join-Path $root 'src/dotnetliguriawebsite/DotNetLiguriaCore/Contents' }
+if (!$ContentRoot) { $ContentRoot = Join-Path $root '.persisted/contents' }
 if (!$ManifestPath) { $ManifestPath = Join-Path $root 'src/dotnetliguriawebsite/DataMigration/json/speakerAssetSources.json' }
 if (!$SpeakerExportPath) { $SpeakerExportPath = Join-Path $root 'src/dotnetliguriawebsite/DataMigration/json/workshopSpeakers.json' }
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json

@@ -10,7 +10,7 @@ import { loadEnv, type Plugin } from 'vite';
 function contentPhotos(): Plugin {
   const id = 'virtual:content-photos';
   const resolved = `\0${id}`;
-  const root = fileURLToPath(new URL('../dotnetliguriawebsite/DotNetLiguriaCore/Contents/', import.meta.url));
+  const root = fileURLToPath(new URL('../../.persisted/contents/', import.meta.url));
   const list = (folder: string) => {
     try { return readdirSync(root + folder).filter(file => /\.(jpe?g|png|webp)$/i.test(file)).map(file => `${folder}/${file}`); } catch { return []; }
   };

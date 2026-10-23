@@ -22,7 +22,7 @@ Server/SQLite providers are confined to DataMigration, not application hosting.
 | [DotNetLiguria.AppHost](../src/DotNetLiguria.AppHost) | Development orchestration for website, SPA and MongoDB |
 | [DotNetLiguria.ServiceDefaults](../src/DotNetLiguria.ServiceDefaults) | Health checks and OpenTelemetry |
 | [tests](../tests) | Two isolated .NET unit suites and frontend Vitest coverage |
-| [DotNetLiguriaCore/Contents/workshops](../src/dotnetliguriawebsite/DotNetLiguriaCore/Contents/workshops) | Historical workshop assets, retained in place |
+| [.persisted](../.persisted) | Persistent roots: `contents` and `data` are included in admin snapshots; `backups` stores snapshots and privacy control files; `not-in-snapshot` stores Data Protection keys, logs, and newsletter operational state |
 
 Build everything with `dotnet build DotNetLiguria.slnx -c Release` from the repository
 root. Individual project paths still support independent builds and publishes;

@@ -334,3 +334,6 @@ ASALocalRun/
 
 
 **/appsettings.Development.json
+# Persisted content and runtime state are carried by application snapshots.
+# The website creates the mount directories at startup; none are source files.
+/.persisted/**

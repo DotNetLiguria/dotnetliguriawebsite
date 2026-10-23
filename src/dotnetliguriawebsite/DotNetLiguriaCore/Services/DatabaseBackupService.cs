@@ -8,12 +8,13 @@ using MongoDB.Driver;
 using DotNetLiguriaCore.Services.Privacy;
 using DotNetLiguriaCore.Services.Photos;
 using DotNetLiguriaCore.Services.Newsletters;
+using DotNetLiguriaCore.Storage;
 
 namespace DotNetLiguriaCore.Services;
 
 public sealed class DatabaseBackupService : IPrivacySnapshotStore
 {
-    private const int _manifestVersion = 2;
+    private const int _manifestVersion = 3;
     private const int _insertBatchSize = 500;
     private static readonly Regex _snapshotIdPattern = new(
         @"^(?:safety-)?[0-9]{8}T[0-9]{9}Z-[a-f0-9]{8}$",
@@ -52,6 +53,8 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
     private readonly IErasureJournal? _erasureJournal;
     private readonly PrivacyOptions _privacyOptions;
     private readonly PhotoSnapshotService? _photos;
+    private readonly PersistedAssetSnapshotService _persistedAssets;
+    private readonly string _workshopFileCollectionName;
     private readonly INewsletterRestoreGuard _newsletterRestoreGuard;
 
     public DatabaseBackupService(
@@ -63,7 +66,8 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         PrivacyOperationGate? operationGate = null,
         IErasureJournal? erasureJournal = null,
         IOptions<PrivacyOptions>? privacyOptions = null,
-        PhotoSnapshotService? photos = null)
+        PhotoSnapshotService? photos = null,
+        PersistedAssetSnapshotService? persistedAssets = null)
     {
         var databaseSettings = settings.Value;
         var client = new MongoClient(databaseSettings.ConnectionString);
@@ -75,6 +79,10 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         _erasureJournal = erasureJournal;
         _privacyOptions = privacyOptions?.Value ?? new PrivacyOptions();
         _photos = photos;
+        _persistedAssets = persistedAssets ?? new PersistedAssetSnapshotService(
+            WebsiteStoragePaths.ResolveContentsRoot(hostEnvironment),
+            WebsiteStoragePaths.ResolvePrivateUploadsRoot(hostEnvironment));
+        _workshopFileCollectionName = databaseSettings.WorkshopFileCollectionName;
         _newsletterRestoreGuard = newsletterRestoreGuard;
     }
 
@@ -132,20 +140,42 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         }
 
         var manifest = await ReadManifestAsync(snapshotId, cancellationToken);
-        var epoch = await GetEpochAsync(cancellationToken);
-        if (!manifest.TryGetValue("privacyEpoch", out var snapshotEpoch) ||
-            snapshotEpoch.BsonType != BsonType.String || snapshotEpoch.AsString != epoch)
+        var snapshotEpoch = ReadSnapshotEpoch(manifest);
+        var epoch = await ReadExistingEpochAsync(cancellationToken);
+        var isBootstrapImport = epoch is null && await IsDatabaseEmptyAsync(cancellationToken);
+        if (!isBootstrapImport && epoch is not null && !string.Equals(snapshotEpoch, epoch, StringComparison.Ordinal))
             throw new PrivacyBlockedException("snapshot_predates_privacy_boundary");
+        if (!isBootstrapImport && epoch is null)
+        {
+            epoch = await GetEpochAsync(cancellationToken);
+            if (!string.Equals(snapshotEpoch, epoch, StringComparison.Ordinal))
+                throw new PrivacyBlockedException("snapshot_predates_privacy_boundary");
+        }
         await ValidateSnapshotFilesAsync(snapshotId, manifest, cancellationToken);
         await PhotoSnapshotService.ValidateAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
         if ((await PhotoSnapshotService.ReadAssetsAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken)).Count > 0 && _photos is null)
             throw new InvalidDataException("Photo storage is required to restore this snapshot.");
+        var workshopFilesPath = GetCollectionSnapshotPath(GetSnapshotPath(snapshotId),
+            manifest["collections"].AsBsonArray, _workshopFileCollectionName);
+        if (manifest["version"].AsInt32 >= 3)
+            await _persistedAssets.ValidateAsync(GetSnapshotPath(snapshotId), manifest, workshopFilesPath, cancellationToken);
+        else
+            await _persistedAssets.ValidateLegacyReferencesAsync(workshopFilesPath, cancellationToken);
+
+        if (isBootstrapImport)
+        {
+            // A new deployment has no local privacy boundary yet. Adopt the epoch from the
+            // explicitly selected, fully validated snapshot before creating its safety copy.
+            await WriteEpochAsync(snapshotEpoch, cancellationToken);
+        }
 
         await _newsletterRestoreGuard.SuspendForRestoreAsync(cancellationToken);
         var safetySnapshot = await CreateSnapshotAsync(true, cancellationToken);
         var previousAssets = _photos is null ? [] : await _photos.CurrentAssetsAsync(cancellationToken);
         await ReplaceDatabaseAsync(manifest, snapshotId, cancellationToken);
         if (_photos is not null) await _photos.RestoreAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
+        if (manifest["version"].AsInt32 >= 3)
+            await _persistedAssets.RestoreAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
         if (_photos is not null) await _photos.RemoveReplacedAssetsAsync(previousAssets, cancellationToken);
         return new BackupRestoreResult(snapshotId, safetySnapshot);
     }
@@ -275,6 +305,10 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
             };
             if (name is not null) manifest.Add("name", name);
             if (_photos is not null) manifest.Add("photos", await _photos.CaptureAsync(temporaryPath, cancellationToken));
+            var workshopFilesPath = GetCollectionSnapshotPath(temporaryPath, collectionManifest, _workshopFileCollectionName);
+            var persistedAssets = await _persistedAssets.CaptureAsync(temporaryPath, workshopFilesPath, cancellationToken);
+            manifest.Add("contents", persistedAssets["contents"]);
+            manifest.Add("workshopUploads", persistedAssets["workshopUploads"]);
             ValidateManifest(manifest);
             await File.WriteAllTextAsync(
                 Path.Combine(temporaryPath, "manifest.json"),
@@ -377,7 +411,7 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
     {
         if (!manifest.TryGetValue("version", out var version) ||
             version.BsonType != BsonType.Int32 ||
-            version.AsInt32 is not (1 or _manifestVersion) ||
+            version.AsInt32 is not (1 or 2 or _manifestVersion) ||
             !manifest.TryGetValue("createdAtUtc", out var createdAt) ||
             createdAt.BsonType != BsonType.DateTime ||
             !manifest.TryGetValue("isSafetySnapshot", out var isSafetySnapshot) ||
@@ -391,6 +425,11 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         if (manifest.TryGetValue("name", out var snapshotName) &&
             (snapshotName.BsonType != BsonType.String || !IsValidSnapshotName(snapshotName.AsString)))
             throw new InvalidDataException("The backup manifest contains an invalid name.");
+
+        if (version.AsInt32 >= 3 &&
+            (!manifest.TryGetValue("contents", out var contents) || contents.BsonType != BsonType.Array ||
+             !manifest.TryGetValue("workshopUploads", out var workshopUploads) || workshopUploads.BsonType != BsonType.Array))
+            throw new InvalidDataException("The backup manifest is missing persisted asset manifests.");
 
         var names = new HashSet<string>(StringComparer.Ordinal);
         var index = 0;
@@ -599,6 +638,50 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
 
         PrivacyStoragePaths.RejectLinks(snapshotPath);
         return snapshotPath;
+    }
+
+    private static string? GetCollectionSnapshotPath(string snapshotRoot, BsonArray collections, string collectionName)
+    {
+        var collection = collections.Select(value => value.AsBsonDocument)
+            .SingleOrDefault(value => value["name"].AsString == collectionName);
+        return collection is null
+            ? null
+            : Path.Combine(snapshotRoot, collection["file"].AsString);
+    }
+
+    private static string ReadSnapshotEpoch(BsonDocument manifest)
+    {
+        if (!manifest.TryGetValue("privacyEpoch", out var snapshotEpoch) ||
+            snapshotEpoch.BsonType != BsonType.String || !Guid.TryParseExact(snapshotEpoch.AsString, "N", out _))
+            throw new PrivacyBlockedException("snapshot_predates_privacy_boundary");
+        return snapshotEpoch.AsString;
+    }
+
+    private async Task<string?> ReadExistingEpochAsync(CancellationToken cancellationToken)
+    {
+        var path = Path.Combine(_backupRoot, ".privacy", "backup.epoch");
+        PrivacyStoragePaths.RejectLinks(Path.GetDirectoryName(path)!);
+        if (!File.Exists(path)) return null;
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new PrivacyBlockedException("invalid_backup_privacy_epoch");
+        var epoch = await File.ReadAllTextAsync(path, cancellationToken);
+        if (!Guid.TryParseExact(epoch, "N", out _))
+            throw new PrivacyBlockedException("invalid_backup_privacy_epoch");
+        return epoch;
+    }
+
+    private async Task<bool> IsDatabaseEmptyAsync(CancellationToken cancellationToken)
+    {
+        foreach (var collectionInfo in await GetCollectionInfosAsync(cancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var collection = _database.GetCollection<BsonDocument>(collectionInfo["name"].AsString);
+            if (await collection.CountDocumentsAsync(FilterDefinition<BsonDocument>.Empty,
+                    cancellationToken: cancellationToken) != 0)
+                return false;
+        }
+
+        return true;
     }
 
     private static BackupSnapshotInfo ToSnapshotInfo(string snapshotId, BsonDocument manifest)

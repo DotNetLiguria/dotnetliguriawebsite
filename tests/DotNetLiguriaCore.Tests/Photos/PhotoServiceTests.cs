@@ -2,6 +2,8 @@ using DotNetLiguriaCore.Model;
 using DotNetLiguriaCore.Services.Photos;
 using DotNetLiguriaCore.Services.Privacy;
 using DotNetLiguriaCore.Tests.Privacy;
+using DotNetLiguriaCore.Storage;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using SkiaSharp;
@@ -12,6 +14,7 @@ namespace DotNetLiguriaCore.Tests.Photos;
 public sealed class PhotoServiceTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "dnl-photo-test-" + Guid.NewGuid().ToString("N"));
+    private readonly string _contentsRoot;
     private readonly FakePhotoStore _store = new();
     private readonly PhotoStorage _storage;
     private readonly PhotoService _service;
@@ -23,8 +26,16 @@ public sealed class PhotoServiceTests : IDisposable
     public PhotoServiceTests()
     {
         BsonCompatibility.Configure();
+        var environment = new PrivacyTestEnvironment(Path.Combine(_root, "website"));
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Storage:ContentsRoot"] = Path.Combine(_root, "website", ".persisted", "contents"),
+            ["Storage:DataRoot"] = Path.Combine(_root, "website", ".persisted", "data"),
+        }).Build();
+        var storagePaths = new WebsiteStoragePaths(configuration, environment);
+        _contentsRoot = storagePaths.ContentsRoot;
         _storage = new(Options.Create(new PhotoOptions { Enabled = true, Root = Path.Combine(_root, "media") }),
-            new PrivacyTestEnvironment(Path.Combine(_root, "website")));
+            environment, storagePaths);
         _service = new(_store, _storage);
         _lifecycle = new(_store, _storage, _service);
     }
@@ -245,7 +256,7 @@ public sealed class PhotoServiceTests : IDisposable
         var board = Add("board") with { Name = "Ada Lovelace", Account = null };
         var speaker = Add("speaker") with { Name = "Adà Lovelace", LegacyUrl = "/Uploads/old.jpg", Account = null };
         _store.Targets[speaker.Key] = speaker;
-        var folder = Path.Combine(_root, "website", "Contents", "speakers");
+        var folder = Path.Combine(_contentsRoot, "speakers");
         Directory.CreateDirectory(folder);
         await File.WriteAllBytesAsync(Path.Combine(folder, "ada_lovelace.jpg"), Image(SKEncodedImageFormat.Jpeg), _token);
         HashSet<string> permissions = ["board.manage", "speakers.read"];
@@ -265,7 +276,7 @@ public sealed class PhotoServiceTests : IDisposable
         var board = Add("board") with { Name = "Ada Lovelace", Account = null };
         var speaker = Add("speaker") with { Name = "Adà Lovelace", LegacyUrl = "/Uploads/missing.jpg", Account = null };
         _store.Targets[speaker.Key] = speaker;
-        var contents = Path.Combine(_root, "website", "Contents");
+        var contents = _contentsRoot;
         Directory.CreateDirectory(Path.Combine(contents, "profile"));
         Directory.CreateDirectory(Path.Combine(contents, "speakers"));
         await File.WriteAllBytesAsync(Path.Combine(contents, "profile", profileFile), Image(SKEncodedImageFormat.Png), _token);
@@ -292,7 +303,7 @@ public sealed class PhotoServiceTests : IDisposable
         var board = Add("board") with { Name = "Fixture Person", LegacyUrl = url, Account = null };
         var speaker = Add("speaker") with { Name = "Fixture Person", LegacyUrl = url, Account = null };
         _store.Targets[speaker.Key] = speaker;
-        var folder = Path.Combine(_root, "website", "Contents", "speakers");
+        var folder = Path.Combine(_contentsRoot, "speakers");
         Directory.CreateDirectory(folder);
         var path = Path.Combine(folder, "fixture_person.jpg");
         var original = Image(SKEncodedImageFormat.Jpeg);

@@ -3,6 +3,7 @@ using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Services;
 using DotNetLiguriaCore.Services.Questionnaires;
 using DotNetLiguriaCore.Services.Privacy;
+using DotNetLiguriaCore.Storage;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http.Metadata;
@@ -98,6 +99,7 @@ public class WriteEndpointAuthorizationTests
         {
             var builder = WebApplication.CreateSlimBuilder();
             builder.Services.AddAuthorization();
+            builder.Services.AddSingleton(new WebsiteStoragePaths(builder.Configuration, builder.Environment));
             builder.Services.AddSingleton(TimeProvider.System);
             builder.Services.AddPrivacyServices(builder.Configuration, builder.Environment);
             builder.Services.AddRateLimiter(_ => { });

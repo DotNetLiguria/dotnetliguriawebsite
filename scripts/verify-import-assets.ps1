@@ -6,7 +6,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-if (!$ContentRoot) { $ContentRoot = Join-Path $root 'src/dotnetliguriawebsite/DotNetLiguriaCore/Contents' }
+if (!$ContentRoot) { $ContentRoot = Join-Path $root '.persisted/contents' }
 if (!$ManifestPath) { $ManifestPath = Join-Path $root 'src/dotnetliguriawebsite/DataMigration/json/workshopAssetSources.json' }
 $resolvedRoot = [IO.Path]::GetFullPath($ContentRoot)
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json

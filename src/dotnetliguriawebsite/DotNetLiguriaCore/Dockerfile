@@ -36,6 +36,8 @@ RUN dotnet publish src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-RUN mkdir -p /app/Contents/Logs && chown "$APP_UID" /app/Contents/Logs
+RUN mkdir -p /app/Contents /data/private-uploads /data/profile-photos /backups \
+    /not-in-snapshot/data-protection-keys /not-in-snapshot/logs /not-in-snapshot/newsletter-operations \
+    && chown -R "$APP_UID" /app/Contents /data /backups /not-in-snapshot
 USER $APP_UID
 ENTRYPOINT ["dotnet", "DotNetLiguriaCore.dll"]

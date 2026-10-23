@@ -28,14 +28,102 @@ For local-only testing, bind the website to loopback, for example `127.0.0.1:844
 | Service | Container path | Purpose |
 | --- | --- | --- |
 | MongoDB | `/data/db` | Database files; use a durable named volume or protected host filesystem. |
-| DotNetLiguriaWebCore | `/app/Contents` | Historical static workshop/media files, uploaded content, profile photos, newsletter files, and application logs. |
-| DotNetLiguriaWebCore | `/app/Backups` | Application-generated privacy/database backup files. Restrict access and include in backup policy. |
-| DotNetLiguriaWebCore | `/app/PrivateUploads` | Private workshop asset files, if used. Keep outside public static paths. |
+| DotNetLiguriaWebCore | `/app/Contents` | Public website content and workshop/event assets. This tree is writable because new event content is created at runtime. |
+| DotNetLiguriaWebCore | `/data` | Snapshot-managed private workshop uploads and profile photos. |
+| DotNetLiguriaWebCore | `/backups` | Application snapshots plus privacy-control files under `/backups/.privacy`. Protect and back up this directory. |
+| DotNetLiguriaWebCore | `/not-in-snapshot/data-protection-keys` | ASP.NET Core Data Protection keys. These protect authentication and encrypted policy state; back them up with `/backups`. |
+| DotNetLiguriaWebCore | `/not-in-snapshot/logs` | Rolling application logs. Keep them out of public paths and apply retention/access controls. |
+| DotNetLiguriaWebCore | `/not-in-snapshot/newsletter-operations` | Newsletter operational state and recovery markers. Back this up with the database/snapshot set. |
+| DotNetLiguriaWebCore | `/data/private-uploads` | Private workshop assets that must not be served as public static files. |
+| DotNetLiguriaWebCore | `/data/profile-photos` | Profile photo files when local profile-photo storage is enabled. |
 | DotNetLiguriaWebCore | `/run/tls` | Read-only mount for the PEM certificate and private key. |
 
-**Seed `Contents` before first start.** The image contains the checked-in historical assets. An empty host bind mount at `/app/Contents` hides those image files and can break existing workshop pages. Copy the current `src/dotnetliguriawebsite/DotNetLiguriaCore/Contents` tree to the host volume first, then mount it. When deploying a newer image, overlay new checked-in assets into the persistent directory without deleting historical or uploaded files. Give the site container's non-root user write access only to the required content subdirectories, logs, backups, and private uploads. Do not make the whole host filesystem writable by the container.
+The repository separates website persistence into four sibling directories under `.persisted/`:
+
+| Repository directory | Container mount | Contents and backup coverage |
+| --- | --- | --- |
+| `.persisted/contents` | `/app/Contents` | Public assets and dynamic event content. Entire tree is copied into each admin snapshot. |
+| `.persisted/data` | `/data` | Private workshop uploads and profile-photo files. Referenced files are copied into each admin snapshot. |
+| `.persisted/backups` | `/backups` | Admin snapshots and `.privacy` control files. Snapshots include all MongoDB collections and the snapshot-managed files above. |
+| `.persisted/not-in-snapshot` | `/not-in-snapshot` | Data Protection keys, logs, and newsletter operational state. These are outside admin snapshots and must be protected by a separate host-level backup. |
+
+Keep `.persisted/contents` writable because event creation and content updates write there. Persisted content is not bundled into the website image; a fresh deployment gets it through the snapshot import below. The image's React app remains in `wwwroot` and does not need a volume.
+
+The current public content folders are:
+
+| Repository folder | Purpose |
+| --- | --- |
+| `.persisted/contents/imported` | Imported event media and files, organized under the existing import structure. |
+| `.persisted/contents/newsletters` | Public newsletter images and related content referenced by the site. |
+| `.persisted/contents/profile` | Existing public profile images used by site pages. |
+| `.persisted/contents/speakers` | Existing public speaker portraits used by site pages. |
+| `.persisted/contents/workshops` | Event pages, workshop images, and public workshop material. New event content is written here. |
+
+### `.persisted` inventory and backup status
+
+| Folder / files | What it contains | Admin snapshot? | Recovery treatment |
+| --- | --- | --- | --- |
+| `.persisted/contents/**` | The complete public content tree, including runtime-created files. | **Yes.** Every file is listed and checksummed in each snapshot. | Restore with the database snapshot. Size storage for the full source content tree; a populated workspace currently has 269 files (about 305 MB), and live content can be larger. |
+| `.persisted/data/private-uploads/**` | Private workshop files whose metadata is stored in `WorkshopFile`. | **Yes, when referenced by records.** | Restore matching records and files together. Orphan files are not included by the snapshot feature. |
+| `.persisted/data/profile-photos/**` | Local profile-photo variants and assets. | **Yes, when profile-photo assets exist.** | Restore the MongoDB photo metadata and corresponding image variants together. |
+| `.persisted/backups/<snapshot-id>/**` | Complete application snapshots: all non-system MongoDB collections, `contents/`, referenced private uploads, and photo assets. | These folders **are** the snapshots; they are not recursively copied into another snapshot. | Keep multiple protected copies and transfer a complete snapshot folder for admin import. Also include in host-level backup/off-site retention. |
+| `.persisted/backups/.privacy/backup.epoch` | The local privacy boundary for snapshot restore checks. | **No.** The selected snapshot records its own epoch in `manifest.json`. | Include in host-level backup for recovery of an existing instance. For the first import into a truly empty database, do not transfer this file; import adopts the selected snapshot's epoch. |
+| `.persisted/backups/.privacy/retention.policy` | Encrypted retention overrides for privacy erasure. | **No.** | Host-level back up with `.persisted/not-in-snapshot/data-protection-keys`, which are required to decrypt it. If omitted, runtime configuration defaults apply. |
+| `.persisted/backups/.privacy/*.operation` | Encrypted in-progress privacy-erasure journal entries. | **No.** | Snapshot creation is blocked while erasure is in progress. Preserve these for operational recovery; do not blindly apply stale operations to a new instance. |
+| `.persisted/not-in-snapshot/data-protection-keys/**` | Keys for protected cookies and encrypted policy/journal files. | **No.** “Not in snapshot” means excluded from the admin application snapshot; it still needs a protected host-level backup. | Back up securely with `.persisted/backups/.privacy/retention.policy`; loss invalidates protected cookies and can make saved policy state unreadable. |
+| `.persisted/not-in-snapshot/newsletter-operations/**` | Newsletter restore/suspension markers. | **No.** | Include in host-level continuity backups so a restored deployment does not accidentally lose operational suspension state. |
+| `.persisted/not-in-snapshot/logs/**` | Rolling application logs. | **No.** | Not required to restore the application. Retain per the logging policy or ship to a protected central log service; a long-term backup is optional. |
+| MongoDB volume `dotnetliguria-mongo-data` | MongoDB's physical database files. | The admin snapshot captures logical collections, not this volume's files. | Keep the volume durable; use the separate daily `mongodump` procedure as another recovery copy. |
+| TLS certificate/key mount `/run/tls` | Kestrel certificate and private key. | **No.** | Manage and back up through the certificate/secret-management process, outside the repository and application snapshots. |
+
+The admin snapshot implementation copies the full `contents` tree and only private workshop uploads referenced by the database. It adds profile-photo assets when profile photos are enabled and present. It does not read `.persisted/backups` or `.persisted/not-in-snapshot`; those roots are outside the snapshot payload by design. The `.gitignore` rules control Git tracking only and do not determine what the admin snapshot includes.
+
+The application creates the required directories at startup. Give the website container write access only to these four mapped roots, and no broader host filesystem access. Keep `/data`, `/backups`, and `/not-in-snapshot` outside public static paths and apply restrictive permissions. Back up `.persisted/backups` and `.persisted/not-in-snapshot` together: `/backups/.privacy/retention.policy` is encrypted using the Data Protection key ring in `/not-in-snapshot/data-protection-keys`. Losing the key ring can invalidate protected authentication/session data and make the saved retention policy unreadable. Logs can follow a shorter retention policy, but must remain access-restricted.
+
+MongoDB `/data/db`, website `/data`, `/backups`, `/not-in-snapshot`, and `/app/Contents` are separate persistent mounts. Admin snapshots include every non-system MongoDB collection, the full `Contents` tree, referenced private workshop uploads, and profile-photo assets when present. The separate daily `mongodump` and host-level backup remain useful independent recovery layers.
+
+Create the four host-side roots before starting the container so Docker can bind-mount them:
+
+```sh
+mkdir -p /srv/dotnetliguria/.persisted/contents \
+  /srv/dotnetliguria/.persisted/data \
+  /srv/dotnetliguria/.persisted/backups \
+  /srv/dotnetliguria/.persisted/not-in-snapshot
+```
 
 The React build is in the image's `wwwroot` and does not need a volume. Do not mount a host `wwwroot` over it.
+
+## First deployment and admin snapshot import
+
+The admin dashboard imports a snapshot already staged on the website's backup volume; it does not upload a snapshot from the browser. A current snapshot contains `manifest.json`, MongoDB collection JSONL files, public `contents/`, private `workshop-uploads/`, and profile-photo assets when enabled. The manifest records file sizes and SHA-256 checksums, and import rejects missing, changed, extra, or unsafe-path assets before changing the database. Each snapshot copies the full public `Contents` tree, so size `.persisted/backups` for that tree per retained snapshot, plus MongoDB data and private media; there is no cross-snapshot deduplication. Plan enough protected free disk space for the source snapshot, an import safety snapshot of the empty target database, and the restored files. Snapshots contain personal data; encrypt them at rest and in transit and restrict access like the live database.
+
+For a new deployment, follow this order:
+
+1. On the source deployment, use **Admin dashboard → Backups → Create snapshot**. Wait for successful completion and copy the complete generated snapshot directory, preserving its snapshot ID and every file beneath it. Do not copy only `manifest.json` or only the MongoDB JSONL files.
+2. Transfer the complete snapshot folder securely to the target host. Place it at `/srv/dotnetliguria/.persisted/backups/<snapshot-id>/` so the container sees `/backups/<snapshot-id>/manifest.json`. Keep the snapshot ID directory name intact. To preserve the source retention policy, also copy `.persisted/backups/.privacy/retention.policy` and its matching `.persisted/not-in-snapshot/data-protection-keys/` key ring; copy `newsletter-operations/` markers when preserving newsletter suspension state. Do not copy `.privacy/backup.epoch` to a fresh database: the import establishes its epoch from the snapshot. A successfully created snapshot cannot be made while an erasure operation is pending, so do not copy stale `.operation` files into the fresh deployment.
+3. Start MongoDB with an empty `DotNetLiguria` database, then start the website with its production secrets, HTTPS certificate, and all four mounts. The app creates empty storage directories at startup. The website's MongoDB user must have the required database read/write and collection/index management permissions.
+4. Open the production HTTPS website, authenticate as an administrator with the required recent MFA, then open **Admin dashboard → Backups**. Confirm the staged snapshot appears and select **Import**. Review the explicit confirmation and complete the import. The application validates collection files, photo assets, public content, private uploads, and checksums before changing the database. It first writes a safety snapshot of the empty target state.
+5. On a fresh target only, when the database has zero documents and no local `.privacy/backup.epoch`, import adopts the validated snapshot's privacy epoch. This permits the first import while preserving the erasure boundary represented by that snapshot. An existing epoch must match; a non-empty database without an epoch is not considered fresh. Those cases are rejected when the epochs differ.
+6. Verify the dashboard reports completion, check representative event pages and protected downloads, confirm expected records and photos, and review logs. Keep the source snapshot until verification and your retention process permit deletion. After the import, create a new snapshot on the target and confirm it is listed.
+
+If importing an older snapshot created before media was included, the restore is allowed only when every referenced local asset is already present on the target. Otherwise create a new snapshot from the source deployment first. Never “solve” a failed validation by importing database JSONL files manually: that can leave public or private file references broken.
+
+The website snapshot is an application-level recovery/export set. It complements, but does not replace, the daily MongoDB `mongodump` archive and coordinated host backup of `.persisted/backups` plus `.persisted/not-in-snapshot` (especially Data Protection keys and newsletter operation state).
+
+For an existing installation migrating from the previous layout, stop the website container during the file move (MongoDB can remain online). Copy the old backup directory as a whole so hidden `.privacy` files are preserved; copy the three non-snapshot subdirectories to their new sibling root. Keep the old source directories until the new container starts successfully and the copied contents have been verified. Private uploads and profile photos remain under `.persisted/data`.
+
+```sh
+mkdir -p /srv/dotnetliguria/.persisted/backups \
+  /srv/dotnetliguria/.persisted/not-in-snapshot
+rsync -a /srv/dotnetliguria/.persisted/data/backups/ \
+  /srv/dotnetliguria/.persisted/backups/
+rsync -a /srv/dotnetliguria/.persisted/data/data-protection-keys/ \
+  /srv/dotnetliguria/.persisted/not-in-snapshot/data-protection-keys/
+rsync -a /srv/dotnetliguria/.persisted/data/logs/ \
+  /srv/dotnetliguria/.persisted/not-in-snapshot/logs/
+rsync -a /srv/dotnetliguria/.persisted/data/newsletter-operations/ \
+  /srv/dotnetliguria/.persisted/not-in-snapshot/newsletter-operations/
+```
 
 ## Start the stack
 
@@ -53,16 +141,17 @@ docker run -d --name mongodb --restart unless-stopped \
 
 Create a separate MongoDB application user scoped to `DotNetLiguria` with the minimum read/write roles the site requires. Provision credentials through an interactive admin session or secret manager; do not paste credentials into commands or source files. The website URI's `authSource` must name the database where that application user is created. Keep the root credential for administration and backups only.
 
-After seeding the persistent `Contents` directory and preparing the certificate files, start the website. The protected website env file contains the variables listed above, including the exact Kestrel endpoint and certificate paths:
+After creating the host storage directories and preparing the certificate files, start the website. The protected website env file contains the variables listed above, including the exact Kestrel endpoint and certificate paths:
 
 ```sh
 docker run -d --name dotnetliguria-webcore --restart unless-stopped \
   --network dotnetliguria-internal \
   --publish 443:8443 \
   --env-file /etc/dotnetliguria/website.env \
-  --mount type=bind,source=/srv/dotnetliguria/Contents,target=/app/Contents \
-  --mount type=bind,source=/srv/dotnetliguria/Backups,target=/app/Backups \
-  --mount type=bind,source=/srv/dotnetliguria/PrivateUploads,target=/app/PrivateUploads \
+  --mount type=bind,source=/srv/dotnetliguria/.persisted/contents,target=/app/Contents \
+  --mount type=bind,source=/srv/dotnetliguria/.persisted/data,target=/data \
+  --mount type=bind,source=/srv/dotnetliguria/.persisted/backups,target=/backups \
+  --mount type=bind,source=/srv/dotnetliguria/.persisted/not-in-snapshot,target=/not-in-snapshot \
   --mount type=bind,source=/etc/dotnetliguria/tls,target=/run/tls,readonly \
   dotnetliguria-webcore:release
 ```
@@ -82,6 +171,10 @@ ASP.NET Core reads environment variables using double underscores in place of co
 | `Kestrel:Endpoints:Https:Certificate:Path` | `Kestrel__Endpoints__Https__Certificate__Path` | Container path to the PEM certificate, e.g. `/run/tls/site-cert.pem`. |
 | `Kestrel:Endpoints:Https:Certificate:KeyPath` | `Kestrel__Endpoints__Https__Certificate__KeyPath` | Container path to its matching private key, e.g. `/run/tls/site-key.pem`. |
 | `Kestrel:Endpoints:Https:Certificate:Password` | `Kestrel__Endpoints__Https__Certificate__Password` | Passphrase for an encrypted PEM private key; use an empty value only if the key is intentionally unencrypted. Keep the key file protected either way. |
+| `Storage:ContentsRoot` | `Storage__ContentsRoot` | Set to `/app/Contents`, the writable public content mount. |
+| `Storage:DataRoot` | `Storage__DataRoot` | Set to `/data`, the snapshot-managed private workshop-upload and profile-photo mount. |
+| `Storage:BackupsRoot` | `Storage__BackupsRoot` | Set to `/backups`, the admin snapshot and privacy-state mount. |
+| `Storage:NotInSnapshotRoot` | `Storage__NotInSnapshotRoot` | Set to `/not-in-snapshot`, the separate state mount for Data Protection keys, logs, and newsletter operations. |
 | `AuthServer:ClientSecret` | `AuthServer__ClientSecret` | Confidential OIDC client secret issued for this website. Required by the app outside Development. |
 | `DotNetLiguriaDatabase:ConnectionString` | `DotNetLiguriaDatabase__ConnectionString` | MongoDB URI using the app-specific database user (see MongoDB setup below), e.g. `mongodb://<app-user>:<url-encoded-password>@mongodb:27017/DotNetLiguria?authSource=DotNetLiguria&tls=false`. Set `tls=true` and configure trusted CA certificates if MongoDB TLS is enabled. |
 | `AllowedHosts` | `AllowedHosts` | Explicit production host names, e.g. `dotnetliguria.net;www.dotnetliguria.net`. Do not use `*`. |
@@ -102,7 +195,7 @@ The shipped `appsettings.json` contains the current identity issuer and public-d
 | `Security:KnownProxies:0` | `Security__KnownProxies__0` | When running behind a reverse proxy; add one indexed value for each exact trusted proxy IP. |
 | `Security:CorsOrigins:0` | `Security__CorsOrigins__0` | Only if browser clients are hosted on a separate origin. Use exact HTTPS origins without wildcards. Same-origin SPA/API hosting needs no CORS origin. |
 | `ProfilePhotos:Enabled` | `ProfilePhotos__Enabled` | Set `true` only if profile photo storage is ready. |
-| `ProfilePhotos:Root` | `ProfilePhotos__Root` | Durable writable directory inside the mounted content tree when profile photos are enabled. |
+| `ProfilePhotos:Root` | `ProfilePhotos__Root` | Optional override. The default is `/data/profile-photos`; keep profile photos in private persistent storage, outside public `Contents`. |
 | `PermissionDirectory:ServiceClientId` | `PermissionDirectory__ServiceClientId` | Keycloak service client used for permission administration. |
 | `PermissionDirectory:ServiceClientSecret` | `PermissionDirectory__ServiceClientSecret` | Secret for that service client; keep separate from the OIDC login client secret. |
 | `PermissionDirectory:Issuer` | `PermissionDirectory__Issuer` | Identity issuer for the permission directory integration. |
@@ -178,8 +271,8 @@ This section explains each setting in `appsettings.json` and `secrets-template.j
 | `Privacy:AssessedNonAccountCollections` | Exact MongoDB collection names reviewed and documented as not containing ordinary account linkage. Populate only from a complete data inventory; an empty list is safer than claiming an unassessed collection is safe. |
 | `Privacy:RetentionOverrides` | Collection/field-path retention exceptions and their approved actions. Take these from the signed retention policy and reviewed data inventory; do not guess. The erasure workflow recognizes only supported actions (currently `delete`) as clearing a blocker. |
 | `ProfilePhotos:Enabled` | Feature switch for local profile-photo file storage. Keep `false` until a durable, access-restricted storage path is provisioned and included in backup/privacy procedures. |
-| `ProfilePhotos:Root` | Writable persistent directory for profile photos when enabled. Use a path under the mounted `Contents` tree or another durable storage mount; never use a temporary container path. |
-| `DotNetLiguriaDatabase:BackupFolder` | Application-managed backup/privacy storage root relative to the app content root unless configured as an absolute path. In the container, `/app/Backups` is mounted separately; do not put backups beneath public `Contents`. |
+| `ProfilePhotos:Root` | Writable persistent directory for profile photos when enabled. Defaults to `/data/profile-photos`; this path is included in admin snapshots and must remain outside public `Contents`. |
+| `DotNetLiguriaDatabase:BackupFolder` | Application-managed database snapshot and privacy-state root. Set it to `/backups`; `.privacy` control files live here beside snapshot folders. |
 | `DotNetLiguriaDatabase:ConnectionString` | MongoDB URI for the website's least-privilege database user. In Aspire, the AppHost injects this at runtime, so no local value is required. For standalone/deployment use, construct it from the MongoDB host, database, authentication database, and app-specific username/password issued during provisioning. URL-encode URI credentials. |
 | `DotNetLiguriaDatabase:DatabaseName` | Database name the website uses. Preserve the existing production database name; the local Aspire AppHost overrides it with `DotNetLiguriaAspire`. |
 | `DotNetLiguriaDatabase:WorkshopCollectionName` | Existing MongoDB collection for workshops. Preserve the deployed collection name when connecting to existing data. |

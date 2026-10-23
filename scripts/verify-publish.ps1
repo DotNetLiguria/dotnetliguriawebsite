@@ -43,7 +43,7 @@ try {
     $website = Join-Path $output 'website'
     Assert-NoPrivateArtifacts $website
     & (Join-Path $PSScriptRoot 'verify-speaker-assets.ps1') -ContentRoot (Join-Path $website 'Contents') -ManifestPath (Join-Path $output 'dataMigration/json/speakerAssetSources.json') -SpeakerExportPath (Join-Path $output 'dataMigration/json/workshopSpeakers.json')
-    $portraitRoot = Join-Path $root 'src/dotnetliguriawebsite/DotNetLiguriaCore/Contents'
+    $portraitRoot = Join-Path $root '.persisted/contents'
     $portraits = @(foreach ($folder in @('profile', 'speakers')) { Get-ChildItem (Join-Path $portraitRoot $folder) -File -Recurse })
     foreach ($portrait in $portraits) {
         $relative = [IO.Path]::GetRelativePath($portraitRoot, $portrait.FullName)
@@ -65,7 +65,7 @@ try {
     }
     foreach ($workshop in @('workshop001', 'workshop032')) {
         $relative = "Contents/workshops/$workshop/workshop.png"
-        $source = Join-Path $root "src/dotnetliguriawebsite/DotNetLiguriaCore/$relative"
+        $source = Join-Path $root ".persisted/$relative"
         if ((Get-FileHash $source).Hash -ne (Get-FileHash (Join-Path $website $relative)).Hash) {
             throw "Historical asset changed: $workshop"
         }

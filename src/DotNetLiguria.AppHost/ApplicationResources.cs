@@ -5,6 +5,10 @@ public static class ApplicationResources
     public static void Configure(IDistributedApplicationBuilder builder)
     {
         var root = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", ".."));
+        var contentsPath = Path.Combine(root, ".persisted", "contents");
+        var dataPath = Path.Combine(root, ".persisted", "data");
+        var backupsPath = Path.Combine(root, ".persisted", "backups");
+        var notInSnapshotPath = Path.Combine(root, ".persisted", "not-in-snapshot");
         var mongo = builder.AddMongoDB("mongo")
             .WithImageTag("8.0.32")
             .WithLifetime(ContainerLifetime.Persistent)
@@ -19,10 +23,15 @@ public static class ApplicationResources
             .WithHttpsEndpoint(port: 5443)
             .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
             .WithEnvironment("DOTNET_LIGURIA_ASPIRE", "true")
+            .WithEnvironment("Storage__ContentsRoot", contentsPath)
+            .WithEnvironment("Storage__DataRoot", dataPath)
+            .WithEnvironment("Storage__BackupsRoot", backupsPath)
+            .WithEnvironment("Storage__NotInSnapshotRoot", notInSnapshotPath)
+            .WithEnvironment("DotNetLiguriaDatabase__BackupFolder", backupsPath)
             .WithEnvironment("ProfilePhotos__Enabled", "true")
             .WithEnvironment("ProfilePhotos__Root", builder.Configuration["ProfilePhotos:Root"] ??
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "DotNetLiguria", "ProfilePhotos"))
+                Path.Combine(dataPath, "profile-photos"))
+            .WithEnvironment("Newsletters__OperationalFolder", Path.Combine(notInSnapshotPath, "newsletter-operations"))
             .WithEnvironment("ASPNETCORE_HOSTINGSTARTUPEXCLUDEASSEMBLIES",
                 "Microsoft.WebTools.ApiEndpointDiscovery"
                 // Comment out the next line to re-enable Browser Link in Chrome.

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using DotNetLiguriaCore.Services.Newsletters;
+using DotNetLiguriaCore.Storage;
 using MimeKit;
 using Xunit;
 
@@ -13,8 +14,8 @@ public sealed class NewsletterRenderingTests
         var store = new FakeNewsletterStore();
         var options = new NewsletterTestOptions();
         var environment = new NewsletterTestEnvironment();
-        var bytes = await File.ReadAllBytesAsync(Path.Combine(environment.ContentRootPath,
-            "Contents", "newsletters", "dotnetliguria-logo.png"), TestContext.Current.CancellationToken);
+        var bytes = await File.ReadAllBytesAsync(Path.Combine(WebsiteStoragePaths.ResolveContentsRoot(environment),
+            "newsletters", "dotnetliguria-logo.png"), TestContext.Current.CancellationToken);
         var imageId = Guid.NewGuid();
         store.Images[imageId] = new NewsletterImageDocument
         {
@@ -73,8 +74,8 @@ public sealed class NewsletterRenderingTests
     public async Task StarterEventTemplateValidatesAndIncludesAllRequestedEventFields()
     {
         var environment = new NewsletterTestEnvironment();
-        var markdown = await File.ReadAllTextAsync(Path.Combine(environment.ContentRootPath,
-            "Contents", "newsletters", "event-body.md"), TestContext.Current.CancellationToken);
+        var markdown = await File.ReadAllTextAsync(Path.Combine(WebsiteStoragePaths.ResolveContentsRoot(environment),
+            "newsletters", "event-body.md"), TestContext.Current.CancellationToken);
         var engine = new NewsletterTemplateEngine();
         engine.Validate(markdown, true);
         foreach (var token in new[]

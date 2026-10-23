@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using DotNetLiguriaCore.Security;
 using DotNetLiguriaCore.Services.Privacy;
+using DotNetLiguriaCore.Storage;
 using Microsoft.Extensions.Options;
 
 namespace DotNetLiguriaCore.Endpoints;
@@ -846,7 +847,7 @@ public static class ApiEndpointMappings
             return Results.Ok(items.Select(PublicWorkshopProjection.From));
         }).AllowAnonymous();
         workshop.MapPost("/Post", async (Workshop newWorkshop, WorkshopService workshopService,
-            CounterService counterService, IWebHostEnvironment environment) =>
+            CounterService counterService, WebsiteStoragePaths storagePaths) =>
         {
             var input = newWorkshop;
             newWorkshop = new Workshop();
@@ -855,7 +856,7 @@ public static class ApiEndpointMappings
             var counter = await counterService.GetOrCreateWorkshopCounterAsync();
             var number = await counterService.ReserveNextWorkshopNumberAsync(counter.CounterId);
             var folderName = $"workshop{number:000}";
-            var contentsPath = Path.Combine(environment.ContentRootPath, "Contents");
+            var contentsPath = storagePaths.ContentsRoot;
             var workshopPath = Path.Combine(contentsPath, "workshops", folderName);
             while (Directory.Exists(workshopPath))
             {
@@ -1132,7 +1133,7 @@ public static class ApiEndpointMappings
             });
         }).DisableAntiforgery().RequireAuthorization();
         workshopFile.MapDelete("/{workshopFileId}", async (Guid workshopFileId, WorkshopFileService workshopFileService,
-            IWebHostEnvironment environment, WorkshopAssetStorage storage) =>
+            WebsiteStoragePaths storagePaths, WorkshopAssetStorage storage) =>
         {
             if (workshopFileId == Guid.Empty)
             {
@@ -1150,7 +1151,7 @@ public static class ApiEndpointMappings
             }
             else if (!string.IsNullOrEmpty(item.FullPath))
             {
-                var contentsPath = Path.Combine(environment.ContentRootPath, "Contents");
+                var contentsPath = storagePaths.ContentsRoot;
                 var workshopsPath = Path.GetFullPath(Path.Combine(contentsPath, "workshops"));
                 var relativePath = item.FullPath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
                 var physicalPath = Path.GetFullPath(Path.Combine(contentsPath, relativePath));

@@ -22,6 +22,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using DotNetLiguriaCore.Security;
+using DotNetLiguriaCore.Storage;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Http.Features;
 using NetEscapades.Extensions.Logging.RollingFile;
@@ -44,7 +46,19 @@ public class Program
 #endif
 
         var builder = WebApplication.CreateBuilder(args);
-        var logDirectory = Path.Combine(builder.Environment.ContentRootPath, "Contents", "Logs");
+        var storagePaths = new WebsiteStoragePaths(builder.Configuration, builder.Environment);
+        storagePaths.EnsureDirectories();
+        if (string.IsNullOrWhiteSpace(builder.Configuration["DotNetLiguriaDatabase:BackupFolder"]))
+            builder.Configuration["DotNetLiguriaDatabase:BackupFolder"] = storagePaths.BackupsRoot;
+        if (string.IsNullOrWhiteSpace(builder.Configuration["ProfilePhotos:Root"]))
+            builder.Configuration["ProfilePhotos:Root"] = storagePaths.ProfilePhotosRoot;
+        if (string.IsNullOrWhiteSpace(builder.Configuration["Newsletters:OperationalFolder"]))
+            builder.Configuration["Newsletters:OperationalFolder"] = storagePaths.NewsletterOperationsRoot;
+        builder.Services.AddSingleton(storagePaths);
+        builder.Services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(storagePaths.DataProtectionKeysRoot));
+
+        var logDirectory = storagePaths.LogsRoot;
         builder.Logging.AddFile(options =>
         {
             options.FileName = "website-";
@@ -124,6 +138,8 @@ public class Program
         builder.Services.AddSingleton<CounterService>();
         builder.Services.AddSingleton<WorkshopFileService>();
         builder.Services.AddSingleton<WorkshopAssetStorage>();
+        builder.Services.AddSingleton(new PersistedAssetSnapshotService(
+            storagePaths.ContentsRoot, storagePaths.PrivateUploadsRoot));
         builder.Services.AddHttpClient<SessionizeImportService>()
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddOptions<EventbriteOptions>()
@@ -171,21 +187,7 @@ public class Program
         app.UseAuthentication();
         app.UseStaticFiles();
         
-        var contentsPath = Path.Combine(builder.Environment.ContentRootPath, "Contents");
-        if (!Directory.Exists(contentsPath))
-        {
-            Directory.CreateDirectory(contentsPath);
-        }
-        
-        app.Use(async (context, next) =>
-        {
-            if (context.Request.Path.StartsWithSegments("/Contents/Logs", StringComparison.OrdinalIgnoreCase))
-            {
-                context.Response.StatusCode = StatusCodes.Status404NotFound;
-                return;
-            }
-            await next();
-        });
+        var contentsPath = storagePaths.ContentsRoot;
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(contentsPath),

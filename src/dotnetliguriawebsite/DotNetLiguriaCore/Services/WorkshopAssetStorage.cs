@@ -1,10 +1,11 @@
 using System.Buffers.Binary;
 using DotNetLiguriaCore.Endpoints;
 using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Storage;
 
 namespace DotNetLiguriaCore.Services;
 
-public sealed class WorkshopAssetStorage(IWebHostEnvironment environment)
+public sealed class WorkshopAssetStorage(IWebHostEnvironment environment, WebsiteStoragePaths? storagePaths = null)
 {
     public const long MaximumBytes = 25 * 1024 * 1024;
 
@@ -13,7 +14,8 @@ public sealed class WorkshopAssetStorage(IWebHostEnvironment environment)
         if (!WorkshopUploadValidation.TryGetSafeExtension(file.FileName, file.FileType, out var extension) ||
             file.FileName != $"{file.WorkshopFileId:N}{extension}")
             throw new InvalidDataException("Invalid private asset identifier.");
-        return Path.Combine(environment.ContentRootPath, "PrivateUploads", file.FileName);
+        var root = storagePaths?.PrivateUploadsRoot ?? WebsiteStoragePaths.ResolvePrivateUploadsRoot(environment);
+        return Path.Combine(root, file.FileName);
     }
 
     public async Task<bool> SaveAsync(IFormFile upload, WorkshopFile file, CancellationToken cancellationToken)
