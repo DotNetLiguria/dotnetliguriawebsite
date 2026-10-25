@@ -158,7 +158,8 @@ describe('<EventDetailAdminPage /> wizard', () => {
 
   test('keeps the draft of steps 1, 3 and 4 across steps and saves it once, from the latest record, with Salva modifiche', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-    const api = serveEvent(eventFixture({ tags: 'dotnet', blogHtml: '<p>keep</p>', location: { name: 'Genova', address: 'Via del Porto 1', coordinates: '44.4056,8.9463', maximumSpaces: 150, rooms: ['Aula 1'] } }));
+    const talks = [{ workshopTalkId: 'session-1', title: 'Imported talk', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-3', name: 'Grace Hopper' }] }];
+    const api = serveEvent(eventFixture({ tags: 'dotnet', blogHtml: '<p>keep</p>', talks, location: { name: 'Genova', address: 'Via del Porto 1', coordinates: '44.4056,8.9463', maximumSpaces: 150, rooms: ['Aula 1'] } }));
     renderAt('/admin/workshop/w1');
     await loaded();
     await user.click(screen.getByRole('switch', { name: 'Pubblicato' }));
@@ -183,6 +184,7 @@ describe('<EventDetailAdminPage /> wizard', () => {
     const body = api.lastUpdate()!;
     // Fields the wizard does not edit (tags, extended HTML, rooms) travel unchanged, as before.
     expect(body).toMatchObject({ published: false, in_homepage: false, feedbackEnabled: false, title: 'Test Workshop aggiornato', description: 'Workshop description', tags: 'dotnet', blogHtml: '<p>keep</p>', location: { name: 'Genova', address: 'Via Nuova 2', coordinates: '44.4056,8.9463', maximumSpaces: 150, rooms: ['Aula 1'] } });
+    expect(body.talks).toEqual(talks);
     expect(localDay(body.eventDate)).toEqual([2024, 3, 15]);
     expect(await screen.findByText('Evento aggiornato correttamente')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop aggiornato' })).toBeInTheDocument();

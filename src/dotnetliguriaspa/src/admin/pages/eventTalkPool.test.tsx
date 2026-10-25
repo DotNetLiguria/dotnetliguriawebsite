@@ -43,14 +43,6 @@ describe('event talk pool', () => {
     expect(screen.getByRole('textbox', { name: 'Nome track 2' })).toHaveValue('Room B');
     expect(api.to('/Speaker/Get')).toHaveLength(2);
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
-
-    // The imported talks are part of the record now: the final whole-record save keeps them.
-    for (let i = 0; i < 4 && !screen.queryByRole('button', { name: 'Salva modifiche' }); i += 1) {
-      await user.click(screen.getByRole('button', { name: /^Avanti/ }));
-    }
-    await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
-    await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
-    expect(api.lastUpdate()!.talks!.map(talk => talk.title)).toEqual(['Imported talk']);
   }, 10000);
 
   test('asks separately about each speaker collision and sends the selected decisions', async () => {

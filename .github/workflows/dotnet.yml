@@ -39,8 +39,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: src/dotnetliguriaspa/package-lock.json
-      - name: Build, frontend checks and counted units
-        run: ./scripts/verify.ps1
+      - name: Build, frontend checks and backend units
+        run: ./scripts/verify.ps1 -NoFrontendTests
       - name: Publish and verify application assets without executing applications
         run: ./scripts/verify-publish.ps1
       - name: Check production dependency advisories
@@ -57,3 +57,79 @@ jobs:
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
+
+  frontend-tests:
+    name: Frontend tests (${{ matrix.os }}, shard ${{ matrix.shard }}/4)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        shard: [1, 2, 3, 4]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: src/dotnetliguriaspa/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: src/dotnetliguriaspa
+        run: npm ci
+      - name: Run frontend unit shard
+        working-directory: src/dotnetliguriaspa
+        run: |
+          $report = Join-Path (Get-Location).Path '..\..\.artifacts\test-results\frontend-${{ matrix.os }}-${{ matrix.shard }}.json'
+          New-Item -ItemType Directory -Path (Split-Path $report -Parent) -Force | Out-Null
+          npm run test:unit -- --shard=${{ matrix.shard }}/4 --reporter=json --outputFile=$report --silent
+          if ($LASTEXITCODE -ne 0) { throw 'Frontend shard failed.' }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          if (!$result.success -or $result.numTotalTests -eq 0 -or $result.numPassedTests -ne $result.numTotalTests) {
+            throw 'Every discovered frontend test in the shard must pass without skips.'
+          }
+          Write-Host ("Shard {0}/4: {1} tests passed." -f '${{ matrix.shard }}', $result.numPassedTests)
+      - name: Upload frontend shard report
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: frontend-tests-${{ matrix.os }}-${{ matrix.shard }}
+          path: .artifacts/test-results/frontend-${{ matrix.os }}-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  frontend-test-count:
+    name: Frontend test count
+    needs: frontend-tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: frontend-tests-*
+          path: .artifacts/frontend-tests
+          merge-multiple: true
+      - name: Verify full frontend test discovery on both operating systems
+        run: |
+          $minimum = [int](Get-Content scripts/timing-budgets.json -Raw | ConvertFrom-Json).suites.frontend.minimumTests
+          $reports = @(Get-ChildItem .artifacts/frontend-tests -Filter 'frontend-*.json' -File)
+          if ($reports.Count -ne 8) { throw "Expected eight frontend shard reports; found $($reports.Count)." }
+          foreach ($os in @('ubuntu-latest', 'windows-latest')) {
+            $total = 0
+            foreach ($shard in @(1, 2, 3, 4)) {
+              $path = Join-Path '.artifacts/frontend-tests' "frontend-$os-$shard.json"
+              if (!(Test-Path $path)) { throw "Missing frontend report: $path" }
+              $result = Get-Content $path -Raw | ConvertFrom-Json
+              if (!$result.success -or $result.numTotalTests -eq 0 -or $result.numPassedTests -ne $result.numTotalTests) {
+                throw "Frontend shard report failed: $path"
+              }
+              $total += [int]$result.numTotalTests
+            }
+            if ($total -lt $minimum) { throw "$os discovered $total frontend tests, below the $minimum-test baseline." }
+            Write-Host ("{0}: {1} frontend tests passed across both shards." -f $os, $total)
+          }

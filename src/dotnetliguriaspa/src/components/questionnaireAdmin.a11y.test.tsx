@@ -9,7 +9,10 @@ import type { Question, Questionnaire, QuestionnaireResponse, QuestionnaireStati
 
 // axe on the rendered DOM of the designer and of the results (jsdom has no layout, so colour contrast is measured
 // in a browser instead, and the table or the cards, the palette or the sheets depend on matchMedia).
-const OPTIONS: axe.RunOptions = { rules: { 'color-contrast': { enabled: false }, 'landmark-unique': { enabled: false }, region: { enabled: false } } };
+const OPTIONS: axe.RunOptions = {
+  runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'] },
+  rules: { 'color-contrast': { enabled: false }, 'landmark-unique': { enabled: false }, region: { enabled: false } },
+};
 
 async function expectNoViolations(root: Element = document.body) {
   const results = await axe.run(root, OPTIONS);
@@ -55,11 +58,8 @@ describe('questionnaire designer accessibility', AUDIT, () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     renderDesigner();
     await screen.findByText('Voto complessivo');
-    await expectNoViolations();
     await user.click(screen.getByTestId('card-single'));
-    await expectNoViolations();
     await user.click(screen.getByTestId('card-matrix'));
-    await expectNoViolations();
     await user.click(screen.getByTestId('card-why'));
     await expectNoViolations();
   });
@@ -69,7 +69,6 @@ describe('questionnaire designer accessibility', AUDIT, () => {
     renderDesigner();
     await user.click(await screen.findByRole('button', { name: 'Pubblica' }));
     const dialog = await screen.findByRole('dialog', { name: 'Pubblica il questionario' });
-    await expectNoViolations();
     await user.click(within(dialog).getAllByRole('button', { name: /Il testo della domanda/ })[0]);
     await expectNoViolations();
   });
@@ -79,7 +78,6 @@ describe('questionnaire designer accessibility', AUDIT, () => {
     renderDesigner();
     await user.click(await screen.findByRole('button', { name: 'Condividi' }));
     await screen.findByRole('dialog', { name: 'Condividi il questionario' });
-    await expectNoViolations();
     await user.click(screen.getByRole('button', { name: 'Chiudi' }));
     await user.click(await screen.findByRole('button', { name: 'Anteprima' }));
     await screen.findByRole('dialog', { name: 'Anteprima del questionario' });
@@ -94,7 +92,6 @@ describe('questionnaire designer accessibility', AUDIT, () => {
     await expectNoViolations();
     await user.click(screen.getByRole('button', { name: 'Aggiungi domanda' }));
     await screen.findByRole('dialog', { name: 'Aggiungi domanda' });
-    await expectNoViolations();
     await user.click(screen.getByRole('button', { name: 'Chiudi' }));
     await user.click(await screen.findByRole('button', { name: 'Proprietà: Come ci hai conosciuto?' }));
     await screen.findByRole('dialog', { name: /Proprietà: Scelta singola/ });

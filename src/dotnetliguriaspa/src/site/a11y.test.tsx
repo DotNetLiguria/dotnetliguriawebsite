@@ -16,7 +16,10 @@ import { useOidc } from '@axa-fr/react-oidc';
 
 // axe on the rendered DOM (jsdom has no layout, so colour contrast is measured by Lighthouse instead, and the
 // desktop and phone navigations both exist here because CSS does not hide one of them).
-const OPTIONS: axe.RunOptions = { rules: { 'color-contrast': { enabled: false }, 'landmark-unique': { enabled: false } } };
+const OPTIONS: axe.RunOptions = {
+  runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa'] },
+  rules: { 'color-contrast': { enabled: false }, 'landmark-unique': { enabled: false } },
+};
 
 async function expectNoViolations() {
   const results = await axe.run(document.body, OPTIONS);

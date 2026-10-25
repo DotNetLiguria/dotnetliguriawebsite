@@ -3,6 +3,7 @@
 param(
     [switch]$NoBuild,
     [switch]$NoFrontendChecks,
+    [switch]$NoFrontendTests,
     [switch]$Measure,
     [ValidateRange(1, 10)][int]$Runs = 1
 )
@@ -99,15 +100,17 @@ for ($run = $first; $run -le $Runs; $run++) {
         Write-Host ('{0}: {1} passed in {2:N2}s (run {3})' -f $suite, $counters.total, $elapsed, $run)
         if ($run -gt 0) { $records.Add([ordered]@{ suite = $suite; run = $run; tests = [int]$counters.total; seconds = [Math]::Round($elapsed, 3) }) }
     }
-    $report = Join-Path $results "frontend-$run.json"
-    Remove-Item $report -ErrorAction SilentlyContinue
-    $limit = if ($Measure) { 120 } else { [int]$budgets.suites.frontend.ceilingSeconds }
-    $elapsed = Invoke-CheckedProcess $node @('--run', 'test:unit', '--', '--reporter=json', '--outputFile', $report, '--silent') $frontend $limit
-    $frontendReport = Get-Content $report -Raw | ConvertFrom-Json
-    if ($frontendReport.numTotalTests -eq 0 -or $frontendReport.numPassedTests -ne $frontendReport.numTotalTests -or !$frontendReport.success) { throw 'Frontend must pass every discovered unit test without skips' }
-    if (!$Measure -and $frontendReport.numTotalTests -lt $budgets.suites.frontend.minimumTests) { throw 'Frontend test count fell below its recorded baseline' }
-    Write-Host ('frontend: {0} passed in {1:N2}s (run {2})' -f $frontendReport.numTotalTests, $elapsed, $run)
-    if ($run -gt 0) { $records.Add([ordered]@{ suite = 'frontend'; run = $run; tests = $frontendReport.numTotalTests; seconds = [Math]::Round($elapsed, 3) }) }
+    if (!$NoFrontendTests) {
+        $report = Join-Path $results "frontend-$run.json"
+        Remove-Item $report -ErrorAction SilentlyContinue
+        $limit = if ($Measure) { 120 } else { [int]$budgets.suites.frontend.ceilingSeconds }
+        $elapsed = Invoke-CheckedProcess $node @('--run', 'test:unit', '--', '--reporter=json', '--outputFile', $report, '--silent') $frontend $limit
+        $frontendReport = Get-Content $report -Raw | ConvertFrom-Json
+        if ($frontendReport.numTotalTests -eq 0 -or $frontendReport.numPassedTests -ne $frontendReport.numTotalTests -or !$frontendReport.success) { throw 'Frontend must pass every discovered unit test without skips' }
+        if (!$Measure -and $frontendReport.numTotalTests -lt $budgets.suites.frontend.minimumTests) { throw 'Frontend test count fell below its recorded baseline' }
+        Write-Host ('frontend: {0} passed in {1:N2}s (run {2})' -f $frontendReport.numTotalTests, $elapsed, $run)
+        if ($run -gt 0) { $records.Add([ordered]@{ suite = 'frontend'; run = $run; tests = $frontendReport.numTotalTests; seconds = [Math]::Round($elapsed, 3) }) }
+    }
 }
 $records | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $results 'timings.json') -Encoding utf8
 
