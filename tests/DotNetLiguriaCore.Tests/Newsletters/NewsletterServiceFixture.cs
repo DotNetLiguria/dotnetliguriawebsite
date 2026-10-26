@@ -22,14 +22,14 @@ public sealed class NewsletterServiceFixture
     public NewsletterServiceFixture()
     {
         var environment = new NewsletterTestEnvironment();
-        var renderer = new NewsletterRenderer(Store, Options, environment, Clock);
+        var renderer = new NewsletterRenderer(Store, Options, environment, Clock, environment.StoragePaths);
         var gate = new PrivacyOperationGate();
         var identities = new FakeIdentityAccountAdmin();
         identities.Accounts["operator"] = new IdentityAccount { Id = "operator", Enabled = true };
         var privacy = new PrivacyCoordinator(gate, new MemoryErasureJournal(), new FakeAccountPrivacyStore(),
             identities, new FakePrivacySnapshotStore(), Microsoft.Extensions.Options.Options.Create(new PrivacyOptions()));
         Service = new NewsletterService(Store, Events, renderer, Transport, new NewsletterTestRestoreGuard(),
-            gate, privacy, Options, environment, Clock);
+            gate, privacy, Options, environment, Clock, environment.StoragePaths);
         Store.Newsletters[NewsletterId] = new NewsletterDocument
         {
             Id = NewsletterId, Title = "Title", Subject = "Subject", Markdown = "Body",

@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using DotNetLiguriaCore.Services.Newsletters;
-using DotNetLiguriaCore.Storage;
 using MimeKit;
 using Xunit;
 
@@ -14,7 +13,7 @@ public sealed class NewsletterRenderingTests
         var store = new FakeNewsletterStore();
         var options = new NewsletterTestOptions();
         var environment = new NewsletterTestEnvironment();
-        var bytes = await File.ReadAllBytesAsync(Path.Combine(WebsiteStoragePaths.ResolveContentsRoot(environment),
+        var bytes = await File.ReadAllBytesAsync(Path.Combine(environment.StoragePaths.ContentsRoot,
             "newsletters", "dotnetliguria-logo.png"), TestContext.Current.CancellationToken);
         var imageId = Guid.NewGuid();
         store.Images[imageId] = new NewsletterImageDocument
@@ -22,7 +21,7 @@ public sealed class NewsletterRenderingTests
             Id = imageId, Data = bytes, ContentType = "image/png",
             Digest = Convert.ToHexString(SHA256.HashData(bytes))
         };
-        var renderer = new NewsletterRenderer(store, options, environment, new NewsletterTestClock());
+        var renderer = new NewsletterRenderer(store, options, environment, new NewsletterTestClock(), environment.StoragePaths);
         var newsletter = Draft($"[Mappa](https://maps.example.test/?a=1&b=2)\n\n![Poster](newsletter-image:{imageId:D})");
 
         var snapshot = await renderer.PrepareAsync(newsletter, TestContext.Current.CancellationToken);
@@ -47,8 +46,9 @@ public sealed class NewsletterRenderingTests
     [InlineData("{{event.title}}", "unresolved_template_placeholder")]
     public async Task UnsafeOrUnresolvedMarkdownFailsExplicitly(string markdown, string code)
     {
+        var environment = new NewsletterTestEnvironment();
         var renderer = new NewsletterRenderer(new FakeNewsletterStore(), new NewsletterTestOptions(),
-            new NewsletterTestEnvironment(), new NewsletterTestClock());
+            environment, new NewsletterTestClock(), environment.StoragePaths);
         var error = await Assert.ThrowsAsync<NewsletterServiceException>(() =>
             renderer.PrepareAsync(Draft(markdown), TestContext.Current.CancellationToken));
         Assert.Equal(code, error.Code);
@@ -63,8 +63,9 @@ public sealed class NewsletterRenderingTests
         {
             Id = id, Data = [1, 2, 3], ContentType = "image/png", Digest = "incorrect"
         };
+        var environment = new NewsletterTestEnvironment();
         var renderer = new NewsletterRenderer(store, new NewsletterTestOptions(),
-            new NewsletterTestEnvironment(), new NewsletterTestClock());
+            environment, new NewsletterTestClock(), environment.StoragePaths);
         var error = await Assert.ThrowsAsync<NewsletterServiceException>(() =>
             renderer.PrepareAsync(Draft($"![Poster](newsletter-image:{id:D})"), TestContext.Current.CancellationToken));
         Assert.Equal("newsletter_image_integrity_failed", error.Code);
@@ -74,7 +75,7 @@ public sealed class NewsletterRenderingTests
     public async Task StarterEventTemplateValidatesAndIncludesAllRequestedEventFields()
     {
         var environment = new NewsletterTestEnvironment();
-        var markdown = await File.ReadAllTextAsync(Path.Combine(WebsiteStoragePaths.ResolveContentsRoot(environment),
+        var markdown = await File.ReadAllTextAsync(Path.Combine(environment.StoragePaths.ContentsRoot,
             "newsletters", "event-body.md"), TestContext.Current.CancellationToken);
         var engine = new NewsletterTemplateEngine();
         engine.Validate(markdown, true);

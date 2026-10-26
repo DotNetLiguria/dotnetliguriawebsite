@@ -6,7 +6,7 @@ namespace DotNetLiguriaCore.Tests.Newsletters;
 
 public sealed class NewsletterRestoreGuardTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "newsletter-guard-" + Guid.NewGuid().ToString("N"));
+    private readonly string _root = Path.Combine(AppContext.BaseDirectory, "TestArtifacts", "NewsletterGuard", Guid.NewGuid().ToString("N"));
 
     [Fact]
     public async Task RestorePermanentlyInvalidatesEachUsedGenerationAndAllowsOnlyAFreshOne()

@@ -629,19 +629,10 @@ public static class ApiEndpointMappings
         speaker.MapPost("/ReconcileDuplicates", async (SpeakerService speakerService) =>
             Results.Ok(new { removedSpeakers = await speakerService.ReconcileDuplicatesAsync() }))
             .RequireAuthorization();
-        speaker.MapPost("/RepairLegacyTrackReferences", async (
-            LegacySpeakerReferenceRepairService repairService,
-            CancellationToken cancellationToken) =>
-        {
-            var result = await repairService.RepairAsync(cancellationToken);
-            return Results.Ok(new
-            {
-                result.SafetySnapshotId,
-                result.WorkshopsUpdated,
-                result.ReferencesUpdated,
-                result.UnmappedReferences,
-            });
-        }).RequireAuthorization();
+        // Historical exports belong to the offline migration tool. Keep the route so old clients
+        // receive an explicit response instead of accidentally invoking a data repair online.
+        speaker.MapPost("/RepairLegacyTrackReferences", () => Results.StatusCode(StatusCodes.Status410Gone))
+            .RequireAuthorization();
     }
 
     private static void MapTopMenuEndpoints(RouteGroupBuilder api)

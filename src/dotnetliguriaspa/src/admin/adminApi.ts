@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useOidcFetch } from '@axa-fr/react-oidc';
 import { API_BASE_URL } from '../config/apiConfig';
 import { SiteWorkshop } from '../site/siteApi';
-import { photoCandidates } from '../site/speakerPhotos';
+import { profilePhotoUrl } from '../site/speakerPhotos';
 import { permissionsDenied, ResourceAuthorization } from '../account/permissions';
 
 // Shapes used by the admin, as serialized by DotNetLiguriaCore (fields the admin does not edit are kept as-is).
@@ -103,18 +103,14 @@ export function speakerNamesOf(workshop: AdminWorkshop): string[] {
   return (workshop.tracks ?? []).flatMap(track => clean(track.speakersName).split(/\s*,\s*/)).filter(Boolean);
 }
 
-// Photo candidates: the same rule as the public site's SpeakerAvatar (record first, then shipped /Contents files).
-export { photoCandidates };
-
 const photoCache = new Map<string, Promise<string | null>>();
 
-async function firstReachable(urls: string[]) {
-  for (const url of urls) {
-    try {
-      const response = await fetch(url, { method: 'HEAD' });
-      if (response.ok && !(response.headers.get('content-type') ?? '').includes('text/html')) return url;
-    } catch { /* try the next candidate */ }
-  }
+async function reachablePhoto(url: string | null) {
+  if (!url) return null;
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+    if (response.ok && !(response.headers.get('content-type') ?? '').includes('text/html')) return url;
+  } catch { /* The selected photo is temporarily unavailable. */ }
   return null;
 }
 
@@ -125,8 +121,9 @@ export function useSpeakerPhotos(speakers: AdminSpeaker[] | null) {
     if (!speakers) return;
     let alive = true;
     Promise.all(speakers.map(async speaker => {
-      const key = `${speaker.workshopSpeakerId}|${speaker.profileImageUrl ?? ''}|${speaker.name}|${!!speaker.photoFallbackDisabled}`;
-      if (!photoCache.has(key)) photoCache.set(key, firstReachable(photoCandidates(speaker.name, speaker.profileImageUrl, speaker.photoFallbackDisabled)));
+      const selectedUrl = profilePhotoUrl(speaker.profileImageUrl);
+      const key = `${speaker.workshopSpeakerId}|${selectedUrl ?? ''}`;
+      if (!photoCache.has(key)) photoCache.set(key, reachablePhoto(selectedUrl));
       return [speaker.workshopSpeakerId, await photoCache.get(key)!] as const;
     })).then(entries => { if (alive) setPhotos(new Map(entries)); });
     return () => { alive = false; };

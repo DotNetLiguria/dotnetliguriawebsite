@@ -1,7 +1,7 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
-import { fireEvent, jsonResponse, mockApi, render, screen, waitFor, within } from '../../test-utils';
+import { jsonResponse, mockApi, render, screen, within } from '../../test-utils';
 import EventDetailPage from './EventDetailPage';
 
 const ID = '89d23964-f3cd-4ca8-9e65-d15251e0b6a1';
@@ -30,7 +30,7 @@ const renderAt = (id = ID) => render(
 );
 
 describe('<EventDetailPage />', () => {
-  test('canonical managed photo removal suppresses stale embedded URLs and shipped fallback by speaker ID', async () => {
+  test('canonical managed photo removal suppresses stale event snapshots by speaker ID', async () => {
     mockApi({
       [`/Workshop/Get/${ID}`]: workshop({
         talks: [{ workshopTalkId: 'talk-1', title: 'Talk', speakers: [{
@@ -73,7 +73,10 @@ describe('<EventDetailPage />', () => {
     expect(screen.queryByText(/track parallele/)).not.toBeInTheDocument();
 
     const speakers = screen.getByRole('region', { name: 'Relatori' });
-    expect(within(speakers).getAllByRole('listitem').map(li => li.textContent)).toEqual(['Andrea Merlin2 sessioni', 'Giampaolo Tucci1 sessione']);
+    expect(within(speakers).getAllByRole('listitem').map(li =>
+      Array.from(li.querySelectorAll('p')).map(paragraph => paragraph.textContent))).toEqual([
+      ['Andrea Merlin', '2 sessioni'], ['Giampaolo Tucci', '1 sessione'],
+    ]);
     // Session titles follow the h2 "Programma" directly.
     const agenda = screen.getByRole('region', { name: 'Programma' });
     expect(within(agenda).getAllByRole('heading', { level: 3 })).toHaveLength(2);
@@ -178,9 +181,7 @@ describe('<EventDetailPage />', () => {
     expect(extra.innerHTML).not.toMatch(/onerror|<script/i);
 
     const speakers = screen.getByRole('region', { name: 'Relatori' });
-    const photo = within(speakers).getAllByRole('listitem')[1].querySelector('img')!;
-    for (let attempt = 0; attempt < 4; attempt++) fireEvent.error(within(speakers).getAllByRole('listitem')[1].querySelector('img') ?? photo);
-    await waitFor(() => expect(within(speakers).getAllByRole('listitem')[1].querySelector('img')).toBeNull());
+    expect(within(speakers).getAllByRole('listitem')[1].querySelector('img')).toBeNull();
     expect(within(speakers).getByText('GT')).toBeInTheDocument();
   });
 });

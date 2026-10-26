@@ -10,7 +10,7 @@ public class DotEnvTests
     {
         var key = "DOTNET_LIGURIA_TEST_" + Guid.NewGuid().ToString("N");
         var original = Environment.GetEnvironmentVariable(key);
-        var path = Path.GetTempFileName();
+        var path = TestFilePath();
         try
         {
             File.WriteAllText(path, $"# header\n\n {key} = first # comment\n{key}=second\n");
@@ -29,7 +29,7 @@ public class DotEnvTests
     [InlineData("TEST=value=extra")]
     public void MalformedAssignmentsAreRejected(string content)
     {
-        var path = Path.GetTempFileName();
+        var path = TestFilePath();
         try
         {
             File.WriteAllText(path, content);
@@ -39,5 +39,12 @@ public class DotEnvTests
         {
             File.Delete(path);
         }
+    }
+
+    private static string TestFilePath()
+    {
+        var folder = Path.Combine(AppContext.BaseDirectory, "TestArtifacts", "DotEnv");
+        Directory.CreateDirectory(folder);
+        return Path.Combine(folder, Guid.NewGuid().ToString("N") + ".env");
     }
 }

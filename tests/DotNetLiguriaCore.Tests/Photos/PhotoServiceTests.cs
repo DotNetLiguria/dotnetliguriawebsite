@@ -13,7 +13,7 @@ namespace DotNetLiguriaCore.Tests.Photos;
 
 public sealed class PhotoServiceTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "dnl-photo-test-" + Guid.NewGuid().ToString("N"));
+    private readonly string _root = Path.Combine(AppContext.BaseDirectory, "TestArtifacts", "Photos", Guid.NewGuid().ToString("N"));
     private readonly string _contentsRoot;
     private readonly FakePhotoStore _store = new();
     private readonly PhotoStorage _storage;
@@ -29,8 +29,10 @@ public sealed class PhotoServiceTests : IDisposable
         var environment = new PrivacyTestEnvironment(Path.Combine(_root, "website"));
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Storage:ContentsRoot"] = Path.Combine(_root, "website", ".persisted", "contents"),
-            ["Storage:DataRoot"] = Path.Combine(_root, "website", ".persisted", "data"),
+            ["Storage:ContentsRoot"] = Path.Combine(_root, "contents"),
+            ["Storage:DataRoot"] = Path.Combine(_root, "data"),
+            ["Storage:BackupsRoot"] = Path.Combine(_root, "backups"),
+            ["Storage:NotInSnapshotRoot"] = Path.Combine(_root, "not-in-snapshot"),
         }).Build();
         var storagePaths = new WebsiteStoragePaths(configuration, environment);
         _contentsRoot = storagePaths.ContentsRoot;
@@ -294,6 +296,19 @@ public sealed class PhotoServiceTests : IDisposable
         await _service.ChangeAsync(speaker, new("legacy", "none"), permissions, _token);
         Assert.Null((await _service.ResolveAsync(speaker, _token)).Url);
         Assert.Empty((await _service.StatusAsync(board, permissions, _token)).Candidates);
+    }
+
+    [Fact]
+    public async Task Adding_a_persisted_speaker_portrait_changes_the_next_resolution()
+    {
+        var speaker = Add("speaker") with { Name = "Ada Lovelace", LegacyUrl = "/Uploads/stale.jpg", Account = null };
+        Assert.Null((await _service.ResolveAsync(speaker, _token)).Url);
+
+        var folder = Path.Combine(_contentsRoot, "speakers");
+        Directory.CreateDirectory(folder);
+        await File.WriteAllBytesAsync(Path.Combine(folder, "ada_lovelace.jpg"), Image(SKEncodedImageFormat.Jpeg), _token);
+
+        Assert.Equal("/Contents/speakers/ada_lovelace.jpg", (await _service.ResolveAsync(speaker, _token)).Url);
     }
 
     [Fact]

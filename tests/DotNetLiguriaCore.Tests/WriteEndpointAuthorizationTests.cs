@@ -116,7 +116,6 @@ public class WriteEndpointAuthorizationTests
             builder.Services.AddSingleton<WorkshopFileService>();
             builder.Services.AddSingleton<WorkshopAssetStorage>();
             builder.Services.AddSingleton<SessionizeImportService>();
-            builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
             var app = builder.Build();
             app.MapApiEndpoints();
             return app;

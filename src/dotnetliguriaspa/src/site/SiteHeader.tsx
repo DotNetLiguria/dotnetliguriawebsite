@@ -16,14 +16,6 @@ interface MenuItem {
   href: string;
 }
 
-// Used when the TopMenu API cannot be reached, so the site stays navigable.
-export const FALLBACK_MENU: MenuItem[] = [
-  { label: 'Home', href: '/' },
-  { label: 'Prossimo evento', href: '/#evidence' },
-  { label: 'Il Team', href: '/#team' },
-  { label: 'Eventi passati', href: '/workshops' },
-];
-
 const isHomeAnchor = (href: string) => href === '/' || href.startsWith('/#');
 
 function scrollToHash(hash: string) {
@@ -73,6 +65,7 @@ function AccountControl({ onNavigate }: { onNavigate?: () => void }) {
 
 export default function SiteHeader() {
   const [items, setItems] = useState<MenuItem[]>([]);
+  const [menuError, setMenuError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
@@ -81,12 +74,18 @@ export default function SiteHeader() {
   useEffect(() => {
     const controller = new AbortController();
     getTopMenu(controller.signal)
-      .then(menu => setItems(menu
-        .filter(item => item.isActive)
-        .sort((a, b) => a.order - b.order)
-        .map(item => ({ label: item.name, href: item.url }))))
+      .then(menu => {
+        setMenuError(false);
+        setItems(menu
+          .filter(item => item.isActive)
+          .sort((a, b) => a.order - b.order)
+          .map(item => ({ label: item.name, href: item.url })));
+      })
       .catch(error => {
-        if (!isAbortError(error)) setItems(FALLBACK_MENU);
+        if (!isAbortError(error)) {
+          setItems([]);
+          setMenuError(true);
+        }
       });
     return () => controller.abort();
   }, []);
@@ -136,6 +135,7 @@ export default function SiteHeader() {
           <nav aria-label="Principale" className="hidden lg:block">
             <ul className="flex items-center gap-1">
               {items.map(item => <li key={item.href}>{menuLink(item, false)}</li>)}
+              {menuError && <li className="px-4 text-sm text-muted" role="status">Menu non disponibile</li>}
               <li className="ml-2"><AccountControl /></li>
             </ul>
           </nav>
@@ -152,6 +152,7 @@ export default function SiteHeader() {
           <nav aria-label="Principale">
             <ul className="mx-auto flex max-w-7xl flex-col gap-1 px-2 py-3">
               {items.map(item => <li key={item.href}>{menuLink(item, true)}</li>)}
+              {menuError && <li className="px-4 text-sm text-muted" role="status">Menu non disponibile</li>}
               <li className="px-2 pt-2"><AccountControl onNavigate={() => setExpanded(false)} /></li>
             </ul>
           </nav>

@@ -111,7 +111,7 @@ public sealed class PhotoStorage(IOptions<PhotoOptions> options, IHostEnvironmen
         slug = Regex.Replace(slug, "[^a-z0-9]+", "_").Trim('_');
         if (slug.Length == 0) return null;
         // Board portraits use hyphens; older speaker portraits use underscores.
-        // Prefer the profile portrait when a legacy speaker URL is no longer usable.
+        // Resolve against the current Contents root, so new files require no frontend rebuild.
         foreach (var folder in new[] { "profile", "speakers" })
             foreach (var fileName in folder == "profile"
                 ? new[] { slug.Replace('_', '-'), slug }.Distinct()

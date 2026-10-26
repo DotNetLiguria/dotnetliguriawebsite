@@ -2,9 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '../test-utils';
 import SpeakerAvatar from './SpeakerAvatar';
 
-vi.mock('virtual:content-photos', () => ({ default: ['speakers/ada_lovelace.jpg'] }));
-
-test('managed removal never falls back to shipped legacy portraits', () => {
+test('a failed API-selected portrait falls back to initials', () => {
   const view = render(<SpeakerAvatar name="Ada Lovelace" profileImageUrl="/api/media/photos/a.webp" photoFallbackDisabled />);
   const photo = view.container.querySelector('img')!;
   expect(photo).toHaveAttribute('src', expect.stringMatching(/\/api\/media\/photos\/a\.webp$/));

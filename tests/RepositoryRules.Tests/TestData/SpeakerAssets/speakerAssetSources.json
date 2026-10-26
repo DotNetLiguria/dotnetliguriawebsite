@@ -1,0 +1,16 @@
+{
+  "checkedOn": "2026-10-25",
+  "sourceSite": "https://www.dotnetliguria.net",
+  "verifiedAssets": [
+    {
+      "speakerId": "00000000-0000-0000-0000-000000000001",
+      "name": "Fixture Speaker",
+      "sourcePath": "/Uploads/speakers/fixture.png",
+      "sourceUrl": "https://www.dotnetliguria.net/Uploads/speakers/fixture.png",
+      "path": "speakers/fixture_speaker.png",
+      "sha256": "da931af63d9dc4adde693218fcf0881b6ce8ca497bbbdad7a89e49ccca3817ff",
+      "bytes": 68
+    }
+  ],
+  "unavailableMedia": []
+}

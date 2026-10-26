@@ -3,12 +3,18 @@
 param([string]$ContentRoot, [string]$ManifestPath, [string]$SpeakerExportPath)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-if (!$ContentRoot) { $ContentRoot = Join-Path $root '.persisted/contents' }
 if (!$ManifestPath) { $ManifestPath = Join-Path $root 'src/dotnetliguriawebsite/DataMigration/json/speakerAssetSources.json' }
 if (!$SpeakerExportPath) { $SpeakerExportPath = Join-Path $root 'src/dotnetliguriawebsite/DataMigration/json/workshopSpeakers.json' }
 $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
 $speakers = @(Get-Content -LiteralPath $SpeakerExportPath -Raw | ConvertFrom-Json)
-$resolvedRoot = [IO.Path]::GetFullPath($ContentRoot)
+$resolvedRoot = $null
+$verifyAssetFiles = ![string]::IsNullOrWhiteSpace($ContentRoot)
+if ($verifyAssetFiles) {
+    $resolvedRoot = [IO.Path]::GetFullPath($ContentRoot)
+    if (!(Test-Path -LiteralPath $resolvedRoot -PathType Container)) {
+        throw "ContentRoot does not exist: $resolvedRoot"
+    }
+}
 $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 $paths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($entry in @($manifest.verifiedAssets) + @($manifest.unavailableMedia)) {
@@ -36,14 +42,17 @@ foreach ($asset in $manifest.verifiedAssets) {
         throw 'Invalid or nonportable speaker photo path/hash/length.'
     }
     if (!$paths.Add($asset.path)) { throw 'Duplicate portrait destination in photo provenance.' }
-    $target = [IO.Path]::GetFullPath((Join-Path $resolvedRoot $asset.path))
-    if (!$target.StartsWith($resolvedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'Speaker photo path escapes Contents.'
-    }
-    if (!(Test-Path -LiteralPath $target -PathType Leaf)) { throw "Missing speaker photo: $($asset.path)" }
-    if ((Get-Item -LiteralPath $target).Length -ne $asset.bytes) { throw "Incomplete speaker photo: $($asset.path)" }
-    if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $asset.sha256) {
-        throw "Speaker original-source hash mismatch: $($asset.path)"
+    if ($verifyAssetFiles) {
+        $target = [IO.Path]::GetFullPath((Join-Path $resolvedRoot $asset.path))
+        if (!$target.StartsWith($resolvedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Speaker photo path escapes Contents.'
+        }
+        if (!(Test-Path -LiteralPath $target -PathType Leaf)) { throw "Missing speaker photo: $($asset.path)" }
+        if ((Get-Item -LiteralPath $target).Length -ne $asset.bytes) { throw "Incomplete speaker photo: $($asset.path)" }
+        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $asset.sha256) {
+            throw "Speaker original-source hash mismatch: $($asset.path)"
+        }
     }
 }
-Write-Output "$($manifest.verifiedAssets.Count) speaker portraits match their exported identities and online-original SHA256 hashes; $($manifest.unavailableMedia.Count) source unavailable."
+$fileCheck = if ($verifyAssetFiles) { 'asset files and hashes checked' } else { 'checked exported identities and provenance only' }
+Write-Output "$($manifest.verifiedAssets.Count) speaker portraits: $fileCheck; $($manifest.unavailableMedia.Count) source unavailable."

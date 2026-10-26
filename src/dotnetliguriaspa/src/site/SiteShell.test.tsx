@@ -28,11 +28,12 @@ describe('<SiteHeader />', () => {
     expect(screen.getByRole('link', { name: 'DotNetLiguria, pagina iniziale' })).toHaveAttribute('href', '/');
   });
 
-  test('keeps the site navigable when the menu cannot be loaded', async () => {
+  test('does not substitute hardcoded entries when the menu cannot be loaded', async () => {
     vi.mocked(fetch).mockRejectedValueOnce(new Error('Offline'));
     render(<SiteHeader />);
-    expect(await within(mainNav()).findByRole('link', { name: 'Eventi passati' })).toHaveAttribute('href', '/workshops');
-    expect(within(mainNav()).getByRole('link', { name: 'Il Team' })).toHaveAttribute('href', '/#team');
+    expect(await within(mainNav()).findByText('Menu non disponibile')).toBeInTheDocument();
+    expect(within(mainNav()).queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'DotNetLiguria, pagina iniziale' })).toHaveAttribute('href', '/');
   });
 
   test('opens the phone menu and closes it with Escape, returning focus to the button', async () => {

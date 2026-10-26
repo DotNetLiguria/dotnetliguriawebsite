@@ -61,7 +61,7 @@ $projects = [ordered]@{
 
 if (!$NoBuild) {
     Write-Host 'Build: DotNetLiguria.slnx'
-    Invoke-CheckedProcess $dotnet @('build', 'DotNetLiguria.slnx', '-c', 'Release', '--nologo', '-v', 'minimal') | Out-Null
+    Invoke-CheckedProcess $dotnet @('build', 'DotNetLiguria.slnx', '-c', 'Release', '--nologo', '-v', 'minimal', '-m:2', '-nr:false') | Out-Null
 }
 
 if (!$NoFrontendChecks) {
@@ -79,8 +79,12 @@ if (!$NoFrontendChecks) {
 }
 
 Write-Host 'Keycloak provisioning: offline reconciliation tests'
-Write-Host 'Speaker portraits: export identities and original-source hashes'
-Invoke-CheckedProcess (Get-Command pwsh).Source @('-NoProfile', '-File', 'scripts/verify-speaker-assets.ps1') $root 30 | Out-Null
+$speakerFixtures = Join-Path $root 'tests/RepositoryRules.Tests/TestData/SpeakerAssets'
+Write-Host 'Speaker asset verifier: committed test fixture'
+Invoke-CheckedProcess (Get-Command pwsh).Source @('-NoProfile', '-File', 'scripts/verify-speaker-assets.ps1',
+    '-ContentRoot', (Join-Path $speakerFixtures 'Contents'),
+    '-ManifestPath', (Join-Path $speakerFixtures 'speakerAssetSources.json'),
+    '-SpeakerExportPath', (Join-Path $speakerFixtures 'workshopSpeakers.json')) $root 30 | Out-Null
 Invoke-CheckedProcess (Get-Command pwsh).Source @('-NoProfile', '-File', 'scripts/test-keycloak-setup.ps1') $root 30 | Out-Null
 
 $records = [System.Collections.Generic.List[object]]::new()
@@ -90,8 +94,8 @@ for ($run = $first; $run -le $Runs; $run++) {
         $report = Join-Path $results "$suite-$run.trx"
         Remove-Item $report -ErrorAction SilentlyContinue
         $limit = if ($Measure) { 120 } else { [int]$budgets.suites[$suite].ceilingSeconds }
-        $elapsed = Invoke-CheckedProcess $dotnet @('run', '--project', $projects[$suite], '-c', 'Release', '--no-build', '--no-restore', '--',
-            '-result-trx', $report) $root $limit
+        $testAssembly = Join-Path $root ((Split-Path $projects[$suite] -Parent) + "/bin/Release/net10.0/$(Split-Path $projects[$suite] -LeafBase).dll")
+        $elapsed = Invoke-CheckedProcess $dotnet @($testAssembly, '-result-trx', $report) $root $limit
         [xml]$trxReport = Get-Content $report -Raw
         $counters = $trxReport.SelectSingleNode("/*[local-name()='TestRun']/*[local-name()='ResultSummary']/*[local-name()='Counters']")
         if (!$counters -or [int]$counters.total -eq 0 -or [int]$counters.passed -ne [int]$counters.total -or
@@ -104,7 +108,8 @@ for ($run = $first; $run -le $Runs; $run++) {
         $report = Join-Path $results "frontend-$run.json"
         Remove-Item $report -ErrorAction SilentlyContinue
         $limit = if ($Measure) { 120 } else { [int]$budgets.suites.frontend.ceilingSeconds }
-        $elapsed = Invoke-CheckedProcess $node @('--run', 'test:unit', '--', '--reporter=json', '--outputFile', $report, '--silent') $frontend $limit
+        # CI runs four one-worker shards; the unsharded local gate needs four workers to keep its measured ceiling.
+        $elapsed = Invoke-CheckedProcess $node @('--run', 'test:unit', '--', '--maxWorkers=4', '--reporter=json', '--outputFile', $report, '--silent') $frontend $limit
         $frontendReport = Get-Content $report -Raw | ConvertFrom-Json
         if ($frontendReport.numTotalTests -eq 0 -or $frontendReport.numPassedTests -ne $frontendReport.numTotalTests -or !$frontendReport.success) { throw 'Frontend must pass every discovered unit test without skips' }
         if (!$Measure -and $frontendReport.numTotalTests -lt $budgets.suites.frontend.minimumTests) { throw 'Frontend test count fell below its recorded baseline' }

@@ -127,6 +127,32 @@ public class RepositoryStandardsTests
     }
 
     [Fact]
+    public void ProjectItemsNeverIncludePersistedRuntimeData()
+    {
+        var root = FindRoot();
+        foreach (var path in EnumerateFiles(root).Where(path => path.EndsWith(".csproj", StringComparison.Ordinal)))
+        {
+            var project = XDocument.Load(path);
+            Assert.DoesNotContain(project.Descendants().Attributes("Include"), attribute =>
+                attribute.Value.Replace('\\', '/').Contains(".persisted/", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void BackendTestsUseProjectOwnedFixtures()
+    {
+        var root = Path.Combine(FindRoot(), "tests", "DotNetLiguriaCore.Tests");
+        foreach (var path in EnumerateFiles(root).Where(path => path.EndsWith(".cs", StringComparison.Ordinal)))
+        {
+            var source = File.ReadAllText(path);
+            Assert.DoesNotContain(".persisted", source, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("ResolveContentsRoot(", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Path.GetTempPath(", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Path.GetTempFileName(", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void EveryTestProjectUsesXunitV3()
     {
         var root = FindRoot();
@@ -191,7 +217,7 @@ public class RepositoryStandardsTests
             yield return path;
         foreach (var directory in Directory.EnumerateDirectories(folder))
         {
-            if (Path.GetFileName(directory) is "obj" or "bin" or "node_modules" or ".git" or ".artifacts" or "dist"
+            if (Path.GetFileName(directory) is "obj" or "bin" or "node_modules" or ".git" or ".artifacts" or ".persisted" or "dist"
                 || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0)
                 continue;
             foreach (var path in EnumerateFiles(directory))

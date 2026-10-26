@@ -6,6 +6,8 @@ _camelCase private fields apply to fixtures and tests too.
 deprecated `xunit` package is prohibited; do not use it when creating or updating
 tests.
 Unit tests must not use browsers, databases, Keycloak, external network or sleeps.
+Use committed fixtures under the test projects and put generated test files under
+their build output. Never read or write the repository's `.persisted` directory.
 Use fixed data, fake clocks and collaborators; restore any modified process state.
 Keep repository-rule checks syntax-based, including implicit private fields and constants.
 Only genuinely generated code is exempt. Exercise rejection and acceptance fixtures.

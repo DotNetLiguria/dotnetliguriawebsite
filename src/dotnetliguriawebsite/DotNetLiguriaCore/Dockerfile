@@ -27,7 +27,6 @@ COPY src/DotNetLiguria.ServiceDefaults/DotNetLiguria.ServiceDefaults.csproj src/
 RUN dotnet restore src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj
 COPY src/dotnetliguriawebsite/ src/dotnetliguriawebsite/
 COPY src/DotNetLiguria.ServiceDefaults/ src/DotNetLiguria.ServiceDefaults/
-COPY src/dotnetliguriawebsite/DataMigration/json/workshops.json src/dotnetliguriawebsite/DataMigration/json/
 COPY --from=frontend /spa/dist/ src/dotnetliguriaspa/dist/
 
 FROM build AS publish

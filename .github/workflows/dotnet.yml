@@ -83,8 +83,10 @@ jobs:
       - name: Run frontend unit shard
         working-directory: src/dotnetliguriaspa
         run: |
-          $report = Join-Path (Get-Location).Path '..\..\.artifacts\test-results\frontend-${{ matrix.os }}-${{ matrix.shard }}.json'
-          New-Item -ItemType Directory -Path (Split-Path $report -Parent) -Force | Out-Null
+          $repoRoot = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path '../..'))
+          $reportDirectory = Join-Path $repoRoot '.artifacts/test-results'
+          New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null
+          $report = Join-Path $reportDirectory 'frontend-${{ matrix.os }}-${{ matrix.shard }}.json'
           npm run test:unit -- --shard=${{ matrix.shard }}/4 --reporter=json --outputFile=$report --silent
           if ($LASTEXITCODE -ne 0) { throw 'Frontend shard failed.' }
           $result = Get-Content $report -Raw | ConvertFrom-Json

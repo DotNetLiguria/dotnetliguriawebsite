@@ -8,7 +8,7 @@ namespace DotNetLiguriaCore.Tests;
 
 public sealed class PersistedAssetSnapshotServiceTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "persisted-asset-snapshot-tests", Guid.NewGuid().ToString("N"));
+    private readonly string _root = Path.Combine(AppContext.BaseDirectory, "TestArtifacts", "Snapshots", Guid.NewGuid().ToString("N"));
     private CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
     public PersistedAssetSnapshotServiceTests() => BsonCompatibility.Configure();

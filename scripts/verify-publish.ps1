@@ -1,11 +1,16 @@
 #requires -Version 7.4
 [CmdletBinding()]
-param([string]$ArtifactDirectory)
+param([string]$ArtifactDirectory, [switch]$KeepArtifacts)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $root = Split-Path $PSScriptRoot -Parent
 $output = Join-Path $root '.artifacts/publish'
+$verificationPassed = $false
+$speakerFixtures = Join-Path $root 'tests/RepositoryRules.Tests/TestData/SpeakerAssets'
+$fixtureContentRoot = Join-Path $speakerFixtures 'Contents'
+$fixtureManifest = Join-Path $speakerFixtures 'speakerAssetSources.json'
+$fixtureSpeakers = Join-Path $speakerFixtures 'workshopSpeakers.json'
 $projects = [ordered]@{
     website = 'src/dotnetliguriawebsite/DotNetLiguriaCore/DotNetLiguriaCore.csproj'
     dataMigration = 'src/dotnetliguriawebsite/DataMigration/DataMigration.csproj'
@@ -21,6 +26,11 @@ function Assert-NoPrivateArtifacts([string]$Directory) {
     if ($forbidden.Count) {
         throw "Published website contains forbidden private configuration, keys or data files ($($forbidden.Count) files)."
     }
+    foreach ($relative in @('Contents', 'RecoveryData', 'json')) {
+        if (Test-Path -LiteralPath (Join-Path $Directory $relative)) {
+            throw "Published website contains runtime content or historical migration data: $relative"
+        }
+    }
 }
 
 if ($ArtifactDirectory) {
@@ -31,10 +41,18 @@ if ($ArtifactDirectory) {
 
 Push-Location $root
 try {
+    if (!(Test-Path -LiteralPath $fixtureContentRoot -PathType Container)) {
+        throw 'Committed speaker asset test fixture is missing.'
+    }
     foreach ($name in $projects.Keys) {
         $destination = Join-Path $output $name
+        $resolvedRoot = [IO.Path]::GetFullPath($root)
+        $resolvedDestination = [IO.Path]::GetFullPath($destination)
+        if (!$resolvedDestination.StartsWith($resolvedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Publish output path escapes the repository.'
+        }
         if (Test-Path $destination) { Remove-Item $destination -Recurse -Force }
-        & dotnet publish $projects[$name] -c Release --no-restore -o $destination --nologo -v minimal
+        & dotnet publish $projects[$name] -c Release --no-restore -o $destination --nologo -v minimal -m:2 -nr:false
         if ($LASTEXITCODE -ne 0) { throw "Publish failed: $name" }
         if (!(Get-ChildItem $destination -Filter '*.runtimeconfig.json' -File)) { throw "Missing executable artifact: $name" }
     }
@@ -42,18 +60,7 @@ try {
     $dist = Join-Path $root 'src/dotnetliguriaspa/dist'
     $website = Join-Path $output 'website'
     Assert-NoPrivateArtifacts $website
-    & (Join-Path $PSScriptRoot 'verify-speaker-assets.ps1') -ContentRoot (Join-Path $website 'Contents') -ManifestPath (Join-Path $output 'dataMigration/json/speakerAssetSources.json') -SpeakerExportPath (Join-Path $output 'dataMigration/json/workshopSpeakers.json')
-    $portraitRoot = Join-Path $root '.persisted/contents'
-    $portraits = @(foreach ($folder in @('profile', 'speakers')) { Get-ChildItem (Join-Path $portraitRoot $folder) -File -Recurse })
-    foreach ($portrait in $portraits) {
-        $relative = [IO.Path]::GetRelativePath($portraitRoot, $portrait.FullName)
-        $publishedPortrait = Join-Path $website "Contents/$relative"
-        if (!(Test-Path -LiteralPath $publishedPortrait -PathType Leaf) -or
-            (Get-FileHash -LiteralPath $publishedPortrait).Hash -ne (Get-FileHash -LiteralPath $portrait.FullName).Hash) {
-            throw "Published portrait missing or changed: $relative"
-        }
-    }
-    Write-Host "$($portraits.Count) profile/speaker portrait files match the published website."
+    & (Join-Path $PSScriptRoot 'verify-speaker-assets.ps1') -ContentRoot $fixtureContentRoot -ManifestPath $fixtureManifest -SpeakerExportPath $fixtureSpeakers
     $assets = @(Get-ChildItem $dist -File -Recurse)
     if (!$assets.Count -or !(Test-Path "$dist/index.html")) { throw 'Missing Vite output' }
     foreach ($asset in $assets) {
@@ -63,13 +70,18 @@ try {
             throw "Published SPA asset mismatch: $relative"
         }
     }
-    foreach ($workshop in @('workshop001', 'workshop032')) {
-        $relative = "Contents/workshops/$workshop/workshop.png"
-        $source = Join-Path $root ".persisted/$relative"
-        if ((Get-FileHash $source).Hash -ne (Get-FileHash (Join-Path $website $relative)).Hash) {
-            throw "Historical asset changed: $workshop"
-        }
-    }
-    Write-Host "Website and DataMigration published; $($assets.Count) SPA files match; historical assets verified. No applications were executed."
+    $verificationPassed = $true
+    Write-Host "Website and DataMigration published; $($assets.Count) SPA files match. No applications were executed."
 }
-finally { Pop-Location }
+finally {
+    if ($verificationPassed -and !$KeepArtifacts -and (Test-Path -LiteralPath $output)) {
+        $resolvedRoot = [IO.Path]::GetFullPath($root)
+        $resolvedOutput = [IO.Path]::GetFullPath($output)
+        if (!$resolvedOutput.StartsWith($resolvedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Publish cleanup path escapes the repository.'
+        }
+        Remove-Item -LiteralPath $resolvedOutput -Recurse -Force
+        Write-Host 'Temporary publish output removed; pass -KeepArtifacts to retain it.'
+    }
+    Pop-Location
+}

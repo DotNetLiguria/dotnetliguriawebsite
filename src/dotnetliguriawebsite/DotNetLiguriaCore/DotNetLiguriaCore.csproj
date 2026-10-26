@@ -11,26 +11,15 @@
         <DockerfileRunArguments>-p "5050:8080"</DockerfileRunArguments>
         <PublishSpa Condition="'$(PublishSpa)' == ''">true</PublishSpa>
         <SpaDistPath Condition="'$(SpaDistPath)' == ''">$(MSBuildProjectDirectory)/../../dotnetliguriaspa/dist</SpaDistPath>
-        <PersistedContentsPath Condition="'$(PersistedContentsPath)' == ''">$(MSBuildProjectDirectory)/../../../.persisted/contents</PersistedContentsPath>
         <!-- Disable browser link and refresh for SPA applications -->
         <DisableBrowserLink>true</DisableBrowserLink>
         <DisableBrowserRefresh>true</DisableBrowserRefresh>
     </PropertyGroup>
 
     <ItemGroup>
-      <Content Remove=".env;.env.*;.persisted\data\**;Backups\**;PrivateUploads\**;**\*.pem;**\*.pfx;**\*.p12;**\*.key;**\privatekey.xml" />
-      <None Remove=".env;.env.*;.persisted\data\**;Backups\**;PrivateUploads\**;**\*.pem;**\*.pfx;**\*.p12;**\*.key;**\privatekey.xml" />
-      <Content Update="appsettings.Development.json;appsettings.*.local.json;secrets-template.json" CopyToPublishDirectory="Never" />
+      <Content Update="appsettings.Development.json;secrets-template.json" CopyToPublishDirectory="Never" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Content Include="$(PersistedContentsPath)/**/*">
-        <Link>Contents/%(RecursiveDir)%(Filename)%(Extension)</Link>
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      </Content>
-    </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.13" />
@@ -69,10 +58,4 @@
         </ItemGroup>
       </Target>
 
-  <ItemGroup>
-    <Content Include="..\DataMigration\json\workshops.json" Link="RecoveryData\workshops.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
 </Project>

@@ -9,7 +9,7 @@ namespace DotNetLiguriaCore.Tests;
 
 public sealed class SpeakerAssetMappingTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "speaker-asset-tests-" + Guid.NewGuid().ToString("N"));
+    private readonly string _root = Path.Combine(AppContext.BaseDirectory, "TestArtifacts", "SpeakerAssets", Guid.NewGuid().ToString("N"));
 
     private (WorkshopSpeaker Source, VerifiedSpeakerAsset Asset) Create(string name, string file, string contents)
     {
@@ -126,7 +126,8 @@ public sealed class SpeakerAssetMappingTests : IDisposable
     public void Dispose()
     {
         var resolved = Path.GetFullPath(_root);
-        if (!resolved.StartsWith(Path.Combine(Path.GetTempPath(), "speaker-asset-tests-"), StringComparison.OrdinalIgnoreCase))
+        var expectedRoot = Path.Combine(AppContext.BaseDirectory, "TestArtifacts", "SpeakerAssets") + Path.DirectorySeparatorChar;
+        if (!resolved.StartsWith(expectedRoot, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Test directory is outside its intended temporary location.");
         if (Directory.Exists(resolved)) Directory.Delete(resolved, recursive: true);
     }

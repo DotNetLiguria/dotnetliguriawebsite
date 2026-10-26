@@ -58,6 +58,18 @@ secrets or AppHost user secrets, never frontend variables. The existing provider
 must allow `https://localhost:5443/*` and `https://localhost:3443/*`. See
 [Aspire development](docs/aspire.md) for configuration, storage safety, and checks.
 The website and DataMigration retain independent publishing.
+The website reads workshop and portrait files from `Storage:ContentsRoot` at runtime
+(`.persisted/contents` in a repository checkout, `/app/Contents` in the container).
+These files are not included in website build or publish output; mount the same
+persistent contents directory when deploying a new application version. Speaker,
+event, and board records, including biographies, are read from MongoDB.
+
+Historical JSON under `src/dotnetliguriawebsite/DataMigration/json` is migration
+input only. The legacy speaker-reference repair now belongs to DataMigration:
+`--repair-legacy-speaker-references --legacy-workshops <export>` previews the
+change; `--apply --backup-file <new-file>` performs it after writing original
+workshop documents to the requested file. Do not run it against real data without
+approval.
 
 Aspire creates **new isolated databases** and persists them across launcher
 restarts. It never starts DataMigration or touches existing databases. Use the

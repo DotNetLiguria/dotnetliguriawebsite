@@ -20,7 +20,7 @@ const workshops = [
 ];
 const speakers = [
   { workshopSpeakerId: 's-tucci', name: 'Giampaolo Tucci', email: 'gt@example.test', description: 'Architetto software.', isActive: true },
-  { workshopSpeakerId: 's-merlin', name: 'Andrea Merlin', isActive: true, profileImageUrl: '/Uploads/x.jpg' },
+  { workshopSpeakerId: 's-merlin', name: 'Andrea Merlin', isActive: true, profileImageUrl: '/Contents/speakers/andrea_merlin.jpg' },
   { workshopSpeakerId: 's-dup1', name: 'Angelo Ferrando', isActive: true },
   { workshopSpeakerId: 's-dup2', name: 'Angelo Ferrando', isActive: false },
 ];

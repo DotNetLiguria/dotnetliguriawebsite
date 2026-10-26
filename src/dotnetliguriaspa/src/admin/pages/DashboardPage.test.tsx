@@ -16,12 +16,11 @@ const past = {
 };
 const upcoming = { ...past, workshopId: 'w-next', title: 'Season of AI', eventDate: '2099-05-07T00:00:00+02:00', published: false, bookingServiceUrl: '', tracks: [] };
 const speakers = [
-  { workshopSpeakerId: 's1', name: 'Ada Lovelace', profileImageUrl: '/Uploads/speakers/ada.jpg' },
+  { workshopSpeakerId: 's1', name: 'Ada Lovelace', profileImageUrl: '/Contents/speakers/ada_lovelace.jpg' },
   { workshopSpeakerId: 's2', name: 'Angelo Ferrando' },
   { workshopSpeakerId: 's3', name: 'Angelo  Ferrando' },
 ];
-// Only Ada has a photo in /Contents/speakers (the build lists the shipped files; here the list is faked).
-vi.mock('virtual:content-photos', () => ({ default: ['speakers/ada_lovelace.jpg'] }));
+// Only Ada has a photo selected by the API.
 const contents = (url: string) => (url.includes('speakers/ada_lovelace.jpg')
   ? new Response('', { status: 200, headers: { 'Content-Type': 'image/jpeg' } })
   : new Response('', { status: 404 }));

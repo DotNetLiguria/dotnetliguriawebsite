@@ -165,7 +165,6 @@ public class Program
         builder.Services.AddNewsletterServices(builder.Configuration);
         builder.Services.AddScoped<ActiveAccountWriteFilter>();
         builder.Services.AddPermissionDirectory(builder.Configuration);
-        builder.Services.AddSingleton<LegacySpeakerReferenceRepairService>();
 
         var app = builder.Build();
         app.UseForwardedHeaders();
@@ -191,7 +190,8 @@ public class Program
         app.UseStaticFiles(new StaticFileOptions
         {
             FileProvider = new PhysicalFileProvider(contentsPath),
-            RequestPath = "/Contents"
+            RequestPath = "/Contents",
+            OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
         });
         
         app.UseRouting();
