@@ -27,6 +27,7 @@ public sealed class PhotoEndpointContractTests
             Assert.Contains(route.Metadata.GetOrderedMetadata<IAuthorizeData>(), x => x.AuthenticationSchemes == "Bearer");
         var media = Assert.Single(routes, x => x.RoutePattern.RawText!.StartsWith("/api/media/", StringComparison.Ordinal));
         Assert.NotNull(media.Metadata.GetMetadata<IAllowAnonymous>());
+        Assert.Equal(["GET", "HEAD"], media.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
     }
 
     [Fact]

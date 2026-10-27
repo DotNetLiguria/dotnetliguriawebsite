@@ -18,7 +18,7 @@ public static class PhotoEndpointMappings
         MapScope(photos, "/account", "account");
         MapScope(photos, "/board/{id:guid}", "board");
         MapScope(photos, "/speaker/{id:guid}", "speaker");
-        endpoints.MapGet("/api/media/photos/{id:guid}/{size:int}", async (Guid id, int size,
+        endpoints.MapMethods("/api/media/photos/{id:guid}/{size:int}", ["GET", "HEAD"], async (Guid id, int size,
             PhotoService service, PrivacyOperationGate gate, HttpContext context) =>
         {
             if (size is not (128 or 512)) return Results.NotFound();
