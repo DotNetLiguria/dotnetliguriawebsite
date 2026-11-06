@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace DotNetLiguriaCore.Tests;
@@ -16,6 +17,7 @@ public sealed class PermissionOperationFilterTests
     {
         await using var services = new ServiceCollection()
             .AddSingleton<TimeProvider>(new FixedAuthorizationClock(DateTimeOffset.UnixEpoch))
+            .AddLogging()
             .BuildServiceProvider();
         var context = new DefaultHttpContext { RequestServices = services };
         context.Request.Path = requestPath;

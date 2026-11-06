@@ -84,10 +84,48 @@ describe('<BackupPage />', () => {
     expect(confirmation).toHaveTextContent(/eliminerà e sostituirà tutte le raccolte correnti del database: eventi, relatori, sedi, board, menu del sito, questionari e risposte/);
     expect(confirmation).toHaveTextContent(snapshot.snapshotId);
     await user.click(within(confirmation).getByRole('button', { name: 'Conferma importazione' }));
-    await waitFor(() => expect(bodies).toEqual([{ snapshotId: snapshot.snapshotId, confirmReplace: true }]));
+    await waitFor(() => expect(bodies).toEqual([{ snapshotId: snapshot.snapshotId, confirmReplace: true, skipSafetySnapshot: false }]));
     expect(await screen.findByRole('status')).toHaveTextContent('Importazione completata');
     expect(screen.getByRole('status')).toHaveTextContent('Backup di sicurezza creato: safety-20261011T081300000Z-abcdef01');
     await waitFor(() => expect(screen.queryByRole('alertdialog', { name: 'Sostituire tutti i dati?' })).not.toBeInTheDocument());
+  });
+
+  test('requires an explicit opt-in before restoring without a safety backup', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const bodies: unknown[] = [];
+    mockApi({
+      '/Backup/snapshots': [snapshot],
+      '/Backup/import': (_url: string, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return jsonResponse({ restoredSnapshotId: snapshot.snapshotId, safetySnapshot: null });
+      },
+    });
+    renderPage();
+    await user.click(within(await screen.findByRole('table')).getByRole('button', { name: /Ripristina il backup/ }));
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Sostituire tutti i dati?' });
+    await user.click(within(confirmation).getByRole('checkbox', { name: /Non creare il backup di sicurezza/ }));
+    await user.click(within(confirmation).getByRole('button', { name: 'Conferma importazione' }));
+    await waitFor(() => expect(bodies).toEqual([{ snapshotId: snapshot.snapshotId, confirmReplace: true, skipSafetySnapshot: true }]));
+    expect(await screen.findByRole('status')).toHaveTextContent('senza creare un backup di sicurezza');
+  });
+
+  test('requires confirmation before deleting a backup', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const bodies: unknown[] = [];
+    mockApi({
+      [`/Backup/snapshots/${snapshot.snapshotId}`]: (_url: string, init?: RequestInit) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: 204 });
+      },
+      '/Backup/snapshots': [snapshot],
+    });
+    renderPage();
+    const table = await screen.findByRole('table');
+    await user.click(within(table).getByRole('button', { name: /Elimina il backup/ }));
+    const confirmation = await screen.findByRole('alertdialog', { name: 'Eliminare questo backup?' });
+    await user.click(within(confirmation).getByRole('button', { name: 'Elimina backup' }));
+    await waitFor(() => expect(bodies).toEqual([{ confirmDelete: true }]));
+    expect(await screen.findByRole('status')).toHaveTextContent('Backup eliminato');
   });
 
   test('submits an optional trimmed backup name and displays it in desktop, mobile and restore confirmation', async () => {

@@ -69,7 +69,7 @@ public sealed class PersistedAssetSnapshotService(string contentsRoot, string pr
             !manifest.TryGetValue("workshopUploads", out var uploadsValue) || uploadsValue.BsonType != BsonType.Array)
             throw new InvalidDataException("The snapshot is missing its persisted asset manifests.");
 
-        var contentPaths = await ValidateFilesAsync(snapshotRoot, _contentsDirectory,
+        await ValidateFilesAsync(snapshotRoot, _contentsDirectory,
             contentsValue.AsBsonArray, "path", cancellationToken);
         var uploadPaths = await ValidateFilesAsync(snapshotRoot, _workshopUploadsDirectory,
             uploadsValue.AsBsonArray, "file", cancellationToken);
@@ -87,12 +87,6 @@ public sealed class PersistedAssetSnapshotService(string contentsRoot, string pr
         if (privateNames.Count != uploadPaths.Count)
             throw new InvalidDataException("The snapshot contains an unreferenced private workshop asset.");
 
-        foreach (var file in workshopFiles)
-        {
-            var contentPath = GetLocalContentsPath(file.FullPath);
-            if (contentPath is not null && !contentPaths.Contains(contentPath))
-                throw new InvalidDataException("A workshop file record has no matching public content asset in the snapshot.");
-        }
     }
 
     public async Task ValidateLegacyReferencesAsync(

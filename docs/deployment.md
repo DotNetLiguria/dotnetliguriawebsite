@@ -26,7 +26,8 @@ For local-only testing, bind the website to loopback, for example `127.0.0.1:844
 
 | Service | Container path | Purpose |
 | --- | --- | --- |
-| MongoDB | `/data` | Database and MongoDB runtime files; use a protected host filesystem. |
+| MongoDB | `/data/db` | MongoDB database files; use a protected host filesystem. |
+| MongoDB | `/data/configdb` | MongoDB configuration-server files; use a protected host filesystem. |
 | DotNetLiguriaWebCore | `/app/Contents` | Public website content and workshop/event assets. This tree is writable because new event content is created at runtime. |
 | DotNetLiguriaWebCore | `/data` | Snapshot-managed private workshop uploads and profile photos. |
 | DotNetLiguriaWebCore | `/backups` | Application snapshots plus privacy-control files under `/backups/.privacy`. Protect and back up this directory. |
@@ -72,7 +73,8 @@ The current public content folders are:
 | `.persisted/not-in-snapshot/data-protection-keys/**` | Keys for protected cookies and encrypted policy/journal files. | **No.** “Not in snapshot” means excluded from the admin application snapshot; it still needs a protected host-level backup. | Back up securely with `.persisted/backups/.privacy/retention.policy`; loss invalidates protected cookies and can make saved policy state unreadable. |
 | `.persisted/not-in-snapshot/newsletter-operations/**` | Newsletter restore/suspension markers. | **No.** | Include in host-level continuity backups so a restored deployment does not accidentally lose operational suspension state. |
 | `.persisted/not-in-snapshot/logs/**` | Rolling application logs. | **No.** | Not required to restore the application. Retain per the logging policy or ship to a protected central log service; a long-term backup is optional. |
-| `/docker_data/containers_data/mongodb` | MongoDB's physical database and runtime files. | The admin snapshot captures logical collections, not these files. | Keep the bind mount durable; use the separate daily `mongodump` procedure as another recovery copy. |
+| `/docker_data/containers_data/mongodb/db` | MongoDB's physical database files. | The admin snapshot captures logical collections, not these files. | Keep the bind mount durable; use the separate daily `mongodump` procedure as another recovery copy. |
+| `/docker_data/containers_data/mongodb/configdb` | MongoDB's configuration-server files. | The admin snapshot captures logical collections, not these files. | Keep the bind mount durable with the database files. |
 | TLS certificate/key mount `/run/tls` | Kestrel certificate and private key. | **No.** | Manage and back up through the certificate/secret-management process, outside the repository and application snapshots. |
 
 The admin snapshot implementation copies the full `contents` tree and only private workshop uploads referenced by the database. It adds profile-photo assets when profile photos are enabled and present. It does not read `.persisted/backups` or `.persisted/not-in-snapshot`; those roots are outside the snapshot payload by design. The `.gitignore` rules control Git tracking only and do not determine what the admin snapshot includes.
@@ -86,28 +88,117 @@ assigns them to the container user before MongoDB or the website starts.
 
 The React build is in the image's `wwwroot` and does not need a volume. Do not mount a host `wwwroot` over it.
 
-## Container secret files
+## MongoDB credential files
 
-The production Compose stack mounts the following Compose secrets read-only at
-`/run/secrets`. Each source file contains only the value; a trailing newline is
-ignored. Create the source files before deploying and restrict them according to the
-host's Docker-secret policy. Do not enter their contents as Portainer environment
-values.
+MongoDB keeps its existing `_FILE` credential mechanism. The production Compose stack
+mounts the following Compose secrets read-only at `/run/secrets`. Each source file
+contains only the value; a trailing newline is ignored. Do not enter their contents
+as Portainer environment values.
 
 | Service | Host secret file | Container path | Environment variable |
 | --- | --- | --- | --- |
-| MongoDB | `/docker_data/global_secrets/mongodb_root_username.txt` | `/run/secrets/mongodb_root_username` | `MONGO_INITDB_ROOT_USERNAME_FILE` |
-| MongoDB | `/docker_data/global_secrets/mongodb_root_password.txt` | `/run/secrets/mongodb_root_password` | `MONGO_INITDB_ROOT_PASSWORD_FILE` |
-| Website | `/docker_data/global_secrets/auth_server_client_secret.txt` | `/run/secrets/auth_server_client_secret` | `AuthServer__ClientSecret_FILE` |
-| Website | `/docker_data/global_secrets/mongo_app_username.txt` | `/run/secrets/mongo_app_username` | `MONGO_APP_USERNAME_FILE` |
-| Website | `/docker_data/global_secrets/mongo_app_password.txt` | `/run/secrets/mongo_app_password` | `MONGO_APP_PASSWORD_FILE` |
+| MongoDB | `/docker_data/global_secrets/MONGO_INITDB_ROOT_USERNAME_FILE.txt` | `/run/secrets/mongodb_root_username` | `MONGO_INITDB_ROOT_USERNAME_FILE` |
+| MongoDB | `/docker_data/global_secrets/MONGO_INITDB_ROOT_PASSWORD_FILE.txt` | `/run/secrets/mongodb_root_password` | `MONGO_INITDB_ROOT_PASSWORD_FILE` |
+| Website | `/docker_data/global_secrets/MONGO_APP_USERNAME_FILE.txt` | `/run/secrets/mongo_app_username` | `MONGO_APP_USERNAME_FILE` |
+| Website | `/docker_data/global_secrets/MONGO_APP_PASSWORD_FILE.txt` | `/run/secrets/mongo_app_password` | `MONGO_APP_PASSWORD_FILE` |
 
-The website strips `_FILE`, converts double underscores to configuration colons, and
-loads the file value before validating runtime configuration. It builds the MongoDB
-connection string from `MONGO_APP_USERNAME_FILE` and `MONGO_APP_PASSWORD_FILE`,
-URL-encoding both values and connecting to the private `mongodb` service. Use the
-same `<configuration-variable>_FILE` convention for any optional password or token
-setting, with a path below the website's `/run/secrets` mount.
+The website uses these two application credentials only to build its MongoDB connection
+string, URL-encoding both values and connecting to the private `mongodb` service.
+
+## ASP.NET Core key-per-file configuration
+
+All website configuration that must stay outside the repository is loaded with
+ASP.NET Core's `KeyPerFileConfigurationProvider` in every environment. Every file
+name is a configuration key, and its content is the value: double underscores map to
+configuration colons. For example, `AuthServer__ClientSecret` provides
+`AuthServer:ClientSecret`.
+
+The website reads the absolute directory set by the non-secret
+`DOTNETLIGURIA_CONFIG_DIRECTORY` environment variable. The production stack sets it
+to `/run/dotnetliguria-config` and mounts
+`/docker_data/global_secrets/dotnetliguria` there read-only. When the variable is not
+set on a developer workstation, the website and PowerShell provisioner both use
+`%LOCALAPPDATA%\DotNetLiguria\configuration`.
+
+Do not use `.txt` extensions or `_FILE` suffixes in this directory. Each file must
+contain one raw value without quotes or a trailing newline. Key-per-file is registered
+after the normal ASP.NET Core configuration sources, so these values override
+`appsettings.json` and environment variables.
+
+Do not create the individual files manually. Create one protected, untracked
+`KEY=value` input file outside the repository with these keys:
+
+```text
+AuthServer__ClientSecret
+AuthServer__ClientId
+Privacy__ProtectedStorageApproved
+Privacy__IdentityAttributePermissionsApproved
+Privacy__AdminClientSecret
+Privacy__AdminClientId
+PermissionDirectory__ServiceClientSecret
+PermissionDirectory__ServiceClientId
+PermissionDirectory__ProtectedGroupIds__0
+PermissionDirectory__ProtectedGroupIds__1
+PermissionDirectory__Issuer
+PermissionDirectory__InvitationRedirectUri
+PermissionDirectory__InvitationClientId
+PermissionDirectory__InvitationLifespanSeconds
+PermissionDirectory__BoardGroupId
+PermissionDirectory__ApplicationClientId
+PermissionDirectory__AllowedInvitationRedirectUris__0
+PermissionDirectory__AllowedIdentityHost
+Newsletters__SmtpHost
+Newsletters__SmtpPort
+Newsletters__SmtpUseStartTls
+Newsletters__SmtpUserName
+Newsletters__SmtpPassword
+Newsletters__SenderAddress
+Newsletters__DefaultTestAddress
+```
+
+The preferred deployment workflow starts on the development machine. It reads the
+website's local User Secrets, prompts for the LXC SSH host and username, then uses
+one SSH authentication prompt. When the LXC `root` account is used, it streams the
+temporary configuration and provisioner through that one SSH connection, then materializes
+`/docker_data/global_secrets/dotnetliguria`, and removes the temporary remote files:
+
+```powershell
+pwsh -File scripts\provision-dotnetliguria-config.ps1 -DeployToLxc
+```
+
+As an operational fallback, run the non-secret
+`scripts/provision-dotnetliguria-config.sh` directly on the deployment host with a
+protected `KEY=value` input file:
+
+```sh
+sudo sh /secure/path/provision-dotnetliguria-config.sh /secure/path/dotnetliguria.production.env
+```
+
+For development, run the PowerShell provisioner with no arguments. It imports the
+existing website project User Secrets into the same key-per-file format and writes to
+the website's default development directory, so no additional environment variables,
+input files, or per-profile settings are required:
+
+```powershell
+pwsh -File scripts\provision-dotnetliguria-config.ps1
+```
+
+The development User Secrets and the production input file can contain different
+values, such as their respective invitation URLs, but they must use the same keys and
+key-per-file workflow.
+
+The script never prints values and rejects unknown, duplicate, missing, or empty
+authentication, permission-directory, and required newsletter-transport values. Empty
+SMTP username/password and the newsletter test recipient remain valid when SMTP
+authentication or test delivery is intentionally disabled. Keep
+the input file in the approved secret store for future rotations, or securely remove
+it after provisioning. Rerun the same command and redeploy the stack after changing a
+value. Do not include `Kestrel__Certificates__Development__Password` in production:
+the stack uses the mounted PEM certificate and key instead.
+
+To enable Eventbrite synchronization or an encrypted website PEM private key, add the
+optional `Eventbrite__AccessToken` or
+`Kestrel__Endpoints__Https__Certificate__Password` key to the same input file.
 
 ## First deployment and admin snapshot import
 
@@ -158,45 +249,51 @@ sudo install -d -m 700 \
   /docker_data/global_secrets
 ```
 
-Create the five files listed in [Container secret files](#container-secret-files)
-with their actual values. Place the PEM certificate and key in
+Create the four files listed in [MongoDB credential files](#mongodb-credential-files)
+with their actual values, then use
+`scripts/provision-dotnetliguria-config.sh` to materialize the ASP.NET Core
+configuration directory. Place the PEM certificate and key in
 `/docker_data/global_certs/dotnetliguria/` before deploying. The stack does not
 create empty secret or certificate files: startup must fail rather than accept
 missing credentials or TLS material.
 
 The one-shot `mongodb-init` service waits for MongoDB health, then creates or updates
-the application user named by `mongo_app_username.txt`. It synchronizes that user's
+the application user named by `MONGO_APP_USERNAME_FILE.txt`. It synchronizes that user's
 password and `readWrite`/`dbAdmin` roles for the `DotNetLiguria` database from the
-secret files on every stack deployment. Change `mongo_app_password.txt` and redeploy
+secret files on every stack deployment. Change `MONGO_APP_PASSWORD_FILE.txt` and redeploy
 the stack to rotate the application password. Keep the root credentials for
 initialization, administration, and backups only.
 
 For an existing MongoDB 8.0 data volume, follow MongoDB's documented 8.0-to-9.0 upgrade procedure: take a verified logical backup, validate the upgrade in staging, and keep the previous image available until the application has completed its burn-in period. Do not remove or recreate the persistent volume as part of this image update.
 
-The website's TLS and secrets mounts are read-only. Restrict the host firewall to
-public HTTPS and trusted administrative access. For updates, build and scan a new
-immutable image, take a database backup, then redeploy the stack with a new image
-tag while retaining the persistent bind mounts. Avoid `docker compose down -v` and
-any command that removes data directories during routine releases.
+The website's TLS, MongoDB-secret, and key-per-file configuration mounts are read-only.
+Restrict the host firewall to public HTTPS and trusted administrative access. For
+updates, build and scan a new immutable image, take a database backup, then redeploy
+the stack with a new image tag while retaining the persistent bind mounts. Avoid
+`docker compose down -v` and any command that removes data directories during routine
+releases.
 
 ## Website configuration
 
-ASP.NET Core reads environment variables using double underscores in place of configuration colons. The table gives configuration keys; for example, `AuthServer:ClientSecret` becomes `AuthServer__ClientSecret`.
+ASP.NET Core reads environment variables using double underscores in place of
+configuration colons. The same spelling is the key-per-file filename in the
+production configuration directory; for example, `AuthServer:ClientSecret` becomes
+`AuthServer__ClientSecret`.
 
 ### Required for production
 
-| Configuration key | Environment variable | Value / guidance |
+| Configuration key | Environment variable or key-per-file filename | Value / guidance |
 | --- | --- | --- |
 | `ASPNETCORE_ENVIRONMENT` | `ASPNETCORE_ENVIRONMENT` | Set to `Production`; never enable Development in the public deployment. |
 | `Kestrel:Endpoints:Https:Url` | `Kestrel__Endpoints__Https__Url` | `https://+:8443` |
 | `Kestrel:Endpoints:Https:Certificate:Path` | `Kestrel__Endpoints__Https__Certificate__Path` | Container path to the PEM certificate, e.g. `/run/tls/site-cert.pem`. |
 | `Kestrel:Endpoints:Https:Certificate:KeyPath` | `Kestrel__Endpoints__Https__Certificate__KeyPath` | Container path to its matching private key, e.g. `/run/tls/site-key.pem`. |
-| `Kestrel:Endpoints:Https:Certificate:Password` | `Kestrel__Endpoints__Https__Certificate__Password_FILE` | Path to a file containing the passphrase for an encrypted PEM private key. Omit the variable only when the key is intentionally unencrypted. |
+| `Kestrel:Endpoints:Https:Certificate:Password` | `Kestrel__Endpoints__Https__Certificate__Password` | Optional key-per-file filename for an encrypted PEM private-key passphrase. Omit it when the key is intentionally unencrypted. |
 | `Storage:ContentsRoot` | `Storage__ContentsRoot` | Set to `/app/Contents`, the writable public content mount. |
 | `Storage:DataRoot` | `Storage__DataRoot` | Set to `/data`, the snapshot-managed private workshop-upload and profile-photo mount. |
 | `Storage:BackupsRoot` | `Storage__BackupsRoot` | Set to `/backups`, the admin snapshot and privacy-state mount. |
 | `Storage:NotInSnapshotRoot` | `Storage__NotInSnapshotRoot` | Set to `/not-in-snapshot`, the separate state mount for Data Protection keys, logs, and newsletter operations. |
-| `AuthServer:ClientSecret` | `AuthServer__ClientSecret_FILE` | Path to the confidential OIDC client-secret file. Required by the app outside Development. |
+| `AuthServer:ClientSecret` | `AuthServer__ClientSecret` | Key-per-file configuration filename for the confidential OIDC client secret. Required outside Development. |
 | `DotNetLiguriaDatabase:ConnectionString` | `MONGO_APP_USERNAME_FILE`, `MONGO_APP_PASSWORD_FILE` | Paths to the app-specific MongoDB username and password files. The website URL-encodes them and constructs `mongodb://<user>:<password>@mongodb:27017/DotNetLiguria?authSource=DotNetLiguria&tls=false`; configure trusted CA certificates and a separate deployment path before enabling MongoDB TLS. |
 | `AllowedHosts` | `AllowedHosts` | Explicit production host names, e.g. `dotnetliguria.net;www.dotnetliguria.net`. Do not use `*`. |
 | `AuthServer:Authority` | `AuthServer__Authority` | The HTTPS issuer for the configured identity realm. |
@@ -211,29 +308,29 @@ The shipped `appsettings.json` contains the current identity issuer and public-d
 
 ### Optional settings, set only when enabling the feature
 
-| Configuration key | Environment variable | When needed |
+| Configuration key | Environment variable or key-per-file filename | When needed |
 | --- | --- | --- |
 | `Security:KnownProxies:0` | `Security__KnownProxies__0` | When running behind a reverse proxy; add one indexed value for each exact trusted proxy IP. |
 | `Security:CorsOrigins:0` | `Security__CorsOrigins__0` | Only if browser clients are hosted on a separate origin. Use exact HTTPS origins without wildcards. Same-origin SPA/API hosting needs no CORS origin. |
 | `ProfilePhotos:Enabled` | `ProfilePhotos__Enabled` | Set `true` only if profile photo storage is ready. |
 | `ProfilePhotos:Root` | `ProfilePhotos__Root` | Optional override. The default is `/data/profile-photos`; keep profile photos in private persistent storage, outside public `Contents`. |
 | `PermissionDirectory:ServiceClientId` | `PermissionDirectory__ServiceClientId` | Keycloak service client used for permission administration. |
-| `PermissionDirectory:ServiceClientSecret` | `PermissionDirectory__ServiceClientSecret_FILE` | Path to the secret file for that service client; keep it separate from the OIDC login client secret. |
+| `PermissionDirectory:ServiceClientSecret` | `PermissionDirectory__ServiceClientSecret` | Key-per-file configuration filename for that service client; keep it separate from the OIDC login client secret. |
 | `PermissionDirectory:Issuer` | `PermissionDirectory__Issuer` | Identity issuer for the permission directory integration. |
 | `PermissionDirectory:ProtectedGroupIds:0` | `PermissionDirectory__ProtectedGroupIds__0` | Repeat by index for groups whose memberships are protected. |
 | `Privacy:AdminClientId` | `Privacy__AdminClientId` | Identity-provider admin client for privacy account operations. |
-| `Privacy:AdminClientSecret` | `Privacy__AdminClientSecret_FILE` | Path to the dedicated admin client-secret file; never reuse another client secret. |
-| `Eventbrite:AccessToken` | `Eventbrite__AccessToken_FILE` | Path to the Eventbrite access-token file when synchronization is enabled. |
+| `Privacy:AdminClientSecret` | `Privacy__AdminClientSecret` | Key-per-file configuration filename for the dedicated admin client secret; never reuse another client secret. |
+| `Eventbrite:AccessToken` | `Eventbrite__AccessToken` | Key-per-file configuration filename when synchronization is enabled. |
 | `Newsletters:SmtpHost` | `Newsletters__SmtpHost` | SMTP host when outbound newsletter delivery is enabled. Also set port, STARTTLS, sender, recipient and related settings in `appsettings.json` or runtime configuration. |
 | `Newsletters:SmtpUserName` | `Newsletters__SmtpUserName` | SMTP account when authentication is required. |
-| `Newsletters:SmtpPassword` | `Newsletters__SmtpPassword_FILE` | Path to the SMTP-password file when authentication is enabled. |
+| `Newsletters:SmtpPassword` | `Newsletters__SmtpPassword` | Key-per-file configuration filename when authentication is enabled. |
 | `Newsletters:ProductionEnabled` | `Newsletters__ProductionEnabled` | Keep `false` until SMTP, recipients, consent handling, and operational approval are verified. |
 
 The database name, collection names, timezone, privacy consent version, retention settings and newsletter policy flags are ordinary application settings already present in `appsettings.json`. Review and change them through deployment configuration only when the production setup requires it. Do not enable data collection or newsletter production delivery by copying example values without an operational/privacy review.
 
 ### TLS certificate files
 
-Mount the certificate and private key from `/docker_data/global_certs/dotnetliguria/` to container `/run/tls/`. Use a valid PEM certificate chain for the production domain and its matching private key. Renew certificates before expiry and restart/reload the site after renewal. Limit host access to the certificate files; the private key should be readable only by the deployment administrator and the website process. Do not put PEM contents or passphrases in an image, source control, command-line arguments, or logs. For an encrypted key, put its passphrase in a `/run/secrets` file and set `Kestrel__Endpoints__Https__Certificate__Password_FILE` to that file path.
+Mount the certificate and private key from `/docker_data/global_certs/dotnetliguria/` to container `/run/tls/`. Use a valid PEM certificate chain for the production domain and its matching private key. Renew certificates before expiry and restart/reload the site after renewal. Limit host access to the certificate files; the private key should be readable only by the deployment administrator and the website process. Do not put PEM contents or passphrases in an image, source control, command-line arguments, or logs. For an encrypted key, add `Kestrel__Endpoints__Https__Certificate__Password` to the protected key-per-file input.
 
 ### MongoDB runtime variables
 
@@ -263,7 +360,7 @@ Do not copy fake template values into a running environment.
 
 ## Configuration value reference
 
-This section explains each setting in `appsettings.json` and `secrets-template.json`. The template is a reference only: ASP.NET Core does not load it automatically. For local development, put real secret values in the website project's User Secrets; for deployment, mount protected secret files and configure the corresponding `_FILE` variables. Never copy the `FAKE_...`, `example.invalid`, or fake MongoDB values into a running site.
+This section explains each setting in `appsettings.json` and `secrets-template.json`. The template is a reference only: ASP.NET Core does not load it automatically. For local development, put real secret values in the website project's User Secrets; for deployment, use the protected ASP.NET Core key-per-file directory. MongoDB remains the sole exception and uses its official `_FILE` variables. Never copy the `FAKE_...`, `example.invalid`, or fake MongoDB values into a running site.
 
 ### `appsettings.json`
 
@@ -349,7 +446,7 @@ The template mirrors the website project's current development-secret keys. If a
 
 Use `mongodump`/`mongorestore` from a MongoDB Database Tools container compatible with the server version. Store backups outside the database data volume and outside the public `Contents` path. Encrypt them at rest and in transit, restrict access, retain multiple daily/weekly copies off-host, and test restores on an isolated database regularly. Backups contain personal and operational data and must follow the site's retention and erasure policy.
 
-The examples assume the MongoDB container is named `mongodb`, its private data directory is mounted at `/data`, and a root-only Database Tools configuration file is mounted read-only at `/run/secrets/mongo-tools.yaml`. It should hold the backup operator's URI/password (with the required backup/restore privileges), not the website user's credentials. For example, use YAML keys `uri` and `password`, with `uri` pointing at `mongodb:27017` and using `authSource=admin`. Protect this file with restrictive permissions and do not put its contents in source control or shell history. Provision a restricted backup directory such as `/docker_data/containers_data/mongodb-backups` and mount it read/write into the tools container at `/backup`.
+The examples assume the MongoDB container is named `mongodb`, its private data directories are mounted at `/data/db` and `/data/configdb`, and a root-only Database Tools configuration file is mounted read-only at `/run/secrets/mongo-tools.yaml`. It should hold the backup operator's URI/password (with the required backup/restore privileges), not the website user's credentials. For example, use YAML keys `uri` and `password`, with `uri` pointing at `mongodb:27017` and using `authSource=admin`. Protect this file with restrictive permissions and do not put its contents in source control or shell history. Provision a restricted backup directory such as `/docker_data/containers_data/mongodb-backups` and mount it read/write into the tools container at `/backup`.
 
 Daily compressed archive backup (run from the host or a scheduled job runner attached to the private Docker network):
 

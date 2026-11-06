@@ -129,7 +129,8 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         return await CreateSnapshotAsync(false, cancellationToken, string.IsNullOrWhiteSpace(name) ? null : name.Trim());
     }
 
-    public async Task<BackupRestoreResult?> RestoreAsync(string snapshotId, CancellationToken cancellationToken)
+    public async Task<BackupRestoreResult?> RestoreAsync(
+        string snapshotId, bool skipSafetySnapshot, CancellationToken cancellationToken)
     {
         ValidateSnapshotId(snapshotId);
         using var lease = await _operationGate.EnterAsync(cancellationToken);
@@ -170,7 +171,9 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
         }
 
         await _newsletterRestoreGuard.SuspendForRestoreAsync(cancellationToken);
-        var safetySnapshot = await CreateSnapshotAsync(true, cancellationToken);
+        var safetySnapshot = skipSafetySnapshot
+            ? null
+            : await CreateSnapshotAsync(true, cancellationToken);
         var previousAssets = _photos is null ? [] : await _photos.CurrentAssetsAsync(cancellationToken);
         await ReplaceDatabaseAsync(manifest, snapshotId, cancellationToken);
         if (_photos is not null) await _photos.RestoreAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
@@ -178,6 +181,19 @@ public sealed class DatabaseBackupService : IPrivacySnapshotStore
             await _persistedAssets.RestoreAsync(GetSnapshotPath(snapshotId), manifest, cancellationToken);
         if (_photos is not null) await _photos.RemoveReplacedAssetsAsync(previousAssets, cancellationToken);
         return new BackupRestoreResult(snapshotId, safetySnapshot);
+    }
+
+    public async Task<bool> DeleteAsync(string snapshotId, CancellationToken cancellationToken)
+    {
+        ValidateSnapshotId(snapshotId);
+        using var lease = await _operationGate.EnterAsync(cancellationToken);
+        await EnsureOperationsAvailableAsync(cancellationToken);
+        var snapshotPath = GetSnapshotPath(snapshotId);
+        if (!Directory.Exists(snapshotPath))
+            return false;
+
+        Directory.Delete(snapshotPath, true);
+        return true;
     }
 
     // Caller holds the shared operation gate. No snapshot is assumed anonymous merely because an ID was not found.

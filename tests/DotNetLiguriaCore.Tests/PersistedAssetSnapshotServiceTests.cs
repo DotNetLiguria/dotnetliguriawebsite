@@ -92,6 +92,34 @@ public sealed class PersistedAssetSnapshotServiceTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(() => service.ValidateAsync(snapshotPath, manifest, null, CancellationToken));
     }
 
+    [Fact]
+    public async Task ValidationAllowsUnresolvedPublicReference()
+    {
+        var contents = Path.Combine(_root, "contents");
+        var recordsPath = Path.Combine(_root, "workshop-files.jsonl");
+        Directory.CreateDirectory(contents);
+        Directory.CreateDirectory(_root);
+        var record = new WorkshopFile
+        {
+            WorkshopFileId = Guid.NewGuid(),
+            FullPath = "/imported/missing.pdf",
+            FileType = WorkshopFileTypeEnum.Material,
+        };
+        await File.WriteAllTextAsync(recordsPath, record.ToBsonDocument().ToJson(), CancellationToken);
+
+        var service = new PersistedAssetSnapshotService(contents, Path.Combine(_root, "uploads"));
+        var snapshotPath = Path.Combine(_root, "snapshot");
+        Directory.CreateDirectory(snapshotPath);
+        var assets = await service.CaptureAsync(snapshotPath, recordsPath, CancellationToken);
+        var manifest = new BsonDocument
+        {
+            { "contents", assets["contents"] },
+            { "workshopUploads", assets["workshopUploads"] },
+        };
+
+        await service.ValidateAsync(snapshotPath, manifest, recordsPath, CancellationToken);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);

@@ -67,7 +67,8 @@ public sealed class PrivacyStorageTests : IDisposable
         Directory.CreateDirectory(path);
         await File.WriteAllTextAsync(Path.Combine(path, "manifest.json"),
             """{"version":1,"createdAtUtc":{"$date":{"$numberLong":"1791712800000"}},"isSafetySnapshot":false,"collections":[]}""", TestContext.Current.CancellationToken);
-        var exception = await Assert.ThrowsAsync<PrivacyBlockedException>(() => Backup(settings, journal).RestoreAsync(id, TestContext.Current.CancellationToken));
+        var exception = await Assert.ThrowsAsync<PrivacyBlockedException>(() => Backup(settings, journal)
+            .RestoreAsync(id, false, TestContext.Current.CancellationToken));
         Assert.Equal("snapshot_predates_privacy_boundary", exception.Code);
     }
 

@@ -33,6 +33,7 @@ namespace DotNetLiguriaCore;
 public class Program
 {
     private const string _authServerSectionName = "AuthServer";
+    private const string _configurationDirectoryEnvironmentVariable = "DOTNETLIGURIA_CONFIG_DIRECTORY";
     private const string _corsPolicy = "DotNetLiguriaCorsPolicy";
 
     public static void Main(string[] args)
@@ -44,8 +45,8 @@ public class Program
         if (Environment.GetEnvironmentVariable("DOTNET_LIGURIA_ASPIRE") != "true")
             DotEnv.SetCurrentProfile();
 #endif
-
         var builder = WebApplication.CreateBuilder(args);
+        builder.Configuration.AddKeyPerFile(GetConfigurationDirectory(), optional: false);
         var fileEnvironmentSecrets = FileEnvironmentSecrets.Read();
         builder.Configuration.AddInMemoryCollection(fileEnvironmentSecrets);
         var mongoConnectionString = MongoApplicationConnectionString.Create(fileEnvironmentSecrets, builder.Configuration);
@@ -258,6 +259,22 @@ public class Program
 
 
         app.Run();
+    }
+
+    private static string GetConfigurationDirectory()
+    {
+        var configuredDirectory = Environment.GetEnvironmentVariable(_configurationDirectoryEnvironmentVariable);
+        if (!string.IsNullOrWhiteSpace(configuredDirectory))
+        {
+            if (!Path.IsPathFullyQualified(configuredDirectory))
+                throw new InvalidOperationException($"{_configurationDirectoryEnvironmentVariable} must be an absolute path.");
+            return configuredDirectory;
+        }
+
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "DotNetLiguria",
+            "configuration");
     }
 
     private static Task Dbg(string caller)

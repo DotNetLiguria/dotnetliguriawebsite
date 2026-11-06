@@ -10,8 +10,7 @@ if "%~1"=="" (
 set "REGISTRY=dockerhub.ge.vevy.com"
 set "IMAGE_NAME=dotnetliguria"
 set "IMAGE_TAG=%~1"
-set "LOCAL_IMAGE=%IMAGE_NAME%:%IMAGE_TAG%"
-set "REGISTRY_IMAGE=%REGISTRY%/%LOCAL_IMAGE%"
+set "REGISTRY_IMAGE=%REGISTRY%/%IMAGE_NAME%:%IMAGE_TAG%"
 
 pushd "%~dp0" || exit /b 1
 
@@ -29,13 +28,13 @@ if not errorlevel 1 (
 )
 
 echo.
-echo Building %LOCAL_IMAGE%...
-docker build --pull -f src\dotnetliguriawebsite\DotNetLiguriaCore\Dockerfile -t "%LOCAL_IMAGE%" .
+echo Building Release solution...
+dotnet build DotNetLiguria.slnx -c Release
 if errorlevel 1 goto :error
 
 echo.
-echo Tagging %REGISTRY_IMAGE%...
-docker tag "%LOCAL_IMAGE%" "%REGISTRY_IMAGE%"
+echo Building %REGISTRY_IMAGE%...
+docker build --pull -f src\dotnetliguriawebsite\DotNetLiguriaCore\Dockerfile -t "%REGISTRY_IMAGE%" .
 if errorlevel 1 goto :error
 
 echo.

@@ -102,6 +102,8 @@ public sealed class PermissionOperationFilter : IEndpointFilter
         }
         catch (PrivacyBlockedException exception)
         {
+            http.RequestServices.GetRequiredService<ILogger<PermissionOperationFilter>>()
+                .LogWarning("Operation blocked with code {Code}.", exception.Code);
             return Results.Problem(statusCode: exception.StatusCode, title: "Operation not authorized",
                 extensions: new Dictionary<string, object?> { ["code"] = exception.Code });
         }

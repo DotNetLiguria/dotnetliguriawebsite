@@ -27,7 +27,7 @@ export interface BackupSnapshotInfo {
 
 export interface BackupRestoreResult {
   restoredSnapshotId: string;
-  safetySnapshot: BackupSnapshotInfo;
+  safetySnapshot: BackupSnapshotInfo | null;
 }
 
 type Outcome = { tone: 'ok' | 'danger'; title: string; detail?: string };
@@ -57,8 +57,10 @@ export default function BackupPage() {
   const { fetch } = useOidcFetch();
   const [load, setLoad] = useState<AdminLoad<BackupSnapshotInfo[]>>({ state: 'loading' });
   const [version, setVersion] = useState(0);
-  const [busy, setBusy] = useState<'export' | 'import' | null>(null);
+  const [busy, setBusy] = useState<'export' | 'import' | 'delete' | null>(null);
   const [pending, setPending] = useState<BackupSnapshotInfo | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<BackupSnapshotInfo | null>(null);
+  const [skipSafetySnapshot, setSkipSafetySnapshot] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [name, setName] = useState('');
   const reload = useCallback(() => setVersion(v => v + 1), []);
@@ -103,7 +105,7 @@ export default function BackupPage() {
     }
   };
 
-  const importDatabase = async (snapshot: BackupSnapshotInfo) => {
+  const importDatabase = async (snapshot: BackupSnapshotInfo, skipSafety: boolean) => {
     if (!canRestore) return;
     setBusy('import');
     setOutcome(null);
@@ -111,19 +113,47 @@ export default function BackupPage() {
       const response = await fetch(`${API_BASE_URL}/Backup/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ snapshotId: snapshot.snapshotId, confirmReplace: true }),
+        body: JSON.stringify({ snapshotId: snapshot.snapshotId, confirmReplace: true, skipSafetySnapshot: skipSafety }),
       });
       if (!response.ok) throw new Error(await readBackupError(response, 'Importazione non riuscita'));
       const result = await response.json() as BackupRestoreResult;
       setPending(null);
-      setOutcome({ tone: 'ok', title: 'Importazione completata', detail: `Ripristinato il backup del ${when(snapshot.createdAtUtc)}. Backup di sicurezza creato: ${result.safetySnapshot.snapshotId}.` });
-      notify('Importazione completata', { description: `Backup di sicurezza: ${result.safetySnapshot.snapshotId}` });
+      const detail = result.safetySnapshot
+        ? `Ripristinato il backup del ${when(snapshot.createdAtUtc)}. Backup di sicurezza creato: ${result.safetySnapshot.snapshotId}.`
+        : `Ripristinato il backup del ${when(snapshot.createdAtUtc)} senza creare un backup di sicurezza.`;
+      setOutcome({ tone: 'ok', title: 'Importazione completata', detail });
+      notify('Importazione completata', { description: result.safetySnapshot ? `Backup di sicurezza: ${result.safetySnapshot.snapshotId}` : 'Nessun backup di sicurezza creato.' });
       reload();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Importazione non riuscita.';
       setPending(null);
       setOutcome({ tone: 'danger', title: 'Importazione non riuscita', detail: message });
       notify('Importazione non riuscita', { description: message, kind: 'error' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteSnapshot = async (snapshot: BackupSnapshotInfo) => {
+    if (!canRestore) return;
+    setBusy('delete');
+    setOutcome(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/Backup/snapshots/${encodeURIComponent(snapshot.snapshotId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmDelete: true }),
+      });
+      if (!response.ok) throw new Error(await readBackupError(response, 'Eliminazione non riuscita'));
+      setPendingDelete(null);
+      setOutcome({ tone: 'ok', title: 'Backup eliminato', detail: `Eliminato il backup del ${when(snapshot.createdAtUtc)}.` });
+      notify('Backup eliminato');
+      reload();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Eliminazione non riuscita.';
+      setPendingDelete(null);
+      setOutcome({ tone: 'danger', title: 'Backup non eliminato', detail: message });
+      notify('Backup non eliminato', { description: message, kind: 'error' });
     } finally {
       setBusy(null);
     }
@@ -158,7 +188,7 @@ export default function BackupPage() {
       {busy && (
         <div className="mt-6 rounded-2xl border border-line bg-white p-4" role="status">
           <ProgressBar isIndeterminate aria-label={busy === 'export' ? 'Creazione del backup in corso' : 'Importazione in corso'} className="block">
-            <p className="font-bold">{busy === 'export' ? 'Creazione del backup in corso…' : 'Importazione in corso…'}</p>
+            <p className="font-bold">{busy === 'export' ? 'Creazione del backup in corso…' : busy === 'import' ? 'Importazione in corso…' : 'Eliminazione del backup in corso…'}</p>
             <p className="text-sm text-muted">{busy === 'export' ? 'Pochi secondi: non chiudere la pagina.' : 'Non modificare i dati finché non è terminata.'}</p>
             <span className="mt-3 block h-1.5 overflow-hidden rounded-full bg-cyan-50"><span className="block h-full w-1/3 animate-pulse rounded-full bg-cyan-700 motion-reduce:animate-none" /></span>
           </ProgressBar>
@@ -195,9 +225,12 @@ export default function BackupPage() {
                           <td className={`${table.td} text-muted tabular-nums`}>{contents(s)}</td>
                           <td className={table.td}>{s.isSafetySnapshot && <Badge kind="planned">Di sicurezza</Badge>}</td>
                           <td className={table.td}>
-                            <span className="flex justify-end">
+                            <span className="flex justify-end gap-2">
                               <Button onPress={() => setPending(s)} isDisabled={busy !== null || !canRestore} aria-label={`Ripristina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
                                 <ExtraIcon name="restore" />Ripristina…
+                              </Button>
+                              <Button onPress={() => setPendingDelete(s)} isDisabled={busy !== null || !canRestore} aria-label={`Elimina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
+                                Elimina…
                               </Button>
                             </span>
                           </td>
@@ -217,6 +250,9 @@ export default function BackupPage() {
                         </span>
                         <Button onPress={() => setPending(s)} isDisabled={busy !== null || !canRestore} aria-label={`Ripristina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
                           <ExtraIcon name="restore" />Ripristina…
+                        </Button>
+                        <Button onPress={() => setPendingDelete(s)} isDisabled={busy !== null || !canRestore} aria-label={`Elimina il backup del ${when(s.createdAtUtc)}`} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>
+                          Elimina…
                         </Button>
                       </li>
                     ))}
@@ -244,21 +280,34 @@ export default function BackupPage() {
 
       <ConfirmDialog
         isOpen={pending !== null}
-        onOpenChange={isOpen => { if (!isOpen) setPending(null); }}
+        onOpenChange={isOpen => { if (!isOpen) { setPending(null); setSkipSafetySnapshot(false); } }}
         title="Sostituire tutti i dati?"
         confirmLabel="Conferma importazione"
         busyLabel="Importazione…"
         busy={busy === 'import'}
-        onConfirm={() => { if (pending) void importDatabase(pending); }}
+        onConfirm={() => { if (pending) void importDatabase(pending, skipSafetySnapshot); }}
       >
         {pending && (
           <>
             {pending.name && <p className="break-words font-bold">{pending.name}</p>}
             <p>Importare il backup del <span className="font-bold">{when(pending.createdAtUtc)}</span> ({contents(pending)}) eliminerà e sostituirà tutte le raccolte correnti del database: eventi, relatori, sedi, board, menu del sito, questionari e risposte.</p>
             <p className="text-sm text-muted">Prima dell'importazione viene creato automaticamente un backup di sicurezza. Non modificare i dati durante l'operazione.</p>
+            <label className="flex min-h-11 items-start gap-3 text-sm font-semibold"><input type="checkbox" checked={skipSafetySnapshot} disabled={busy !== null} onChange={event => setSkipSafetySnapshot(event.target.checked)} />Non creare il backup di sicurezza: confermo che i dati correnti possono essere eliminati definitivamente.</label>
             <p className="font-mono text-xs text-muted">{pending.snapshotId}</p>
           </>
         )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        onOpenChange={isOpen => { if (!isOpen) setPendingDelete(null); }}
+        title="Eliminare questo backup?"
+        confirmLabel="Elimina backup"
+        busyLabel="Eliminazione…"
+        busy={busy === 'delete'}
+        onConfirm={() => { if (pendingDelete) void deleteSnapshot(pendingDelete); }}
+      >
+        {pendingDelete && <><p>Eliminare definitivamente il backup del <span className="font-bold">{when(pendingDelete.createdAtUtc)}</span>?</p><p className="font-mono text-xs text-muted">{pendingDelete.snapshotId}</p></>}
       </ConfirmDialog>
     </>
   );

@@ -91,7 +91,8 @@ public static class ApiEndpointMappings
             var logger = loggerFactory.CreateLogger("DotNetLiguriaCore.Endpoints.Backup");
             try
             {
-                var result = await backupService.RestoreAsync(request.SnapshotId, cancellationToken);
+                var result = await backupService.RestoreAsync(
+                    request.SnapshotId, request.SkipSafetySnapshot, cancellationToken);
                 return result is null ? Results.NotFound() : Results.Ok(result);
             }
             catch (ArgumentException exception)
@@ -110,6 +111,44 @@ public static class ApiEndpointMappings
                 {
                     Title = "Backup non valido",
                     Detail = "Il backup selezionato non è integro o non è supportato. Nessun dato è stato sostituito.",
+                });
+            }
+        });
+        backup.MapDelete("/snapshots/{snapshotId}", async (
+            string snapshotId,
+            [FromBody] BackupDeleteRequest request,
+            DatabaseBackupService backupService,
+            HttpContext context,
+            TimeProvider timeProvider,
+            ILoggerFactory loggerFactory,
+            CancellationToken cancellationToken) =>
+        {
+            if (!RecentMfa.IsSatisfied(context.User, timeProvider))
+                return Results.Problem(statusCode: StatusCodes.Status403Forbidden,
+                    title: "RecentMfaRequired", detail: "Ripeti l'accesso con MFA prima di eliminare un backup.");
+            if (!request.ConfirmDelete)
+            {
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Conferma richiesta",
+                    Detail = "Confermare esplicitamente l'eliminazione del backup.",
+                });
+            }
+
+            try
+            {
+                return await backupService.DeleteAsync(snapshotId, cancellationToken)
+                    ? Results.NoContent()
+                    : Results.NotFound();
+            }
+            catch (ArgumentException exception)
+            {
+                loggerFactory.CreateLogger("DotNetLiguriaCore.Endpoints.Backup")
+                    .LogWarning(exception, "Rejected an invalid database backup snapshot identifier for deletion.");
+                return Results.BadRequest(new ProblemDetails
+                {
+                    Title = "Snapshot non valido",
+                    Detail = "L'identificativo del backup selezionato non è valido.",
                 });
             }
         });
