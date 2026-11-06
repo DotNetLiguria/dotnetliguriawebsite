@@ -51,7 +51,7 @@ Alternatively select **Launch DotNetLiguria (Aspire)** in VS Code. One launcher
 starts the website/API (https://localhost:5443), React SPA
 (https://localhost:3443), and MongoDB. Open the dashboard URL printed by the launcher; its login token is
 private. No global Aspire CLI installation/update is required: orchestration
-dependencies are restored from pinned Aspire 13.6.1 NuGet packages.
+dependencies are restored from pinned Aspire 13.6.4 NuGet packages.
 
 Keycloak remains external. Supply its server client secret using website user
 secrets or AppHost user secrets, never frontend variables. The existing provider

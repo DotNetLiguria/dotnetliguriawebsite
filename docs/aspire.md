@@ -8,7 +8,7 @@ From the repository root:
 dotnet run --project src\DotNetLiguria.AppHost
 ```
 
-The AppHost and hosting integrations are pinned to stable Aspire 13.6.1 and
+The AppHost and hosting integrations are pinned to stable Aspire 13.6.4 and
 target .NET 10. NuGet supplies DCP and the dashboard rather than a machine-wide
 Aspire CLI bundle; the intentional ASPIRE010 suppression is documented in the
 project. No preview dependencies or global CLI update are required.
@@ -23,7 +23,7 @@ standalone frontend's manually supplied PEM files.
 | --- | --- |
 | Website/API | https://localhost:5443; API below `/api`, files below `/Contents/` |
 | React SPA | https://localhost:3443 |
-| MongoDB | Pinned 8.0.32 container; database `DotNetLiguriaAspire` |
+| MongoDB | Pinned 9.0.4 container; database `DotNetLiguriaAspire` |
 
 The questionnaire is part of the main React SPA and uses the website's MongoDB API.
 Libraries/tests are built through the root solution, not runnable resources.

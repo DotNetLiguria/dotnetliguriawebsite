@@ -69,7 +69,7 @@ Start Docker Desktop and the existing Aspire stack/container. Keep its volume.
 From the repository root identify the container:
 
 ```powershell
-docker ps -a --filter ancestor=mongo:8.0.32 --format '{{.Names}} {{.Status}}'
+docker ps -a --filter ancestor=mongo:9.0.4 --format '{{.Names}} {{.Status}}'
 ```
 
 Back up first. Substitute the real container name for `mongo-NAME` and use a fresh

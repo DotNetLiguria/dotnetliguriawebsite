@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using CommonWeb;
+
 using Microsoft.Extensions.Configuration;
 
 namespace DataMigration;
@@ -22,7 +24,8 @@ internal class ConfigurationReader
             .AddJsonFile("appsettings.json")
             .AddJsonFile($"appsettings.{environment}.json", optional: true)
             .AddUserSecrets<Program>()
-            .AddEnvironmentVariables();
+            .AddEnvironmentVariables()
+            .AddInMemoryCollection(FileEnvironmentSecrets.Read());
         Configuration = builder.Build();
     }
 

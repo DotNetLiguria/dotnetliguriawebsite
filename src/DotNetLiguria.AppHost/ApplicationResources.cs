@@ -10,7 +10,7 @@ public static class ApplicationResources
         var backupsPath = Path.Combine(root, ".persisted", "backups");
         var notInSnapshotPath = Path.Combine(root, ".persisted", "not-in-snapshot");
         var mongo = builder.AddMongoDB("mongo")
-            .WithImageTag("8.0.32")
+            .WithImageTag("9.0.4")
             .WithLifetime(ContainerLifetime.Persistent)
             .WithDataVolume("dotnetliguria-aspire-mongo");
         var websiteDatabase = mongo.AddDatabase("website-data", "DotNetLiguriaAspire");

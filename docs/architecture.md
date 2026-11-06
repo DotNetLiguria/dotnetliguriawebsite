@@ -135,7 +135,7 @@ registries; manifests and the npm lock retain the exact selected versions.
 | --- | --- | --- | --- |
 | .NET targets | net6/net7/net9/netstandard | net10.0, SDK 10.0.401 | All nine remaining projects |
 | Microsoft ASP.NET/EF | Mixed 3/6/7-era dependencies | 10.0.12 | Replace removed hosting APIs; preserve DB models |
-| MongoDB Driver/Bson | 2.19.1 | 3.12.0 | Explicit legacy-compatible GUID serializer |
+| MongoDB Driver/Bson | 2.19.1 | 3.13.0 | Explicit legacy-compatible GUID serializer |
 | Swagger | 6.5.0 | 10.3.0 | Retain existing API metadata integration |
 | React and types | 18 | 19.3.0 | Upgrade runtime, DOM and types together |
 | CRA/TypeScript | react-scripts 5 / TS 4.9 | Vite 8.3.4 / TS 6.0.3 | New HTML entry and public environment bridge |

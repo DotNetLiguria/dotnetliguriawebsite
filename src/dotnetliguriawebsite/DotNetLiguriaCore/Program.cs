@@ -46,6 +46,14 @@ public class Program
 #endif
 
         var builder = WebApplication.CreateBuilder(args);
+        var fileEnvironmentSecrets = FileEnvironmentSecrets.Read();
+        builder.Configuration.AddInMemoryCollection(fileEnvironmentSecrets);
+        var mongoConnectionString = MongoApplicationConnectionString.Create(fileEnvironmentSecrets, builder.Configuration);
+        if (mongoConnectionString is not null)
+            builder.Configuration.AddInMemoryCollection(
+            [
+                new KeyValuePair<string, string?>("DotNetLiguriaDatabase:ConnectionString", mongoConnectionString)
+            ]);
         var storagePaths = new WebsiteStoragePaths(builder.Configuration, builder.Environment);
         storagePaths.EnsureDirectories();
         if (string.IsNullOrWhiteSpace(builder.Configuration["DotNetLiguriaDatabase:BackupFolder"]))

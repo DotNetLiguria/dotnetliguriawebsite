@@ -1,18 +1,199 @@
-version: '3.1'
+name: dotnetliguria
 
 services:
-  mongodb:
-    image: mongo:latest
-    restart: always
-    container_name: mongodb
-    command: [--auth]
-    ports:
-      - 27017:27017
+  prepare-storage:
+    image: busybox:1.37.0
+    user: "0:0"
+    restart: "no"
+    read_only: true
+    network_mode: none
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        mkdir -p /containers/mongodb \
+          /containers/dotnetliguria/contents \
+          /containers/dotnetliguria/data \
+          /containers/dotnetliguria/backups \
+          /containers/dotnetliguria/not-in-snapshot
+        chown -R 10000:10000 /containers/mongodb /containers/dotnetliguria
+        chmod 700 /containers/mongodb /containers/dotnetliguria \
+          /containers/dotnetliguria/contents /containers/dotnetliguria/data \
+          /containers/dotnetliguria/backups /containers/dotnetliguria/not-in-snapshot
     volumes:
-      - c:/DockerHD/MongoDB:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=local
+      - type: bind
+        source: /docker_data/containers_data
+        target: /containers
+        bind: {create_host_path: true}
 
-# this is not a sensitive password because it is only used
-# during development time on localhost
+  mongodb:
+    image: mongo:9.0.4
+    container_name: mongodb
+    user: "10000:10000"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 200
+    mem_limit: 512m
+    command: ["--auth"]
+    depends_on:
+      prepare-storage:
+        condition: service_completed_successfully
+    environment:
+      HOME: /tmp
+      MONGO_INITDB_ROOT_USERNAME_FILE: /run/secrets/mongodb_root_username
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /run/secrets/mongodb_root_password
+    volumes:
+      - type: bind
+        source: /docker_data/containers_data/mongodb
+        target: /data
+        bind: {create_host_path: true}
+    secrets: [mongodb_root_username, mongodb_root_password]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mongosh --quiet --username "$$(cat /run/secrets/mongodb_root_username)" --password "$$(cat /run/secrets/mongodb_root_password)" --authenticationDatabase admin --eval "db.adminCommand({ ping: 1 }).ok"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - internal
+
+  mongodb-init:
+    image: mongo:9.0.4
+    container_name: mongodb-init
+    user: "10000:10000"
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 200
+    mem_limit: 512m
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      HOME: /tmp
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        cat > /tmp/provision-application-user.js <<'EOF'
+        const fs = require("fs");
+        const readSecret = path => fs.readFileSync(path, "utf8").replace(/[\r\n]+$$/, "");
+        const rootUsername = readSecret("/run/secrets/mongodb_root_username");
+        const rootPassword = readSecret("/run/secrets/mongodb_root_password");
+        const appUsername = readSecret("/run/secrets/mongo_app_username");
+        const appPassword = readSecret("/run/secrets/mongo_app_password");
+        const databaseName = "DotNetLiguria";
+        const admin = connect(
+          `mongodb://$${encodeURIComponent(rootUsername)}:$${encodeURIComponent(rootPassword)}@mongodb:27017/admin?authSource=admin`
+        );
+        const applicationDatabase = admin.getSiblingDB(databaseName);
+        const roles = [
+          { role: "readWrite", db: databaseName },
+          { role: "dbAdmin", db: databaseName }
+        ];
+        if (applicationDatabase.getUser(appUsername) === null) {
+          applicationDatabase.createUser({ user: appUsername, pwd: appPassword, roles });
+        } else {
+          applicationDatabase.updateUser(appUsername, { pwd: appPassword, roles });
+        }
+        EOF
+        mongosh --nodb --quiet --file /tmp/provision-application-user.js
+    secrets:
+      - mongodb_root_username
+      - mongodb_root_password
+      - mongo_app_username
+      - mongo_app_password
+    networks:
+      - internal
+
+  website:
+    image: dockerhub.ge.vevy.com/dotnetliguria:1.0.0
+    container_name: dotnetliguria
+    user: "10000:10000"
+    pull_policy: always
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 200
+    mem_limit: 512m
+    depends_on:
+      prepare-storage:
+        condition: service_completed_successfully
+      mongodb:
+        condition: service_healthy
+        restart: true
+      mongodb-init:
+        condition: service_completed_successfully
+    environment:
+      HOME: /tmp
+      ASPNETCORE_ENVIRONMENT: Production
+      Kestrel__Endpoints__Https__Url: https://+:8443
+      Kestrel__Endpoints__Https__Certificate__Path: /run/tls/site-cert.pem
+      Kestrel__Endpoints__Https__Certificate__KeyPath: /run/tls/site-key.pem
+      AuthServer__ClientSecret_FILE: /run/secrets/auth_server_client_secret
+      MONGO_APP_USERNAME_FILE: /run/secrets/mongo_app_username
+      MONGO_APP_PASSWORD_FILE: /run/secrets/mongo_app_password
+      Storage__ContentsRoot: /app/Contents
+      Storage__DataRoot: /data
+      Storage__BackupsRoot: /backups
+      Storage__NotInSnapshotRoot: /not-in-snapshot
+    ports:
+      - "443:8443"
+    volumes:
+      - type: bind
+        source: /docker_data/containers_data/dotnetliguria/contents
+        target: /app/Contents
+        bind: {create_host_path: true}
+      - type: bind
+        source: /docker_data/containers_data/dotnetliguria/data
+        target: /data
+        bind: {create_host_path: true}
+      - type: bind
+        source: /docker_data/containers_data/dotnetliguria/backups
+        target: /backups
+        bind: {create_host_path: true}
+      - type: bind
+        source: /docker_data/containers_data/dotnetliguria/not-in-snapshot
+        target: /not-in-snapshot
+        bind: {create_host_path: true}
+      - type: bind
+        source: /docker_data/global_certs/dotnetliguria
+        target: /run/tls
+        read_only: true
+        bind: {create_host_path: true}
+    secrets: [auth_server_client_secret, mongo_app_username, mongo_app_password]
+    networks:
+      - frontend
+      - internal
+
+secrets:
+  mongodb_root_username:
+    file: /docker_data/global_secrets/mongodb_root_username.txt
+  mongodb_root_password:
+    file: /docker_data/global_secrets/mongodb_root_password.txt
+  auth_server_client_secret:
+    file: /docker_data/global_secrets/auth_server_client_secret.txt
+  mongo_app_username:
+    file: /docker_data/global_secrets/mongo_app_username.txt
+  mongo_app_password:
+    file: /docker_data/global_secrets/mongo_app_password.txt
+
+networks:
+  internal:
+    internal: true
+  frontend:
+    internal: false
