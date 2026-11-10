@@ -127,6 +127,16 @@ map $uri $security_log_route {
 }
 log_format minimized '$request_method $security_log_route $status $request_time';
 
+# Plain HTTP must redirect to HTTPS for the apex and www hosts. Without this
+# block NGINX answers port 80 with its default "Welcome to nginx!" page, which is
+# what link previews (for example LinkedIn) and non-browser clients receive.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name dotnetliguria.net www.dotnetliguria.net;
+    return 301 https://$host$request_uri;
+}
+
 server {
     listen 443 ssl;
     server_name dotnetliguria.net www.dotnetliguria.net;
@@ -156,7 +166,8 @@ server {
 }
 ```
 
-Use a rejecting default virtual host for unknown Host/SNI names. Do not redirect
+Use a rejecting default virtual host for unknown Host/SNI names, on port 80 as
+well as 443, so that no host name falls through to the NGINX default page. Do not redirect
 authenticated API requests between www/apex. Do not enable proxy caching for
 private, authorization, privacy or notification routes. Retention/access rules
 also apply to NGINX error logs, Keycloak logs and infrastructure telemetry.
