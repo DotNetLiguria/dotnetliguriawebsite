@@ -47,6 +47,10 @@ namespace DotNetLiguriaCore.Model
         public string? EventbriteEventUrl { get; set; }
         public string? EventbriteVenueId { get; set; }
         public string? EventbriteTicketClassId { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? EventbriteLogoId { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? EventbriteImageSha256 { get; set; }
         public bool EventbritePublished { get; set; }
         public string? EventbriteSyncStatus { get; set; }
         public string? EventbriteLastError { get; set; }

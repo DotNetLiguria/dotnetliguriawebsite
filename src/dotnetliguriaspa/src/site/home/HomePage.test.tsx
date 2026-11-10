@@ -104,6 +104,13 @@ describe('<HomePage />', () => {
     }
   });
 
+  test('hides the sections turned off in the home page settings', async () => {
+    mockApi({ '/Workshop/GetInHomePage/HomePage': notFound, '/HomePageSettings': { showProposeTalk: false, showFollowUs: true } });
+    render(<HomePage />);
+    expect(await screen.findByRole('region', { name: 'Seguici' })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Proponi un talk' })).not.toBeInTheDocument();
+  });
+
   test('lets the visitor retry when the event list cannot be loaded', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     let calls = 0;

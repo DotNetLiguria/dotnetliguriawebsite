@@ -67,4 +67,18 @@ public class EditorInputTests
         Assert.Contains("talks", errors.Keys);
         Assert.Contains("bookingServiceUrl", errors.Keys);
     }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(1, true)]
+    [InlineData(1440, true)]
+    [InlineData(0, false)]
+    [InlineData(1441, false)]
+    public void AgendaItemDurationOverrideMustBeEmptyOrWithinOneDay(int? minutes, bool valid)
+    {
+        var workshop = new Workshop { AgendaItems = [new WorkshopAgendaItem { DurationMinutes = minutes }] };
+        var errors = new Dictionary<string, string[]>();
+        EditorInputFilter.Validate(workshop, errors);
+        Assert.Equal(valid, !errors.ContainsKey("agendaItems.durationMinutes"));
+    }
 }

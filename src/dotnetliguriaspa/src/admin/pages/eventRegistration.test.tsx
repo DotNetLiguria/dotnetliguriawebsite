@@ -19,8 +19,10 @@ describe('event registration', () => {
     const second = renderAt('#agenda');
     await loaded();
     expect(screen.getByLabelText('Ora di inizio della track')).toHaveValue('09:00');
-    expect(screen.getByRole('spinbutton', { name: 'Durata talk (minuti)' })).toHaveValue(60);
+    expect(screen.getByRole('spinbutton', { name: 'Durata talk (minuti)' })).toHaveValue(55);
     expect(screen.getByRole('spinbutton', { name: 'Durata pausa (minuti)' })).toHaveValue(5);
+    expect(screen.getByRole('spinbutton', { name: 'Durata lunch (minuti)' })).toHaveValue(90);
+    expect(screen.getByRole('spinbutton', { name: 'Durata panel (minuti)' })).toHaveValue(60);
     expect(screen.queryByRole('group', { name: 'Crea un talk' })).not.toBeInTheDocument();
     second.unmount();
 
@@ -64,10 +66,12 @@ describe('event registration', () => {
     await waitFor(() => expect(api.lastUpdate()).toMatchObject({ bookingServiceUrl: 'https://booking.example.test/event/1', externalRegistration: true, externalRegistrationLink: 'https://booking.example.test/event/1', attendeeNotes: 'Bring your laptop' }));
   });
 
-  test('refreshes Eventbrite inventory, displays aggregate counts only and raises the capacity floor to sold plus pending', async () => {
+  test('refreshes Eventbrite inventory, displays aggregate counts only and allows a safe capacity reduction', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
-    const api = serveEvent(eventFixture({ eventbriteEventId: 'event-1', eventbriteEventUrl: 'https://www.eventbrite.it/e/1', eventbriteTicketCapacity: 10, eventbriteSyncedTicketCapacity: 10, eventbriteSyncStatus: 'synced', agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main', order: 0 }], agendaItems: [{ workshopAgendaItemId: 'item-1', itemType: 'service', trackId: 'track-1', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z' }] }), {
+    const record = eventFixture({ eventbriteEventId: 'event-1', eventbriteEventUrl: 'https://www.eventbrite.it/e/1', eventbriteTicketCapacity: 40, eventbriteSyncedTicketCapacity: 40, eventbriteSyncStatus: 'synced', agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main', order: 0 }], agendaItems: [{ workshopAgendaItemId: 'item-1', itemType: 'service', trackId: 'track-1', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T10:00:00Z' }] });
+    const api = serveEvent(record, {
       '/Eventbrite/TicketSales/': { totalCapacity: 40, sold: 12, pending: 2, remaining: 26, refreshedAt: '2026-10-11T10:00:00Z' },
+      '/Eventbrite/SetTicketCapacity/': () => jsonResponse({ ...record, eventbriteTicketCapacity: 14, eventbriteSyncStatus: 'update-pending' }),
     });
     renderAt('#iscrizione');
     await loaded();
@@ -75,12 +79,16 @@ describe('event registration', () => {
     expect(screen.getByRole('link', { name: /Apri l'evento Eventbrite/ })).toHaveAttribute('href', 'https://www.eventbrite.it/e/1');
     expect(screen.queryByRole('button', { name: 'Salva capienza biglietti' })).not.toBeInTheDocument();
     const capacity = screen.getByRole('spinbutton', { name: 'Biglietti gratuiti Eventbrite disponibili' });
-    expect(capacity).toHaveAttribute('min', '10');
+    expect(capacity).toHaveAttribute('min', '1');
     await user.click(screen.getByRole('button', { name: 'Aggiorna le vendite live dei biglietti' }));
     expect(await screen.findByText(/^Biglietti Eventbrite — venduti: 12, in sospeso: 2, capienza totale: 40, rimanenti: 26\. Aggiornato /)).toBeInTheDocument();
     expect(await screen.findByText('Vendite live dei biglietti Eventbrite aggiornate.')).toBeInTheDocument();
     expect(api.to('/Eventbrite/TicketSales/w1', 'GET')).toHaveLength(1);
     expect(capacity).toHaveAttribute('min', '14');
+    fireEvent.change(capacity, { target: { value: '14' } });
+    await user.click(screen.getByRole('button', { name: 'Salva capienza biglietti' }));
+    await waitFor(() => expect(api.to('/Eventbrite/SetTicketCapacity/w1', 'PUT')).toHaveLength(1));
+    expect(api.to('/Eventbrite/SetTicketCapacity/w1')[0].body).toEqual({ capacity: 14 });
   });
 
   test('shows the stored sync status as it is, with the last error, even before an event id exists', async () => {

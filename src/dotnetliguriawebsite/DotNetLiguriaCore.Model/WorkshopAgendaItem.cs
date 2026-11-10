@@ -14,4 +14,6 @@ public class WorkshopAgendaItem
     public string? RoomName { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
+    /// <summary>Optional per-slot duration used by the admin auto-fill instead of the default for its type.</summary>
+    public int? DurationMinutes { get; set; }
 }

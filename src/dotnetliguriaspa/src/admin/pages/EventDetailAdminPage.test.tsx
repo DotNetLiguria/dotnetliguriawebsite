@@ -97,6 +97,20 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(screen.getByRole('img', { name: 'Immagine non disponibile' })).toBeInTheDocument();
   });
 
+  test('loads an uploaded image with the signed-in user\'s request, since unpublished event assets are not public', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:event-image');
+    URL.revokeObjectURL = vi.fn();
+    const path = '/api/WorkshopFile/Download/0f8fad5b-d9cb-469f-a165-70867728950e';
+    const api = serveEvent(eventFixture({ published: false, image: path }), {
+      '/WorkshopFile/Download/': () => new Response(new Blob(['img'], { type: 'image/png' }), { headers: { 'Content-Type': 'image/png' } }),
+    });
+    renderAt('/admin/workshop/w1#immagine');
+    await loaded();
+    expect(await screen.findByRole('img', { name: 'Test Workshop' })).toHaveAttribute('src', 'blob:event-image');
+    expect(api.to(path, 'GET')).toHaveLength(1);
+    expect(URL.createObjectURL).toHaveBeenCalledOnce();
+  });
+
   test('reaches steps with Avanti, keeps reached steps clickable and later ones not, and moves focus to the step panel title', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());

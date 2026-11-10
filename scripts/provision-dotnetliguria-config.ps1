@@ -37,11 +37,19 @@ $requiredKeys = @(
     'Newsletters__DefaultTestAddress'
 )
 $optionalKeys = @(
+    'Eventbrite__PrivateToken',
     'Eventbrite__AccessToken',
+    'Eventbrite__OrganizationId',
+    'Eventbrite__OrganizerId',
     'Kestrel__Endpoints__Https__Certificate__Password'
 )
 $allowedKeys = $requiredKeys + $optionalKeys
-$nonEmptyKeys = $requiredKeys | Where-Object {
+$nonEmptyKeys = @($requiredKeys + @(
+    'Eventbrite__PrivateToken',
+    'Eventbrite__AccessToken',
+    'Eventbrite__OrganizationId',
+    'Eventbrite__OrganizerId'
+)) | Where-Object {
     $_ -notin @(
         'Newsletters__DefaultTestAddress',
         'Newsletters__SmtpUserName',

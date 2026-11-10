@@ -42,6 +42,8 @@ export interface AgendaItem {
   roomName?: string | null;
   startTime: string;
   endTime: string;
+  /** Minutes the auto-fill gives this slot instead of the default for its type; null/absent uses the default. */
+  durationMinutes?: number | null;
 }
 
 /** Programme format of the events before the agenda builder (still shown by the site when no agenda exists). */
@@ -461,7 +463,24 @@ export const removeItem = <S extends AgendaState>(state: S, itemId: string): S =
   items: state.items.filter(item => item.workshopAgendaItemId !== itemId),
 });
 
-export interface ScheduleParams { start: string; duration: string; gap: string }
+/** `lunch`, `panel` and `intro` are optional: without them lunch intervals keep their length and panels/intros last `duration`. */
+export interface ScheduleParams { start: string; duration: string; gap: string; lunch?: string; panel?: string; intro?: string }
+
+const LUNCH_TITLE = /^\s*(lunch|pranzo)\b/i;
+/** Intervals whose title starts with "Lunch" or "Pranzo" take the lunch duration. */
+export const isLunchTitle = (title?: string | null) => LUNCH_TITLE.test(title ?? '');
+/** A lunch interval (never a talk). */
+export const isLunchItem = (item: AgendaItem) => item.itemType !== 'talk' && isLunchTitle(item.title);
+/** The technical gap the auto-fill puts between two talks. */
+export const isTechnicalGap = (item: AgendaItem) => item.itemType === 'break' && item.title === CHANGEOVER_TITLE;
+const sessionTypeOf = (talk: EventTalk) => (talk.sessionType ?? '').trim().toLowerCase();
+const isPanel = (talk: EventTalk) => sessionTypeOf(talk) === 'panel';
+const isIntro = (talk: EventTalk) => ['intro', 'introduzione'].includes(sessionTypeOf(talk));
+const optionalMinutes = (value: string | undefined) => (value === undefined ? undefined : Number(value));
+const validMinutes = (value: number | undefined) => value === undefined || (Number.isInteger(value) && value >= 1);
+/** The slot's own duration when it has a usable one. */
+const overrideOf = (item?: AgendaItem | null) =>
+  (item && Number.isInteger(item.durationMinutes) && (item.durationMinutes as number) >= 1 ? item.durationMinutes as number : undefined);
 
 const clockAt = (minutes: number) => {
   const normalized = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
@@ -469,16 +488,21 @@ const clockAt = (minutes: number) => {
 };
 
 /**
- * Fills every track from the start time: each talk lasts `duration` minutes, followed by a technical gap of `gap`
- * minutes; existing intervals keep their position and length, old technical gaps are rebuilt.
+ * Fills every track from the start time: each talk lasts `duration` minutes (panels `panel`, introductions `intro`
+ * minutes), followed by a technical gap of `gap` minutes; existing intervals keep their position, lunch intervals
+ * last `lunch` minutes and the others keep their length; old technical gaps are rebuilt. A slot's own
+ * `durationMinutes` wins over these defaults; a technical gap's own duration follows the talk it came after.
  * Returns the new items, or an Italian message when the parameters or the talk assignments are not usable.
  */
 export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eventDate?: string | Date | null): { items: AgendaItem[] } | { error: string } {
   const duration = Number(params.duration);
   const gap = Number(params.gap);
+  const lunch = optionalMinutes(params.lunch);
+  const panel = optionalMinutes(params.panel);
+  const intro = optionalMinutes(params.intro);
   const [startHour, startMinute] = params.start.split(':').map(Number);
   if (!Number.isFinite(startHour) || !Number.isFinite(startMinute) ||
-    !Number.isInteger(duration) || duration < 1 || !Number.isInteger(gap) || gap < 1) {
+    !Number.isInteger(duration) || duration < 1 || !Number.isInteger(gap) || gap < 1 || !validMinutes(lunch) || !validMinutes(panel) || !validMinutes(intro)) {
     return { error: 'Inserisci un orario di inizio valido e durate positive per sessioni e pause.' };
   }
   if (state.talks.some(talk => !hasTrack(state, talk.trackId))) {
@@ -494,7 +518,14 @@ export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eve
     const trackId = track.workshopAgendaTrackId;
     const current = trackItems(state, trackId);
     const existingTalkItems = new Map(current.filter(item => item.itemType === 'talk' && item.talkId).map(item => [item.talkId as string, item]));
-    const oldGaps = new Set(current.filter(item => item.itemType === 'break' && item.title === CHANGEOVER_TITLE).map(item => item.workshopAgendaItemId));
+    const oldGaps = new Set(current.filter(isTechnicalGap).map(item => item.workshopAgendaItemId));
+    // Own durations of the old technical gaps, by the talk they followed.
+    const gapOverrides = new Map<string, number>();
+    current.forEach((item, index) => {
+      const previous = current[index - 1];
+      const own = overrideOf(item);
+      if (oldGaps.has(item.workshopAgendaItemId) && own !== undefined && previous?.itemType === 'talk' && previous.talkId) gapOverrides.set(previous.talkId, own);
+    });
     const sequence: Array<{ kind: 'talk'; talk: EventTalk; item?: AgendaItem } | { kind: 'interval'; item: AgendaItem }> = [];
     const seen = new Set<string>();
     for (const item of current) {
@@ -518,6 +549,7 @@ export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eve
     const position = () => nextItems.filter(item => item.trackId === trackId).length;
     for (const entry of sequence) {
       if (entry.kind === 'talk') {
+        const length = overrideOf(entry.item) ?? (isPanel(entry.talk) ? panel ?? duration : isIntro(entry.talk) ? intro ?? duration : duration);
         nextItems.push({
           ...(entry.item ?? {}),
           workshopAgendaItemId: entry.item?.workshopAgendaItemId ?? createId(),
@@ -525,25 +557,30 @@ export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eve
           talkId: entry.talk.workshopTalkId,
           trackId,
           startTime: stamp(clockAt(cursor)),
-          endTime: stamp(clockAt(cursor + duration)),
+          endTime: stamp(clockAt(cursor + length)),
           order: position(),
         });
-        cursor += duration;
+        cursor += length;
         talksLeft -= 1;
         if (talksLeft > 0) {
+          const gapOverride = gapOverrides.get(entry.talk.workshopTalkId);
+          const gapLength = gapOverride ?? gap;
           nextItems.push({
             workshopAgendaItemId: createId(),
             itemType: 'break',
             trackId,
             title: CHANGEOVER_TITLE,
             startTime: stamp(clockAt(cursor)),
-            endTime: stamp(clockAt(cursor + gap)),
+            endTime: stamp(clockAt(cursor + gapLength)),
             order: position(),
+            ...(gapOverride !== undefined ? { durationMinutes: gapOverride } : {}),
           });
-          cursor += gap;
+          cursor += gapLength;
         }
       } else {
-        const length = Math.max(1, Math.round((new Date(entry.item.endTime).getTime() - new Date(entry.item.startTime).getTime()) / 60000) || gap);
+        const length = overrideOf(entry.item) ?? (lunch !== undefined && isLunchTitle(entry.item.title)
+          ? lunch
+          : Math.max(1, Math.round((new Date(entry.item.endTime).getTime() - new Date(entry.item.startTime).getTime()) / 60000) || gap));
         nextItems.push({ ...entry.item, trackId, startTime: stamp(clockAt(cursor)), endTime: stamp(clockAt(cursor + length)), order: position() });
         cursor += length;
       }
@@ -552,13 +589,14 @@ export function autoFillSchedule(state: AgendaState, params: ScheduleParams, eve
   return { items: nextItems };
 }
 
-/** A service interval appended after the last item of the track (or at the schedule start). */
-export function addServiceInterval<S extends AgendaState>(state: S, trackId: string, options: { title: string; room: string; gap: string; scheduleStart: string; eventDate?: string | Date | null }): S {
+/** A service interval appended after the last item of the track (or at the schedule start); a lunch lasts `lunch` minutes. */
+export function addServiceInterval<S extends AgendaState>(state: S, trackId: string, options: { title: string; room: string; gap: string; lunch?: string; scheduleStart: string; eventDate?: string | Date | null }): S {
   const current = trackItems(state, trackId);
   const previousEnd = current.length > 0
     ? new Date(current[current.length - 1].endTime)
     : new Date(toStoredTime(options.scheduleStart || '09:00', undefined, options.eventDate));
-  const duration = Math.max(1, Number(options.gap) || 5);
+  const lunch = Number(options.lunch);
+  const duration = isLunchTitle(options.title) && Number.isInteger(lunch) && lunch >= 1 ? lunch : Math.max(1, Number(options.gap) || 5);
   const startTime = new Date(previousEnd);
   const endTime = new Date(startTime.getTime() + duration * 60000);
   return {
@@ -589,6 +627,27 @@ export function moveItem<S extends AgendaState>(state: S, trackId: string, itemI
   updated[nextIndex] = { ...first, startTime: second.startTime, endTime: second.endTime, order: nextIndex };
   const changed = new Map(updated.map(item => [item.workshopAgendaItemId, item]));
   return { ...state, items: state.items.map(item => changed.get(item.workshopAgendaItemId) ?? item) };
+}
+
+/** Speaker names of a talk, comma separated ('' without speakers). */
+export const talkSpeakerNames = (talk?: EventTalk | null) =>
+  (talk?.speakers ?? []).map(speaker => clean(speaker.name)).filter(Boolean).join(', ');
+
+/**
+ * The track's agenda as plain text, one "HH:MM-HH:MM Title - Speakers (Room)" line per slot; technical gaps and
+ * lunch are left out, as are the speakers and room parts when empty.
+ */
+export function agendaText(state: AgendaState, trackId: string): string {
+  return trackItems(state, trackId)
+    .filter(item => !isTechnicalGap(item) && !isLunchItem(item))
+    .map(item => {
+      const talk = item.itemType === 'talk' ? state.talks.find(value => value.workshopTalkId === item.talkId) : undefined;
+      const speakers = talkSpeakerNames(talk);
+      const room = clean(item.roomName);
+      return `${toClockTime(item.startTime)}-${toClockTime(item.endTime)} ${clean(talk?.title ?? item.title)}`
+        + (speakers ? ` - ${speakers}` : '') + (room ? ` (${room})` : '');
+    })
+    .join('\n');
 }
 
 const speakerKey = (speaker: EventTalkSpeaker) =>

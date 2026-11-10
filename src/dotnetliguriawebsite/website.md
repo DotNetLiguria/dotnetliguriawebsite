@@ -57,6 +57,11 @@ the workshop's available talk pool, `agendaTracks` describes logical concurrent
 tracks, and `agendaItems` schedules talks or event/track breaks with optional room
 names. These fields are optional so existing `workshopTracks` and historical
 workshops remain readable. Admins can edit the agenda from a workshop's detail page.
+In the schedule step, "Riempi automaticamente gli orari delle track" uses the intro,
+talk, gap, lunch and panel default durations; an agenda item's optional
+`durationMinutes` (1–1440, admin-only, not exposed publicly) overrides its default
+when the schedule is auto-filled. The step can also copy the current track's agenda
+to the clipboard as text, one line per slot, excluding technical gaps and lunch.
 Event details also include `location.googleMapsUrl`, `bookingServiceUrl`, and
 `attendeeNotes`.
 

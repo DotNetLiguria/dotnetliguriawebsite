@@ -8,7 +8,7 @@ import { organizationJsonLd } from '../structuredData';
 import EventCard from '../EventCard';
 import { ExternalLink, Icon } from '../icons';
 import { Badge, GhostAction, LogoArc, OutlineAction, PrimaryAction, SectionTitle } from '../ui';
-import { SiteBoardMember, contentUrl, getActiveBoard, getFeaturedWorkshop, getPublishedWorkshops } from '../siteApi';
+import { SiteBoardMember, contentUrl, getActiveBoard, getFeaturedWorkshop, getHomePageSettings, getPublishedWorkshops, homePageSettingsOf } from '../siteApi';
 import { clean, eventPhase, formatDate } from '../format';
 import { webUrl } from '../links';
 import { publicQuestionnaireApi } from '../../questionnaire/api';
@@ -106,6 +106,11 @@ export default function HomePage() {
   const [featured, retryFeatured] = useLoad(getFeaturedWorkshop);
   const [workshops, retryWorkshops] = useLoad(getPublishedWorkshops);
   const [board] = useLoad(getActiveBoard);
+  const [sections] = useLoad(getHomePageSettings);
+  // Hidden while loading to avoid a flash of sections that may be turned off; shown by default if the settings fail.
+  const sectionSettings = sections.state === 'ready' ? sections.data : sections.state === 'error' ? homePageSettingsOf(null) : null;
+  const showProposeTalk = sectionSettings?.showProposeTalk ?? false;
+  const showFollowUs = sectionSettings?.showFollowUs ?? false;
 
   const newest = useMemo(
     () => workshops.state === 'ready' ? [...workshops.data].sort((a, b) => b.eventDate.localeCompare(a.eventDate)) : [],
@@ -245,14 +250,20 @@ export default function HomePage() {
         )}
       </section>
 
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 pb-24 sm:px-6 md:grid-cols-2">
-        <ToBeCompleted id="proponi" icon="mic" title="Proponi un talk" tone="basil">
-          Il sito non ha ancora un canale per ricevere le proposte di talk. La sezione si attiva quando il backend sarà disponibile.
-        </ToBeCompleted>
-        <ToBeCompleted id="canali" icon="users" title="Seguici" tone="cyan">
-          I canali ufficiali della community (social, newsletter, video) non sono ancora gestiti dal sito.
-        </ToBeCompleted>
-      </div>
+      {(showProposeTalk || showFollowUs) && (
+        <div className={`mx-auto grid max-w-7xl gap-8 px-4 pb-24 sm:px-6 ${showProposeTalk && showFollowUs ? 'md:grid-cols-2' : ''}`}>
+          {showProposeTalk && (
+            <ToBeCompleted id="proponi" icon="mic" title="Proponi un talk" tone="basil">
+              Il sito non ha ancora un canale per ricevere le proposte di talk. La sezione si attiva quando il backend sarà disponibile.
+            </ToBeCompleted>
+          )}
+          {showFollowUs && (
+            <ToBeCompleted id="canali" icon="users" title="Seguici" tone="cyan">
+              I canali ufficiali della community (social, newsletter, video) non sono ancora gestiti dal sito.
+            </ToBeCompleted>
+          )}
+        </div>
+      )}
     </SiteLayout>
   );
 }

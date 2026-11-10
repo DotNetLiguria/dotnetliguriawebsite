@@ -14,6 +14,7 @@ import type { Questionnaire, QuestionnaireStatus } from '../../questionnaire/typ
 import type { VenueModel } from '../../models/VenueModel';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import EventPoster from '../EventPoster';
+import { useAuthenticatedImage } from '../useAuthenticatedImage';
 import { ModalHeader, Notice, RecordModal } from './listUi';
 import { Caption, EventPage, FilePicker, InlineConfirm, PanelTitle, SelectInput } from './eventKit';
 import { EventFile, FILE_TYPE, locationFromVenue } from './eventModel';
@@ -326,9 +327,13 @@ export function MaterialsStep({ page }: { page: EventPage }) {
 }
 
 /** A photo, or the previous "Image not found" placeholder when it is missing or does not load. */
-function PhotoImage({ src, title }: { src: string | null; title: string }) {
+function PhotoImage({ src: source, title }: { src: string | null; title: string }) {
   const [failedSource, setFailedSource] = useState<string | null>(null);
-  if (!src || src === failedSource) {
+  const { src, failed } = useAuthenticatedImage(source);
+  if (source && !src && !failed) {
+    return <div role="img" aria-label="Caricamento immagine…" aria-busy="true" className="h-48 w-full bg-[#dddddd]" />;
+  }
+  if (!src || failed || src === failedSource) {
     return <div role="img" aria-label="Immagine non trovata" className="grid h-48 w-full place-items-center bg-[#dddddd] font-mono text-[#666666]">Immagine non trovata</div>;
   }
   return <img src={src} alt={title} loading="lazy" onError={() => setFailedSource(src)} className="h-48 w-full object-cover" />;

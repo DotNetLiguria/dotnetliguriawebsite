@@ -75,6 +75,8 @@ public sealed class EditorInputFilter : IEndpointFilter
                 }
                 if (workshop.EventbriteTicketCapacity is < 0 or > 100000)
                     errors["eventbriteTicketCapacity"] = ["Capienza non valida."];
+                if (workshop.AgendaItems?.Any(item => item.DurationMinutes is < 1 or > 1440) == true)
+                    errors["agendaItems.durationMinutes"] = ["La durata personalizzata deve essere tra 1 e 1440 minuti."];
                 if (workshop.Location is { } location)
                 {
                     Text("location.name", location.Name, 200);

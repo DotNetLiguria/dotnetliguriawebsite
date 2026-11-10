@@ -1,5 +1,5 @@
 import { SiteWorkshop } from '../siteApi';
-import { clean } from '../format';
+import { clean, fromRomeWallClock } from '../format';
 
 export interface ProgrammeSpeaker {
   name: string;
@@ -68,8 +68,8 @@ function fromAgenda(workshop: SiteWorkshop): ProgrammeEntry[] {
     entries.push({
       id: item.workshopAgendaItemId,
       title: isTalk ? clean(talk!.title) : !ownTitle || DEFAULT_BREAK.has(ownTitle.toLowerCase()) ? 'Pausa' : ownTitle,
-      startTime: item.startTime,
-      endTime: item.endTime,
+      startTime: fromRomeWallClock(item.startTime),
+      endTime: fromRomeWallClock(item.endTime),
       logistics: !isTalk || clean(talk!.sessionType).toLowerCase() === 'service',
       details,
       abstract: isTalk ? clean(talk!.abstract) : '',

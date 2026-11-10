@@ -9,7 +9,7 @@ public sealed record EventbriteConfigurationRequest(string? SalesStart, string? 
     {
         if (workshop.EventbriteSyncStatus is "creating-event" or "creating-ticket" or "reconciliation-required")
             throw new PrivacyBlockedException("eventbrite_reconciliation_required", 409);
-        if (TicketCapacity is < 0 || TicketCapacity < workshop.EventbriteSyncedTicketCapacity)
+        if (TicketCapacity is < 0)
             throw new PrivacyBlockedException("eventbrite_capacity_invalid", 400);
         if (TicketCapacity is { } capacity && capacity != workshop.EventbriteTicketCapacity &&
             !string.IsNullOrWhiteSpace(workshop.EventbriteTicketClassId))

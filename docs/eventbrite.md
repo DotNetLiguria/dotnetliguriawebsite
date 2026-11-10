@@ -7,18 +7,22 @@ that operation from the final Eventbrite step.
 
 ## Configure backend credentials
 
-The API token is a secret accepted by Eventbrite's API as a bearer token. Keep it on
-the server. Do not put it in `VITE_*` variables, browser storage, a checked-in
-`appsettings*.json`, logs, screenshots, or source control. Configure these values
-using the website project's user secrets for local development, or the deployment's
-secret store/environment configuration:
+Use the Eventbrite **Private Token** as the server-side bearer token. The API Key and
+Client Secret are for OAuth applications, and the Public Token is for client-side
+features; this integration does not use or need them. Do not put any credential in
+`VITE_*` variables, browser storage, a checked-in `appsettings*.json`, logs,
+screenshots, or source control. Configure the Private Token and the organization and
+organizer IDs using the website project's user secrets for local development, or the
+deployment's secret store/environment configuration:
 
 ```powershell
-dotnet user-secrets set "Eventbrite:AccessToken" "<eventbrite-bearer-token>" --project src\dotnetliguriawebsite\DotNetLiguriaCore
+dotnet user-secrets set "Eventbrite:PrivateToken" "<eventbrite-private-token>" --project src\dotnetliguriawebsite\DotNetLiguriaCore
 dotnet user-secrets set "Eventbrite:OrganizationId" "<organization-id>" --project src\dotnetliguriawebsite\DotNetLiguriaCore
 dotnet user-secrets set "Eventbrite:OrganizerId" "<organizer-id>" --project src\dotnetliguriawebsite\DotNetLiguriaCore
 ```
 
+`Eventbrite:AccessToken` remains supported as a legacy alias for `PrivateToken`.
+The organization and organizer IDs are account identifiers, not credentials.
 The account/token must have permission to manage the configured organization's
 venues, events, descriptions, and ticket classes, and read the managed ticket class.
 Optional settings are:
@@ -46,12 +50,15 @@ biglietti" (save ticket capacity) and "Pubblica su Eventbrite" (publish).
 
 1. Complete the workshop title, description, event date, venue/location, agenda
    track, and at least one scheduled agenda item. Give agenda items valid start and
-   end times on the workshop event date.
+   end times on the workshop event date. Eventbrite venues require a city, so write
+   the location address as "street, postal code city" (for example
+   `Via Roma 1, 16121 Genova`); synchronization is rejected when no city can be read.
 2. In **Registration details**, set the available free-ticket capacity. This is the
    Eventbrite ticket inventory, not `Location.MaximumSpaces` (the venue capacity).
    Optionally set ticket sales start/end. These local date/time values use the
    configured Eventbrite timezone; if both are set, the end must be later than the
-   start. Booking/cancellation URL and attendee notes are local workshop fields.
+   start. Booking/cancellation URL and attendee notes are synchronized to the
+   Eventbrite event description.
 3. Save registration/agenda details to persist them on the website. This does not
    call Eventbrite. The panel lists missing required event inputs when it cannot
    synchronize yet.
@@ -66,13 +73,14 @@ biglietti" (save ticket capacity) and "Pubblica su Eventbrite" (publish).
    aggregate ticket-class counts: sold, pending, total capacity, and remaining
    tickets, with a refresh timestamp. No attendee names, email addresses, or
    order-level personal data are retrieved or shown.
-6. Increase the desired ticket capacity when additional seats should be released.
+6. Change the desired ticket capacity when seats should be added or withdrawn.
    The admin API refreshes the current Eventbrite inventory before accepting a
    capacity change and rejects a requested total below sold plus pending tickets.
    Saving the desired capacity is local only; use **Sync/Update Eventbrite** to
    apply the new total to the provider. Eventbrite remains the final authority and
    may reject a change if inventory has changed or its own holds/constraints apply.
-   The integration does not reduce the last synchronized total.
+   Reductions are allowed only while enough capacity remains for sold and pending
+   tickets.
 7. When the draft is ready for public sale, select **Publish on Eventbrite** and
    confirm. Publishing on Eventbrite is separate from the website's **Published**
    setting. A published Eventbrite event can still be synchronized after a later
@@ -86,14 +94,17 @@ from the final step.
 ## Recovery and boundaries
 
 An Eventbrite create/update can succeed remotely while its response is lost. The
-integration records ambiguous create outcomes as requiring reconciliation and
-refuses an unsafe blind retry that could create duplicates. Check the organization's
+integration records ambiguous event or ticket create outcomes as requiring
+reconciliation and refuses an unsafe blind retry that could create duplicates; saving
+the workshop does not clear that state. A lost response from the image upload or venue
+creation that precedes the event create is recorded as a normal failure and can be
+retried. Check the organization's
 Eventbrite account and reconcile the event/ticket identity before taking further
 action. A definitive HTTP rejection is shown as a provider error and can generally
 be retried after correcting its cause.
 
-Venue and event images are not uploaded to Eventbrite by this integration. The
-workshop's website image remains local. Ticket reporting is limited to the single
+The workshop image is uploaded to Eventbrite and refreshed when it changes. Ticket
+reporting is limited to the single
 free-ticket class managed by this integration; additional ticket classes created
 directly in Eventbrite are not aggregated into these counts. There is no background
 sync: workshop saves are local, and the admin explicitly synchronizes changes.

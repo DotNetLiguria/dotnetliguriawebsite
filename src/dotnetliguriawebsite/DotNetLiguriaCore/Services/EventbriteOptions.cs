@@ -4,6 +4,7 @@ public sealed class EventbriteOptions
 {
     public const string SectionName = "Eventbrite";
 
+    public string? PrivateToken { get; set; }
     public string? AccessToken { get; set; }
     public string? OrganizationId { get; set; }
     public string? OrganizerId { get; set; }

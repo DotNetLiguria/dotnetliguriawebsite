@@ -158,6 +158,7 @@ public class Program
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         builder.Services.AddTransient<EventbriteIntegrationService>();
         builder.Services.AddSingleton<TopMenuService>();
+        builder.Services.AddSingleton<HomePageSettingsService>();
         builder.Services.AddSingleton<VenueService>();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<IQuestionnaireStore, MongoQuestionnaireStore>();
@@ -193,7 +194,8 @@ public class Program
 
         app.UseHttpsRedirection();
         app.UseAuthentication();
-        app.UseStaticFiles();
+        var spaStaticFiles = new StaticFileOptions { OnPrepareResponse = SpaCacheHeaders.Apply };
+        app.UseStaticFiles(spaStaticFiles);
         
         var contentsPath = storagePaths.ContentsRoot;
         app.UseStaticFiles(new StaticFileOptions
@@ -254,7 +256,7 @@ public class Program
         }
 
         // Map SPA fallback last - this ensures API routes are handled before fallback
-        app.MapFallbackToFile("/index.html");
+        app.MapFallbackToFile("/index.html", spaStaticFiles);
         //    .WithMetadata(new HttpMethodMetadata(new[] { "GET" }));   // specify more verbs on static pages
 
 

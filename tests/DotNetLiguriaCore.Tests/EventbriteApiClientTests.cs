@@ -43,6 +43,88 @@ public sealed class EventbriteApiClientTests
     }
 
     [Fact]
+    public async Task UploadMediaAsync_uses_signed_upload_then_notifies_with_token()
+    {
+        var requests = new List<(HttpMethod Method, Uri Uri, string? Token, string? Body)>();
+        var partNames = new List<string?>();
+        string? fileName = null;
+        byte[]? sentBytes = null;
+        var handler = new EventbriteHttpMessageHandler(async (request, cancellationToken) =>
+        {
+            string? body = null;
+            if (request.Content is MultipartFormDataContent multipart)
+            {
+                foreach (var part in multipart)
+                {
+                    partNames.Add(part.Headers.ContentDisposition?.Name?.Trim('"'));
+                }
+                var file = multipart.Last();
+                fileName = file.Headers.ContentDisposition?.FileName?.Trim('"');
+                sentBytes = await file.ReadAsByteArrayAsync(cancellationToken);
+            }
+            else if (request.Content is not null)
+            {
+                body = await request.Content.ReadAsStringAsync(cancellationToken);
+            }
+            requests.Add((request.Method, request.RequestUri!, request.Headers.Authorization?.Parameter, body));
+            var json = requests.Count switch
+            {
+                1 => """{"upload_url":"https://upload.example.test/put","upload_token":"tok-9","file_parameter_name":"file","upload_data":{"key":"k1","policy":"p1"}}""",
+                2 => "",
+                _ => """{"id":"logo-1"}""",
+            };
+            return new HttpResponseMessage(requests.Count == 2 ? HttpStatusCode.NoContent : HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+        });
+        var client = CreateClient(handler, new EventbriteOptions { PrivateToken = "private-token" });
+        var expectedBytes = new byte[] { 137, 80, 78, 71 };
+
+        using var response = await client.UploadMediaAsync(
+            expectedBytes, "workshop.png", "image/png", CancellationToken.None);
+
+        Assert.Equal("logo-1", response.RootElement.GetProperty("id").GetString());
+        Assert.Equal(3, requests.Count);
+        Assert.Equal(HttpMethod.Get, requests[0].Method);
+        Assert.Equal("/v3/media/upload/?type=image-event-logo", requests[0].Uri.PathAndQuery);
+        Assert.Equal("private-token", requests[0].Token);
+
+        Assert.Equal("https://upload.example.test/put", requests[1].Uri.ToString());
+        Assert.Null(requests[1].Token);
+        Assert.Equal(["key", "policy", "file"], partNames);
+        Assert.Equal("workshop.png", fileName);
+        Assert.Equal(expectedBytes, sentBytes);
+
+        Assert.Equal(HttpMethod.Post, requests[2].Method);
+        Assert.Equal("/v3/media/upload/", requests[2].Uri.AbsolutePath);
+        Assert.Equal("tok-9", JsonNode.Parse(requests[2].Body!)?["upload_token"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task UploadMediaAsync_fails_when_signed_upload_is_rejected()
+    {
+        var calls = 0;
+        var handler = new EventbriteHttpMessageHandler((_, _) =>
+        {
+            calls++;
+            return Task.FromResult(calls == 1
+                ? new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("""{"upload_url":"https://upload.example.test/put","upload_token":"tok"}""", Encoding.UTF8, "application/json")
+                }
+                : new HttpResponseMessage(HttpStatusCode.Forbidden));
+        });
+        var client = CreateClient(handler, new EventbriteOptions { PrivateToken = "private-token" });
+
+        var exception = await Assert.ThrowsAsync<EventbriteApiException>(() =>
+            client.UploadMediaAsync([1], "a.png", "image/png", CancellationToken.None));
+
+        Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
     public async Task Sequential_requests_forward_latest_waypoint_token()
     {
         var calls = 0;
@@ -166,6 +248,75 @@ public sealed class EventbriteApiClientTests
 
         Assert.Equal(HttpStatusCode.Forbidden, exception.StatusCode);
         Assert.Contains("Access denied", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UpdateStructuredContentAsync_posts_next_version_after_latest_working_version()
+    {
+        var requests = new List<(HttpMethod Method, string PathAndQuery, string? Body)>();
+        var handler = new EventbriteHttpMessageHandler(async (request, cancellationToken) =>
+        {
+            requests.Add((request.Method, request.RequestUri!.PathAndQuery,
+                request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken)));
+            var json = request.Method == HttpMethod.Get ? """{"page_version_number":"4","modules":[]}""" : "{}";
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            };
+        });
+        var client = CreateClient(handler, new EventbriteOptions { PrivateToken = "fake-token" });
+
+        using var response = await client.UpdateStructuredContentAsync(
+            "event-2", [new JsonObject { ["type"] = "text" }], CancellationToken.None);
+
+        Assert.Equal(2, requests.Count);
+        Assert.Equal((HttpMethod.Get, "/v3/events/event-2/structured_content/edit/?purpose=listing"),
+            (requests[0].Method, requests[0].PathAndQuery));
+        Assert.Equal((HttpMethod.Post, "/v3/events/event-2/structured_content/5/"),
+            (requests[1].Method, requests[1].PathAndQuery));
+        var body = JsonNode.Parse(requests[1].Body!);
+        Assert.True(body?["publish"]?.GetValue<bool>());
+        Assert.Equal("text", body?["modules"]?[0]?["type"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task UpdateStructuredContentAsync_starts_at_version_one_without_existing_content()
+    {
+        string? postPath = null;
+        var handler = new EventbriteHttpMessageHandler((request, _) =>
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)
+                {
+                    Content = new StringContent("""{"error":"NOT_FOUND"}""", Encoding.UTF8, "application/json")
+                });
+            }
+
+            postPath = request.RequestUri!.AbsolutePath;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{}", Encoding.UTF8, "application/json")
+            });
+        });
+        var client = CreateClient(handler, new EventbriteOptions { PrivateToken = "fake-token" });
+
+        using var response = await client.UpdateStructuredContentAsync("event-2", [], CancellationToken.None);
+
+        Assert.Equal("/v3/events/event-2/structured_content/1/", postPath);
+    }
+
+    [Fact]
+    public async Task PublishEventAsync_rejects_unsuccessful_publish_result()
+    {
+        var handler = new EventbriteHttpMessageHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"published":false}""", Encoding.UTF8, "application/json")
+        }));
+        var client = CreateClient(handler, new EventbriteOptions { PrivateToken = "fake-token" });
+
+        await Assert.ThrowsAsync<EventbriteApiException>(() =>
+            client.PublishEventAsync("event-2", CancellationToken.None));
     }
 
     private static EventbriteApiClient CreateClient(HttpMessageHandler handler, EventbriteOptions options)

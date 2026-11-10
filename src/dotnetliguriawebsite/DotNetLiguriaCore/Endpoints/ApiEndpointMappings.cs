@@ -370,16 +370,6 @@ public static class ApiEndpointMappings
                     Status = StatusCodes.Status409Conflict,
                 });
             }
-            if (request.Capacity < workshop.EventbriteSyncedTicketCapacity)
-            {
-                return Results.BadRequest(new ProblemDetails
-                {
-                    Title = "Ticket capacity cannot be reduced",
-                    Detail = $"Capacity must be at least the current total of {workshop.EventbriteSyncedTicketCapacity}.",
-                    Status = StatusCodes.Status400BadRequest,
-                });
-            }
-
             EventbriteTicketSales liveSales;
             try
             {
@@ -442,7 +432,7 @@ public static class ApiEndpointMappings
 
             try
             {
-                using var response = await apiClient.PublishEventAsync(workshop.EventbriteEventId, cancellationToken);
+                await apiClient.PublishEventAsync(workshop.EventbriteEventId, cancellationToken);
                 workshop.EventbritePublished = true;
                 await workshopService.UpdateEventbriteAsync(workshop);
             }
@@ -713,6 +703,15 @@ public static class ApiEndpointMappings
             }
             await service.RemoveAsync(id);
             return Results.NoContent();
+        }).RequireAuthorization();
+
+        var homePage = api.MapGroup("/HomePageSettings").WithTags("Home page settings");
+        homePage.MapGet("", async (HomePageSettingsService service, CancellationToken cancellationToken) =>
+            Results.Ok(await service.GetAsync(cancellationToken))).AllowAnonymous();
+        homePage.MapPut("", async (HomePageSettings settings, HomePageSettingsService service, CancellationToken cancellationToken) =>
+        {
+            await service.SaveAsync(settings, cancellationToken);
+            return Results.Ok(settings);
         }).RequireAuthorization();
     }
 
@@ -986,22 +985,20 @@ public static class ApiEndpointMappings
             {
                 return Results.NotFound();
             }
-            if (updated.EventbriteTicketCapacity < current.EventbriteSyncedTicketCapacity)
+            // A reduction already accepted by SetTicketCapacity (verified against live sales) is kept;
+            // other reductions below the synchronized total must use that endpoint.
+            if (updated.EventbriteTicketCapacity < current.EventbriteSyncedTicketCapacity &&
+                updated.EventbriteTicketCapacity != current.EventbriteTicketCapacity)
             {
                 return Results.BadRequest(new ProblemDetails
                 {
                     Title = "Eventbrite ticket capacity cannot be reduced",
-                    Detail = $"Increase the desired total to at least {current.EventbriteSyncedTicketCapacity}; sold tickets are not released by this integration.",
+                    Detail = $"Increase the desired total to at least {current.EventbriteSyncedTicketCapacity}, or reduce it from the Eventbrite ticket capacity control after checking live sales.",
                     Status = StatusCodes.Status400BadRequest,
                 });
             }
             WorkshopEditorInput.Apply(current, updated);
             updated = current;
-            if (!string.IsNullOrWhiteSpace(current.EventbriteEventId))
-            {
-                updated.EventbriteSyncStatus = "update-pending";
-                updated.EventbriteLastError = null;
-            }
             EnsureAgendaIds(updated);
             foreach (var track in updated.Tracks ?? [])
             {
@@ -1017,7 +1014,7 @@ public static class ApiEndpointMappings
             await workshopService.UpdateAsync(id, updated);
             if (!string.IsNullOrWhiteSpace(updated.EventbriteEventId))
             {
-                await workshopService.UpdateEventbriteAsync(updated);
+                await workshopService.MarkEventbriteUpdatePendingAsync(id);
             }
             return Results.NoContent();
         }).RequireAuthorization();

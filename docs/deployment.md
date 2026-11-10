@@ -196,9 +196,12 @@ it after provisioning. Rerun the same command and redeploy the stack after chang
 value. Do not include `Kestrel__Certificates__Development__Password` in production:
 the stack uses the mounted PEM certificate and key instead.
 
-To enable Eventbrite synchronization or an encrypted website PEM private key, add the
-optional `Eventbrite__AccessToken` or
-`Kestrel__Endpoints__Https__Certificate__Password` key to the same input file.
+To enable Eventbrite synchronization, add the optional
+`Eventbrite__PrivateToken`, `Eventbrite__OrganizationId`, and
+`Eventbrite__OrganizerId` settings to the same input file. All three are needed.
+`Eventbrite__AccessToken` is still accepted as a legacy alias for the Private Token.
+For an encrypted website PEM private key, also add the optional
+`Kestrel__Endpoints__Https__Certificate__Password` key.
 
 ## First deployment and admin snapshot import
 
@@ -320,7 +323,10 @@ The shipped `appsettings.json` contains the current identity issuer and public-d
 | `PermissionDirectory:ProtectedGroupIds:0` | `PermissionDirectory__ProtectedGroupIds__0` | Repeat by index for groups whose memberships are protected. |
 | `Privacy:AdminClientId` | `Privacy__AdminClientId` | Identity-provider admin client for privacy account operations. |
 | `Privacy:AdminClientSecret` | `Privacy__AdminClientSecret` | Key-per-file configuration filename for the dedicated admin client secret; never reuse another client secret. |
-| `Eventbrite:AccessToken` | `Eventbrite__AccessToken` | Key-per-file configuration filename when synchronization is enabled. |
+| `Eventbrite:PrivateToken` | `Eventbrite__PrivateToken` | Private Token used as the backend bearer credential; required for synchronization. |
+| `Eventbrite:AccessToken` | `Eventbrite__AccessToken` | Legacy alias for `Eventbrite:PrivateToken`. |
+| `Eventbrite:OrganizationId` | `Eventbrite__OrganizationId` | Eventbrite organization used to create venues and events. |
+| `Eventbrite:OrganizerId` | `Eventbrite__OrganizerId` | Eventbrite organizer assigned to created venues and events. |
 | `Newsletters:SmtpHost` | `Newsletters__SmtpHost` | SMTP host when outbound newsletter delivery is enabled. Also set port, STARTTLS, sender, recipient and related settings in `appsettings.json` or runtime configuration. |
 | `Newsletters:SmtpUserName` | `Newsletters__SmtpUserName` | SMTP account when authentication is required. |
 | `Newsletters:SmtpPassword` | `Newsletters__SmtpPassword` | Key-per-file configuration filename when authentication is enabled. |

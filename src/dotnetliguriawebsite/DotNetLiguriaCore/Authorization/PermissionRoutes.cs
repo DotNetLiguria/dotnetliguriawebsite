@@ -12,7 +12,7 @@ public static class PermissionRoutes
         {
             "workshop" => "events.read", "workshopfile" => "event-assets.read",
             "speaker" => "speakers.read", "board" => "board.read",
-            "venue" => "venues.read", "topmenu" => "site-menu.read",
+            "venue" => "venues.read", "topmenu" or "homepagesettings" => "site-menu.read",
             "counter" => "maintenance.counters.read", _ => null,
         };
     }

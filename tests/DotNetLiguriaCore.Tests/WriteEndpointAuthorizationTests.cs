@@ -88,6 +88,7 @@ public class WriteEndpointAuthorizationTests
             Assert.Contains("/api/Questionnaire/{id:guid}/export", routes);
             Assert.Contains("/api/Speaker/ReconcileDuplicates", routes);
             Assert.Contains("/api/TopMenu/{id}", routes);
+            Assert.Contains(routes, route => route.TrimEnd('/') == "/api/HomePageSettings");
             Assert.Contains("/api/Values/ValuesMfa", routes);
             Assert.Contains("/api/Venue/{id}", routes);
             Assert.Contains("/api/Workshop/GetInHomePage/HomePage", routes);
@@ -111,6 +112,7 @@ public class WriteEndpointAuthorizationTests
             builder.Services.AddSingleton<QuestionnaireService>();
             builder.Services.AddSingleton<SpeakerService>();
             builder.Services.AddSingleton<TopMenuService>();
+            builder.Services.AddSingleton<HomePageSettingsService>();
             builder.Services.AddSingleton<VenueService>();
             builder.Services.AddSingleton<WorkshopService>();
             builder.Services.AddSingleton<WorkshopFileService>();

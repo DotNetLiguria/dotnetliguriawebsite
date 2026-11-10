@@ -82,6 +82,8 @@ namespace DotNetLiguriaCore.Services
             updatedFields.Remove(nameof(Workshop.EventbriteEventUrl));
             updatedFields.Remove(nameof(Workshop.EventbriteVenueId));
             updatedFields.Remove(nameof(Workshop.EventbriteTicketClassId));
+            updatedFields.Remove(nameof(Workshop.EventbriteLogoId));
+            updatedFields.Remove(nameof(Workshop.EventbriteImageSha256));
             updatedFields.Remove(nameof(Workshop.EventbritePublished));
             updatedFields.Remove(nameof(Workshop.EventbriteSyncStatus));
             updatedFields.Remove(nameof(Workshop.EventbriteLastError));
@@ -114,6 +116,8 @@ namespace DotNetLiguriaCore.Services
                 .Set(value => value.EventbriteEventUrl, workshop.EventbriteEventUrl)
                 .Set(value => value.EventbriteVenueId, workshop.EventbriteVenueId)
                 .Set(value => value.EventbriteTicketClassId, workshop.EventbriteTicketClassId)
+                .Set(value => value.EventbriteLogoId, workshop.EventbriteLogoId)
+                .Set(value => value.EventbriteImageSha256, workshop.EventbriteImageSha256)
                 .Set(value => value.EventbritePublished, workshop.EventbritePublished)
                 .Set(value => value.EventbriteSyncStatus, workshop.EventbriteSyncStatus)
                 .Set(value => value.EventbriteLastError, workshop.EventbriteLastError)
@@ -123,6 +127,20 @@ namespace DotNetLiguriaCore.Services
             await _workshopsCollection.UpdateOneAsync(
                 BsonCompatibility.CreateGuidFilter("_id", workshop.WorkshopId),
                 update);
+        }
+
+        public async Task MarkEventbriteUpdatePendingAsync(Guid id)
+        {
+            // Never clear a status that guards against duplicate Eventbrite creates.
+            var filter = Builders<Workshop>.Filter.And(
+                BsonCompatibility.CreateGuidFilter("_id", id),
+                Builders<Workshop>.Filter.Ne(workshop => workshop.EventbriteEventId, null),
+                Builders<Workshop>.Filter.Nin(workshop => workshop.EventbriteSyncStatus,
+                    ["creating-event", "creating-ticket", "reconciliation-required"]));
+            var update = Builders<Workshop>.Update
+                .Set(workshop => workshop.EventbriteSyncStatus, "update-pending")
+                .Set(workshop => workshop.EventbriteLastError, null);
+            await _workshopsCollection.UpdateOneAsync(filter, update);
         }
 
         public async Task<bool> TryStartEventbriteCreationAsync(Guid id)

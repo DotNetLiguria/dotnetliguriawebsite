@@ -1,7 +1,8 @@
-using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DotNetLiguriaCore.Model;
+using DotNetLiguriaCore.Storage;
 using Microsoft.Extensions.Options;
 
 namespace DotNetLiguriaCore.Services;
@@ -9,17 +10,27 @@ namespace DotNetLiguriaCore.Services;
 public sealed class EventbriteIntegrationService(
     EventbriteApiClient apiClient,
     WorkshopService workshopService,
+    WorkshopFileService workshopFileService,
+    WorkshopAssetStorage workshopAssetStorage,
+    WebsiteStoragePaths storagePaths,
     IOptions<EventbriteOptions> options,
     TimeProvider timeProvider)
 {
     private readonly EventbriteOptions _options = options.Value;
     private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly WorkshopFileService _workshopFileService = workshopFileService;
+    private readonly WorkshopAssetStorage _workshopAssetStorage = workshopAssetStorage;
+    private readonly WebsiteStoragePaths _storagePaths = storagePaths;
 
     public async Task SyncIfReadyAsync(Workshop workshop, CancellationToken cancellationToken = default)
     {
         if (!IsReady(workshop))
         {
             throw new InvalidOperationException("Complete the workshop title, description, event date, location, free-ticket quantity, agenda track and scheduled agenda before synchronizing Eventbrite.");
+        }
+        if (!EventbriteEventPayloadBuilder.HasCity(workshop.Location!.Address!))
+        {
+            throw new InvalidOperationException("Eventbrite requires a city: write the location address as \"street, postal code city\" (for example \"Via Roma 1, 16121 Genova\").");
         }
         EnsureConfigured();
         _ = BuildTicketClass(workshop);
@@ -42,12 +53,6 @@ public sealed class EventbriteIntegrationService(
         {
             throw new InvalidOperationException(
                 "An Eventbrite request may have succeeded without its response being saved. Reconcile the Eventbrite account before retrying to avoid duplicates.");
-        }
-
-        if (workshop.EventbriteSyncedTicketCapacity > 0 &&
-            workshop.EventbriteTicketCapacity < workshop.EventbriteSyncedTicketCapacity)
-        {
-            throw new InvalidOperationException("Eventbrite ticket capacity can only be increased from the currently synchronized quantity.");
         }
 
         if (string.IsNullOrWhiteSpace(workshop.EventbriteEventId))
@@ -85,17 +90,22 @@ public sealed class EventbriteIntegrationService(
         }
         workshop.EventbriteSyncStatus = "creating-event";
         workshop.EventbriteLastError = null;
+        var eventCreateRequested = false;
         try
         {
+            await UploadWorkshopImageIfChangedAsync(workshop, cancellationToken);
             if (string.IsNullOrWhiteSpace(workshop.EventbriteVenueId))
             {
-                using var venueResponse = await apiClient.CreateVenueAsync(BuildVenue(workshop), cancellationToken);
+                using var venueResponse = await apiClient.CreateVenueAsync(
+                    EventbriteEventPayloadBuilder.BuildVenue(workshop, _options), cancellationToken);
                 workshop.EventbriteVenueId = GetRequiredString(venueResponse.RootElement, "id");
                 await workshopService.UpdateEventbriteAsync(workshop);
             }
 
+            eventCreateRequested = true;
             using var eventResponse = await apiClient.CreateEventAsync(
-                BuildEvent(workshop, workshop.EventbriteVenueId!, startUtc, endUtc),
+                EventbriteEventPayloadBuilder.BuildEvent(
+                    workshop, workshop.EventbriteVenueId!, startUtc, endUtc, _options),
                 cancellationToken);
             workshop.EventbriteEventId = GetRequiredString(eventResponse.RootElement, "id");
             workshop.EventbriteEventUrl = GetOptionalString(eventResponse.RootElement, "url");
@@ -115,9 +125,14 @@ public sealed class EventbriteIntegrationService(
             workshop.EventbriteLastError = null;
             await workshopService.UpdateEventbriteAsync(workshop);
         }
-        catch (EventbriteApiException exception)
+        catch (Exception exception) when (
+            exception is EventbriteApiException or InvalidOperationException or IOException or ArgumentException)
         {
-            workshop.EventbriteSyncStatus = exception.StatusCode is null ? "reconciliation-required" : "failed";
+            // Image and venue creates cannot duplicate the event, so an unknown outcome before the
+            // event create request is retryable.
+            workshop.EventbriteSyncStatus = eventCreateRequested && exception is EventbriteApiException { StatusCode: null }
+                ? "reconciliation-required"
+                : "failed";
             workshop.EventbriteLastError = exception.Message;
             await workshopService.UpdateEventbriteAsync(workshop);
             throw;
@@ -131,10 +146,27 @@ public sealed class EventbriteIntegrationService(
             var timezone = GetConfiguredTimeZone();
             var (startUtc, endUtc) = GetEventTimes(workshop, timezone);
 
-            using var venueResponse = await apiClient.UpdateVenueAsync(workshop.EventbriteVenueId!, BuildVenue(workshop), cancellationToken);
+            if (!string.IsNullOrWhiteSpace(workshop.EventbriteTicketClassId) &&
+                workshop.EventbriteTicketCapacity < workshop.EventbriteSyncedTicketCapacity)
+            {
+                var sales = await GetTicketSalesAsync(workshop, cancellationToken);
+                var minimumCapacity = sales.Sold + sales.Pending;
+                if (workshop.EventbriteTicketCapacity < minimumCapacity)
+                {
+                    throw new InvalidOperationException(
+                        $"Ticket capacity must be at least {minimumCapacity} (sold: {sales.Sold}, pending: {sales.Pending}).");
+                }
+            }
+
+            await UploadWorkshopImageIfChangedAsync(workshop, cancellationToken);
+            using var venueResponse = await apiClient.UpdateVenueAsync(
+                workshop.EventbriteVenueId!,
+                EventbriteEventPayloadBuilder.BuildVenue(workshop, _options),
+                cancellationToken);
             using var eventResponse = await apiClient.UpdateEventAsync(
                 workshop.EventbriteEventId!,
-                BuildEvent(workshop, workshop.EventbriteVenueId!, startUtc, endUtc),
+                EventbriteEventPayloadBuilder.BuildEvent(
+                    workshop, workshop.EventbriteVenueId!, startUtc, endUtc, _options),
                 cancellationToken);
             await UpdateStructuredContentAsync(workshop, cancellationToken);
 
@@ -155,9 +187,11 @@ public sealed class EventbriteIntegrationService(
 
             workshop.EventbriteLastSyncedAt = _timeProvider.GetUtcNow().UtcDateTime;
             workshop.EventbriteSyncStatus = "synced";
+            workshop.EventbriteLastError = null;
             await workshopService.UpdateEventbriteAsync(workshop);
         }
-        catch (Exception exception) when (exception is EventbriteApiException or InvalidTimeZoneException or ArgumentException)
+        catch (Exception exception) when (
+            exception is EventbriteApiException or InvalidOperationException or IOException or InvalidTimeZoneException or ArgumentException)
         {
             workshop.EventbriteSyncStatus = exception is EventbriteApiException { StatusCode: null }
                 ? "reconciliation-required"
@@ -170,58 +204,10 @@ public sealed class EventbriteIntegrationService(
 
     private async Task UpdateStructuredContentAsync(Workshop workshop, CancellationToken cancellationToken)
     {
-        var paragraphs = new List<string>();
-        if (!string.IsNullOrWhiteSpace(workshop.Description))
-        {
-            paragraphs.Add($"<p>{System.Net.WebUtility.HtmlEncode(workshop.Description)}</p>");
-        }
-
-        var talks = workshop.Talks.ToDictionary(talk => talk.WorkshopTalkId);
-        var tracks = workshop.AgendaTracks.ToDictionary(track => track.WorkshopAgendaTrackId);
-        var items = workshop.AgendaItems.OrderBy(item => item.StartTime).ToList();
-        if (items.Count > 0)
-        {
-            paragraphs.Add("<p><strong>Agenda</strong></p><ul>");
-            foreach (var item in items)
-            {
-                var title = item.Title;
-                if (string.IsNullOrWhiteSpace(title) && item.TalkId is Guid talkId && talks.TryGetValue(talkId, out var talk))
-                {
-                    title = talk.Title;
-                }
-
-                var start = item.StartTime.ToString("HH:mm", CultureInfo.InvariantCulture);
-                var end = item.EndTime.ToString("HH:mm", CultureInfo.InvariantCulture);
-                var room = string.IsNullOrWhiteSpace(item.RoomName) ? string.Empty : $" — {System.Net.WebUtility.HtmlEncode(item.RoomName)}";
-                var track = item.TrackId is Guid trackId && tracks.TryGetValue(trackId, out var agendaTrack)
-                    ? $" — {System.Net.WebUtility.HtmlEncode(agendaTrack.Name)}"
-                    : string.Empty;
-                var talkDetails = item.TalkId is Guid scheduledTalkId && talks.TryGetValue(scheduledTalkId, out var scheduledTalk)
-                    ? string.Join(" ", new[]
-                    {
-                        scheduledTalk.Abstract,
-                        string.Join(", ", scheduledTalk.Speakers.Select(speaker => speaker.Name).Where(name => !string.IsNullOrWhiteSpace(name)))
-                    }.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => System.Net.WebUtility.HtmlEncode(value)))
-                    : string.Empty;
-                var details = string.IsNullOrWhiteSpace(talkDetails) ? string.Empty : $" — {talkDetails}";
-                paragraphs.Add($"<li><strong>{start}–{end}</strong> {System.Net.WebUtility.HtmlEncode(title ?? item.ItemType ?? "Session")}{track}{room}{details}</li>");
-            }
-            paragraphs.Add("</ul>");
-        }
-
-        var body = string.Join(Environment.NewLine, paragraphs);
-        var modules = new JsonArray
-        {
-            new JsonObject
-            {
-                ["type"] = "text",
-                ["data"] = new JsonObject
-                {
-                    ["body"] = new JsonObject { ["alignment"] = "left", ["text"] = body }
-                }
-            }
-        };
-        using var response = await apiClient.UpdateStructuredContentAsync(workshop.EventbriteEventId!, modules, cancellationToken);
+        using var response = await apiClient.UpdateStructuredContentAsync(
+            workshop.EventbriteEventId!,
+            EventbriteEventPayloadBuilder.BuildStructuredContent(workshop),
+            cancellationToken);
     }
 
     private async Task CreateTicketClassAsync(Workshop workshop, CancellationToken cancellationToken)
@@ -241,42 +227,96 @@ public sealed class EventbriteIntegrationService(
         await workshopService.UpdateEventbriteAsync(workshop);
     }
 
-    private JsonObject BuildVenue(Workshop workshop)
+    private async Task UploadWorkshopImageIfChangedAsync(Workshop workshop, CancellationToken cancellationToken)
     {
-        var location = workshop.Location!;
-        return new JsonObject
+        var image = await ReadWorkshopImageAsync(workshop, cancellationToken);
+        if (image is null)
         {
-            ["name"] = location.Name,
-            ["organizer_id"] = _options.OrganizerId,
-            ["address"] = new JsonObject
-            {
-                ["address_1"] = location.Address,
-                ["country"] = _options.CountryCode
-            }
-        };
-    }
-
-    private JsonObject BuildEvent(Workshop workshop, string venueId, DateTimeOffset startUtc, DateTimeOffset endUtc)
-    {
-        var summary = string.IsNullOrWhiteSpace(workshop.Description)
-            ? workshop.Title!
-            : workshop.Description.Trim();
-        if (summary.Length > 140)
-        {
-            summary = summary[..137].TrimEnd() + "...";
+            return;
         }
 
-        return new JsonObject
+        var hash = Convert.ToHexString(SHA256.HashData(image.Value.Bytes));
+        if (string.Equals(workshop.EventbriteImageSha256, hash, StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(workshop.EventbriteLogoId))
         {
-            ["name"] = new JsonObject { ["html"] = workshop.Title },
-            ["summary"] = summary,
-            ["start"] = new JsonObject { ["timezone"] = _options.TimeZoneId, ["utc"] = startUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture) },
-            ["end"] = new JsonObject { ["timezone"] = _options.TimeZoneId, ["utc"] = endUtc.ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture) },
-            ["currency"] = _options.Currency,
-            ["organizer_id"] = _options.OrganizerId,
-            ["venue_id"] = venueId,
-            ["listed"] = true
+            return;
+        }
+
+        using var response = await apiClient.UploadMediaAsync(
+            image.Value.Bytes, image.Value.FileName, image.Value.ContentType, cancellationToken);
+        workshop.EventbriteLogoId = GetRequiredString(response.RootElement, "id");
+        workshop.EventbriteImageSha256 = hash;
+        await workshopService.UpdateEventbriteAsync(workshop);
+    }
+
+    private async Task<(byte[] Bytes, string FileName, string ContentType)?> ReadWorkshopImageAsync(
+        Workshop workshop,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(workshop.Image))
+        {
+            return null;
+        }
+
+        const string privateImagePrefix = "/api/WorkshopFile/Download/";
+        string? path;
+        if (workshop.Image.StartsWith(privateImagePrefix, StringComparison.Ordinal))
+        {
+            var fileIdText = workshop.Image[privateImagePrefix.Length..];
+            if (!Guid.TryParseExact(fileIdText, "D", out var fileId))
+            {
+                throw new InvalidOperationException("The workshop image path is not a valid uploaded image.");
+            }
+
+            var file = await _workshopFileService.GetFileAsync(fileId);
+            if (file is null || file.WorkshopId != workshop.WorkshopId || file.FileType != WorkshopFileTypeEnum.Image)
+            {
+                throw new InvalidOperationException("The workshop image file is missing or does not belong to this workshop.");
+            }
+
+            path = _workshopAssetStorage.PathFor(file);
+        }
+        else
+        {
+            if (!workshop.Image.StartsWith("/workshops/", StringComparison.Ordinal) &&
+                !workshop.Image.StartsWith("workshops/", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("Only a locally stored workshop image can be synchronized to Eventbrite.");
+            }
+
+            var relativePath = workshop.Image.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            var contentRoot = Path.GetFullPath(_storagePaths.ContentsRoot);
+            var contentRootPrefix = contentRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? contentRoot
+                : contentRoot + Path.DirectorySeparatorChar;
+            path = Path.GetFullPath(Path.Combine(contentRoot, relativePath));
+            if (!path.StartsWith(contentRootPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("The workshop image path is outside the contents directory.");
+            }
+
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+        }
+
+        var extension = Path.GetExtension(path).ToLowerInvariant();
+        var contentType = extension switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            _ => throw new InvalidOperationException("The workshop image has an unsupported file type.")
         };
+        var fileInfo = new FileInfo(path);
+        if (fileInfo.Length is <= 0 or > WorkshopAssetStorage.MaximumBytes)
+        {
+            throw new InvalidOperationException("The workshop image exceeds the permitted upload size.");
+        }
+
+        return (await File.ReadAllBytesAsync(path, cancellationToken), Path.GetFileName(path), contentType);
     }
 
     private JsonObject BuildTicketClass(Workshop workshop)
@@ -358,7 +398,8 @@ public sealed class EventbriteIntegrationService(
 
     private void EnsureConfigured()
     {
-        if (string.IsNullOrWhiteSpace(_options.AccessToken) ||
+        if (string.IsNullOrWhiteSpace(
+                string.IsNullOrWhiteSpace(_options.PrivateToken) ? _options.AccessToken : _options.PrivateToken) ||
             string.IsNullOrWhiteSpace(_options.OrganizationId) ||
             string.IsNullOrWhiteSpace(_options.OrganizerId) ||
             string.IsNullOrWhiteSpace(_options.TimeZoneId) ||
@@ -366,7 +407,7 @@ public sealed class EventbriteIntegrationService(
             string.IsNullOrWhiteSpace(_options.CountryCode))
         {
             throw new InvalidOperationException(
-                "Configure Eventbrite:AccessToken, OrganizationId, OrganizerId, TimeZoneId, Currency, and CountryCode before synchronizing workshops.");
+                "Configure Eventbrite:PrivateToken, OrganizationId, OrganizerId, TimeZoneId, Currency, and CountryCode before synchronizing workshops.");
         }
     }
 }

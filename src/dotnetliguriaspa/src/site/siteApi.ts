@@ -149,6 +149,21 @@ export const getActiveBoard = (signal?: AbortSignal) =>
 
 export const getTopMenu = (signal?: AbortSignal) => getJson<SiteMenuItem[]>('/TopMenu', signal);
 
+/** Optional home page sections, managed from the "Menu del sito" admin page. */
+export interface HomePageSettings {
+  showProposeTalk: boolean;
+  showFollowUs: boolean;
+}
+
+/** Sections stay visible unless explicitly turned off, also when the stored document is missing or malformed. */
+export function homePageSettingsOf(data: unknown): HomePageSettings {
+  const value = data && typeof data === 'object' && !Array.isArray(data) ? (data as Partial<Record<keyof HomePageSettings, unknown>>) : {};
+  return { showProposeTalk: value.showProposeTalk !== false, showFollowUs: value.showFollowUs !== false };
+}
+
+export const getHomePageSettings = async (signal?: AbortSignal) =>
+  homePageSettingsOf(await getJson<unknown>('/HomePageSettings', signal));
+
 export const getSpeakers = (signal?: AbortSignal) => getJson<SiteSpeaker[]>('/Speaker/Get', signal);
 
 /**

@@ -50,7 +50,7 @@ describe('programme', () => {
 
   test('summarises time span, sessions and speakers', () => {
     const entries = programme(agendaWorkshop);
-    expect(programmeSpan(entries)).toEqual({ start: '2099-03-15T10:00:00Z', end: '2099-03-15T13:30:00Z' });
+    expect(programmeSpan(entries)).toEqual({ start: '2099-03-15T09:00:00.000Z', end: '2099-03-15T12:30:00.000Z' });
     expect(sessionCount(entries)).toBe(2);
     expect(programmeSpeakers(entries)).toEqual([
       { name: 'Ada Lovelace', imageUrl: 'https://img.example.test/ada.jpg', biography: 'Matematica.', sessions: 2 },

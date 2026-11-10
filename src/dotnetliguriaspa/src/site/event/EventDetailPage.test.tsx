@@ -131,12 +131,12 @@ describe('<EventDetailPage />', () => {
     expect(within(agenda).getByText(/Sala grande · Aula A · Panel/)).toBeInTheDocument();
     expect(screen.getByText('2 track parallele')).toBeInTheDocument();
     expect(JSON.parse(document.querySelector('script[type="application/ld+json"]')!.textContent!)).toMatchObject({
-      startDate: '2099-03-15T11:00:00+01:00', offers: { '@type': 'Offer', url: 'https://booking.example.test/event/1' },
+      startDate: '2099-03-15T10:00:00+01:00', offers: { '@type': 'Offer', url: 'https://booking.example.test/event/1' },
     });
     expect(within(agenda).getByText('Come progettare strumenti utili.')).toBeInTheDocument();
     expect(screen.queryByText('Gemini versus ChatGPT')).not.toBeInTheDocument();
     expect(screen.getByText('1 sessione', { selector: 'span' })).toBeInTheDocument();
-    expect(screen.getAllByText('11:00–12:30').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('10:00–11:30').length).toBeGreaterThan(0);
 
     const speakers = screen.getByRole('region', { name: 'Relatori' });
     expect(within(speakers).getByRole('listitem').querySelector('img')).toHaveAttribute('src', 'https://images.example.test/ada.jpg');

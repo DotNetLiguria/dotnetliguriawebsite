@@ -52,6 +52,8 @@ Controllers are mapped before the `index.html` fallback. `wwwroot` serves the SP
 the separate `Contents` directory is exposed at the case-sensitive `/Contents`
 path. Keep API URLs and content URLs distinct, especially on Linux. Historical
 workshop archives, images and downloads must not be deleted by frontend staging.
+HTML responses (including the `index.html` fallback) send `Cache-Control: no-cache`
+so browsers load the new hashed bundles right after a deployment.
 
 Website services use MongoDB collections configured through
 `DotNetLiguriaDatabase`. The model assembly owns persisted BSON and public JSON

@@ -18,6 +18,7 @@ public sealed class PermissionRouteMatrixTests
     [InlineData("/api/Board/Delete/{id}", "DELETE", "board.delete")]
     [InlineData("/api/Venue/{id}", "PUT", "venues.manage")]
     [InlineData("/api/TopMenu/{id}", "DELETE", "site-menu.delete")]
+    [InlineData("/api/HomePageSettings", "PUT", "site-menu.manage")]
     [InlineData("/api/Counter/Update/{id}", "PUT", "maintenance.counters.manage")]
     [InlineData("/api/Questionnaire/{id}/publish", "POST", "questionnaires.publish")]
     [InlineData("/api/Questionnaire/{id}/close", "POST", "questionnaires.manage")]

@@ -10,9 +10,9 @@ import { ExternalLink, ModalHeader, Notice, RecordModal } from './listUi';
 import { CardForm, EventIcon, EventPage, InlineConfirm, NumberInput, PanelTitle, SelectInput, SpeakerPicker } from './eventKit';
 import {
   AgendaDraftState, AgendaPage, AgendaTrack, EventRecord, EventSpeaker, EventTalk, LegacyTrack,
-  SUGGESTED_INTERVAL_TITLE, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, assignTalkTrack, autoFillSchedule, createId,
-  detailMessage, eventbriteIssues, eventbriteStatusLabel, hasTrack, initAgenda, legacyInputValue, moveItem, removeItem, removeTalk, renameTrack,
-  setTrackCount, talkSpeakersFrom, toClockTime, toStoredTime, trackItems, unscheduledTalks, updateItem, updateTalk,
+  SUGGESTED_INTERVAL_TITLE, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, agendaText, assignTalkTrack, autoFillSchedule, createId,
+  detailMessage, eventbriteIssues, eventbriteStatusLabel, hasTrack, initAgenda, isLunchItem, isTechnicalGap, legacyInputValue, moveItem, removeItem, removeTalk, renameTrack,
+  setTrackCount, talkSpeakerNames, talkSpeakersFrom, toClockTime, toStoredTime, trackItems, unscheduledTalks, updateItem, updateTalk,
 } from './eventModel';
 
 // Steps 5 (Tracks), 6 (Talk pool), 7 (Track e orari dell'agenda) and 8 (Dettagli di iscrizione): the previous
@@ -39,6 +39,11 @@ const stateOf = (workshop: EventRecord): { state: AgendaDraftState; scheduleStar
 const trackOptions = (tracks: AgendaTrack[]) => tracks.map(track => ({ id: track.workshopAgendaTrackId, label: track.name ?? '' }));
 /** The pool's "Select a track" entry: choosing it leaves the talk without a track, as before. */
 const NO_TRACK = '__no-track__';
+/** A slot's duration override: a positive whole number of minutes, or null (the default) when empty or invalid. */
+const overrideFrom = (value: string) => {
+  const minutes = Number(value.trim());
+  return value.trim() && Number.isInteger(minutes) && minutes > 0 ? minutes : null;
+};
 const SPEAKERS_PATH = '/Speaker/Get?onlyActive=true';
 /** A call of the import, its failure worded as the previous reportError with that call's fallback. */
 const worded = async <T,>(call: Promise<T>, fallback: string): Promise<T> => {
@@ -84,8 +89,11 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   const [talkTrackId, setTalkTrackId] = useState<string | null>(null);
   const [trackIndex, setTrackIndex] = useState(0);
   const [scheduleStart, setScheduleStart] = useState('09:00');
-  const [talkDuration, setTalkDuration] = useState('60');
+  const [introDuration, setIntroDuration] = useState('30');
+  const [talkDuration, setTalkDuration] =   useState('55');
   const [gapDuration, setGapDuration] = useState('5');
+    const [lunchDuration, setLunchDuration] = useState('90');
+  const [panelDuration, setPanelDuration] = useState('60');
   const [intervalTitle, setIntervalTitle] = useState(SUGGESTED_INTERVAL_TITLE);
   const [itemRoom, setItemRoom] = useState('');
   const [busy, setBusy] = useState(false);
@@ -175,11 +183,22 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   };
 
   const handleAutoFillSchedule = useCallback(() => {
-    const result = autoFillSchedule(state, { start: scheduleStart, duration: talkDuration, gap: gapDuration }, workshop.eventDate);
+    const result = autoFillSchedule(state, { start: scheduleStart, duration: talkDuration, gap: gapDuration, lunch: lunchDuration, panel: panelDuration, intro: introDuration }, workshop.eventDate);
     if ('error' in result) return message(result.error, true);
     setState(current => ({ ...current, items: result.items }));
     message("Orari delle track riempiti dall'ora di inizio e dalle durate selezionate. Sistema sessioni o intervalli qui sotto.");
-  }, [gapDuration, scheduleStart, state, talkDuration, workshop.eventDate]);
+  }, [gapDuration, introDuration, lunchDuration, panelDuration, scheduleStart, state, talkDuration, workshop.eventDate]);
+
+  const handleCopyAgenda = async () => {
+    const text = currentTrack ? agendaText(state, currentTrack.workshopAgendaTrackId) : '';
+    if (!text) return message('Nessuna voce da copiare per questa track.', true);
+    try {
+      await navigator.clipboard.writeText(text);
+      message('Agenda copiata negli appunti.');
+    } catch {
+      message("Impossibile copiare l'agenda negli appunti.", true);
+    }
+  };
 
   // As before: the schedule page fills the tracks as soon as it is shown with talks still unscheduled.
   useEffect(() => {
@@ -189,7 +208,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
   const handleAddServiceInterval = () => {
     const track = tracks[trackIndex];
     if (!track) return;
-    setState(current => addServiceInterval(current, track.workshopAgendaTrackId, { title: intervalTitle, room: itemRoom, gap: gapDuration, scheduleStart, eventDate: workshop.eventDate }));
+    setState(current => addServiceInterval(current, track.workshopAgendaTrackId, { title: intervalTitle, room: itemRoom, gap: gapDuration, lunch: lunchDuration, scheduleStart, eventDate: workshop.eventDate }));
     setIntervalTitle(SUGGESTED_INTERVAL_TITLE);
     setItemRoom('');
     message('Intervallo di servizio aggiunto. Sistema orario e posizione negli orari della track.');
@@ -293,7 +312,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
 
   const readinessIssues = eventbriteIssues(workshop, state);
   const synced = workshop.eventbriteSyncedTicketCapacity ?? 0;
-  const minimumCapacity = Math.max(synced, (eventbriteSales?.sold ?? 0) + (eventbriteSales?.pending ?? 0));
+  const minimumCapacity = Math.max(1, (eventbriteSales?.sold ?? 0) + (eventbriteSales?.pending ?? 0));
   const saving = busy || page.saving;
   const currentTrack = tracks[Math.min(trackIndex, tracks.length - 1)];
   const currentRows = currentTrack ? trackItems(state, currentTrack.workshopAgendaTrackId) : [];
@@ -310,7 +329,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
         )}
         <div className="grid gap-4 sm:grid-cols-2">
           <TextInput isDisabled={!canManage} label="URL di prenotazione e cancellazione del posto" value={state.bookingServiceUrl} onChange={bookingServiceUrl => set({ bookingServiceUrl })} />
-          <fieldset disabled={!canTicketManage} className="min-w-0 border-0 p-0"><NumberInput label="Biglietti gratuiti Eventbrite disponibili" min={minimumCapacity} value={String(state.eventbriteTicketCapacity)} onChange={value => set({ eventbriteTicketCapacity: Math.max(0, Number.parseInt(value, 10) || 0) })} description={`Separati dalla capienza della sede. Aumenta questo valore per liberare altri biglietti; totale attualmente sincronizzato: ${synced}.`} /></fieldset>
+          <fieldset disabled={!canTicketManage} className="min-w-0 border-0 p-0"><NumberInput label="Biglietti gratuiti Eventbrite disponibili" min={minimumCapacity} value={String(state.eventbriteTicketCapacity)} onChange={value => set({ eventbriteTicketCapacity: Math.max(0, Number.parseInt(value, 10) || 0) })} description={`Separati dalla capienza della sede. Totale sincronizzato: ${synced}. Le riduzioni sono consentite solo se restano sufficienti posti per i biglietti venduti o in sospeso.`} /></fieldset>
           <TextInput isDisabled={!canTicketManage} label="Inizio vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesStart} onChange={eventbriteSalesStart => set({ eventbriteSalesStart })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
           <TextInput isDisabled={!canTicketManage} label="Fine vendita biglietti Eventbrite" type="datetime-local" value={state.eventbriteSalesEnd} onChange={eventbriteSalesEnd => set({ eventbriteSalesEnd })} description="Facoltativo; interpretato nel fuso orario configurato di Eventbrite." />
           <div className="sm:col-span-2"><TextAreaInput isDisabled={!canManage} label="Note per i partecipanti" rows={2} value={state.attendeeNotes} onChange={attendeeNotes => set({ attendeeNotes })} /></div>
@@ -331,7 +350,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
           )}
           <Button onPress={() => void handleSave()} isDisabled={saving || syncing || !canManage} className={btn.primary}>Salva iscrizione e agenda</Button>
           <Button onPress={() => void handleSaveEventbriteConfiguration()} isDisabled={saving || !canTicketManage} className={btn.secondary}>{workshop.eventbriteTicketClassId ? 'Salva periodo vendite Eventbrite' : 'Salva periodo vendite e quantità iniziale Eventbrite'}</Button>
-          {workshop.eventbriteEventId && state.eventbriteTicketCapacity > synced && (
+          {workshop.eventbriteEventId && state.eventbriteTicketCapacity !== synced && state.eventbriteTicketCapacity > 0 && (
             <Button onPress={() => void handleSetEventbriteCapacity()} isDisabled={saving || !canTicketManage} className={btn.secondary}><EventIcon name="ticket" />Salva capienza biglietti</Button>
           )}
           <Button onPress={() => void handleSyncEventbrite()} isDisabled={saving || syncing || readinessIssues.length > 0 || !canTicketManage} className={btn.secondary}>
@@ -402,10 +421,13 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
       <fieldset disabled={!canManage} className="contents">
       <Panel hidden={activePage !== 'schedule'} labelledBy="schedule-title" className="space-y-4 p-5 sm:p-6">
         <PanelTitle id="schedule-title" title="Orari della track" />
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <TextInput label="Ora di inizio della track" type="time" value={scheduleStart} onChange={setScheduleStart} />
+          <NumberInput label="Durata intro (minuti)" min={1} value={introDuration} onChange={setIntroDuration} description="Per le sessioni di tipo Introduzione." />
           <NumberInput label="Durata talk (minuti)" min={1} value={talkDuration} onChange={setTalkDuration} />
           <NumberInput label="Durata pausa (minuti)" min={1} value={gapDuration} onChange={setGapDuration} />
+          <NumberInput label="Durata lunch (minuti)" min={1} value={lunchDuration} onChange={setLunchDuration} description="Per gli intervalli intitolati Lunch o Pranzo." />
+          <NumberInput label="Durata panel (minuti)" min={1} value={panelDuration} onChange={setPanelDuration} description="Per le sessioni di tipo Panel." />
         </div>
         <div><Button onPress={handleAutoFillSchedule} className={btn.secondary}><EventIcon name="clock" />Riempi automaticamente gli orari delle track</Button></div>
         {tracks.length > 1 && (
@@ -420,10 +442,14 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
           {currentRows.map((item, index) => {
             const talk = talks.find(value => value.workshopTalkId === item.talkId);
             const itemTitle = talk?.title ?? item.title ?? item.itemType ?? '';
+            const speakerNames = talkSpeakerNames(talk);
+            const gap = isTechnicalGap(item);
+            const lunch = isLunchItem(item);
+            const slotStyle = gap ? 'ml-6 border-dashed border-line bg-slate-50 sm:ml-10' : lunch ? 'border-amber-300 bg-amber-50' : 'border-line';
             return (
-              <li key={item.workshopAgendaItemId} className="grid gap-2 rounded-xl border border-line p-4">
+              <li key={item.workshopAgendaItemId} data-slot-kind={gap ? 'gap' : lunch ? 'lunch' : item.itemType ?? 'item'} className={`grid gap-2 rounded-xl border p-4 ${slotStyle}`}>
                 <div role="group" aria-label="Titolo e controlli della voce" className="flex items-center gap-2">
-                  <h4 className="min-w-0 flex-1 text-lg font-bold [overflow-wrap:anywhere]">{itemTitle}</h4>
+                  <div className="min-w-0 flex-1 [overflow-wrap:anywhere]"><h4 className="inline text-lg font-bold">{itemTitle}</h4>{speakerNames && <span className="text-muted"> — {speakerNames}</span>}</div>
                   <MoveButtons id={item.workshopAgendaItemId} name={itemTitle} index={index} count={currentRows.length} onMove={delta => { refocus.current = { id: item.workshopAgendaItemId, delta }; setState(current => moveItem(current, currentTrack.workshopAgendaTrackId, item.workshopAgendaItemId, delta)); }} />
                   {item.itemType !== 'talk' && <Button onPress={() => setState(current => removeItem(current, item.workshopAgendaItemId))} className={`${btn.ghost} text-[#b42318] data-[hovered]:bg-[#fdecea]`}>Rimuovi intervallo</Button>}
                 </div>
@@ -435,6 +461,7 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
                   </div>
                   <TextInput label="Nome sala" value={item.roomName ?? ''} onChange={roomName => setState(current => updateItem(current, item.workshopAgendaItemId, { roomName }))} />
                   {item.itemType !== 'talk' && <TextInput label="Titolo servizio / intervallo" value={item.title ?? ''} onChange={title => setState(current => updateItem(current, item.workshopAgendaItemId, { title }))} />}
+                  <NumberInput label="Durata personalizzata (minuti)" min={1} value={item.durationMinutes?.toString() ?? ''} onChange={value => setState(current => updateItem(current, item.workshopAgendaItemId, { durationMinutes: overrideFrom(value) }))} description="Vuoto: durata predefinita. Applicata da «Riempi automaticamente»." />
                 </div>
               </li>
             );
@@ -445,7 +472,10 @@ export function AgendaModule({ page, activePage }: { page: EventPage; activePage
           <TextInput label="Sala (facoltativa)" value={itemRoom} onChange={setItemRoom} />
           <Button onPress={handleAddServiceInterval} className={btn.secondary}>Aggiungi intervallo di servizio</Button>
         </div>
-        <div><Button onPress={() => void handleSave()} isDisabled={saving} className={btn.primary}>Salva agenda</Button></div>
+        <div className="flex flex-wrap gap-3">
+          <Button onPress={() => void handleSave()} isDisabled={saving} className={btn.primary}>Salva agenda</Button>
+          <Button onPress={() => void handleCopyAgenda()} isDisabled={!currentTrack || !agendaText(state, currentTrack.workshopAgendaTrackId)} className={btn.secondary}>Copia l&apos;agenda negli appunti</Button>
+        </div>
       </Panel>
       </fieldset>
     </div>

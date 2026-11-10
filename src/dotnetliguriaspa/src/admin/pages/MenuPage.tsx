@@ -10,6 +10,7 @@ import { AdminApiError, clean, useAdminFetch, useAdminLoad } from '../adminApi';
 import { notify } from '../toasts';
 import { AdminMenuItem, NEW_MENU_ITEM_ID, isMenuUrl, menuUrlError } from './menuModel';
 import { LocalIcon, MissingCard, MoveButtons, RecordDialog, RowMenu, RowMenuItem, byOrder, iconLink, planMove, plural, restoreMoveFocus, revealOnRow, useIsDesktop } from './listKit';
+import HomeSectionsPanel from './HomeSectionsPanel';
 
 const errorText = (error: unknown) => (error instanceof AdminApiError ? error.message : 'Errore di rete');
 const nameOf = (item: AdminMenuItem) => clean(item.name) || 'Senza nome';
@@ -343,6 +344,7 @@ export default function MenuPage() {
           <MenuPreview items={items} />
         </>
       )}
+      <HomeSectionsPanel />
 
       <RecordDialog isOpen={!!id} onClose={close} label={dialogLabel}>
         {id === 'new' ? (

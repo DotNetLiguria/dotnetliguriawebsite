@@ -25,7 +25,7 @@ public sealed class MongoAccountPrivacyStore(IOptions<DotNetLiguriaDatabaseSetti
         {
             _settings.QuestionnaireCollectionName, _settings.QuestionnaireResponseCollectionName,
             "NotificationCampaigns", MongoConsentHistoryStore.CollectionName, MongoAccessAuditStore.CollectionName,
-            _settings.BoardCollectionName, _settings.SpeakerCollectionName,
+            _settings.BoardCollectionName, _settings.SpeakerCollectionName, HomePageSettingsService.CollectionName,
             MongoPhotoStore.SelectionCollection, MongoPhotoStore.AssetCollection,
             _settings.SpeakerCollectionName + MongoSpeakerAccountStore.OperationsCollectionSuffix
         };

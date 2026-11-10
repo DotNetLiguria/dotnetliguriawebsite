@@ -242,6 +242,31 @@ describe('<MenuPage />', () => {
     expect(await within(dialog).findByText('Voce non trovata')).toBeInTheDocument();
   });
 
+  test('shows or hides the optional home page sections and saves at once', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const writes: unknown[] = [];
+    mockApi({
+      '/HomePageSettings': (_url: string, init?: RequestInit) => {
+        if (init?.method === 'PUT') {
+          writes.push(JSON.parse(String(init.body)));
+          return jsonResponse(JSON.parse(String(init.body)));
+        }
+        return jsonResponse({ id: 'home', showProposeTalk: true, showFollowUs: false });
+      },
+      '/TopMenu': [home],
+    });
+    renderAt('/admin/topmenu/');
+    const panel = await screen.findByRole('region', { name: 'Sezioni della home page' });
+    const proposeTalk = await within(panel).findByRole('switch', { name: 'Mostra «Proponi un talk»' });
+    expect(proposeTalk).toBeChecked();
+    expect(within(panel).getByRole('switch', { name: 'Mostra «Seguici»' })).not.toBeChecked();
+
+    await user.click(proposeTalk);
+    expect(await screen.findByText('Sezione nascosta dalla home page')).toBeInTheDocument();
+    expect(writes).toEqual([{ showProposeTalk: false, showFollowUs: false }]);
+    expect(proposeTalk).not.toBeChecked();
+  });
+
   test('turns into a list of cards on phones, with the same controls', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));

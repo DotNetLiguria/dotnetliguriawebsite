@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { eventFixture } from './eventFixtures';
 import {
-  AgendaDraftState, EventApiError, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, autoFillSchedule, buildWorkshopUpdate,
+  AgendaDraftState, EventApiError, addServiceInterval, adoptTalks, agendaProblem, agendaSaveBody, agendaText, autoFillSchedule, buildWorkshopUpdate,
   coreValuesOf, dateInputValue, detailMessage, eventbriteIssues, eventbriteStatusLabel, initAgenda, isPublished, moveItem,
   parseRooms, problemMessage, registrationOf, setTrackCount, statusMessage, stepFromLocation, toClockTime, toStoredTime, unscheduledTalks, afterSave, talkSpeakersFrom,
 } from './eventModel';
@@ -184,6 +184,68 @@ describe('talk pool, schedule and registration', () => {
     expect(autoFillSchedule(unassigned, { start: '09:00', duration: '60', gap: '5' })).toEqual({ error: 'Assegna ogni talk a una track prima di generare gli orari.' });
     expect(unscheduledTalks(draft())).toHaveLength(2);
     expect(unscheduledTalks(draft({ items: filled.items }))).toHaveLength(0);
+  });
+
+  it('gives panels and lunch intervals their own durations', () => {
+    const base = draft();
+    const withPanel = { ...base, talks: base.talks.map((talk, index) => (index === 0 ? { ...talk, sessionType: 'panel' } : talk)) };
+    const filled = autoFillSchedule(withPanel, { start: '09:00', duration: '30', gap: '5', lunch: '60', panel: '45' }, '2024-03-15T10:00:00Z');
+    if ('error' in filled) throw new Error(filled.error);
+    expect(filled.items.map(item => [item.itemType, toClockTime(item.startTime), toClockTime(item.endTime)])).toEqual([
+      ['talk', '09:00', '09:45'], ['break', '09:45', '09:50'], ['talk', '09:50', '10:20'],
+    ]);
+
+    const params = { title: 'Lunch', room: '', gap: '5', lunch: '60', scheduleStart: '09:00', eventDate: '2024-03-15T10:00:00Z' };
+    const withLunch = addServiceInterval({ ...withPanel, items: filled.items }, 'track-1', params);
+    expect(withLunch.items.at(-1)).toMatchObject({ title: 'Lunch', startTime: '2024-03-15T10:20:00.000Z', endTime: '2024-03-15T11:20:00.000Z' });
+    // Other intervals still take the pausa duration.
+    expect(addServiceInterval(draft(), 'track-1', { ...params, title: 'Registrazione' }).items[0].endTime).toBe('2024-03-15T09:05:00.000Z');
+
+    const refilled = autoFillSchedule(withLunch, { start: '09:00', duration: '30', gap: '5', lunch: '90', panel: '45' }, '2024-03-15T10:00:00Z');
+    if ('error' in refilled) throw new Error(refilled.error);
+    expect(refilled.items.map(item => [toClockTime(item.startTime), toClockTime(item.endTime)]).at(-1)).toEqual(['10:20', '11:50']);
+    expect(autoFillSchedule(withPanel, { start: '09:00', duration: '30', gap: '5', lunch: '0' })).toHaveProperty('error');
+  });
+
+  it('gives introductions the intro duration and lets each slot override its default, gaps included', () => {
+    const base = draft();
+    const intro = { ...base, talks: [{ ...base.talks[0], sessionType: 'intro' }, base.talks[1]] };
+    const params = { start: '09:00', duration: '45', gap: '5', lunch: '60', intro: '30' };
+    const filled = autoFillSchedule(intro, params, '2024-03-15T10:00:00Z');
+    if ('error' in filled) throw new Error(filled.error);
+    expect(filled.items.map(item => [toClockTime(item.startTime), toClockTime(item.endTime)])).toEqual([['09:00', '09:30'], ['09:30', '09:35'], ['09:35', '10:20']]);
+    expect(autoFillSchedule(intro, { ...params, intro: '0' })).toHaveProperty('error');
+
+    const lunch = addServiceInterval(draft({ ...intro, items: filled.items }), 'track-1', { title: 'Lunch', room: '', gap: '5', lunch: '60', scheduleStart: '09:00' });
+    const [introItem, gapItem, talkItem, lunchItem] = lunch.items;
+    const overridden = {
+      ...lunch,
+      items: [{ ...introItem, durationMinutes: 20 }, { ...gapItem, durationMinutes: 15 }, { ...talkItem, durationMinutes: 50 }, { ...lunchItem, durationMinutes: 40 }],
+    };
+    const refilled = autoFillSchedule(overridden, params, '2024-03-15T10:00:00Z');
+    if ('error' in refilled) throw new Error(refilled.error);
+    expect(refilled.items.map(item => [item.title ?? item.itemType, toClockTime(item.startTime), toClockTime(item.endTime), item.durationMinutes ?? null])).toEqual([
+      ['talk', '09:00', '09:20', 20], ['Technical gap', '09:20', '09:35', 15], ['talk', '09:35', '10:25', 50], ['Lunch', '10:25', '11:05', 40],
+    ]);
+    // Cleared overrides fall back to the defaults.
+    const cleared = autoFillSchedule({ ...overridden, items: refilled.items.map(item => ({ ...item, durationMinutes: null })) }, params, '2024-03-15T10:00:00Z');
+    if ('error' in cleared) throw new Error(cleared.error);
+    expect(cleared.items.map(item => toClockTime(item.endTime))).toEqual(['09:30', '09:35', '10:20', '11:20']);
+  });
+
+  it('copies the agenda of a track as text, one line per slot, without technical gaps and lunch', () => {
+    const filled = autoFillSchedule(draft(), { start: '09:00', duration: '60', gap: '5' }, '2024-03-15T10:00:00Z');
+    if ('error' in filled) throw new Error(filled.error);
+    let state = draft({ items: filled.items.map((item, index) => (index === 0 ? { ...item, roomName: ' Sala  A ' } : item)) });
+    state = addServiceInterval(state, 'track-1', { title: 'Pranzo', room: 'Mensa', gap: '5', lunch: '60', scheduleStart: '09:00' });
+    state = addServiceInterval(state, 'track-1', { title: 'Saluti finali', room: '', gap: '5', scheduleStart: '09:00' });
+    state = { ...state, talks: state.talks.map((talk, index) => (index === 1 ? { ...talk, speakers: [{ name: 'Bob' }, { name: 'Carla' }] } : talk)) };
+    expect(agendaText(state, 'track-1')).toBe([
+      '09:00-10:00 First talk - Ada (Sala A)',
+      '10:05-11:05 Second talk - Bob, Carla',
+      '12:05-12:10 Saluti finali',
+    ].join('\n'));
+    expect(agendaText(state, 'other-track')).toBe('');
   });
 
   it('moves an item keeping the time slots', () => {

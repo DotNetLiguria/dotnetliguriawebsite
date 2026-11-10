@@ -16,8 +16,8 @@ describe('event schedule', () => {
     expect(await screen.findByText('First talk')).toBeVisible();
     expect(screen.getByText('Second talk')).toBeVisible();
     expect(screen.getByDisplayValue('Technical gap')).toBeVisible();
-    expect(starts()).toEqual(['09:00', '10:00', '10:05']);
-    expect(ends()).toEqual(['10:00', '10:05', '11:05']);
+    expect(starts()).toEqual(['09:00', '09:55', '10:00']);
+    expect(ends()).toEqual(['09:55', '10:00', '10:55']);
     expect(screen.queryByLabelText(/^data/i)).not.toBeInTheDocument();
     expect(await screen.findByText(/Orari delle track riempiti/)).toBeInTheDocument();
 
@@ -29,6 +29,68 @@ describe('event schedule', () => {
     expect(body.agendaItems![0].startTime).toMatch(/^2024-03-15T09:00:00/);
     expect(body.talks![0].trackId).toBe('track-1');
     expect(await screen.findByText("Dettagli dell'evento e agenda salvati.")).toBeInTheDocument();
+  });
+
+  test('uses the intro duration first, shows speakers, and saves per-slot overrides honoured by the auto-fill', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const api = serveEvent(eventFixture({
+      agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main stage', order: 0 }],
+      talks: [
+        { workshopTalkId: 'talk-1', title: 'Welcome', sessionType: 'intro', speakers: [{ workshopSpeakerId: 'speaker-1', name: 'Ada Lovelace' }] },
+        { workshopTalkId: 'talk-2', title: 'Deep dive', sessionType: 'talk', speakers: [{ workshopSpeakerId: 's2', name: 'Bob' }, { workshopSpeakerId: 's3', name: 'Carl' }] },
+      ],
+    }));
+    renderAt('#agenda');
+    await screen.findByRole('heading', { level: 4, name: 'Deep dive' });
+    const durations = within(schedule()).getAllByRole('spinbutton');
+    expect(durations[0]).toHaveAccessibleName('Durata intro (minuti)');
+    expect(durations[0]).toHaveValue(30);
+    expect(durations[1]).toHaveAccessibleName('Durata talk (minuti)');
+    expect(within(rowOf('Deep dive')).getByText('— Bob, Carl')).toBeVisible();
+    expect(starts()).toEqual(['09:00', '09:30', '09:35']);
+    expect(ends()).toEqual(['09:30', '09:35', '10:30']);
+
+    fireEvent.change(within(rowOf('Deep dive')).getByRole('spinbutton', { name: 'Durata personalizzata (minuti)' }), { target: { value: '40' } });
+    fireEvent.change(within(rowOf('Technical gap')).getByRole('spinbutton', { name: 'Durata personalizzata (minuti)' }), { target: { value: '10' } });
+    expect(ends()).toEqual(['09:30', '09:35', '10:30']);
+    await user.click(screen.getByRole('button', { name: 'Riempi automaticamente gli orari delle track' }));
+    expect(ends()).toEqual(['09:30', '09:40', '10:20']);
+
+    await user.click(screen.getByRole('button', { name: 'Salva agenda' }));
+    await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
+    const saved = api.lastUpdate()!.agendaItems!;
+    expect(saved.find(item => item.talkId === 'talk-2')!.durationMinutes).toBe(40);
+    expect(saved.find(item => item.title === 'Technical gap')!.durationMinutes).toBe(10);
+    expect(saved.find(item => item.talkId === 'talk-1')!.durationMinutes ?? null).toBeNull();
+  });
+
+  test('sets technical gaps and lunch apart and copies the track agenda without them', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    serveEvent(eventFixture({
+      agendaTracks: [{ workshopAgendaTrackId: 'track-1', name: 'Main stage', order: 0 }],
+      talks: [
+        { workshopTalkId: 'talk-1', title: 'First', trackId: 'track-1', sessionType: 'talk', speakers: [{ workshopSpeakerId: 'speaker-1', name: 'Ada Lovelace' }] },
+        { workshopTalkId: 'talk-2', title: 'Second', trackId: 'track-1', sessionType: 'talk', speakers: [] },
+      ],
+      agendaItems: [
+        { workshopAgendaItemId: 'item-1', itemType: 'talk', talkId: 'talk-1', trackId: 'track-1', roomName: 'Sala A', startTime: '2024-03-15T09:00:00Z', endTime: '2024-03-15T09:55:00Z', order: 0 },
+        { workshopAgendaItemId: 'item-2', itemType: 'break', title: 'Technical gap', trackId: 'track-1', startTime: '2024-03-15T09:55:00Z', endTime: '2024-03-15T10:00:00Z', order: 1 },
+        { workshopAgendaItemId: 'item-3', itemType: 'service', title: 'Lunch', trackId: 'track-1', startTime: '2024-03-15T10:00:00Z', endTime: '2024-03-15T11:00:00Z', order: 2 },
+        { workshopAgendaItemId: 'item-4', itemType: 'talk', talkId: 'talk-2', trackId: 'track-1', startTime: '2024-03-15T11:00:00Z', endTime: '2024-03-15T12:00:00Z', order: 3 },
+      ],
+    }));
+    renderAt('#agenda');
+    await screen.findByRole('heading', { level: 4, name: 'Second' });
+    expect(rowOf('Technical gap')).toHaveClass('ml-6');
+    expect(rowOf('First')).not.toHaveClass('ml-6');
+    expect(rowOf('Lunch')).toHaveClass('bg-amber-50');
+    expect(rowOf('Second')).not.toHaveClass('bg-amber-50');
+
+    await user.click(screen.getByRole('button', { name: "Copia l'agenda negli appunti" }));
+    expect(writeText).toHaveBeenCalledWith('09:00-09:55 First - Ada Lovelace (Sala A)\n11:00-12:00 Second');
+    expect(await screen.findByText('Agenda copiata negli appunti.')).toBeInTheDocument();
   });
 
   test('fills the schedule only when the schedule page is shown, never from the talk pool', async () => {
@@ -44,7 +106,7 @@ describe('event schedule', () => {
 
     await user.click(screen.getByRole('button', { name: "Avanti: Track e orari dell'agenda" }));
     expect(await screen.findByDisplayValue('Technical gap')).toBeVisible();
-    expect(starts()).toEqual(['09:00', '10:00', '10:05']);
+    expect(starts()).toEqual(['09:00', '09:55', '10:00']);
   });
 
   test('requires a track for each talk when multiple tracks are available', async () => {
@@ -206,7 +268,7 @@ describe('event schedule', () => {
     await user.click(screen.getByRole('button', { name: 'Salva agenda' }));
     expect(await screen.findByText("Ogni voce dell'agenda deve avere un orario di fine valido successivo all'inizio.")).toBeInTheDocument();
     expect(api.to('/Workshop/Update/')).toHaveLength(0);
-    fireEvent.change(within(rowOf('Second talk')).getByLabelText('Ora di fine'), { target: { value: '11:05' } });
+    fireEvent.change(within(rowOf('Second talk')).getByLabelText('Ora di fine'), { target: { value: '10:55' } });
     await user.click(screen.getByRole('button', { name: 'Salva agenda' }));
     await waitFor(() => expect(api.to('/Workshop/Update/w1', 'PUT')).toHaveLength(1));
   });
