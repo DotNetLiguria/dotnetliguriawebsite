@@ -12,7 +12,7 @@
     <UserSecretsId>dotnetliguria-apphost</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.4" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.5" />
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.4" />
     <PackageReference Include="Aspire.Hosting.MongoDB" Version="13.6.4" />
     <PackageReference Include="MessagePack" Version="3.1.12" />
