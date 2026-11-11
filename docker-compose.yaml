@@ -125,7 +125,7 @@ services:
       - internal
 
   website:
-    image: dockerhub.ge.vevy.com/dotnetliguria:1.0.9
+    image: dockerhub.ge.vevy.com/dotnetliguria:1.0.10
     container_name: dotnetliguria
     user: "10000:10000"
     pull_policy: always
