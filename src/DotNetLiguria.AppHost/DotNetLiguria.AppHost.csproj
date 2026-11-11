@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Sdk Name="Aspire.AppHost.Sdk" Version="13.6.4" />
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.6.5" />
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -12,9 +12,9 @@
     <UserSecretsId>dotnetliguria-apphost</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.4" />
-    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.4" />
-    <PackageReference Include="Aspire.Hosting.MongoDB" Version="13.6.4" />
+    <PackageReference Include="Aspire.Hosting.AppHost" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.MongoDB" Version="13.6.5" />
     <PackageReference Include="MessagePack" Version="3.1.12" />
     <ProjectReference Include="..\dotnetliguriawebsite\DotNetLiguriaCore\DotNetLiguriaCore.csproj" />
   </ItemGroup>

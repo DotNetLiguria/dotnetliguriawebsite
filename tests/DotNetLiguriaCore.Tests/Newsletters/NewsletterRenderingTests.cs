@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using AngleSharp.Html.Parser;
 using DotNetLiguriaCore.Services.Newsletters;
 using MimeKit;
 using Xunit;
@@ -52,6 +53,41 @@ public sealed class NewsletterRenderingTests
         var error = await Assert.ThrowsAsync<NewsletterServiceException>(() =>
             renderer.PrepareAsync(Draft(markdown), TestContext.Current.CancellationToken));
         Assert.Equal(code, error.Code);
+    }
+
+    [Theory]
+    [InlineData("[link](javascript:alert%281%29)")]
+    [InlineData("[link](https://user@example.test/path)")]
+    [InlineData("[link](ftp://example.test/file)")]
+    public async Task UnsafeMarkdownLinksAreRejected(string markdown)
+    {
+        var environment = new NewsletterTestEnvironment();
+        var renderer = new NewsletterRenderer(new FakeNewsletterStore(), new NewsletterTestOptions(),
+            environment, new NewsletterTestClock(), environment.StoragePaths);
+
+        var error = await Assert.ThrowsAsync<NewsletterServiceException>(() =>
+            renderer.PrepareAsync(Draft(markdown), TestContext.Current.CancellationToken));
+
+        Assert.Equal("unsafe_newsletter_link", error.Code);
+    }
+
+    [Fact]
+    public async Task MarkdownOutputRetainsFormattingWithoutExecutableHtml()
+    {
+        var environment = new NewsletterTestEnvironment();
+        var renderer = new NewsletterRenderer(new FakeNewsletterStore(), new NewsletterTestOptions(),
+            environment, new NewsletterTestClock(), environment.StoragePaths);
+        var markdown = "## Agenda\n\n**Important** and [contact](https://example.test/contact)\n\n" +
+            "<script>alert(1)</script><img src=x onerror=alert(1)>";
+
+        var snapshot = await renderer.PrepareAsync(Draft(markdown), TestContext.Current.CancellationToken);
+        using var document = new HtmlParser().ParseDocument(snapshot.Html);
+
+        Assert.Contains("Agenda", document.QuerySelector("h2")!.TextContent);
+        Assert.Equal("Important", document.QuerySelector("strong")!.TextContent);
+        Assert.Equal("https://example.test/contact", document.QuerySelector("a")!.GetAttribute("href"));
+        Assert.Empty(document.QuerySelectorAll("script, iframe, [onerror], [onclick]"));
+        Assert.Single(document.QuerySelectorAll("img"));
     }
 
     [Fact]

@@ -44,6 +44,35 @@ public sealed class NewsletterMimeTests
         Assert.Empty(message.Bcc);
     }
 
+    [Fact]
+    public async Task ProductionMessageRoundTripsUnicodeReplyToAndEmbeddedImage()
+    {
+        var snapshot = Snapshot();
+        snapshot.Subject = "Novità e attività";
+        snapshot.PlainText = "Programma: città e comunità";
+        snapshot.Html = "<p>Programma: città e comunità</p><img src=\"cid:logo@newsletter\">";
+        var options = Options();
+        options.ReplyToAddress = "reply@example.test";
+        using var message = NewsletterRenderer.BuildMessage(snapshot, options,
+            "distribution@example.test", false, "attempt@example.test");
+        await using var stream = new MemoryStream();
+        await message.WriteToAsync(stream, TestContext.Current.CancellationToken);
+        stream.Position = 0;
+        using var parsed = await MimeMessage.LoadAsync(stream, TestContext.Current.CancellationToken);
+
+        Assert.Equal(snapshot.Subject, parsed.Subject);
+        Assert.Equal("attempt@example.test", parsed.MessageId);
+        Assert.Equal("reply@example.test", Assert.Single(parsed.ReplyTo.Mailboxes).Address);
+        Assert.Equal(snapshot.PlainText, parsed.GetTextBody(TextFormat.Plain));
+        Assert.Equal(snapshot.Html, parsed.GetTextBody(TextFormat.Html));
+        var image = Assert.Single(parsed.BodyParts.OfType<MimePart>(), part => part.ContentId == "logo@newsletter");
+        Assert.Equal("image/png", image.ContentType.MimeType);
+        await using var decoded = new MemoryStream();
+        await Assert.IsAssignableFrom<IMimeContent>(image.Content)
+            .DecodeToAsync(decoded, TestContext.Current.CancellationToken);
+        Assert.Equal(snapshot.Images[0].Data, decoded.ToArray());
+    }
+
     private static NewsletterSnapshotDocument Snapshot() => new()
     {
         Subject = "Subject",

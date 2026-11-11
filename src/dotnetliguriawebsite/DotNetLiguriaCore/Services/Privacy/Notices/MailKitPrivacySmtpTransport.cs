@@ -1,4 +1,5 @@
 using System.Net.Sockets;
+using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
