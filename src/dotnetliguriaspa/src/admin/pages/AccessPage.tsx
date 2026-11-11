@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Dialog, Modal, ModalOverlay } from 'react-aria-components';
+import { Button } from 'react-aria-components';
 import { useOidcUser } from '@axa-fr/react-oidc';
 import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import { useMfaWindow } from '../../account/useMfaWindow';
@@ -92,19 +92,19 @@ export default function AccessPage() {
   const [detailsVersion, setDetailsVersion] = useState(0);
   const [needsReload, setNeedsReload] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [pending, setPending] = useState<{ permission: Permission; action: 'grant' | 'revoke' } | null>(null);
+  const [draft, setDraft] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const feedback = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if ((error || message) && !pending) feedback.current?.focus();
-  }, [error, message, pending]);
+    if (error || message) feedback.current?.focus();
+  }, [error, message]);
 
   useEffect(() => {
     const controller = new AbortController();
-    setUsers([]); setHasMore(false); setSelected(null); setGrants(null); setPending(null);
+    setUsers([]); setHasMore(false); setSelected(null); setGrants(null); setDraft([]);
     if (!canRead) return;
     setListing(true); setError('');
     api<{ users: AccessUser[]; hasMore: boolean }>(`/admin/access/users?search=${encodeURIComponent(filter)}&first=${first}&max=25&boardOnly=${boardOnly}`, { signal: controller.signal })
@@ -121,9 +121,9 @@ export default function AccessPage() {
   useEffect(() => {
     if (!selected || !canRead) return;
     const controller = new AbortController();
-    setNeedsReload(true); setLoadingDetails(true); setPending(null); setError('');
+    setNeedsReload(true); setLoadingDetails(true); setDraft([]); setError('');
     api<Grants>(`/admin/access/users/${encodeURIComponent(selected.subject)}`, { signal: controller.signal })
-      .then(value => { if (!controller.signal.aborted) { setGrants(value); setNeedsReload(false); } })
+      .then(value => { if (!controller.signal.aborted) { setGrants(value); setDraft(value.directPermissions); setNeedsReload(false); } })
       .catch(reason => { if (!controller.signal.aborted) setError(accessError(reason)); })
       .finally(() => { if (!controller.signal.aborted) setLoadingDetails(false); });
     return () => controller.abort();
@@ -141,43 +141,58 @@ export default function AccessPage() {
     && (action === 'grant' ? grants.canGrant !== false && (!grants.grantablePermissions || grants.grantablePermissions.includes(permission.id))
       : grants.canRevoke !== false && (!grants.revocablePermissions || grants.revocablePermissions.includes(permission.id)));
 
+  const changes = grants && catalogue.state === 'ready' ? catalogue.data.permissions.flatMap(permission => {
+    const direct = grants.directPermissions.includes(permission.id);
+    return direct === draft.includes(permission.id) ? [] : [{ permission, action: direct ? 'revoke' as const : 'grant' as const }];
+  }) : [];
+
   const change = async () => {
     if (busy) return;
-    if (!pending || !grants || needsReload || loadingDetails) {
-      setPending(null);
-      setError('Gli accessi devono essere ricaricati prima della conferma. Nessuna modifica è stata inviata.');
+    if (!grants || !changes.length || needsReload || loadingDetails) {
+      setError('Gli accessi devono essere ricaricati prima del salvataggio. Nessuna modifica è stata inviata.');
       return;
     }
     if (!mfa.active) {
-      setPending(null);
       setError('La verifica MFA è scaduta o assente. Ripeti la verifica MFA (passo 1). Nessuna modifica è stata inviata.');
       return;
     }
-    const metadata = catalogue.state === 'ready' ? catalogue.data.permissions.find(item => item.id === pending.permission) : undefined;
-    if (!metadata || !available(metadata, pending.action)) {
-      setPending(null);
+    if (changes.some(({ permission, action }) => !available(permission, action))) {
       setError('Questa modifica non è più consentita con i permessi attuali. Ricarica gli accessi. Nessuna modifica è stata inviata.');
       return;
     }
     setBusy(true); setNeedsReload(true); setError(''); setMessage('');
+    let current = grants;
+    let completed = 0;
+    const references: string[] = [];
     try {
-      const result = await api<Grants & { changed: boolean; correlationId: string }>(
-        `/admin/access/users/${encodeURIComponent(grants.subject)}/permissions/${encodeURIComponent(pending.permission)}`, {
-          method: pending.action === 'grant' ? 'POST' : 'DELETE',
-          headers: { 'X-Confirm-Access-Change': pending.action },
-          body: JSON.stringify({ expectedDirectPermissions: grants.directPermissions }),
-        });
-      const verified = await api<Grants>(`/admin/access/users/${encodeURIComponent(grants.subject)}`);
-      const assigned = verified.directPermissions.includes(pending.permission);
-      setGrants(verified);
-      if (assigned !== (pending.action === 'grant')) throw new Error('Esito non verificato: ricarica gli accessi prima di riprovare.');
+      for (const { permission, action } of changes) {
+        const result = await api<Grants & { changed: boolean; correlationId: string }>(
+          `/admin/access/users/${encodeURIComponent(grants.subject)}/permissions/${encodeURIComponent(permission.id)}`, {
+            method: action === 'grant' ? 'POST' : 'DELETE',
+            headers: { 'X-Confirm-Access-Change': action },
+            body: JSON.stringify({ expectedDirectPermissions: current.directPermissions }),
+          });
+        const verified = await api<Grants>(`/admin/access/users/${encodeURIComponent(grants.subject)}`);
+        const expected = action === 'grant'
+          ? [...current.directPermissions, permission.id]
+          : current.directPermissions.filter(id => id !== permission.id);
+        if (verified.directPermissions.length !== expected.length || expected.some(id => !verified.directPermissions.includes(id))) {
+          throw new Error('Esito non verificato o accessi modificati da un altro operatore: ricarica gli accessi prima di riprovare.');
+        }
+        current = verified;
+        completed++;
+        references.push(result.correlationId);
+        setGrants(verified);
+      }
+      setDraft(current.directPermissions);
       setNeedsReload(false);
-      setMessage(`Modifica verificata. Riferimento: ${result.correlationId}. Le concessioni richiedono il rinnovo del token del destinatario.`);
-      setPending(null); reloadAudit(); refresh();
+      setMessage(`${completed === 1 ? 'Modifica verificata' : `${completed} modifiche verificate`}. Riferimenti: ${references.join(', ')}. Le concessioni richiedono il rinnovo del token del destinatario.`);
+      reloadAudit(); refresh();
     } catch (reason) {
-      setPending(null);
-      setError(accessError(reason));
+      setDraft(current.directPermissions);
+      setError(`${completed > 0 ? `${completed === 1 ? '1 modifica verificata' : `${completed} modifiche verificate`} prima dell’interruzione. L’esito della modifica interrotta potrebbe essere incerto; le successive non sono state inviate. ` : ''}${accessError(reason)}`);
       reloadAudit();
+      if (completed > 0) refresh();
     } finally { setBusy(false); }
   };
 
@@ -201,7 +216,7 @@ export default function AccessPage() {
       {listing && <p role="status">Caricamento utenti…</p>}
       {!listing && !error && users.length === 0 && <p>Nessun utente trovato.</p>}
       <ul>{users.map(user => <li key={user.subject}><Button className={btn.ghost} isDisabled={busy} aria-pressed={selected?.subject === user.subject} onPress={() => {
-        if (selected?.subject !== user.subject) { setGrants(null); setPending(null); setMessage(''); }
+        if (selected?.subject !== user.subject) { setGrants(null); setDraft([]); setMessage(''); }
         setSelected(user);
       }}>{user.username || user.subject}{user.protectedTarget ? ' · Protetto' : ''}</Button></li>)}</ul>
       <div className="flex flex-wrap items-center gap-3"><span>Pagina {Math.floor(first / 25) + 1}</span><Button className={btn.secondary} isDisabled={busy || listing || first === 0} onPress={() => setFirst(Math.max(0, first - 25))}>Precedenti</Button><Button className={btn.secondary} isDisabled={busy || listing || !hasMore} onPress={() => setFirst(first + 25)}>Successivi</Button></div>
@@ -219,7 +234,7 @@ export default function AccessPage() {
       {grants && <>
         {(self || protectedTarget) && <p>Account proprio o protetto: le modifiche non sono consentite.</p>}
         {canChange && !mfa.active && !self && !protectedTarget && <p className="font-semibold">Modifiche bloccate: esegui prima la verifica MFA (passo 1).</p>}
-        <p>Seleziona o deseleziona un permesso diretto, poi conferma la modifica. I permessi ereditati dai gruppi sono in sola lettura: revocare un permesso diretto non rimuove quello ereditato. Puoi delegare soltanto permessi consentiti che possiedi attualmente.</p>
+        <p>Seleziona o deseleziona i permessi diretti, poi salva le modifiche. I permessi ereditati dai gruppi sono in sola lettura: revocare un permesso diretto non rimuove quello ereditato. Puoi delegare soltanto permessi consentiti che possiedi attualmente.</p>
         <div className="overflow-x-auto"><table className="w-full text-left">
           <caption className="sr-only">Permessi di {selected?.username || grants.subject}</caption>
           <thead><tr><th scope="col" className="p-3">Permesso</th><th scope="col" className="p-3">Diretto</th><th scope="col" className="p-3">Da gruppi (sola lettura)</th><th scope="col" className="p-3">Effettivo</th></tr></thead>
@@ -231,27 +246,25 @@ export default function AccessPage() {
             <th scope="row" className="p-3 font-medium">{permission.id}{!permission.delegable ? ' · Non delegabile' : ''}</th>
             <td className="p-3"><label className="inline-flex min-h-11 min-w-11 items-center justify-center">
               <span className="sr-only">Permesso diretto {permission.id}</span>
-              <input type="checkbox" className="h-5 w-5 accent-cyan-700 focus-visible:outline-2 focus-visible:outline-offset-4" checked={direct}
-                disabled={busy || needsReload || loadingDetails || !!pending || !available(permission, action)}
-                onChange={() => setPending({ permission: permission.id, action })} />
+              <input type="checkbox" className="h-5 w-5 accent-cyan-700 focus-visible:outline-2 focus-visible:outline-offset-4" checked={needsReload ? direct : draft.includes(permission.id)}
+                disabled={busy || needsReload || loadingDetails || !available(permission, action)}
+                onChange={event => {
+                  const checked = event.target.checked;
+                  setDraft(value => checked ? [...value, permission.id] : value.filter(id => id !== permission.id));
+                }} />
             </label></td>
             <td className="p-3">{inherited ? 'Ereditato (sola lettura)' : 'No'}</td>
             <td className="p-3">{grants.effectivePermissions.includes(permission.id) ? 'Sì' : 'No'}</td>
           </tr>;
         })}</tbody></table></div>
+        {canChange && <div className="flex flex-wrap items-center gap-3">
+          <Button className={btn.primary} isDisabled={busy || needsReload || loadingDetails || !changes.length || !mfa.active}
+            onPress={() => void change()}>{busy ? 'Salvataggio in corso…' : 'Salva modifiche'}</Button>
+          <Button className={btn.secondary} isDisabled={busy || needsReload || loadingDetails || !changes.length}
+            onPress={() => setDraft(grants.directPermissions)}>Annulla modifiche</Button>
+          {busy && <p role="status">Salvataggio in corso: attendo la risposta del server e la verifica dei permessi…</p>}
+        </div>}
       </>}
-      <ModalOverlay isOpen={!!pending} isDismissable={!busy} onOpenChange={open => { if (!open && !busy) setPending(null); }}
-        className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4">
-        <Modal className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 text-navy shadow-xl">
-        <Dialog role="alertdialog" aria-label="Conferma modifica accessi" className="space-y-3 outline-none">
-        {pending && <>
-        <p>Confermi {pending.action === 'grant' ? 'la concessione' : 'la revoca'} del permesso diretto {pending.permission} a {selected?.username || grants?.subject}?</p>
-        {busy && <p role="status">Modifica in corso: attendo la risposta del server e la verifica dei permessi…</p>}
-        <Button className={btn.danger} isDisabled={busy} onPress={() => void change()}>{busy ? 'Verifica in corso…' : 'Conferma modifica'}</Button>
-        <Button className={btn.secondary} isDisabled={busy} onPress={() => setPending(null)}>Annulla</Button>
-        </>}
-        </Dialog></Modal>
-      </ModalOverlay>
     </Panel>}
     {canAudit && <Panel labelledBy="access-audit" className="mt-6 space-y-3 p-5">
       <h2 id="access-audit" className="text-lg font-bold">Cronologia modifiche ai permessi</h2>

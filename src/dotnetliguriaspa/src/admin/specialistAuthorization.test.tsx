@@ -111,11 +111,74 @@ test('access changes send optimistic concurrency and explicit confirmation, then
   const user = userEvent.setup({ delay: null });
   await user.click(await screen.findByRole('button', { name: 'Altro utente' }));
   await user.click(await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' }));
-  expect(screen.getByRole('alertdialog')).toHaveTextContent('events.read');
-  await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+  expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.read' })).toBeChecked();
+  await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
   await screen.findByText(/Modifica verificata.*verified-change/);
   expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.read' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.read' })).toBeDisabled();
+});
+
+test('one save applies multiple staged grants and revocations using verified snapshots', async () => {
+  let direct = ['events.delete'];
+  const writes: { method: string | undefined; expected: string[] }[] = [];
+  mockApi({
+    '/admin/access/permissions': { permissions: ['events.read', 'events.manage', 'events.delete'].map(id => ({ id, delegable: true })) },
+    '/admin/access/users?': { users: [{ subject: 'other', username: 'Altro utente', enabled: true }], hasMore: false },
+    '/admin/access/users/other/permissions/': (url: string, init?: RequestInit) => {
+      const id = decodeURIComponent(url.split('/').pop()!);
+      writes.push({ method: init?.method, expected: JSON.parse(String(init?.body)).expectedDirectPermissions });
+      direct = init?.method === 'POST' ? [...direct, id] : direct.filter(value => value !== id);
+      return jsonResponse({ changed: true, correlationId: id });
+    },
+    '/admin/access/users/other': () => jsonResponse({ subject: 'other', directPermissions: direct, inheritedPermissions: [], effectivePermissions: direct, protectedTarget: false }),
+  });
+  render(withPermissions(['access.users.read', 'access.permissions.grant', 'access.permissions.revoke', 'events.read', 'events.manage', 'events.delete'], <AccessPage />));
+  const user = userEvent.setup({ delay: null });
+  await user.click(await screen.findByRole('button', { name: 'Altro utente' }));
+  for (const id of ['events.read', 'events.manage', 'events.delete']) {
+    await user.click(await screen.findByRole('checkbox', { name: `Permesso diretto ${id}` }));
+  }
+  expect(writes).toHaveLength(0);
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
+  await screen.findByText(/3 modifiche verificate/);
+  expect(writes).toEqual([
+    { method: 'POST', expected: ['events.delete'] },
+    { method: 'POST', expected: ['events.delete', 'events.read'] },
+    { method: 'DELETE', expected: ['events.delete', 'events.read', 'events.manage'] },
+  ]);
+  expect(screen.getByRole('button', { name: 'Salva modifiche' })).toBeDisabled();
+});
+
+test('batch stops on a failed change and requires reloading before retrying', async () => {
+  let direct: string[] = [];
+  const writes: string[] = [];
+  mockApi({
+    '/admin/access/permissions': { permissions: ['events.read', 'events.manage', 'events.delete'].map(id => ({ id, delegable: true })) },
+    '/admin/access/users?': { users: [{ subject: 'other', username: 'Altro utente', enabled: true }], hasMore: false },
+    '/admin/access/users/other/permissions/': (url: string) => {
+      const id = decodeURIComponent(url.split('/').pop()!);
+      writes.push(id);
+      if (id === 'events.manage') return jsonResponse({ code: 'permission_directory_unavailable' }, 503);
+      direct = [...direct, id];
+      return jsonResponse({ changed: true, correlationId: id });
+    },
+    '/admin/access/users/other': () => jsonResponse({ subject: 'other', directPermissions: direct, inheritedPermissions: [], effectivePermissions: direct, protectedTarget: false }),
+  });
+  render(withPermissions(['access.users.read', 'access.permissions.grant', 'events.read', 'events.manage', 'events.delete'], <AccessPage />));
+  const user = userEvent.setup({ delay: null });
+  await user.click(await screen.findByRole('button', { name: 'Altro utente' }));
+  for (const id of ['events.read', 'events.manage', 'events.delete']) {
+    await user.click(await screen.findByRole('checkbox', { name: `Permesso diretto ${id}` }));
+  }
+  await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('1 modifica verificata prima dell’interruzione');
+  expect(writes).toEqual(['events.read', 'events.manage']);
+  expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.read' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.manage' })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Ricarica accessi selezionati' }));
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.manage' })).toBeEnabled());
+  expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.delete' })).not.toBeChecked();
 });
 
 test('access directory defaults to board members, preserves the filter across search and paging, and can show everyone', async () => {
@@ -227,11 +290,11 @@ test('permission checkboxes cancel without writing and confirm revocation withou
   expect(checkbox).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Permesso diretto events.delete' })).toBeDisabled();
   await user.click(checkbox);
-  await user.click(screen.getByRole('button', { name: 'Annulla' }));
+  await user.click(screen.getByRole('button', { name: 'Annulla modifiche' }));
   expect(checkbox).toBeChecked();
   expect(vi.mocked(fetch).mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
   await user.click(checkbox);
-  await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+  await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
   await screen.findByText(/Modifica verificata.*revoked/);
   expect(checkbox).not.toBeChecked();
   expect(screen.getByText('Ereditato (sola lettura)')).toBeInTheDocument();
@@ -275,7 +338,7 @@ test.each([
     const checkbox = await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' });
     await waitFor(() => expect(checkbox).toBeEnabled());
     await user.click(checkbox);
-    await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+    await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(explanation);
     expect(screen.getByRole('alert').parentElement).toHaveAttribute('tabindex', '-1');
     expect(screen.getByRole('alert').parentElement).toHaveClass('sticky');
@@ -320,7 +383,7 @@ test('failed post-write verification keeps the table without claiming success or
   const checkbox = await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' });
   await waitFor(() => expect(checkbox).toBeEnabled());
   await user.click(checkbox);
-  await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
+  await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
   await screen.findByRole('alert');
   expect(screen.queryByText(/Modifica verificata/)).not.toBeInTheDocument();
   expect(checkbox).not.toBeChecked();
@@ -347,12 +410,12 @@ test('permission confirmation visibly reports progress while the server is respo
   const checkbox = await screen.findByRole('checkbox', { name: 'Permesso diretto events.read' });
   await waitFor(() => expect(checkbox).toBeEnabled());
   await user.click(checkbox);
-  await user.click(screen.getByRole('button', { name: 'Conferma modifica' }));
-  expect(screen.getByRole('alertdialog')).toHaveTextContent('Modifica in corso');
-  expect(screen.getByRole('button', { name: 'Verifica in corso…' })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Salva modifiche' }));
+  expect(screen.getByText(/Salvataggio in corso: attendo/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Salvataggio in corso…' })).toBeDisabled();
   finish?.(jsonResponse({ code: 'recent_mfa_required' }, 403));
   expect(await screen.findByRole('alert')).toHaveTextContent('recent_mfa_required');
-  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Salvataggio in corso: attendo/)).not.toBeInTheDocument();
   expect(screen.getByRole('table')).toBeInTheDocument();
 });
 
