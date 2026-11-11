@@ -9,7 +9,7 @@ import { eventFixture, serveEvent } from './eventFixtures';
 
 const CurrentPath = () => { const { pathname, hash } = useLocation(); return <span data-testid="current-path">{pathname}{hash}</span>; };
 
-const renderAt = (route: string, accountProvider = false) => render(
+const renderAt = (route: string, accountProvider = false, routeState?: unknown) => render(
   <>
     <Routes>
       <Route path="/admin/workshop/:id" element={<EventDetailAdminPage />} />
@@ -19,7 +19,7 @@ const renderAt = (route: string, accountProvider = false) => render(
     <AdminToastRegion />
     <CurrentPath />
   </>,
-  { route, accountProvider },
+  { route, accountProvider, routeState },
 );
 const setValue = (element: HTMLElement, value: string) => fireEvent.change(element, { target: { value } });
 const loaded = () => screen.findByRole('heading', { level: 1, name: 'Modifica evento - Test Workshop' });
@@ -111,10 +111,10 @@ describe('<EventDetailAdminPage /> wizard', () => {
     expect(URL.createObjectURL).toHaveBeenCalledOnce();
   });
 
-  test('reaches steps with Avanti, keeps reached steps clickable and later ones not, and moves focus to the step panel title', async () => {
+  test('right after creation, reaches steps with Avanti, keeps reached steps clickable and later ones not, and moves focus to the step panel title', async () => {
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());
-    renderAt('/admin/workshop/w1#informazioni');
+    renderAt('/admin/workshop/w1#informazioni', false, { newEvent: true });
     await loaded();
     expect(within(steps()).getByRole('link', { name: '1. Pubblicazione, raggiunto' })).toHaveAttribute('href', '/admin/workshop/w1#pubblicazione');
     expect(within(steps()).getByRole('link', { name: "3. Informazioni sull'evento, passo attuale" })).toHaveAttribute('aria-current', 'step');
@@ -139,6 +139,19 @@ describe('<EventDetailAdminPage /> wizard', () => {
     await user.click(screen.getByRole('button', { name: "Indietro: Informazioni sull'evento" }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('#informazioni');
     expect(screen.getByRole('heading', { level: 2, name: 'Informazioni' })).toHaveFocus();
+  });
+
+  test('editing an existing event, opens any later step directly from the stepper', async () => {
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1');
+    await loaded();
+    expect(within(steps()).getByRole('link', { name: '10. Foto, non ancora raggiunto' })).toHaveAttribute('href', '/admin/workshop/w1#foto');
+    await user.click(within(steps()).getByRole('link', { name: '9. Materiali, non ancora raggiunto' }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('#materiali');
+    expect(screen.getByRole('heading', { level: 2, name: 'Materiali' })).toHaveFocus();
+    expect(within(steps()).getByRole('link', { name: '4. Sede, raggiunto' })).toBeInTheDocument();
+    expect(within(steps()).getByRole('link', { name: '10. Foto, non ancora raggiunto' })).toBeInTheDocument();
   });
 
   test('moves the focus to the visible panel title of the talk pool, schedule and registration steps', async () => {
@@ -408,11 +421,11 @@ describe('<EventDetailAdminPage /> wizard', () => {
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Torna su' })).not.toBeInTheDocument());
   });
 
-  test('on phones shows the compact header with a progress bar and only the reachable steps in a menu', async () => {
+  test('on phones shows the compact header with a progress bar and, right after creation, only the reachable steps in a menu', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
     serveEvent(eventFixture());
-    renderAt('/admin/workshop/w1#informazioni');
+    renderAt('/admin/workshop/w1#informazioni', false, { newEvent: true });
     await loaded();
     expect(steps()).toHaveTextContent("Passo 3 di 10 · Informazioni sull'evento");
     expect(within(steps()).getByRole('progressbar', { name: 'Passo 3 di 10' })).toHaveAttribute('aria-valuenow', '3');
@@ -424,5 +437,18 @@ describe('<EventDetailAdminPage /> wizard', () => {
     await user.click(within(menu).getByRole('menuitem', { name: '1. Pubblicazione, raggiunto' }));
     expect(screen.getByTestId('current-path')).toHaveTextContent('#pubblicazione');
     expect(steps()).toHaveTextContent('Passo 1 di 10 · Pubblicazione');
+  });
+
+  test('on phones, editing an existing event, lists every step in the menu', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const user = userEvent.setup({ delay: null, pointerEventsCheck: 0 });
+    serveEvent(eventFixture());
+    renderAt('/admin/workshop/w1');
+    await loaded();
+    await user.click(within(steps()).getByRole('button', { name: 'Passaggi' }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(10);
+    await user.click(within(menu).getByRole('menuitem', { name: '9. Materiali, non ancora raggiunto' }));
+    expect(screen.getByTestId('current-path')).toHaveTextContent('#materiali');
   });
 });

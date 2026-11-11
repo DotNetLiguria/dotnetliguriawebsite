@@ -7,7 +7,7 @@ import EventCreatePage, { MISSING_FIELDS_MESSAGE } from './EventCreatePage';
 import { venuesFixture } from './eventFixtures';
 
 type User = ReturnType<typeof userEvent.setup>;
-const CurrentPath = () => <span data-testid="current-path">{useLocation().pathname}</span>;
+const CurrentPath = () => { const { pathname, state } = useLocation(); return <span data-testid="current-path" data-state={JSON.stringify(state)}>{pathname}</span>; };
 const renderPage = () => render(
   <>
     <Routes>
@@ -80,6 +80,8 @@ describe('<EventCreatePage />', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByTestId('current-path')).toHaveTextContent('/admin/workshop/00112233-4455-6677-8899-aabbccddeeff'));
     expect(screen.getByText('Scheda evento')).toBeInTheDocument();
+    // The new event opens as a wizard, with the steps ahead locked.
+    expect(screen.getByTestId('current-path')).toHaveAttribute('data-state', '{"newEvent":true}');
     // As before: the new event opens without a confirmation message.
     expect(screen.queryByText('Evento creato')).not.toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();

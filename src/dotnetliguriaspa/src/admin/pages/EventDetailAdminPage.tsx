@@ -87,12 +87,15 @@ export default function EventDetailAdminPage() {
     }
   }, [api, id, replace]);
 
-  // Steps: the hash names the current one; everything up to the furthest step reached stays reachable.
+  // Steps: the hash names the current one. Right after creation the page is a wizard and only the steps up to
+  // the furthest one reached can be opened from the stepper; an existing event can open any step directly.
   const stepIndex = stepIndexOf(step);
+  const [newEvent] = useState(() => (location.state as { newEvent?: unknown } | null)?.newEvent === true);
+  const stepState = newEvent ? { newEvent: true } : undefined;
   const [reached, setReached] = useState(stepIndex);
   useEffect(() => { setReached(value => Math.max(value, stepIndex)); }, [stepIndex]);
   const hrefFor = useCallback((next: StepId) => `${location.pathname}#${next}`, [location.pathname]);
-  const goTo = (next: StepId) => navigate({ pathname: location.pathname, hash: `#${next}` }, { replace: true });
+  const goTo = (next: StepId) => navigate({ pathname: location.pathname, hash: `#${next}` }, { replace: true, state: stepState });
   // Opening another step (Avanti, Indietro, the stepper) moves the focus to the step's first panel title.
   const stepArea = useRef<HTMLDivElement>(null);
   const shownStep = useRef(step);
@@ -188,7 +191,7 @@ export default function EventDetailAdminPage() {
       <p className="mt-2">{workshop.authorization ? workshop.authorization.isPast ? 'Evento passato' : 'Evento corrente' : 'Periodo dell’evento non verificato dal server'}</p>
       {!editable && step !== 'pubblicazione' && <p role="status">Sola lettura: manca il permesso per questa azione o per la gestione degli eventi passati.</p>}
 
-      <Stepper current={step} reached={reached} hrefFor={hrefFor} onSelect={goTo} />
+      <Stepper current={step} reached={reached} allOpen={!newEvent} linkState={stepState} hrefFor={hrefFor} onSelect={goTo} />
 
       <div ref={stepArea} className="mt-6">
         <fieldset disabled={!editable && !['pubblicazione', 'materiali', 'foto'].includes(step)} className="min-w-0 border-0 p-0">{content()}</fieldset>

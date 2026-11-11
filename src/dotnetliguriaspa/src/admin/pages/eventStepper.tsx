@@ -7,9 +7,10 @@ import { useIsDesktop } from './listKit';
 import { STEPS, StepId, stepIndexOf } from './eventModel';
 
 // The ten steps of the event wizard, as the previous admin ordered them, in a bar that stays at the top while
-// the page scrolls (as before). Steps already reached (and every earlier one) can be opened directly; the ones
-// ahead open with "Avanti". Desktop draws the row with connectors; phones get "Passo 3 di 10", a progress bar
-// and the reachable steps in a menu.
+// the page scrolls (as before). Editing an existing event, every step can be opened directly. Right after its
+// creation, only the steps already reached (and every earlier one) can; the ones ahead open with "Avanti".
+// Desktop draws the row with connectors; phones get "Passo 3 di 10", a progress bar and the reachable steps
+// in a menu.
 
 /** Sticky like the previous stepper: below the admin's top bar on phones, at the top of the content area on desktop. */
 const sticky = 'sticky top-[74px] z-20 lg:top-2.5';
@@ -18,7 +19,11 @@ interface StepperProps {
   current: StepId;
   /** Index of the furthest step reached in this visit. */
   reached: number;
-  hrefFor: (id: StepId) => string;
+  /** Every step can be opened, also those not reached yet (an existing event). */
+  allOpen?: boolean;
+  /** Router state kept by the step links. */
+  linkState?: unknown;
+  hrefFor:  (id: StepId) => string;
   onSelect: (id: StepId) => void;
 }
 
@@ -37,7 +42,7 @@ function StepMarker({ index, mark, className = 'size-8 text-sm' }: { index: numb
   );
 }
 
-function DesktopStepper({ current, reached, hrefFor }: StepperProps) {
+function DesktopStepper({ current, reached, allOpen = false, linkState, hrefFor }: StepperProps) {
   const currentIndex = stepIndexOf(current);
   return (
     <nav aria-label="Passaggi dell'evento" className={`${sticky} mt-6 rounded-2xl border border-line bg-white px-2 py-3`}>
@@ -53,11 +58,12 @@ function DesktopStepper({ current, reached, hrefFor }: StepperProps) {
           return (
             <li key={step.id} className="relative flex min-w-0 flex-1 flex-col items-center">
               {index < STEPS.length - 1 && <span aria-hidden="true" className={`absolute top-4 left-1/2 h-0.5 w-full ${index < reached ? 'bg-basil-700/40' : 'bg-line'}`} />}
-              {mark === 'ahead' ? (
+              {mark === 'ahead' && !allOpen ? (
                 <span aria-label={stepName(index, step.label, mark)} className="relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1.5 px-1 py-1 text-center">{body}</span>
               ) : (
                 <Link
                   to={hrefFor(step.id)}
+                  state={linkState}
                   aria-current={mark === 'current' ? 'step' : undefined}
                   aria-label={stepName(index, step.label, mark)}
                   className={`relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1.5 rounded-xl px-1 py-1 text-center transition-colors hover:bg-cyan-50/60 ${linkFocus}`}
@@ -73,11 +79,11 @@ function DesktopStepper({ current, reached, hrefFor }: StepperProps) {
   );
 }
 
-function PhoneStepper({ current, reached, onSelect }: StepperProps) {
+function PhoneStepper({ current, reached, allOpen = false, onSelect }: StepperProps) {
   const index = stepIndexOf(current);
   const step = STEPS[index];
   const total = STEPS.length;
-  const reachable = STEPS.filter((_, i) => i <= reached);
+  const reachable = allOpen ? STEPS : STEPS.filter((_, i) => i <= reached);
   return (
     <nav aria-label="Passaggi dell'evento" className={`${sticky} mt-6 rounded-2xl border border-line bg-white p-4`}>
       <div className="flex items-center justify-between gap-3">
@@ -85,7 +91,7 @@ function PhoneStepper({ current, reached, onSelect }: StepperProps) {
         <MenuTrigger>
           <Button className={`${btn.ghost} shrink-0`}>Passaggi<AdminIcon name="chevron" className="size-4" /></Button>
           <Popover placement="bottom end" offset={4} className="min-w-72 rounded-xl border border-line bg-white p-1.5 shadow-lift outline-none">
-            <Menu aria-label="Passaggi raggiunti" onAction={key => onSelect(key as StepId)} className="outline-none">
+            <Menu aria-label={allOpen ? "Passaggi dell'evento" : 'Passaggi raggiunti'} onAction={key => onSelect(key as StepId)} className="outline-none">
               {reachable.map((item, i) => {
                 const mark = markOf(i, index, reached);
                 return (

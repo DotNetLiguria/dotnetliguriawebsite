@@ -88,7 +88,8 @@ export default function EventCreatePage() {
       });
       const id = created?.workshopId ?? created?.WorkshopId;
       if (!isGuid(id)) throw new Error("L'evento è stato creato, ma il server non ha restituito un ID evento valido.");
-      navigate(can('events.read') ? `/admin/workshop/${id}` : '/admin');
+      // The new event opens as a wizard: the steps ahead unlock one by one (see EventDetailAdminPage).
+      navigate(can('events.read') ? `/admin/workshop/${id}` : '/admin', { state: { newEvent: true } });
     } catch (submitError) {
       notify(detailMessage(submitError, "Impossibile creare l'evento", "Errore nella creazione dell'evento"), { kind: 'error' });
       setSaving(false);
