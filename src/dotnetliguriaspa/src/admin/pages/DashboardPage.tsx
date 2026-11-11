@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useOidcUser } from '@axa-fr/react-oidc';
 import { AdminIcon, AdminIconName } from '../icons';
 import { Badge, EmptyState, LoadError, PageHeader, Panel, btn, linkFocus } from '../ui';
-import { AdminSpeaker, AdminVenue, AdminWorkshop, AdminLoad, clean, nameKey, useAdminLoad, useSpeakerPhotos } from '../adminApi';
+import { AdminSpeaker, AdminVenue, AdminWorkshop, AdminLoad, TicketSales, clean, nameKey, useAdminLoad, useSpeakerPhotos } from '../adminApi';
 import { contentUrl } from '../../site/siteApi';
 import { dayKey, formatDate, formatWeekday } from '../../site/format';
 import { programme, sessionCount, sessionsLabel } from '../../site/event/programme';
@@ -75,7 +75,31 @@ function NextEvent({ workshop }: { workshop: AdminWorkshop }) {
         <CheckRow done={!!registrationOf(workshop)} title="Iscrizione" detail={registrationOf(workshop) ? 'Link di prenotazione presente' : 'Manca il link di prenotazione.'} action={registrationOf(workshop) ? undefined : fix('Aggiungi il link', 'iscrizione')} />
         <CheckRow done={workshop.published === true} title="Pubblicazione" detail={workshop.published === true ? 'Visibile sul sito' : 'In bozza: non è ancora sul sito.'} action={workshop.published === true ? undefined : fix('Pubblica', 'pubblicazione')} />
       </ul>
+      {workshop.eventbritePublished && workshop.eventbriteEventId && canPerform(capabilities, 'eventbrite.read', workshop) && (
+        <EventbriteSales key={workshop.workshopId} workshopId={workshop.workshopId} />
+      )}
     </Panel>
+  );
+}
+
+function EventbriteSales({ workshopId }: { workshopId: string }) {
+  const [sales, reload] = useAdminLoad<TicketSales>(`/Eventbrite/TicketSales/${encodeURIComponent(workshopId)}`);
+  return (
+    <section aria-labelledby="eventbrite-sales" className="space-y-3 border-t border-line p-5 sm:p-6">
+      <h3 id="eventbrite-sales" className="text-lg font-bold">Biglietti Eventbrite</h3>
+      {sales.state === 'loading' && <p role="status">Caricamento delle vendite Eventbrite…</p>}
+      {sales.state === 'error' && <LoadError message={`Le vendite Eventbrite non sono disponibili (${sales.message}).`} onRetry={reload} />}
+      {sales.state === 'ready' && <>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {([['Venduti', sales.data.sold], ['In sospeso', sales.data.pending], ['Totale', sales.data.totalCapacity], ['Rimanenti', sales.data.remaining]] as const).map(([label, count]) => (
+            <div key={label}><dt className="text-sm text-muted">{label}</dt><dd className="text-xl font-bold tabular-nums">{count}</dd></div>
+          ))}
+        </dl>
+        <p className="text-sm text-muted">In sospeso: biglietti conteggiati da Eventbrite come pendenti; possono occupare disponibilità.</p>
+        <p className="text-sm text-muted">Ultimo aggiornamento: {new Date(sales.data.refreshedAt).toLocaleString('it-IT')}</p>
+        <button type="button" className={btn.secondary} onClick={reload}>Aggiorna i biglietti</button>
+      </>}
+    </section>
   );
 }
 

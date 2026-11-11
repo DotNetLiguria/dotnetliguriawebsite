@@ -3,6 +3,7 @@ import { useAccountCapabilities } from '../../account/AccountCapabilities';
 import { canPerform, hasAllPermissions } from '../../account/permissions';
 import { Button, Disclosure, DisclosureGroup, DisclosurePanel, Heading } from 'react-aria-components';
 import { AdminIcon } from '../icons';
+import { TicketSales } from '../adminApi';
 import { Badge, Panel, TextAreaInput, TextInput, btn } from '../ui';
 import { notify } from '../toasts';
 import { MoveButtons, restoreMoveFocus } from './listKit';
@@ -62,8 +63,6 @@ const matchedSpeakerIds = (talk: EventTalk, speakers: EventSpeaker[]) =>
     const speaker = speakers.find(value => value.workshopSpeakerId === talkSpeaker.workshopSpeakerId || (!talkSpeaker.workshopSpeakerId && value.name === talkSpeaker.name));
     return speaker ? [speaker.workshopSpeakerId] : [];
   });
-
-interface TicketSales { totalCapacity: number; sold: number; pending: number; remaining: number; refreshedAt: string }
 
 export function AgendaModule({ page, activePage }: { page: EventPage; activePage: AgendaPage | null }) {
   const { workshop, speakers, api } = page;

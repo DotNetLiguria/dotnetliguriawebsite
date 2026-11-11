@@ -10,6 +10,16 @@ export interface AdminWorkshop extends SiteWorkshop, ResourceAuthorization {
   published?: boolean;
   in_homepage?: boolean;
   feedbackEnabled?: boolean;
+  eventbriteEventId?: string | null;
+  eventbritePublished?: boolean;
+}
+
+export interface TicketSales {
+  totalCapacity: number;
+  sold: number;
+  pending: number;
+  remaining: number;
+  refreshedAt: string;
 }
 
 export interface AdminSpeaker {
